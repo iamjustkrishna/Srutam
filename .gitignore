@@ -1,0 +1,49 @@
+# Android Studio / IntelliJ
+*.iml
+.idea/
+
+# Local assistant/tooling state
+.claude/
+
+# Local machine config and secrets
+local.properties
+*.keystore
+*.jks
+
+# Gradle / Kotlin build state
+.gradle/
+.gradle-user-home/
+.kotlin/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build outputs
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.class
+*.log
+
+# Temporary/generated vendor downloads
+.tmp-*/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+sherpa-onnx-master-src/
+
+# Local notes/artifacts not needed to build the app
+QUICK_START.md
+cleanup.bat
+cleanup_*.py
+screenshot.png
+
+# OS files
+.DS_Store
+Thumbs.db

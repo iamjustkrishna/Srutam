@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Srutam</string>
+    <string name="accessibility_service_description">Allows Srutam to capture volume button presses to start/stop audio recording. This service does not collect any personal data.</string>
+    <string name="recording_notification_title">Recording Audio</string>
+    <string name="recording_notification_text">Tap to open Srutam</string>
+    <string name="recording_notification_channel_name">Audio Recording</string>
+    <string name="recording_notification_channel_desc">Notifications shown during audio recording</string>
+    <string name="floating_button_desc">Floating record button</string>
+</resources>
