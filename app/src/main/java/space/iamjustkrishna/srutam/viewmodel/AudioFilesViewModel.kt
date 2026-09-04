@@ -555,6 +555,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                     } else {
                         recording.name
                     }
+                    saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
                     repository.updateRecording(
                         recording.copy(
                             name = updatedName,
@@ -590,6 +591,35 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 }
 
                 loadAudioFiles()
+            }
+        }
+    }
+
+    fun processPendingOfflineRecordings() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
+            if (!hasInternet) {
+                Log.d(TAG, "Cannot process pending offline recordings: No internet")
+                return@launch
+            }
+
+            val currentMap = recordingsByPath.value
+            val pending = currentMap.values.filter { rec ->
+                !rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing
+            }
+
+            if (pending.isEmpty()) {
+                Log.d(TAG, "No pending offline recordings found")
+                return@launch
+            }
+
+            Log.d(TAG, "Batch processing ${pending.size} pending offline recordings")
+            for (recording in pending) {
+                try {
+                    retryAiProcessing(recording)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed auto-processing recording ${recording.id}", e)
+                }
             }
         }
     }

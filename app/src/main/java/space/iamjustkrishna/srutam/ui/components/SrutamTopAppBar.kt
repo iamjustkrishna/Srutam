@@ -20,6 +20,9 @@ import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.TextSecondary
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+
 @Composable
 fun SquircleActionButton(
     icon: ImageVector,
@@ -31,9 +34,9 @@ fun SquircleActionButton(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = Color.White.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-        shadowElevation = 2.dp,
+        color = Color.White.copy(alpha = 0.88f),
+        border = BorderStroke(1.dp, Color(0xFFD6E0EC).copy(alpha = 0.85f)),
+        shadowElevation = 1.dp,
         modifier = modifier.size(44.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -57,12 +60,25 @@ fun SrutamTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Surface(
+        color = Color(0xFFF4F5F8).copy(alpha = 0.85f),
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)
+            .drawBehind {
+                drawLine(
+                    color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 8.dp)
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -119,4 +135,5 @@ fun SrutamTopAppBar(
             }
         }
     }
+}
 }

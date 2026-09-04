@@ -16,17 +16,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.service.FloatingButtonService
@@ -34,6 +38,7 @@ import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationServic
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.utils.AudioFileReader
 
 @Composable
 fun SettingsScreen(
@@ -55,64 +60,50 @@ fun SettingsScreen(
     var customApiKey by remember {
         mutableStateOf(AppPreferences.getCustomApiKey(context))
     }
+    var customModel by remember {
+        mutableStateOf(AppPreferences.getCustomModel(context))
+    }
 
     Scaffold(
         topBar = {
-            Column(
+            Surface(
+                color = Color(0xFFF4F5F8).copy(alpha = 0.88f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
+                    .drawBehind {
+                        drawLine(
+                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        SquircleActionButton(
-                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Back",
-                            onClick = onNavigateBack
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Srutam",
-                                fontSize = 28.sp,
-                                fontFamily = PlayfairDisplayFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Settings",
-                                fontSize = 28.sp,
-                                fontFamily = PlayfairDisplayFontFamily,
-                                fontStyle = FontStyle.Italic,
-                                fontWeight = FontWeight.Normal,
-                                color = CobaltBlue
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = CobaltContainer,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClick = onNavigateBack)
-                    ) {
-                        Text(
-                            text = "Done",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CobaltBlue,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            tint = TextPrimary,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Settings",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
                 }
             }
         },
@@ -321,45 +312,44 @@ fun SettingsScreen(
                             }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            RadioButton(
-                                selected = selectedProvider == AppPreferences.PROVIDER_SRUTAM_DEFAULT,
-                                onClick = {
-                                    selectedProvider = AppPreferences.PROVIDER_SRUTAM_DEFAULT
-                                    AppPreferences.setAIProvider(context, AppPreferences.PROVIDER_SRUTAM_DEFAULT)
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = CobaltBlue)
-                            )
-                            Column {
+                        RadioButton(
+                            selected = selectedProvider == AppPreferences.PROVIDER_SRUTAM_DEFAULT,
+                            onClick = {
+                                selectedProvider = AppPreferences.PROVIDER_SRUTAM_DEFAULT
+                                AppPreferences.setAIProvider(context, AppPreferences.PROVIDER_SRUTAM_DEFAULT)
+                            },
+                            colors = RadioButtonDefaults.colors(selectedColor = CobaltBlue)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 Text(
                                     text = "Srutam Cloud (Default)",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 14.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = TextPrimary,
+                                    maxLines = 1
                                 )
-                                Text(
-                                    text = "Out-of-the-box summaries and chat",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
-                                )
+                                Surface(color = SlateGrouped, shape = CircleShape) {
+                                    Text(
+                                        text = "Free",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextSecondary,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
-                        }
-
-                        Surface(color = SlateGrouped, shape = CircleShape) {
                             Text(
-                                text = "Free with limits",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                text = "Out-of-the-box summaries and chat",
+                                fontSize = 12.sp,
                                 color = TextSecondary,
                                 maxLines = 1,
-                                softWrap = false,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -382,7 +372,7 @@ fun SettingsScreen(
                             }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         RadioButton(
                             selected = selectedProvider != AppPreferences.PROVIDER_SRUTAM_DEFAULT,
@@ -397,21 +387,21 @@ fun SettingsScreen(
                         Column {
                             Text(
                                 text = "Custom API Key (BYOK)",
-                                style = MaterialTheme.typography.titleMedium,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "Bring your own key for unlimited queries",
-                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 12.sp,
                                 color = TextSecondary
                             )
                         }
                     }
 
-                    // Provider Pills Selection
+                    // Provider Pills & Model Selection
                     if (selectedProvider != AppPreferences.PROVIDER_SRUTAM_DEFAULT) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -493,6 +483,83 @@ fun SettingsScreen(
                                 unfocusedBorderColor = SlateBorder
                             )
                         )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Model Selection & Presets
+                        Text(
+                            text = "MODEL CONFIGURATION",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSecondary,
+                            letterSpacing = 0.8.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val modelPresets = when (selectedProvider) {
+                            AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini")
+                            AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-5-sonnet", "claude-3-5-haiku")
+                            AppPreferences.PROVIDER_GEMINI -> listOf("gemini-1.5-flash", "gemini-1.5-pro")
+                            AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant")
+                            else -> listOf("gemini-1.5-flash")
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            modelPresets.forEach { preset ->
+                                val isSelected = customModel == preset
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            customModel = preset
+                                            AppPreferences.setCustomModel(context, preset)
+                                            Toast.makeText(context, "Model set to $preset", Toast.LENGTH_SHORT).show()
+                                        },
+                                    color = if (isSelected) CobaltContainer else SlateGrouped,
+                                    border = BorderStroke(1.dp, if (isSelected) CobaltBlue else SlateBorder),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = preset,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) CobaltBlue else TextPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = customModel,
+                            onValueChange = { customModel = it },
+                            placeholder = { Text("Enter model name (e.g. ${modelPresets.first()})") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                if (customModel.isNotBlank()) {
+                                    TextButton(
+                                        onClick = {
+                                            AppPreferences.setCustomModel(context, customModel)
+                                            Toast.makeText(context, "Model saved", Toast.LENGTH_SHORT).show()
+                                        }
+                                    ) {
+                                        Text("Save", fontWeight = FontWeight.Bold, color = CobaltBlue)
+                                    }
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = CobaltBlue,
+                                unfocusedBorderColor = SlateBorder
+                            )
+                        )
                     }
                 }
             }
@@ -500,6 +567,17 @@ fun SettingsScreen(
             // =========================================================
             // Section 4: Build & App Info
             // =========================================================
+            val recordingsDir = remember { AudioFileReader.getRecordingsDirectory() }
+            val audioFiles = remember { recordingsDir.listFiles() ?: emptyArray() }
+            val totalBytes = remember { audioFiles.sumOf { it.length() } }
+            val formattedStorage = remember(totalBytes) {
+                when {
+                    totalBytes >= 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", totalBytes / (1024f * 1024f))
+                    totalBytes >= 1024 -> String.format(java.util.Locale.US, "%.1f KB", totalBytes / 1024f)
+                    else -> "$totalBytes B"
+                }
+            }
+
             SettingsSection(title = "ABOUT & STORAGE") {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -528,17 +606,77 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
+                            text = "Audio Storage",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "$formattedStorage (${audioFiles.size} notes)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
                             text = "Version",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = TextPrimary
                         )
                         Text(
-                            text = "Srutam v1.2.0 (Build 42)",
+                            text = "Srutam v2.0.0 (Build 4)",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
                     }
+                }
+            }
+
+            // Developer Footer
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Developed with care by Krishna",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com/iamjustkrishna"))
+                            context.startActivity(intent)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "𝕏",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "@iamjustkrishna",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CobaltBlue
+                    )
                 }
             }
 

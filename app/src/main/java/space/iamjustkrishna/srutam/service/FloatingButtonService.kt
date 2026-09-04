@@ -34,6 +34,7 @@ class FloatingButtonService : Service() {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isExpanded = false
+    private var isDockedLeft = true
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -62,6 +63,7 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.TYPE_PHONE
             }
 
+            val screenHeight = resources.displayMetrics.heightPixels
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -70,8 +72,8 @@ class FloatingButtonService : Service() {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 16
-                y = 200
+                x = 0
+                y = (screenHeight * 0.35f).toInt()
             }
             windowLayoutParams = params
 
@@ -89,7 +91,6 @@ class FloatingButtonService : Service() {
 
     private fun setupDragAndClick(params: WindowManager.LayoutParams) {
         val collapsedBtn = floatingView?.findViewById<View>(R.id.floating_record_button)
-        val dockRoot = floatingView?.findViewById<View>(R.id.floating_dock_root)
 
         val touchListener = object : View.OnTouchListener {
             private var lastAction = 0
@@ -119,7 +120,15 @@ class FloatingButtonService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!moved && lastAction == MotionEvent.ACTION_DOWN) {
+                        if (moved) {
+                            val screenWidth = resources.displayMetrics.widthPixels
+                            val density = resources.displayMetrics.density
+                            val tabWidth = (44 * density).toInt()
+                            isDockedLeft = (params.x + tabWidth / 2) < (screenWidth / 2)
+                            params.x = if (isDockedLeft) 0 else (screenWidth - tabWidth)
+                            windowManager?.updateViewLayout(floatingView, params)
+                            renderCurrentState()
+                        } else if (lastAction == MotionEvent.ACTION_DOWN) {
                             toggleExpanded()
                         }
                         return true
@@ -144,6 +153,7 @@ class FloatingButtonService : Service() {
             Log.d(TAG, "Open app clicked from dock")
             openMainActivity()
             isExpanded = false
+            adjustPositionForExpandedState()
             renderCurrentState()
         }
 
@@ -151,6 +161,7 @@ class FloatingButtonService : Service() {
         floatingView?.findViewById<View>(R.id.btn_dock_collapse)?.setOnClickListener {
             Log.d(TAG, "Collapse button clicked from dock")
             isExpanded = false
+            adjustPositionForExpandedState()
             renderCurrentState()
         }
 
@@ -179,14 +190,20 @@ class FloatingButtonService : Service() {
     private fun adjustPositionForExpandedState() {
         val params = windowLayoutParams ?: return
         val screenWidth = resources.displayMetrics.widthPixels
+        val density = resources.displayMetrics.density
+        val tabWidth = (44 * density).toInt()
+
         if (isExpanded) {
-            // Keep dock visible without spilling over screen edges
-            val estimatedWidthPx = (240 * resources.displayMetrics.density).toInt()
-            if (params.x + estimatedWidthPx > screenWidth) {
-                params.x = Math.max(16, screenWidth - estimatedWidthPx - 32)
-                windowManager?.updateViewLayout(floatingView, params)
+            val estimatedWidthPx = (240 * density).toInt()
+            if (isDockedLeft) {
+                params.x = (8 * density).toInt()
+            } else {
+                params.x = Math.max((8 * density).toInt(), screenWidth - estimatedWidthPx - (8 * density).toInt())
             }
+        } else {
+            params.x = if (isDockedLeft) 0 else (screenWidth - tabWidth)
         }
+        windowManager?.updateViewLayout(floatingView, params)
     }
 
     private fun renderCurrentState() {
@@ -199,13 +216,18 @@ class FloatingButtonService : Service() {
         val isRec = RecordingForegroundService.isRecording
         val isPaused = RecordingForegroundService.isPaused
 
-        if (isRec) {
-            collapsedBtn?.setBackgroundResource(R.drawable.bg_floating_dock_recording)
-        } else {
-            collapsedBtn?.setBackgroundResource(R.drawable.bg_floating_dock)
-        }
-
         if (!isExpanded) {
+            if (isDockedLeft) {
+                collapsedBtn?.setBackgroundResource(
+                    if (isRec) R.drawable.bg_floating_dock_recording_edge_left
+                    else R.drawable.bg_floating_dock_edge_left
+                )
+            } else {
+                collapsedBtn?.setBackgroundResource(
+                    if (isRec) R.drawable.bg_floating_dock_recording_edge_right
+                    else R.drawable.bg_floating_dock_edge_right
+                )
+            }
             collapsedLayout?.visibility = View.VISIBLE
             expandedIdleLayout?.visibility = View.GONE
             expandedRecLayout?.visibility = View.GONE
@@ -247,6 +269,7 @@ class FloatingButtonService : Service() {
             startService(intent)
         }
         isExpanded = true
+        adjustPositionForExpandedState()
         renderCurrentState()
     }
 
@@ -269,6 +292,7 @@ class FloatingButtonService : Service() {
         }
         startService(intent)
         isExpanded = false
+        adjustPositionForExpandedState()
         renderCurrentState()
     }
 
@@ -278,6 +302,7 @@ class FloatingButtonService : Service() {
         }
         startService(intent)
         isExpanded = false
+        adjustPositionForExpandedState()
         renderCurrentState()
     }
 

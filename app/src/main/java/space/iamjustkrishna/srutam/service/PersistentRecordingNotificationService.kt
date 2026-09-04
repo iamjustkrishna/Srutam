@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.service
+package space.iamjustkrishna.srutam.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -43,6 +43,7 @@ class PersistentRecordingNotificationService : Service() {
             }
             ACTION_STOP_NOTIFICATION -> {
                 Log.d(TAG, "Stopping persistent notification")
+                space.iamjustkrishna.srutam.utils.AppPreferences.setPersistentNotificationEnabled(this, false)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -132,6 +133,7 @@ class PersistentRecordingNotificationService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        space.iamjustkrishna.srutam.utils.AppPreferences.setPersistentNotificationEnabled(this, false)
         Log.d(TAG, "PersistentRecordingNotificationService destroyed")
     }
 }

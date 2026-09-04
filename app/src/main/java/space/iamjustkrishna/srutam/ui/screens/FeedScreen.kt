@@ -141,6 +141,12 @@ fun FeedScreen(
     var pendingScopedDeleteFiles by remember { mutableStateOf<List<AudioFileInfo>>(emptyList()) }
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            viewModel.processPendingOfflineRecordings()
+        }
+    }
+
     val isSelectionMode = selectedFilePaths.isNotEmpty()
     val deleteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -466,23 +472,25 @@ fun FeedScreen(
         },
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            // Segmented Filter Pills matching reference mockup
+            val pendingAiCount = remember(audioFiles, recordingsByPath) {
+                audioFiles.count { audioFile ->
+                    val rec = recordingsByPath[audioFile.filePath]
+                    rec?.summary.isNullOrBlank()
+                }
+            }
+
+            // Compact Segmented Filter Capsule (34dp height)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .height(34.dp)
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFFE3EAF4).copy(alpha = 0.8f),
-                                Color(0xFFE7EFF7).copy(alpha = 0.8f),
-                                Color(0xFFEDE8F5).copy(alpha = 0.7f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(24.dp)
+                        color = Color(0xFFE8EEF5).copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(17.dp)
                     )
-                    .border(1.dp, Color(0xFFD6E0EC).copy(alpha = 0.8f), RoundedCornerShape(24.dp))
-                    .padding(4.dp),
+                    .border(1.dp, Color(0xFFD6E0EC).copy(alpha = 0.8f), RoundedCornerShape(17.dp))
+                    .padding(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -490,32 +498,75 @@ fun FeedScreen(
                     label = "All Notes (${audioFiles.size})",
                     isSelected = selectedFilter == FeedFilter.DEFAULT,
                     onClick = { selectedFilter = FeedFilter.DEFAULT },
-                    modifier = Modifier.weight(1.1f)
-                )
-                FilterSegmentItem(
-                    label = "With Tasks",
-                    isSelected = selectedFilter == FeedFilter.PROCESSED,
-                    onClick = { selectedFilter = FeedFilter.PROCESSED },
                     modifier = Modifier.weight(1f)
                 )
                 FilterSegmentItem(
-                    label = "Pending AI",
+                    label = if (pendingAiCount > 0) "Pending AI ($pendingAiCount)" else "Pending AI",
                     isSelected = selectedFilter == FeedFilter.UNPROCESSED,
                     onClick = { selectedFilter = FeedFilter.UNPROCESSED },
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            // Pending AI Batch Banner
+            if (selectedFilter == FeedFilter.UNPROCESSED && pendingAiCount > 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 3.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CobaltContainer.copy(alpha = 0.6f))
+                        .border(1.dp, CobaltBorder.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = CobaltBlue,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "$pendingAiCount note${if (pendingAiCount > 1) "s" else ""} ready for insights",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = CobaltBlue
+                        )
+                    }
+                    Surface(
+                        color = CobaltBlue,
+                        shape = CircleShape,
+                        modifier = Modifier.clickable {
+                            viewModel.processPendingOfflineRecordings()
+                        }
+                    ) {
+                        Text(
+                            text = "Process All",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
             if (!isOnline) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
                 ) {
                     Text(
-                        text = "Offline mode: local transcription works, and AI summaries will become available when internet is back.",
+                        text = "Offline mode: local transcription works. AI insights will process automatically when internet is back.",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -538,8 +589,10 @@ fun FeedScreen(
                             query = searchQuery,
                             onClearSearch = { searchQuery = "" }
                         )
+                    } else if (selectedFilter == FeedFilter.UNPROCESSED) {
+                        PendingAiEmptyState()
                     } else {
-                        EmptyState()
+                        NotesEmptyState()
                     }
                 } else {
                     AudioFilesList(
@@ -841,7 +894,7 @@ fun RecordingIndicatorBanner() {
 }
 
 @Composable
-fun EmptyState(modifier: Modifier = Modifier) {
+fun NotesEmptyState(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -853,25 +906,82 @@ fun EmptyState(modifier: Modifier = Modifier) {
                 .fillMaxSize()
                 .padding(32.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Mic,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFFF1F5F9),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(34.dp),
+                        tint = Color(0xFF475569)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "No recordings yet",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
+                text = "Capture Your First Note",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Hold the recording button below to start capturing your audio notes",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                text = "Tap the record button below to speak your thoughts. We will transcribe and summarize them automatically.",
+                fontSize = 14.sp,
+                color = Color(0xFF64748B),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun PendingAiEmptyState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFFEFF6FF),
+                border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(34.dp),
+                        tint = CobaltBlue
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "All Caught Up",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Every voice note has been transcribed and synthesized with AI.",
+                fontSize = 14.sp,
+                color = Color(0xFF64748B),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
         }
     }
@@ -1144,6 +1254,73 @@ fun AudioFileCard(
                                 }
                             }
                         }
+                        recording?.aiStatus == RecordingAiStatus.ERROR -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFEE2E2),
+                                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .shadow(elevation = 2.dp, shape = CircleShape)
+                                    .clickable(
+                                        enabled = !isSelectionMode,
+                                        onClick = onProcessAI
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Retry AI",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "Retry AI",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                }
+                            }
+                        }
+                        recording?.transcript?.isNotBlank() == true -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = CobaltContainer,
+                                border = BorderStroke(1.dp, CobaltBorder.copy(alpha = 0.4f)),
+                                modifier = Modifier
+                                    .shadow(
+                                        elevation = 3.dp,
+                                        shape = CircleShape,
+                                        ambientColor = CobaltBlue.copy(alpha = 0.25f),
+                                        spotColor = CobaltBlue.copy(alpha = 0.35f)
+                                    )
+                                    .clickable(
+                                        enabled = !isSelectionMode,
+                                        onClick = onProcessAI
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "✨",
+                                        fontSize = 11.sp
+                                    )
+                                    Text(
+                                        text = "Generate Insights",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = CobaltBlue
+                                    )
+                                }
+                            }
+                        }
                         else -> {
                             Surface(
                                 shape = CircleShape,
@@ -1404,16 +1581,17 @@ private fun FilterSegmentItem(
 ) {
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         color = if (isSelected) Color.White else Color.Transparent,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = if (isSelected) 3.dp else 0.dp
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = if (isSelected) 2.dp else 0.dp
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 9.dp),
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(

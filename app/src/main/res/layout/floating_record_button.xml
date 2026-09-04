@@ -4,7 +4,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Collapsed Floating Pill -->
+    <!-- Collapsed Edge Embedded Tab -->
     <FrameLayout
         android:id="@+id/dock_collapsed"
         android:layout_width="wrap_content"
@@ -13,13 +13,13 @@
 
         <ImageView
             android:id="@+id/floating_record_button"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:padding="12dp"
-            android:src="@drawable/ic_floating_mic"
-            android:background="@drawable/bg_floating_dock"
+            android:layout_width="44dp"
+            android:layout_height="52dp"
+            android:padding="8dp"
+            android:src="@drawable/srutam_final_log"
+            android:background="@drawable/bg_floating_dock_edge_left"
             android:contentDescription="@string/floating_button_desc"
-            android:elevation="12dp"
+            android:elevation="14dp"
             android:scaleType="fitCenter" />
     </FrameLayout>
 
@@ -35,7 +35,7 @@
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
         android:background="@drawable/bg_floating_dock_card"
-        android:elevation="14dp"
+        android:elevation="16dp"
         android:visibility="gone">
 
         <!-- Direct Start Recording Action -->
@@ -110,7 +110,7 @@
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
         android:background="@drawable/bg_floating_dock_card"
-        android:elevation="14dp"
+        android:elevation="16dp"
         android:visibility="gone">
 
         <!-- Live Duration Display -->

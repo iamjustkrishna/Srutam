@@ -8,6 +8,7 @@ object AppPreferences {
     // Keys
     private const val KEY_GEMINI_API_KEY = "gemini_api_key"
     private const val KEY_CUSTOM_API_KEY = "custom_api_key"
+    private const val KEY_CUSTOM_MODEL = "custom_model"
     private const val KEY_AI_PROVIDER = "ai_provider"
     private const val KEY_PERSISTENT_NOTIFICATION = "persistent_recording_notification"
     private const val KEY_FLOATING_DOCK = "floating_screen_dock"
@@ -20,6 +21,19 @@ object AppPreferences {
     const val PROVIDER_ANTHROPIC = "ANTHROPIC"
     const val PROVIDER_GEMINI = "GEMINI"
     const val PROVIDER_GROQ = "GROQ"
+
+    fun getCustomModel(context: Context): String {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CUSTOM_MODEL, "")
+            .orEmpty()
+    }
+
+    fun setCustomModel(context: Context, model: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CUSTOM_MODEL, model.trim())
+            .apply()
+    }
 
     fun getGeminiApiKey(context: Context): String {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

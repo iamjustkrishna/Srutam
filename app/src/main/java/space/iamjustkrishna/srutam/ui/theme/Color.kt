@@ -19,6 +19,7 @@ val DarkSurfaceBorder = Color(0xFF334155)
 val CobaltBlue = Color(0xFF2563EB)
 val CobaltBlueDark = Color(0xFF1D4ED8)
 val CobaltContainer = Color(0xFFEFF6FF)
+val CobaltBorder = Color(0xFFBFDBFE)
 val OnCobaltContainer = Color(0xFF1E40AF)
 
 // Studio Recording Accent: Studio Crimson (Active capture only)

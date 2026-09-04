@@ -111,3 +111,15 @@
   1. Native Notification Chronometer: Enabled `builder.setUsesChronometer(true)` with `.setWhen(System.currentTimeMillis() - durationMs)` and cached `PendingIntent` instances. Stopped the 1000ms notify loop during active recording so Android SystemUI updates time locally with zero button flicker. Notification updates only on discrete state changes (pause, resume, stop).
   2. Interactive Edge Floating Dock: Expanded the discreet 48dp edge pill into a multi-action console. Idle state provides direct "Record" button, app shortcut, and collapse trigger. In-flight recording state provides live duration timer, pause/resume, stop & save, and cancel actions.
   3. WindowManager Re-measurement: Added `windowManager.updateViewLayout(floatingView, params)` with `WRAP_CONTENT` on state transitions, allowing touch events to dispatch across the full expanded width without touch window clipping.
+
+## ADR-015: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, and BYOK Model Selection
+- **Status**: Accepted
+- **Context**: The Notes filter bar occupied excessive vertical screen height, with a "With Tasks" category that duplicated the dedicated Insights tab. Settings required a cleaner header, BYOK provider and model customization, and creator attribution. The floating dock needed to be embedded into the screen edge displaying the Srutam logo and supporting one-tap recording directly.
+- **Decision**:
+  1. Version Bump: Upgraded to `2.0.0` (versionCode 4).
+  2. Compact Notes Filter Bar: Reduced height to 34dp with a 2-segment pill control (`All Notes` and `Pending AI`). Removed redundant "With Tasks" segment.
+  3. Dedicated Empty States: Built custom empty states for Notes (`NotesEmptyState` guiding capture) and Pending AI (`PendingAiEmptyState` celebrating all caught up).
+  4. Offline AI Resilience: Exposed one-tap "Generate Insights" and "Retry AI" badges on note cards, batch "Process All" banner on the Pending AI filter, and auto-sync upon network reconnection.
+  5. Settings Screen Modernization: Minimal `<` chevron back button, clean 20sp "Settings" sans-serif title without "Done" button or "Srutam" prefix, single-line "Srutam Cloud (Default) Free", BYOK provider pills and model presets with custom model editing, real audio storage metrics, and creator footer linked to `@iamjustkrishna`.
+  6. Quick Settings Dismissal Sync: Synchronized persistent notification dismissal with `AppPreferences.setPersistentNotificationEnabled(this, false)`.
+  7. Edge-Embedded Logo Dock: Overlay handle tab displaying the gold Srutam logo docked flush on left/right screen edge. Tapping expands options (Record, Open App, Close). Recording switches to studio controls with live timer, pause/resume, red stop & save square, and cancel. Stopping or canceling auto-collapses flush back to the edge handle.
