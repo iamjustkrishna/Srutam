@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.service
+package space.iamjustkrishna.srutam.service
 
 import android.app.Service
 import android.content.Intent
@@ -139,11 +139,11 @@ class FloatingButtonService : Service() {
         val recordButton = floatingView?.findViewById<ImageView>(R.id.floating_record_button)
         recordButton?.let {
             if (RecordingForegroundService.isRecording) {
-                it.setImageResource(android.R.drawable.ic_media_pause)
-                it.setBackgroundResource(android.R.drawable.presence_busy)
+                it.setImageResource(R.drawable.ic_floating_mic)
+                it.setBackgroundResource(R.drawable.bg_floating_dock_recording)
             } else {
-                it.setImageResource(android.R.drawable.ic_btn_speak_now)
-                it.setBackgroundResource(android.R.drawable.presence_online)
+                it.setImageResource(R.drawable.ic_floating_mic)
+                it.setBackgroundResource(R.drawable.bg_floating_dock)
             }
         }
     }

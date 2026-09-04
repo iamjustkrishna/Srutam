@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.viewmodel
+package space.iamjustkrishna.srutam.viewmodel
 
 import android.app.Application
 import android.util.Log
@@ -6,9 +6,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import space.iamjustkrishna.srutam.SrutamApplication
 import space.iamjustkrishna.srutam.ai.AIProcessor
+import space.iamjustkrishna.srutam.ai.BM25SearchEngine
+import space.iamjustkrishna.srutam.data.InsightEntity
+import space.iamjustkrishna.srutam.data.InsightKind
+import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.ui.screens.formatDate
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.utils.AudioFileReader
 import space.iamjustkrishna.srutam.utils.NetworkUtils
@@ -16,12 +22,24 @@ import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+data class ThemeCluster(
+    val key: String,
+    val title: String,
+    val noteCount: Int,
+    val noteIds: List<Long>,
+    val noteNames: List<String>,
+    val sampleSnippets: List<String> = emptyList()
+)
 
 class AudioFilesViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -37,12 +55,32 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     private val _recordingsByPath = MutableStateFlow<Map<String, Recording>>(emptyMap())
     val recordingsByPath: StateFlow<Map<String, Recording>> = _recordingsByPath.asStateFlow()
 
+    private val database = (application as space.iamjustkrishna.srutam.SrutamApplication).database
+    private val insightDao = database.insightDao()
+
+    val allInsights: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getAllInsightsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val activeActions: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getActiveActionsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allIdeas: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getIdeasFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allDecisions: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getDecisionsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val archivedActionsCount: StateFlow<Int> = insightDao.getArchivedActionsCountFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val _themeClusters = MutableStateFlow<List<ThemeCluster>>(emptyList())
+    val themeClusters: StateFlow<List<ThemeCluster>> = _themeClusters.asStateFlow()
+
     private val aiProcessor: AIProcessor
     private val repository: RecordingRepository
     private val gson = Gson()
 
     init {
-        val database = (application as SrutamApplication).database
         repository = RecordingRepository(application.applicationContext, database.recordingDao())
         aiProcessor = AIProcessor(application)
 
@@ -69,8 +107,10 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             repository.allRecordings.collectLatest { recordings ->
                 _recordingsByPath.value = recordings.associateBy { it.audioFilePath }
+                computeThemeClusters(recordings)
             }
         }
+        syncExistingRecordingsToInsights()
     }
 
     fun deleteAudioFile(audioFile: AudioFileInfo) {
@@ -88,6 +128,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 val recording = repository.getRecordingByPath(audioFile.filePath)
                 if (recording != null) {
                     try {
+                        insightDao.deleteInsightsByRecordingId(recording.id)
                         repository.deleteRecording(recording)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error deleting audio file: ${audioFile.filePath}", e)
@@ -251,8 +292,15 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                     )
 
                     val insights = aiProcessor.generateInsights(transcript)
+                    val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
+                        insights.title?.takeIf { it.isNotBlank() } ?: recording.name
+                    } else {
+                        recording.name
+                    }
+                    saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
                     repository.updateRecording(
                         recording.copy(
+                            name = updatedName,
                             summary = insights.summary,
                             keyPoints = gson.toJson(insights.keyPoints),
                             actionItems = gson.toJson(insights.actionItems),
@@ -344,8 +392,15 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 )
 
                 val insights = aiProcessor.generateInsights(transcript)
+                val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
+                    insights.title?.takeIf { it.isNotBlank() } ?: recording.name
+                } else {
+                    recording.name
+                }
+                saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
                 repository.updateRecording(
                     recording.copy(
+                        name = updatedName,
                         summary = insights.summary,
                         keyPoints = gson.toJson(insights.keyPoints),
                         actionItems = gson.toJson(insights.actionItems),
@@ -495,8 +550,14 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                     )
 
                     val insights = aiProcessor.generateInsights(recording.transcript!!)
+                    val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
+                        insights.title?.takeIf { it.isNotBlank() } ?: recording.name
+                    } else {
+                        recording.name
+                    }
                     repository.updateRecording(
                         recording.copy(
+                            name = updatedName,
                             summary = insights.summary,
                             keyPoints = gson.toJson(insights.keyPoints),
                             actionItems = gson.toJson(insights.actionItems),
@@ -547,6 +608,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                         // Delete storage and associated DB record together
                         val recording = repository.getRecordingByPath(audioFile.filePath)
                         if (recording != null) {
+                            insightDao.deleteInsightsByRecordingId(recording.id)
                             repository.deleteRecording(recording)
                         } else {
                             val deleted = space.iamjustkrishna.srutam.utils.AudioStorage
@@ -582,6 +644,278 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error undoing delete", e)
+            }
+        }
+    }
+
+    private val bm25Engine = BM25SearchEngine()
+
+    suspend fun queryAllVoiceNotes(question: String): Pair<String, List<Pair<Long, String>>> = withContext(Dispatchers.IO) {
+        val allRecs = _recordingsByPath.value.values.toList()
+        if (allRecs.isEmpty()) {
+            return@withContext Pair("You don't have any processed voice notes in your library yet.", emptyList())
+        }
+
+        // Build BM25 index from all available recordings
+        val docs = allRecs.map { rec ->
+            BM25SearchEngine.createDocument(
+                id = rec.id,
+                title = rec.name.ifBlank { "Voice Note" },
+                transcript = rec.transcript.orEmpty(),
+                summary = rec.summary.orEmpty(),
+                dateString = formatDate(rec.timestamp)
+            )
+        }
+        bm25Engine.index(docs)
+
+        val searchResults = bm25Engine.search(question, topK = 4)
+        val snippets = searchResults.map { res ->
+            val doc = res.document
+            "Note: ${doc.title} (${doc.dateString})\nContent:\n${doc.text.take(1200)}"
+        }
+
+        val citedNotes = searchResults.map { Pair(it.document.id, it.document.title) }
+
+        val answer = aiProcessor.queryAllRecordings(snippets, question)
+        Pair(answer, citedNotes)
+    }
+
+    fun toggleActionComplete(insight: InsightEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val isNowCompleted = insight.status != InsightStatus.COMPLETED
+            val newStatus = if (isNowCompleted) InsightStatus.COMPLETED else InsightStatus.OPEN
+            val completedAt = if (isNowCompleted) System.currentTimeMillis() else null
+            insightDao.updateActionStatus(insight.id, newStatus, completedAt)
+        }
+    }
+
+    fun archiveCompletedActions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            insightDao.archiveCompletedActions()
+        }
+    }
+
+    fun unarchiveAllActions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            insightDao.unarchiveAllActions()
+        }
+    }
+
+    fun dismissTheme(themeKey: String) {
+        AppPreferences.dismissTheme(getApplication(), themeKey)
+        val currentRecordings = _recordingsByPath.value.values.toList()
+        computeThemeClusters(currentRecordings)
+    }
+
+    private fun computeThemeClusters(recordings: List<Recording>) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val dismissed = AppPreferences.getDismissedThemes(getApplication())
+            val validRecordings = recordings.filter { !it.transcript.isNullOrBlank() || !it.summary.isNullOrBlank() }
+            if (validRecordings.size < 3) {
+                _themeClusters.value = emptyList()
+                return@launch
+            }
+
+            val stopWords = setOf(
+                "the", "and", "this", "that", "with", "from", "have", "were", "they", "will", "what",
+                "when", "where", "which", "there", "their", "about", "would", "could", "should",
+                "into", "more", "some", "other", "than", "then", "just", "also", "your", "mine",
+                "been", "each", "like", "very", "make", "made", "doing", "does", "done", "going",
+                "went", "gone", "know", "knew", "think", "thought", "need", "want", "wanted",
+                "voice", "note", "recording", "audio", "audiofile", "today", "yesterday", "tomorrow",
+                "really", "maybe", "something", "anything", "nothing", "everything", "talk", "talking"
+            )
+
+            val keywordToNotes = mutableMapOf<String, MutableSet<Long>>()
+            val noteIdToName = mutableMapOf<Long, String>()
+            val noteIdToSnippet = mutableMapOf<Long, String>()
+
+            for (rec in validRecordings) {
+                val name = rec.name.ifBlank { "Voice Note" }
+                noteIdToName[rec.id] = name
+                val content = "${rec.name} ${rec.summary.orEmpty()} ${rec.transcript.orEmpty()}".lowercase()
+                val snippet = rec.summary?.takeIf { it.isNotBlank() } ?: rec.transcript?.take(120).orEmpty()
+                noteIdToSnippet[rec.id] = snippet
+
+                val words = content.split(Regex("[^a-zA-Z0-9]+"))
+                    .map { it.trim() }
+                    .filter { it.length in 4..24 && it !in stopWords }
+
+                // Single keywords
+                val distinctWords = words.toSet()
+                for (w in distinctWords) {
+                    keywordToNotes.getOrPut(w) { mutableSetOf() }.add(rec.id)
+                }
+
+                // Two-word phrases
+                for (i in 0 until words.size - 1) {
+                    val bigram = "${words[i]} ${words[i + 1]}"
+                    keywordToNotes.getOrPut(bigram) { mutableSetOf() }.add(rec.id)
+                }
+            }
+
+            val clusters = keywordToNotes
+                .filter { (key, notes) -> notes.size >= 3 && key !in dismissed }
+                .map { (key, notes) ->
+                    val displayTitle = key.split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                    val noteNames = notes.take(3).mapNotNull { noteIdToName[it] }
+                    val sampleSnippets = notes.take(2).mapNotNull { noteIdToSnippet[it] }.filter { it.isNotBlank() }
+                    ThemeCluster(
+                        key = key,
+                        title = displayTitle,
+                        noteCount = notes.size,
+                        noteIds = notes.toList(),
+                        noteNames = noteNames,
+                        sampleSnippets = sampleSnippets
+                    )
+                }
+                .sortedByDescending { it.noteCount }
+                .distinctBy { it.title.lowercase() }
+                .take(6)
+
+            _themeClusters.value = clusters
+        }
+    }
+
+    private suspend fun saveInsightsToRoom(
+        recordingId: Long,
+        recordingName: String,
+        timestamp: Long,
+        insights: AIProcessor.AIInsights
+    ) = withContext(Dispatchers.IO) {
+        try {
+            insightDao.deleteInsightsByRecordingId(recordingId)
+            val entities = mutableListOf<InsightEntity>()
+
+            insights.actionItems.forEachIndexed { idx, rawAction ->
+                val cleanText = rawAction.removePrefix("[ ]").removePrefix("[]").trim()
+                if (cleanText.isNotBlank()) {
+                    entities.add(
+                        InsightEntity(
+                            id = "${recordingId}_action_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = InsightKind.ACTION,
+                            text = cleanText,
+                            status = InsightStatus.OPEN,
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            insights.ideas.forEachIndexed { idx, ideaText ->
+                if (ideaText.isNotBlank()) {
+                    entities.add(
+                        InsightEntity(
+                            id = "${recordingId}_idea_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = InsightKind.IDEA,
+                            text = ideaText.trim(),
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            insights.decisions.forEachIndexed { idx, dec ->
+                if (dec.text.isNotBlank()) {
+                    entities.add(
+                        InsightEntity(
+                            id = "${recordingId}_decision_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = InsightKind.DECISION,
+                            text = dec.text.trim(),
+                            rationale = dec.rationale?.trim(),
+                            evidence = dec.evidence?.trim(),
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            if (entities.isNotEmpty()) {
+                insightDao.insertInsights(entities)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save insights to Room for recording $recordingId", e)
+        }
+    }
+
+    private fun syncExistingRecordingsToInsights() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (insightDao.getInsightCount() > 0) return@launch
+
+                val allRecs = repository.allRecordings.first()
+                val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+
+                for (rec in allRecs) {
+                    val rawActions: List<String> = try {
+                        if (!rec.actionItems.isNullOrBlank()) {
+                            gson.fromJson<List<String>>(rec.actionItems, listType) ?: emptyList()
+                        } else emptyList()
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+
+                    val rawKeyPoints: List<String> = try {
+                        if (!rec.keyPoints.isNullOrBlank()) {
+                            gson.fromJson<List<String>>(rec.keyPoints, listType) ?: emptyList()
+                        } else emptyList()
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+
+                    val recName = rec.name.ifBlank { "Voice Note" }
+                    val entities = mutableListOf<InsightEntity>()
+
+                    rawActions.forEachIndexed { idx, act ->
+                        val clean = act.removePrefix("[ ]").removePrefix("[]").trim()
+                        if (clean.isNotBlank()) {
+                            entities.add(
+                                InsightEntity(
+                                    id = "${rec.id}_action_${idx}",
+                                    recordingId = rec.id,
+                                    recordingName = recName,
+                                    kind = InsightKind.ACTION,
+                                    text = clean,
+                                    status = InsightStatus.OPEN,
+                                    createdAt = rec.timestamp,
+                                    sourceOrder = idx
+                                )
+                            )
+                        }
+                    }
+
+                    rawKeyPoints.forEachIndexed { idx, pt ->
+                        val clean = pt.trim()
+                        if (clean.isNotBlank()) {
+                            entities.add(
+                                InsightEntity(
+                                    id = "${rec.id}_idea_${idx}",
+                                    recordingId = rec.id,
+                                    recordingName = recName,
+                                    kind = InsightKind.IDEA,
+                                    text = clean,
+                                    createdAt = rec.timestamp,
+                                    sourceOrder = idx
+                                )
+                            )
+                        }
+                    }
+
+                    if (entities.isNotEmpty()) {
+                        insightDao.insertInsights(entities)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error syncing recordings to insights", e)
             }
         }
     }

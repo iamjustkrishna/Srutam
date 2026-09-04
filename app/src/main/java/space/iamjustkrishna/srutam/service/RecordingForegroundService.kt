@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.service
+package space.iamjustkrishna.srutam.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -172,11 +172,18 @@ class RecordingForegroundService : Service() {
 
     private fun startDurationUpdates() {
         serviceScope.launch(Dispatchers.Main) {
+            var lastNotificationUpdate = 0L
             while (isRecording) {
-                val duration = currentRecordedDurationMs()
-                elapsedDurationMs = duration
-                updateNotification(duration)
-                delay(1000) // Update every second
+                if (!isPaused) {
+                    val duration = currentRecordedDurationMs()
+                    elapsedDurationMs = duration
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotificationUpdate >= 1000L) {
+                        updateNotification(duration)
+                        lastNotificationUpdate = now
+                    }
+                }
+                delay(100)
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿// This file has been reorganized. All FeedScreen components are now in this file.
+// This file has been reorganized. All FeedScreen components are now in this file.
 // The improvements include:
 // - Better UI with rounded cards
 // - AI button on each recording item
@@ -16,16 +16,22 @@ import android.app.Activity
 import android.os.Build
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -45,14 +51,17 @@ import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -67,11 +76,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -88,6 +99,7 @@ import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
+import space.iamjustkrishna.srutam.ui.theme.*
 import kotlin.math.roundToInt
 
 private enum class FabState { IDLE, RECORDING_HELD, RECORDING_LOCKED }
@@ -105,6 +117,7 @@ private const val META_SEPARATOR = " \u2022 "
 @Composable
 fun FeedScreen(
     onRecordingClick: (Long) -> Unit,
+    onSettingsClick: () -> Unit = {},
     viewModel: AudioFilesViewModel = viewModel()
 ) {
     val audioFiles by viewModel.audioFiles.collectAsState()
@@ -183,19 +196,48 @@ fun FeedScreen(
         }
     }
 
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    val filteredAudioFiles = remember(audioFiles, recordingsByPath, selectedFilter) {
-        when (selectedFilter) {
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            delay(120)
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        searchQuery = ""
+    }
+
+    val filteredAudioFiles = remember(audioFiles, recordingsByPath, selectedFilter, searchQuery) {
+        val baseList = when (selectedFilter) {
             FeedFilter.DEFAULT -> audioFiles
             FeedFilter.PROCESSED -> audioFiles.filter { audioFile ->
-                recordingsByPath[audioFile.filePath].isProcessedForFilter()
+                val rec = recordingsByPath[audioFile.filePath]
+                !rec?.actionItems.isNullOrBlank() && rec.actionItems != "[]"
             }
             FeedFilter.UNPROCESSED -> audioFiles.filter { audioFile ->
-                !recordingsByPath[audioFile.filePath].isProcessedForFilter()
+                val rec = recordingsByPath[audioFile.filePath]
+                rec?.summary.isNullOrBlank()
             }
             FeedFilter.LONGEST -> audioFiles.sortedByDescending { it.duration }
             FeedFilter.SHORTEST -> audioFiles.sortedBy { it.duration }
+        }
+        if (searchQuery.isBlank()) {
+            baseList
+        } else {
+            val q = searchQuery.trim().lowercase()
+            baseList.filter { file ->
+                val rec = recordingsByPath[file.filePath]
+                val nameMatch = file.fileName.lowercase().contains(q) || (rec?.name?.lowercase()?.contains(q) == true)
+                val transcriptMatch = rec?.transcript?.lowercase()?.contains(q) == true ||
+                        rec?.summary?.lowercase()?.contains(q) == true
+                nameMatch || transcriptMatch
+            }
         }
     }
 
@@ -264,6 +306,7 @@ fun FeedScreen(
 
 
     Scaffold(
+        containerColor = Color(0xFFF4F5F8),
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
@@ -275,9 +318,17 @@ fun FeedScreen(
                         )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.88f),
+                        titleContentColor = TextPrimary
                     ),
+                    modifier = Modifier.drawBehind {
+                        drawLine(
+                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { selectedFilePaths = emptySet() }) {
                             Icon(Icons.Default.Close, contentDescription = "Deselect all")
@@ -289,94 +340,125 @@ fun FeedScreen(
                         }
                     }
                 )
-            } else {
+            } else if (isSearchActive) {
                 TopAppBar(
                     title = {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.srutam_final_log),
-                                    contentDescription = "Srutam",
-                                    modifier = Modifier.size(22.dp)
-                                )
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
                                 Text(
-                                    "Srutam",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.ExtraBold
+                                    "Search by title, transcript, or date...",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF8E8E93),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                            Text(
-                                text = if (selectedFilter == FeedFilter.DEFAULT) {
-                                    "${audioFiles.size} recordings"
-                                } else {
-                                    "${filteredAudioFiles.size} of ${audioFiles.size} recordings"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                            )
+                            },
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF8E8E93), modifier = Modifier.size(18.dp))
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color(0xFF8E8E93), modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF2F2F7),
+                                unfocusedContainerColor = Color(0xFFF2F2F7),
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(searchFocusRequester)
+                        )
+                    },
+                    actions = {
+                        TextButton(onClick = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        }) {
+                            Text("Cancel", color = CobaltBlue, fontWeight = FontWeight.SemiBold)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.88f),
+                        titleContentColor = Color(0xFF1C1C1E)
+                    ),
+                    modifier = Modifier.drawBehind {
+                        drawLine(
+                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Srutam",
+                            fontSize = 30.sp,
+                            fontFamily = PlayfairDisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E2229)
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color(0xFF1E2229)
                     ),
                     actions = {
-                        Box {
-                            IconButton(onClick = { showFilterMenu = true }) {
-                                Icon(ImageVector.vectorResource(R.drawable.filter), contentDescription = "Filter",
-                                    modifier = Modifier.size(24.dp))
-                            }
-                            DropdownMenu(
-                                expanded = showFilterMenu,
-                                onDismissRequest = { showFilterMenu = false },
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = MaterialTheme.colorScheme.surface
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            // Search squircle button matching reference
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White.copy(alpha = 0.85f),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { isSearchActive = true }
                             ) {
-                                FeedFilter.entries.forEach { filter ->
-                                    DropdownMenuItem(
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = filter.icon,
-                                                contentDescription = null,
-                                                tint = if (filter == selectedFilter) {
-                                                    MaterialTheme.colorScheme.primary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                }
-                                            )
-                                        },
-                                        text = {
-                                            Text(
-                                                text = filter.label,
-                                                fontWeight = if (filter == selectedFilter) {
-                                                    FontWeight.Bold
-                                                } else {
-                                                    FontWeight.Normal
-                                                }
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (filter == selectedFilter) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Done,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            selectedFilter = filter
-                                            showFilterMenu = false
-                                        }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = Color(0xFF1E2229),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
-                        }
-                        IconButton(onClick = { showSettingsDialog = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+
+                            // Settings squircle button matching reference
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White.copy(alpha = 0.85f),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(onClick = onSettingsClick)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Settings",
+                                        tint = Color(0xFF1E2229),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 )
@@ -384,6 +466,45 @@ fun FeedScreen(
         },
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            // Segmented Filter Pills matching reference mockup
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFFE3EAF4).copy(alpha = 0.8f),
+                                Color(0xFFE7EFF7).copy(alpha = 0.8f),
+                                Color(0xFFEDE8F5).copy(alpha = 0.7f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .border(1.dp, Color(0xFFD6E0EC).copy(alpha = 0.8f), RoundedCornerShape(24.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterSegmentItem(
+                    label = "All Notes (${audioFiles.size})",
+                    isSelected = selectedFilter == FeedFilter.DEFAULT,
+                    onClick = { selectedFilter = FeedFilter.DEFAULT },
+                    modifier = Modifier.weight(1.1f)
+                )
+                FilterSegmentItem(
+                    label = "With Tasks",
+                    isSelected = selectedFilter == FeedFilter.PROCESSED,
+                    onClick = { selectedFilter = FeedFilter.PROCESSED },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterSegmentItem(
+                    label = "Pending AI",
+                    isSelected = selectedFilter == FeedFilter.UNPROCESSED,
+                    onClick = { selectedFilter = FeedFilter.UNPROCESSED },
+                    modifier = Modifier.weight(1f)
+                )
+            }
             if (!isOnline) {
                 Card(
                     modifier = Modifier
@@ -412,7 +533,14 @@ fun FeedScreen(
                         )
                     }
                 } else if (filteredAudioFiles.isEmpty()) {
-                    EmptyState()
+                    if (searchQuery.isNotBlank()) {
+                        SearchEmptyState(
+                            query = searchQuery,
+                            onClearSearch = { searchQuery = "" }
+                        )
+                    } else {
+                        EmptyState()
+                    }
                 } else {
                     AudioFilesList(
                         audioFiles = filteredAudioFiles,
@@ -452,18 +580,7 @@ fun FeedScreen(
                     )
                 }
 
-                Box(modifier = Modifier.align(Alignment.BottomCenter)){
-            RecordingFAB(
-                isRecording = isRecording,
-                isPaused = isRecordingPaused,
-                elapsedMs = recordingElapsedMs,
-                onStartRecording = { startRecording(context) },
-                onPauseRecording = { pauseRecording(context) },
-                onResumeRecording = { resumeRecording(context) },
-                onSaveRecording = { stopRecording(context) },
-                onDeleteRecording = { deleteRecordingInProgress(context) }
-            )
-        }
+                // RecordingFAB is now handled by the invariant RootScreen StudioBottomBar and StudioRecordingBottomSheet
 
         if (showDeleteToast) {
             Box(
@@ -780,8 +897,8 @@ fun AudioFilesList(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 140.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        contentPadding = PaddingValues(start = 14.dp, top = 8.dp, end = 14.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(audioFiles, key = { it.filePath }) { audioFile ->
             val isRemoving = audioFile.filePath in removingFilePaths
@@ -887,316 +1004,476 @@ fun AudioFileCard(
     // Determine if AI has processed this file (summary ready)
     val isAiProcessed = recording?.aiStatus == RecordingAiStatus.READY && !recording.summary.isNullOrBlank()
     val isProcessing = recording?.isProcessing == true
-    val isPlaybackActive = isPlaying
+    val playerState by viewModel.audioPlayer.playbackState.collectAsState()
+    val isPlaybackActive = isPlaying && playerState.currentFilePath == audioFile.filePath
 
-    SwipeToDismissBox(
+    Card(
+        shape = RoundedCornerShape(26.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isProcessing) Color(0xFFF4F8FF) else Color.White,
+            contentColor = Color(0xFF0F172A)
+        ),
+        border = if (isSelected) {
+            BorderStroke(2.dp, Color(0xFF0066FF))
+        } else if (isProcessing) {
+            BorderStroke(1.dp, Color(0xFF0066FF).copy(alpha = 0.4f))
+        } else {
+            BorderStroke(1.dp, Color(0xFFE8EAEF))
+        },
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        state = dismissState,
-        backgroundContent = {
-            // Delete background (shown when swiped left)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        MaterialTheme.colorScheme.error,
-                        RoundedCornerShape(12.dp)
-                    )
-                    .clickable { showDeleteConfirm = true },
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Row(
-                    modifier = Modifier.padding(end = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Delete",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-        },
-        content = {
-            // Card content
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isAiProcessed) {
-                        MaterialTheme.colorScheme.secondaryContainer
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) {
+                        onSelectionToggle()
                     } else {
-                        MaterialTheme.colorScheme.surface
-                    },
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                border = if (isSelected) {
-                    BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                } else {
-                    null
-                },
-                modifier = Modifier
-                    .height(72.dp)
-                    .combinedClickable(
-                        onClick = {
-                            if (isSelectionMode) {
-                                onSelectionToggle()
-                            } else {
-                                viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
-                                    onRecordingClick(recordingId)
-                                }
-                            }
-                        },
-                        onLongClick = {
-                            onSelectionToggle()
+                        viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
+                            onRecordingClick(recordingId)
                         }
-                    )
-            ) {
+                    }
+                },
+                onLongClick = {
+                    onSelectionToggle()
+                }
+            )
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (isProcessing) {
+                val shimmerTransition = rememberInfiniteTransition(label = "ai_processing_shimmer")
+                val shimmerOffset by shimmerTransition.animateFloat(
+                    initialValue = -400f,
+                    targetValue = 900f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1600, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "shimmer_offset"
+                )
+                val shimmerBrush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFF4F8FF),
+                        Color(0xFF0066FF).copy(alpha = 0.12f),
+                        Color(0xFF64D2FF).copy(alpha = 0.22f),
+                        Color(0xFFF4F8FF)
+                    ),
+                    start = Offset(shimmerOffset, 0f),
+                    end = Offset(shimmerOffset + 400f, 200f)
+                )
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp))
+                        .matchParentSize()
+                        .background(shimmerBrush)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Row 1: Title (left) and AI Status/Action Pill (right)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (isPlaybackActive) {
-                        val playbackTransition = rememberInfiniteTransition(label = "playback_shimmer")
-                        val playbackOffset by playbackTransition.animateFloat(
-                            initialValue = -500f,
-                            targetValue = 500f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(1400, easing = EaseInOut),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "playback_offset"
-                        )
-                        val playbackBrush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f),
-                                Color(0xFF00C2A8).copy(alpha = 0.22f),
-                                Color(0xFF58D7FF).copy(alpha = 0.16f)
-                            ),
-                            start = Offset(playbackOffset, 0f),
-                            end = Offset(playbackOffset + 500f, 140f)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(playbackBrush)
-                        )
+                    Text(
+                        text = displayName,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    when {
+                        isProcessing -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFEBF3FF),
+                                border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.2f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(11.dp),
+                                        strokeWidth = 1.8.dp,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                    Text(
+                                        text = "Analyzing...",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                }
+                            }
+                        }
+                        isAiProcessed -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFE2EEFE)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "✦",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF2563EB),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Summarized",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                }
+                            }
+                        }
+                        else -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFBACFFC),
+                                modifier = Modifier
+                                    .shadow(
+                                        elevation = 4.dp,
+                                        shape = CircleShape,
+                                        ambientColor = Color(0xFF3B82F6).copy(alpha = 0.3f),
+                                        spotColor = Color(0xFF2563EB).copy(alpha = 0.4f)
+                                    )
+                                    .clickable(
+                                        enabled = !isSelectionMode,
+                                        onClick = onProcessAI
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "✨",
+                                        fontSize = 11.sp
+                                    )
+                                    Text(
+                                        text = "AI Insights",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF1E40AF)
+                                    )
+                                }
+                            }
+                        }
                     }
-                    if (isProcessing) {
-                        val shimmerTransition = rememberInfiniteTransition(label = "ai_processing_shimmer")
-                        val shimmerOffset by shimmerTransition.animateFloat(
-                            initialValue = -600f,
-                            targetValue = 600f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(2000, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = "shimmer_offset"
-                        )
-                        val shimmerBrush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.22f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)
-                            ),
-                            start = Offset(shimmerOffset, 0f),
-                            end = Offset(shimmerOffset + 600f, 120f)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(shimmerBrush)
-                        )
-                    }
-                    Row(
+                }
+
+                // Row 2: Human-readable relative date
+                Text(
+                    text = formatHumanRelativeDate(audioFile.timestamp),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF64748B)
+                )
+
+                // Row 2.5: Summary Preview (Only shown AFTER AI processed, in smaller font size; NO placeholder text!)
+                if (isProcessing) {
+                    Text(
+                        text = "Transcribing audio and extracting insights...",
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        color = Color(0xFF2563EB),
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else if (isAiProcessed && !recording?.summary.isNullOrBlank()) {
+                    Text(
+                        text = recording!!.summary!!.trim(),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = Color(0xFF475569),
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Row 3: Audio Player Strip with Circular Blue Play button, Waveform Bars, Timestamp, and MoreVert Options
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Circular Ultramarine Blue Play Button
+                    Surface(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Play button
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clickable(enabled = !isSelectionMode, onClick = onPlayClick)
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(8.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Stop" else "Play",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                            .size(38.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                spotColor = Color(0xFF0066FF).copy(alpha = 0.4f)
                             )
-                        }
-
-                    // Text info (name, date + duration, and optional summary)
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = displayName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        // Combined Date & Duration to save horizontal space
-                        val durationStr = formatDuration(audioFile.duration)
-                        Text(
-                            text = if (recording?.isProcessing == true) {
-                                when (recording.aiStatus) {
-                                    RecordingAiStatus.TRANSCRIBING -> "Transcribing locally...$META_SEPARATOR$durationStr"
-                                    RecordingAiStatus.SUMMARY_PROCESSING -> "Generating summary...$META_SEPARATOR$durationStr"
-                                    else -> "AI is processing...$META_SEPARATOR$durationStr"
-                                }
-                            } else if (recording?.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE) {
-                                "Transcript ready$META_SEPARATOR$durationStr"
-                            } else if (recording?.aiStatus == RecordingAiStatus.ERROR) {
-                                "Error processing$META_SEPARATOR$durationStr"
-                            } else {
-                                "${formatDate(audioFile.timestamp)}$META_SEPARATOR$durationStr"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        val summaryPreview = recording?.summary
-                        if (!summaryPreview.isNullOrBlank()) {
-                            Text(
-                                text = summaryPreview,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                            .clip(CircleShape)
+                            .clickable(enabled = !isSelectionMode, onClick = onPlayClick),
+                        shape = CircleShape,
+                        color = Color(0xFF0066FF)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
 
-                        // Single AI Button indicating status
-                        IconButton(
-                            onClick = {
-                                if (recording?.transcript?.isNotBlank() == true && recording.summary.isNullOrBlank()) {
-                                    viewModel.generateSummaryForRecording(audioFile)
-                                } else {
-                                    onProcessAI()
-                                }
-                            },
-                            enabled = !isSelectionMode && !isProcessing && !isAiProcessed,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                        if (recording?.isProcessing == true) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(R.drawable.auto_awesome),
-                                contentDescription = "AI Action",
-                                // Dim the icon if already processed
-                                tint = if (isAiProcessed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        }
+                    // Inline Audio Waveform Bars
+                    val totalDur = if (isPlaybackActive && playerState.duration > 0) {
+                        playerState.duration.toLong()
+                    } else {
+                        audioFile.duration.coerceAtLeast(1)
+                    }
+                    val currentPos = if (isPlaybackActive) playerState.currentPosition else 0
+                    val playbackProgress = (currentPos.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
 
-                    // Dropdown menu button
+                    CardWaveformVisualizer(
+                        progress = playbackProgress,
+                        isPlaying = isPlaybackActive,
+                        onSeekFraction = { fraction ->
+                            val targetMs = (fraction * totalDur).toInt()
+                            if (isPlaybackActive) {
+                                viewModel.audioPlayer.seekTo(targetMs)
+                            } else {
+                                viewModel.playAudio(audioFile)
+                                viewModel.audioPlayer.seekTo(targetMs)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Current Timestamp or Total Duration
+                    Text(
+                        text = if (isPlaybackActive) {
+                            formatDuration(currentPos.toLong())
+                        } else {
+                            formatDuration(audioFile.duration)
+                        },
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+
+                    // MoreVert button with custom redesigned dropdown menu in the last row
                     Box {
                         IconButton(
-                            onClick = { showDropdown = !showDropdown },
-                            modifier = Modifier.size(40.dp),
-                            enabled = !isSelectionMode
+                            onClick = { showDropdown = true },
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
-                        // Dropdown menu
-                        DropdownMenu(
-                            expanded = showDropdown,
-                            onDismissRequest = { showDropdown = false },
-                            modifier = Modifier
-                                .shadow(8.dp, RoundedCornerShape(12.dp))
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clip(RoundedCornerShape(12.dp))
+                        MaterialTheme(
+                            shapes = MaterialTheme.shapes.copy(
+                                extraSmall = RoundedCornerShape(20.dp),
+                                small = RoundedCornerShape(20.dp),
+                                medium = RoundedCornerShape(20.dp)
+                            )
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Info") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = {
-                                    showDropdown = false
-                                    showInfoDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Rename") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = null
-                                    )
-                                },
-                                onClick = {
-                                    showDropdown = false
-                                    showRenameDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "Delete",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                onClick = {
-                                    showDropdown = false
-                                    showDeleteConfirm = true
-                                }
-                            )
+                            DropdownMenu(
+                                expanded = showDropdown,
+                                onDismissRequest = { showDropdown = false },
+                                modifier = Modifier
+                                    .background(Color.White, RoundedCornerShape(20.dp))
+                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(20.dp))
+                                    .width(180.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                containerColor = Color.White,
+                                shadowElevation = 10.dp
+                            ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "Rename",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E293B)
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Edit,
+                                            contentDescription = null,
+                                            tint = Color(0xFF334155),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        showDropdown = false
+                                        showRenameDialog = true
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.8.dp)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "File Info",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E293B)
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Info,
+                                            contentDescription = null,
+                                            tint = Color(0xFF334155),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        showDropdown = false
+                                        showInfoDialog = true
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.8.dp)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            "Delete",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFFF3B30)
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Delete,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFF3B30),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        showDropdown = false
+                                        showDeleteConfirm = true
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                )
+                            }
                         }
-                    }
                     }
                 }
             }
         }
-    )
+    }
+}
+
+
+@Composable
+private fun FilterSegmentItem(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        color = if (isSelected) Color.White else Color.Transparent,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = if (isSelected) 3.dp else 0.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 9.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isSelected) Color(0xFF0F172A) else Color(0xFF475569),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardWaveformVisualizer(
+    progress: Float,
+    isPlaying: Boolean,
+    onSeekFraction: ((Float) -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val barHeights = remember {
+        listOf(
+            6, 10, 16, 22, 14, 8, 18, 24, 12, 8,
+            14, 20, 26, 16, 10, 22, 18, 8, 14, 20,
+            12, 6, 16, 24, 16, 10, 18, 22, 14, 8,
+            12, 18, 24, 14, 10, 6
+        )
+    }
+
+    Row(
+        modifier = modifier
+            .height(28.dp)
+            .padding(horizontal = 4.dp)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    if (size.width > 0) {
+                        val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                        onSeekFraction?.invoke(fraction)
+                    }
+                }
+            },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        barHeights.forEachIndexed { index, heightDp ->
+            val barFraction = index.toFloat() / (barHeights.size - 1).coerceAtLeast(1)
+            val isPlayed = isPlaying && (progress >= barFraction)
+
+            Box(
+                modifier = Modifier
+                    .width(2.5.dp)
+                    .height(heightDp.dp)
+                    .background(
+                        color = if (isPlayed) Color(0xFF0066FF) else Color(0xFFCBD5E1),
+                        shape = CircleShape
+                    )
+            )
+        }
+    }
 }
 
 private fun Recording?.isProcessedForFilter(): Boolean {
@@ -1208,6 +1485,163 @@ private fun Recording?.isProcessedForFilter(): Boolean {
 }
 
 @Composable
+fun SrutamDialogConfirmButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDestructive: Boolean = false
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .shadow(
+                elevation = 4.dp,
+                shape = CircleShape,
+                spotColor = if (isDestructive) Color(0x40DC2626) else Color(0x402563EB)
+            )
+            .background(
+                brush = Brush.verticalGradient(
+                    if (isDestructive) {
+                        listOf(Color(0xFFEF4444), Color(0xFFDC2626))
+                    } else {
+                        listOf(Color(0xFF3B82F6), Color(0xFF2563EB))
+                    }
+                ),
+                shape = CircleShape
+            )
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun SrutamDialogDismissButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(
+                color = Color(0xFFF1F5F9),
+                shape = CircleShape
+            )
+            .border(
+                width = 1.dp,
+                color = Color(0xFFE2E8F0),
+                shape = CircleShape
+            )
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF64748B),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun SrutamCustomDialog(
+    onDismissRequest: () -> Unit,
+    iconBadge: @Composable () -> Unit,
+    title: String,
+    subtitle: String? = null,
+    content: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: (@Composable () -> Unit)? = null
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .padding(16.dp)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    spotColor = Color(0x380F172A),
+                    ambientColor = Color(0x180F172A)
+                ),
+            shape = RoundedCornerShape(32.dp),
+            color = Color(0xFAFFFFFF),
+            border = BorderStroke(
+                width = 1.2.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.95f),
+                        Color(0xFFCBD5E1).copy(alpha = 0.45f)
+                    )
+                )
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                iconBadge()
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = title,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    letterSpacing = (-0.3).sp
+                )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 13.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                content()
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (dismissButton != null) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            dismissButton()
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun RenameDialog(
     currentName: String,
     onRename: (String) -> Unit,
@@ -1215,27 +1649,242 @@ fun RenameDialog(
 ) {
     var text by remember { mutableStateOf(currentName) }
 
-    androidx.compose.material3.AlertDialog(
+    SrutamCustomDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Recording") },
-        text = {
-            androidx.compose.material3.TextField(
+        iconBadge = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color(0xFFDBEAFE),
+                                Color(0xFFEFF6FF)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White,
+                                Color(0xFFBFDBFE)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0x4D2563EB)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFF3B82F6),
+                                    Color(0xFF1D4ED8)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
+        title = "Rename Recording",
+        subtitle = "Enter a new title for this audio recording.",
+        content = {
+            OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(22.dp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (text.isNotBlank()) {
+                        IconButton(
+                            onClick = { text = "" },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear text",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF8FAFC),
+                    unfocusedContainerColor = Color(0xFFF8FAFC),
+                    focusedBorderColor = Color(0xFF2563EB),
+                    unfocusedBorderColor = Color(0xFFE2E8F0),
+                    focusedTextColor = Color(0xFF0F172A),
+                    unfocusedTextColor = Color(0xFF0F172A)
+                ),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             )
         },
         confirmButton = {
-            ElevatedButton(onClick = { onRename(text.takeIf { it.isNotBlank() } ?: currentName) }) {
-                Text("Rename")
-            }
+            SrutamDialogConfirmButton(
+                text = "Rename",
+                onClick = { onRename(text.takeIf { it.isNotBlank() } ?: currentName) }
+            )
         },
         dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            SrutamDialogDismissButton(
+                text = "Cancel",
+                onClick = onDismiss
+            )
+        }
+    )
+}
+
+@Composable
+fun SaveRecordingDialog(
+    defaultName: String,
+    onSave: (String) -> Unit,
+    onDiscard: () -> Unit
+) {
+    var text by remember { mutableStateOf(defaultName) }
+
+    SrutamCustomDialog(
+        onDismissRequest = onDiscard,
+        iconBadge = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color(0xFFDBEAFE),
+                                Color(0xFFEFF6FF)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White,
+                                Color(0xFFBFDBFE)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0x4D2563EB)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFF3B82F6),
+                                    Color(0xFF1D4ED8)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
+        },
+        title = "Save Voice Note",
+        subtitle = "Give your new recording a name or keep the default.",
+        content = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.GraphicEq,
+                        contentDescription = null,
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (text.isNotBlank()) {
+                        IconButton(
+                            onClick = { text = "" },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear text",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF8FAFC),
+                    unfocusedContainerColor = Color(0xFFF8FAFC),
+                    focusedBorderColor = Color(0xFF2563EB),
+                    unfocusedBorderColor = Color(0xFFE2E8F0),
+                    focusedTextColor = Color(0xFF0F172A),
+                    unfocusedTextColor = Color(0xFF0F172A)
+                ),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            )
+        },
+        confirmButton = {
+            SrutamDialogConfirmButton(
+                text = "Save Note",
+                onClick = { onSave(text.trim().ifBlank { defaultName }) }
+            )
+        },
+        dismissButton = {
+            SrutamDialogDismissButton(
+                text = "Discard",
+                onClick = onDiscard
+            )
         }
     )
 }
@@ -1246,28 +1895,93 @@ fun AudioInfoDialog(
     audioFile: AudioFileInfo,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    SrutamCustomDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "Recording Info",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
+        iconBadge = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color(0xFFE2E8F0),
+                                Color(0xFFF1F5F9)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White,
+                                Color(0xFFCBD5E1)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0x260F172A)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFF64748B),
+                                    Color(0xFF475569)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
         },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoRow(label = "Name", value = displayName)
-                InfoRow(label = "Duration", value = formatDuration(audioFile.duration))
-                InfoRow(label = "Date", value = formatDate(audioFile.timestamp))
-                InfoRow(label = "Size", value = formatFileSize(audioFile.sizeBytes))
-                InfoRow(label = "File", value = audioFile.filePath)
+        title = "File Info",
+        subtitle = "Audio metadata and storage location details.",
+        content = {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    InfoRow(label = "Title", value = displayName)
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    InfoRow(label = "Duration", value = formatDuration(audioFile.duration))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    InfoRow(label = "Recorded Date", value = formatDate(audioFile.timestamp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    InfoRow(label = "File Size", value = formatFileSize(audioFile.sizeBytes))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    InfoRow(label = "File Path", value = audioFile.filePath)
+                }
             }
         },
         confirmButton = {
-            ElevatedButton(onClick = onDismiss) {
-                Text("Close")
-            }
+            SrutamDialogConfirmButton(
+                text = "Done",
+                onClick = onDismiss
+            )
         }
     )
 }
@@ -1277,13 +1991,16 @@ private fun InfoRow(label: String, value: String) {
     Column {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF64748B)
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF0F172A)
         )
     }
 }
@@ -1294,59 +2011,77 @@ fun DeleteConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    SrutamCustomDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(28.dp)
-            )
-        },
-        title = {
-            Text(
-                "Delete Recording?",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Are you sure you want to permanently delete \"$recordingName\"?",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    "This action cannot be undone.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            ElevatedButton(
-                onClick = onConfirm,
-                colors = androidx.compose.material3.ButtonDefaults.elevatedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
+        iconBadge = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color(0xFFFEE2E2),
+                                Color(0xFFFEF2F2)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White,
+                                Color(0xFFFECACA)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = Color.White,
+                Box(
                     modifier = Modifier
-                        .size(18.dp)
-                        .padding(end = 4.dp)
-                )
-                Text("Delete", color = Color.White)
+                        .size(44.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0x4DDC2626)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFFEF4444),
+                                    Color(0xFFDC2626)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
+        },
+        title = "Delete Recording?",
+        subtitle = "Are you sure you want to permanently delete \"$recordingName\"? This action cannot be undone.",
+        content = {},
+        confirmButton = {
+            SrutamDialogConfirmButton(
+                text = "Delete",
+                onClick = onConfirm,
+                isDestructive = true
+            )
         },
         dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+            SrutamDialogDismissButton(
+                text = "Cancel",
+                onClick = onDismiss
+            )
+        }
     )
 }
 
@@ -1356,33 +2091,74 @@ fun MultiDeleteConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    SrutamCustomDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(28.dp)
-            )
+        iconBadge = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            listOf(
+                                Color(0xFFFEE2E2),
+                                Color(0xFFFEF2F2)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White,
+                                Color(0xFFFECACA)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = CircleShape,
+                            spotColor = Color(0x4DDC2626)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFFEF4444),
+                                    Color(0xFFDC2626)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         },
-        title = {
-            Text(
-                "Delete ${recordingNames.size} Recording${if (recordingNames.size > 1) "s" else ""}?",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "You are about to permanently delete the following recordings:",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
+        title = "Delete ${recordingNames.size} Recording${if (recordingNames.size > 1) "s" else ""}?",
+        subtitle = "You are about to permanently delete the following recordings:",
+        content = {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
+                        .heightIn(max = 160.dp)
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -1397,52 +2173,106 @@ fun MultiDeleteConfirmationDialog(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(16.dp)
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = name,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 12.sp,
+                                color = Color(0xFF0F172A),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
-                
-                Text(
-                    "This action cannot be undone, but you can undo within 5 seconds.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         },
         confirmButton = {
-            ElevatedButton(
+            SrutamDialogConfirmButton(
+                text = "Delete All",
                 onClick = onConfirm,
-                colors = androidx.compose.material3.ButtonDefaults.elevatedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .padding(end = 4.dp)
-                )
-                Text("Delete All", color = Color.White)
-            }
+                isDestructive = true
+            )
         },
         dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+            SrutamDialogDismissButton(
+                text = "Cancel",
+                onClick = onDismiss
+            )
+        }
     )
+}
+
+@Composable
+private fun SearchEmptyState(
+    query: String,
+    onClearSearch: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(26.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 4.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "No matching recordings",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "No notes or transcripts matched \"$query\".",
+                    fontSize = 13.sp,
+                    color = Color(0xFF64748B),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF2563EB),
+                    modifier = Modifier.clickable { onClearSearch() }
+                ) {
+                    Text(
+                        text = "Clear Search",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun parseJsonArray(json: String?): List<String> {

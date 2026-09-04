@@ -11,20 +11,26 @@ object RecordingNameFormatter {
 
     fun displayName(fileName: String, timestamp: Long, savedName: String? = null): String {
         val preferred = savedName?.trim().orEmpty()
-        if (preferred.isUsableTitle()) {
+        val isLegacyName = preferred.isBlank() ||
+            preferred.startsWith("Voice note ", ignoreCase = true) ||
+            preferred.startsWith("Voice Note", ignoreCase = true) ||
+            preferred.equals("Recording", ignoreCase = true)
+
+        if (!isLegacyName) {
             return preferred
         }
 
-        val baseName = fileName.substringBeforeLast('.').trim()
-        if (baseName.isUsableTitle()) {
-            return prettifyFileName(baseName)
+        val cleanFileBase = fileName
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+            .substringBeforeLast('.')
+            .trim()
+
+        if (cleanFileBase.isNotBlank()) {
+            return cleanFileBase
         }
 
-        return defaultVoiceNoteName(timestamp)
-    }
-
-    fun defaultVoiceNoteName(timestamp: Long): String {
-        return "Voice note ${voiceNoteDateFormat.format(Date(timestamp))}"
+        return "recording_${timestamp}"
     }
 
     private fun String.isUsableTitle(): Boolean {
@@ -32,6 +38,10 @@ object RecordingNameFormatter {
         if (equals("Recording", ignoreCase = true)) return false
         if (generatedRecordingPattern.matches(this)) return false
         if (numericPattern.matches(this)) return false
+        if (startsWith("Voice note ", ignoreCase = true) && length > 14) {
+            // Filter out old legacy names that embedded the date/time string
+            return false
+        }
         return true
     }
 

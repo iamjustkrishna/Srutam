@@ -1,4 +1,18 @@
-﻿package space.iamjustkrishna.srutam.ui.screens
+package space.iamjustkrishna.srutam.ui.screens
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import space.iamjustkrishna.srutam.ui.theme.*
 
 
 
@@ -22,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
@@ -29,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
+import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,12 +56,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -106,42 +129,58 @@ fun DetailScreen(
     }
 
     Scaffold(
+        containerColor = CeramicWhite,
+        floatingActionButton = {
+            if (askQuestionsEnabled) {
+                Surface(
+                    onClick = onShowChat,
+                    shape = CircleShape,
+                    color = CobaltBlue,
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "✦",
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Ask Srutam AI",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        },
         topBar = {
             TopAppBar(
-                title = { Text("Recording Details") },
+                title = {
+                    Text(
+                        text = "Note Details",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1C1C1E)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = Color(0xFF1C1C1E),
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 },
                 actions = {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                        state = askQuestionsTooltipState,
-                        tooltip = {
-                            PlainTooltip {
-                                Text("First transcribe and summarize.")
-                            }
-                        }
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (askQuestionsEnabled) {
-                                    onShowChat()
-                                } else {
-                                    coroutineScope.launch {
-                                        askQuestionsTooltipState.show()
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                ImageVector.vectorResource(R.drawable.aichat),
-                                contentDescription = "Ask Questions",
-                                modifier = Modifier.alpha(if (askQuestionsEnabled) 1f else 0.38f)
-                            )
-                        }
-                    }
                     IconButton(onClick = {
                         val currentRecording = recording ?: return@IconButton
                         coroutineScope.launch {
@@ -162,12 +201,12 @@ fun DetailScreen(
                             }
                         }
                     }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete")
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFF64748B))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = CeramicWhite,
+                    titleContentColor = TextPrimary
                 )
             )
         }
@@ -200,15 +239,40 @@ fun RecordingDetails(
     modifier: Modifier = Modifier
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
+    var selectedDetailTabIndex by remember { mutableStateOf(0) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+
+    val displayName = remember(recording.audioFilePath, recording.timestamp, recording.name) {
+        RecordingNameFormatter.displayName(
+            fileName = recording.audioFilePath,
+            timestamp = recording.timestamp,
+            savedName = recording.name
+        )
+    }
+
+    if (showRenameDialog) {
+        RenameDialog(
+            currentName = displayName,
+            onRename = { newName ->
+                viewModel.renameRecording(newName)
+                showRenameDialog = false
+            },
+            onDismiss = { showRenameDialog = false }
+        )
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Metadata
         item {
-            MetadataCard(recording)
+            MetadataCard(
+                recording = recording,
+                displayName = displayName,
+                onRenameClick = { showRenameDialog = true }
+            )
         }
 
         // Audio Player
@@ -216,199 +280,281 @@ fun RecordingDetails(
             AudioPlayerCard(
                 playbackState = playbackState,
                 onPlayPause = { viewModel.togglePlayPause() },
-                onSeek = { viewModel.seekTo(it) }
+                onSeek = { viewModel.seekTo(it) },
+                onSpeedChange = { viewModel.setPlaybackSpeed(it) }
             )
         }
 
-        if (!recording.isProcessing && recording.summary.isNullOrBlank()) {
-            item {
-                SummaryPromptCard(
-                    isOnline = isOnline,
-                    hasTranscript = !recording.transcript.isNullOrBlank(),
-                    onGenerateSummary = { viewModel.generateAiSummary() }
-                )
-            }
-        }
-
-        // Processing Status
-        if (recording.isProcessing) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Row(
+        // Segmented Control Tabs matching Apple Studio Mockup
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF2F2F7), RoundedCornerShape(14.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("✦ Summary", "📄 Transcript", "✓ Tasks").forEachIndexed { index, title ->
+                    val isSelected = (selectedDetailTabIndex == index)
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .height(36.dp)
+                            .background(
+                                color = if (isSelected) Color.White else Color.Transparent,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable { selectedDetailTabIndex = index },
+                        contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
                         Text(
-                            text = when (recording.aiStatus) {
-                                RecordingAiStatus.TRANSCRIBING -> "Transcribing locally..."
-                                RecordingAiStatus.SUMMARY_PROCESSING -> "Generating AI summary..."
-                                else -> "Processing with AI..."
-                            },
-                            modifier = Modifier.padding(start = 16.dp),
-                            style = MaterialTheme.typography.bodyLarge
+                            text = title,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color(0xFF1C1C1E) else Color(0xFF8E8E93)
                         )
                     }
                 }
             }
         }
 
-        // Deferred Summary (offline transcribed, no summary yet)
-        if (!recording.isProcessing &&
-            recording.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE &&
-            !recording.transcript.isNullOrBlank() &&
-            recording.summary.isNullOrBlank()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        // Tab 0: Summary & Insights
+        if (selectedDetailTabIndex == 0) {
+            if (!recording.isProcessing && recording.summary.isNullOrBlank()) {
+                item {
+                    SummaryPromptCard(
+                        isOnline = isOnline,
+                        hasTranscript = !recording.transcript.isNullOrBlank(),
+                        onGenerateSummary = { viewModel.generateAiSummary() }
                     )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                }
+            }
+
+            // Processing Status
+            if (recording.isProcessing) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            CircularProgressIndicator()
                             Text(
-                                text = "Internet Available",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.weight(1f)
+                                text = when (recording.aiStatus) {
+                                    RecordingAiStatus.TRANSCRIBING -> "Transcribing locally..."
+                                    RecordingAiStatus.SUMMARY_PROCESSING -> "Generating AI summary..."
+                                    else -> "Processing with AI..."
+                                },
+                                modifier = Modifier.padding(start = 16.dp),
+                                style = MaterialTheme.typography.bodyLarge
                             )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Your audio has been transcribed locally. Tap below to generate AI summary, key points, and action items.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.generateAiSummary() },
-                            enabled = isOnline,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Generate AI Summary")
                         }
                     }
                 }
             }
-        }
 
-        // Error State with Retry
-        if (!recording.isProcessing &&
-            recording.aiStatus == RecordingAiStatus.ERROR &&
-            recording.processingError != null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+            // Deferred Summary (offline transcribed, no summary yet)
+            if (!recording.isProcessing &&
+                recording.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE &&
+                !recording.transcript.isNullOrBlank() &&
+                recording.summary.isNullOrBlank()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Language,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Ready for AI Insights",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Your audio has been transcribed locally. Tap below to generate AI summary, key points, and action items.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.generateAiSummary() },
+                                enabled = isOnline,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Generate AI Summary")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Error State with Retry
+            if (!recording.isProcessing &&
+                recording.aiStatus == RecordingAiStatus.ERROR &&
+                recording.processingError != null) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Processing Failed",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = recording.processingError,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.retryAiProcessing() },
+                                enabled = isOnline,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Retry Processing")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Summary
+            if (recording.summary != null) {
+                item {
+                    SectionCard(
+                        title = "Summary",
+                        content = recording.summary
                     )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                }
+            }
+
+            // WIIFM
+            if (recording.wiifm != null) {
+                item {
+                    SectionCard(
+                        title = "What's In It For Me",
+                        content = recording.wiifm
+                    )
+                }
+            }
+
+            // Key Points
+            if (recording.keyPoints != null) {
+                item {
+                    BulletListCard(
+                        title = "Key Points",
+                        items = parseJsonArray(recording.keyPoints)
+                    )
+                }
+            }
+        }
+
+        // Tab 1: Transcript
+        if (selectedDetailTabIndex == 1) {
+            item {
+                if (!recording.transcript.isNullOrBlank()) {
+                    SectionCard(
+                        title = "Full Transcript",
+                        content = recording.transcript
+                    )
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+                        border = BorderStroke(0.5.dp, SlateBorder)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(24.dp)
-                            )
                             Text(
-                                text = "Processing Failed",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.weight(1f)
+                                text = "Transcript is not available yet.",
+                                color = Color(0xFF8E8E93),
+                                fontSize = 14.sp
                             )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = recording.processingError,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.retryAiProcessing() },
-                            enabled = isOnline,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Retry Processing")
                         }
                     }
                 }
             }
         }
 
-        // Summary
-        if (recording.summary != null) {
+        // Tab 2: Action Items / Tasks
+        if (selectedDetailTabIndex == 2) {
             item {
-                SectionCard(
-                    title = "Summary",
-                    content = recording.summary
-                )
-            }
-        }
-
-        // WIIFM
-        if (recording.wiifm != null) {
-            item {
-                SectionCard(
-                    title = "What's In It For Me",
-                    content = recording.wiifm
-                )
-            }
-        }
-
-        // Key Points
-        if (recording.keyPoints != null) {
-            item {
-                BulletListCard(
-                    title = "Key Points",
-                    items = parseJsonArray(recording.keyPoints)
-                )
-            }
-        }
-
-        // Action Items
-        if (recording.actionItems != null) {
-            item {
-                BulletListCard(
-                    title = "Action Items",
-                    items = parseJsonArray(recording.actionItems)
-                )
-            }
-        }
-
-        // Transcript
-        if (recording.transcript != null) {
-            item {
-                SectionCard(
-                    title = "Full Transcript",
-                    content = recording.transcript
-                )
+                val actionItems = parseJsonArray(recording.actionItems)
+                if (actionItems.isNotEmpty()) {
+                    BulletListCard(
+                        title = "Action Items",
+                        items = actionItems
+                    )
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+                        border = BorderStroke(0.5.dp, SlateBorder)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No action items extracted for this note.",
+                                color = Color(0xFF8E8E93),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -490,25 +636,75 @@ fun SummaryPromptCard(
 }
 
 @Composable
-fun MetadataCard(recording: Recording) {
+fun MetadataCard(
+    recording: Recording,
+    displayName: String,
+    onRenameClick: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+        border = BorderStroke(0.5.dp, SlateBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onRenameClick),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = onRenameClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Rename Note",
+                        tint = CobaltBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
                     text = formatDate(recording.timestamp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 13.sp,
+                    color = Color(0xFF8E8E93)
+                )
+                Text(
+                    text = "•",
+                    fontSize = 13.sp,
+                    color = Color(0xFFC7C7CC)
+                )
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(13.dp)
                 )
                 Text(
                     text = formatDuration(recording.duration),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    fontSize = 13.sp,
+                    color = Color(0xFF8E8E93)
                 )
             }
         }
@@ -523,17 +719,20 @@ fun SectionCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+        border = BorderStroke(0.5.dp, SlateBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = CobaltBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
+            HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = content,
@@ -551,28 +750,34 @@ fun BulletListCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+        border = BorderStroke(0.5.dp, SlateBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = CobaltBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
+            HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(8.dp))
 
             items.forEach { item ->
+                val cleanItem = item.removePrefix("[ ] ").removePrefix("- ").removePrefix("* ").trim()
                 Row(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text(
-                        text = "\u2022",
+                        text = "•",
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = CobaltBlue,
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
-                        text = item,
+                        text = cleanItem,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
@@ -587,88 +792,173 @@ fun AudioPlayerCard(
     playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
     onPlayPause: () -> Unit,
     onSeek: (Int) -> Unit,
+    onSpeedChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
+        border = BorderStroke(0.5.dp, SlateBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = "Audio Player",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Time display
+            // Main Playback Strip: Play Button + Waveform + Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = formatTime(playbackState.currentPosition),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                // Circular Cobalt Blue Play Button
+                Surface(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            enabled = !playbackState.isLoading && playbackState.error == null,
+                            onClick = onPlayPause
+                        ),
+                    shape = CircleShape,
+                    color = CobaltBlue,
+                    shadowElevation = 2.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (playbackState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Interactive Waveform Scrubber
+                val totalDuration = playbackState.duration.coerceAtLeast(1)
+                val currentPos = playbackState.currentPosition.coerceIn(0, totalDuration)
+                val progress = (currentPos.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
+
+                DetailWaveformScrubber(
+                    progress = progress,
+                    isPlaying = playbackState.isPlaying,
+                    onSeekFraction = { fraction ->
+                        onSeek((fraction * totalDuration).toInt())
+                    },
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = formatTime(playbackState.duration),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                // Timecode
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = formatTime(currentPos),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (playbackState.isPlaying) CobaltBlue else TextPrimary
+                    )
+                    Text(
+                        text = formatTime(totalDuration),
+                        fontSize = 10.sp,
+                        color = Color(0xFF8E8E93)
+                    )
+                }
             }
 
-            // Seekbar
-            Slider(
-                value = playbackState.currentPosition.toFloat(),
-                onValueChange = { onSeek(it.toInt()) },
-                valueRange = 0f..playbackState.duration.toFloat().coerceAtLeast(1f),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Play/Pause button
+            // Speed Selector Pills Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledIconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(64.dp),
-                    enabled = !playbackState.isLoading && playbackState.error == null
-                ) {
-                    if (playbackState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 3.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (playbackState.isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                            contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
-                            modifier = Modifier.size(32.dp)
-                        )
+                Text(
+                    text = "Playback Speed",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF8E8E93)
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
+                        val isSelected = (playbackState.speed == speed)
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isSelected) CobaltBlue else Color(0xFFF2F2F7),
+                            modifier = Modifier.clickable { onSpeedChange(speed) }
+                        ) {
+                            Text(
+                                text = "${speed}x",
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else Color(0xFF3C3C43),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
 
             // Error message
             if (playbackState.error != null) {
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = playbackState.error,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth()
+                    color = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DetailWaveformScrubber(
+    progress: Float,
+    isPlaying: Boolean,
+    onSeekFraction: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val barHeights = remember {
+        listOf(
+            6, 12, 18, 10, 24, 16, 8, 14, 22, 12, 6, 18, 26, 14,
+            10, 20, 14, 8, 16, 22, 12, 8, 18, 24, 10, 14, 8, 6
+        )
+    }
+
+    Row(
+        modifier = modifier
+            .height(32.dp)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                    onSeekFraction(fraction)
+                }
+            },
+        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        barHeights.forEachIndexed { index, heightDp ->
+            val barFraction = index.toFloat() / (barHeights.size - 1).coerceAtLeast(1)
+            val isPlayed = progress >= barFraction
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(heightDp.dp)
+                    .background(
+                        color = if (isPlayed) CobaltBlue else Color(0xFFE5E5EA),
+                        shape = CircleShape
+                    )
+            )
         }
     }
 }

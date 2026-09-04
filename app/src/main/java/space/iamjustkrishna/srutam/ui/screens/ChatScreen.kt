@@ -1,4 +1,10 @@
-﻿package space.iamjustkrishna.srutam.ui.screens
+package space.iamjustkrishna.srutam.ui.screens
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.unit.sp
+import space.iamjustkrishna.srutam.ui.theme.*
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.AssistChip
@@ -33,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -102,24 +110,42 @@ fun ChatScreen(
     }
 
     Scaffold(
+        containerColor = CeramicWhite,
         topBar = {
             TopAppBar(
-                title = { Text("Ask Questions") },
+                title = { Text("Srutam AI", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .clickable(onClick = onNavigateBack),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = CobaltBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "Note",
+                            color = CobaltBlue,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        )
                     }
                 },
                 actions = {
                     if (chatMessages.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearChat() }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear Chat")
+                        TextButton(onClick = { viewModel.clearChat() }) {
+                            Text("Clear", color = Color(0xFF8E8E93), fontSize = 14.sp)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1C1C1E)
                 )
             )
         },
@@ -151,16 +177,6 @@ fun ChatScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item {
-                    SuggestionRow(
-                        isOnline = isOnline,
-                        onSuggestionClick = { suggestion ->
-                            inputText = suggestion
-                            submitQuestion(suggestion)
-                        }
-                    )
-                }
-
                 items(chatMessages) { message ->
                     ChatMessageItem(message = message)
                 }
@@ -189,9 +205,10 @@ fun EmptyChatState(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            tonalElevation = 2.dp
+            shape = RoundedCornerShape(24.dp),
+            color = CeramicWhite,
+            border = BorderStroke(0.5.dp, SlateBorder),
+            tonalElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -299,12 +316,9 @@ fun ChatMessageItem(
                 Modifier.padding(end = 48.dp)
             },
             colors = CardDefaults.cardColors(
-                containerColor = if (message.isUser) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
+                containerColor = if (message.isUser) CobaltBlue else SlateSurface
             ),
+            border = if (message.isUser) null else BorderStroke(0.5.dp, SlateBorder),
             shape = RoundedCornerShape(
                 topStart = 22.dp,
                 topEnd = 22.dp,
@@ -312,16 +326,46 @@ fun ChatMessageItem(
                 bottomEnd = if (message.isUser) 8.dp else 22.dp
             )
         ) {
-            Text(
-                text = message.text,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (message.isUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+            if (message.isUser) {
+                Text(
+                    text = message.text,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White
+                )
+            } else {
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val lines = message.text.lines()
+                    lines.forEach { rawLine ->
+                        val trimmed = rawLine.trim()
+                        if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text(
+                                    text = "• ",
+                                    color = CobaltBlue,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                                Text(
+                                    text = trimmed.removePrefix("* ").removePrefix("- ").trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextPrimary
+                                )
+                            }
+                        } else if (trimmed.isNotEmpty()) {
+                            Text(
+                                text = trimmed,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextPrimary
+                            )
+                        }
+                    }
                 }
-            )
+            }
         }
     }
 }
@@ -337,9 +381,10 @@ fun ChatInputBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp,
-        shadowElevation = 10.dp
+        color = CeramicWhite,
+        border = BorderStroke(0.5.dp, SlateBorder),
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier
@@ -368,9 +413,9 @@ fun ChatInputBar(
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedContainerColor = SlateSurface,
+                        unfocusedContainerColor = SlateSurface,
+                        disabledContainerColor = SlateSurface,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent
@@ -386,7 +431,11 @@ fun ChatInputBar(
                 FilledIconButton(
                     onClick = onSendMessage,
                     enabled = enabled && inputText.isNotBlank(),
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(50.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = CobaltBlue,
+                        contentColor = Color.White
+                    ),
                     shape = CircleShape
                 ) {
                     Icon(

@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.ui.screens
+package space.iamjustkrishna.srutam.ui.screens
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -8,6 +8,30 @@ private val cachedDateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefau
 
 fun formatDate(timestamp: Long): String {
     return cachedDateFormat.format(Date(timestamp))
+}
+
+fun formatHumanRelativeDate(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val calNow = java.util.Calendar.getInstance().apply { timeInMillis = now }
+    val calNote = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+    val formattedTime = timeFormat.format(Date(timestamp))
+
+    return when {
+        calNow.get(java.util.Calendar.YEAR) == calNote.get(java.util.Calendar.YEAR) &&
+        calNow.get(java.util.Calendar.DAY_OF_YEAR) == calNote.get(java.util.Calendar.DAY_OF_YEAR) -> {
+            "Today, $formattedTime"
+        }
+        calNow.get(java.util.Calendar.YEAR) == calNote.get(java.util.Calendar.YEAR) &&
+        calNow.get(java.util.Calendar.DAY_OF_YEAR) - calNote.get(java.util.Calendar.DAY_OF_YEAR) == 1 -> {
+            "Yesterday, $formattedTime"
+        }
+        else -> {
+            val dateFormat = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+            dateFormat.format(Date(timestamp))
+        }
+    }
 }
 
 fun formatDuration(durationMs: Long): String {

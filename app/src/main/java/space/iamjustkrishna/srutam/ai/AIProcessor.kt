@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.ai
+package space.iamjustkrishna.srutam.ai
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
@@ -167,6 +167,7 @@ class AIProcessor(private val context: Context) {
 
             Required output format (JSON):
             {
+              "title": "Concise 2 to 4 word topic title (e.g. Design Sync, Budget Review, Apartment Hunt)",
               "summary": "Executive Summary in exactly 2 sentences maximum. First sentence states the main topic. Second sentence highlights the key takeaway.",
               "keyPoints": [
                 "Key insight 1 - specific and actionable",
@@ -175,8 +176,16 @@ class AIProcessor(private val context: Context) {
               ],
               "actionItems": [
                 "[ ] Specific action task 1 with clear next step",
-                "[ ] Specific action task 2 with measurable outcome",
-                "[ ] Specific action task 3 with deadline or priority"
+                "[ ] Specific action task 2 with measurable outcome"
+              ],
+              "ideas": [
+                "A distinct possibility, proposal, or conceptual thought worth remembering"
+              ],
+              "decisions": [
+                {
+                  "text": "Explicit conclusion or choice that was made",
+                  "rationale": "Brief reason or context behind the decision"
+                }
               ],
               "wiifm": "What's In It For Me: This recording helps you by [specific personal benefit]. You can use this to [concrete application or value]."
             }
@@ -184,9 +193,11 @@ class AIProcessor(private val context: Context) {
             Rules:
             - Summary: EXACTLY 2 sentences, no more
             - Key Insights: 3-5 bullet points, specific and detailed
-            - Action Items: Format as checklist with [ ] prefix, be specific and actionable
-            - WIIFM: Must start with "What's In It For Me:", explain personal utility and value
-            - All fields must be present and non-empty
+            - Action Items: CRITICAL - Only extract actionable tasks or commitments IF EXPLICITLY MENTIONED in the transcript. Most voice notes (e.g. personal thoughts, diary entries, ideas) do NOT contain any tasks. If no clear action items are explicitly mentioned, you MUST return [] for "actionItems". NEVER invent generic to-dos.
+            - Ideas: 0-4 distinct proposals, concepts, or thoughts worth remembering. Empty array [] if none.
+            - Decisions: Only include explicit conclusions, choices, or agreements made in the transcript. Empty array [] if none.
+            - WIIFM: Must start with "What's In It For Me:", explain personal utility and value.
+            - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, and decisions may be empty [].
         """.trimIndent()
     }
 
@@ -225,11 +236,56 @@ class AIProcessor(private val context: Context) {
 
             val jsonObject = gson.fromJson(jsonText, Map::class.java)
 
+            val rawKeyPoints = (jsonObject["keyPoints"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            val rawActionItems = (jsonObject["actionItems"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            val rawIdeas = (jsonObject["ideas"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            val rawDecisionsList = jsonObject["decisions"] as? List<*> ?: emptyList<Any>()
+
+            val parsedDecisions = rawDecisionsList.mapNotNull { item ->
+                when (item) {
+                    is Map<*, *> -> {
+                        val text = item["text"] as? String
+                        if (!text.isNullOrBlank()) {
+                            AIDecision(
+                                text = text.trim(),
+                                rationale = item["rationale"] as? String,
+                                evidence = item["evidence"] as? String
+                            )
+                        } else null
+                    }
+                    is String -> if (item.isNotBlank()) AIDecision(text = item.trim()) else null
+                    else -> null
+                }
+            }
+
+            // Fallback for ideas: if AI didn't return explicit ideas, derive from keyPoints
+            val finalIdeas = if (rawIdeas.isNotEmpty()) {
+                rawIdeas
+            } else {
+                rawKeyPoints.filter { pt ->
+                    !pt.startsWith("[ ]") && !pt.startsWith("[]")
+                }
+            }
+
+            // Fallback for decisions: if AI didn't return explicit decisions, detect from keyPoints
+            val decisionKeywords = listOf("decid", "agree", "plan", "will ", "chose", "chosen", "approv", "commit", "conclud", "finaliz", "schedule", "deadline", "next step")
+            val finalDecisions = if (parsedDecisions.isNotEmpty()) {
+                parsedDecisions
+            } else {
+                rawKeyPoints.filter { pt ->
+                    val lower = pt.lowercase()
+                    decisionKeywords.any { lower.contains(it) }
+                }.map { AIDecision(text = it.trim()) }
+            }
+
             AIInsights(
+                title = (jsonObject["title"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                 summary = jsonObject["summary"] as? String ?: "Summary not available",
-                keyPoints = (jsonObject["keyPoints"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                actionItems = (jsonObject["actionItems"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                wiifm = jsonObject["wiifm"] as? String ?: "Value not specified"
+                keyPoints = rawKeyPoints,
+                actionItems = rawActionItems,
+                ideas = finalIdeas,
+                decisions = finalDecisions,
+                wiifm = jsonObject["wiifm"] as? String ?: (jsonObject["whatsInItForMe"] as? String) ?: "Value not specified"
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing AI response", e)
@@ -243,22 +299,36 @@ class AIProcessor(private val context: Context) {
         val wordCount = transcript.split(" ").size
 
         return AIInsights(
+            title = null,
             summary = "This recording contains approximately $wordCount words across ${sentences.size} sentences. " +
                     "The content has been captured and is ready for detailed review.",
             keyPoints = listOf(
                 "Audio successfully transcribed with ${sentences.size} distinct segments",
                 "Recording captured $wordCount words of content",
-                "Full transcript available for detailed analysis and reference"
+                "Ready for full analysis when connected to internet"
             ),
-            actionItems = listOf(
-                "[ ] Review the complete transcript for key information",
-                "[ ] Extract specific action items and decisions manually",
-                "[ ] Share or export relevant sections as needed"
-            ),
-            wiifm = "What's In It For Me: This recording preserves your spoken thoughts and conversations for future reference. " +
-                    "You can use this to review important details, extract action items, and ensure nothing gets forgotten."
+            actionItems = emptyList(),
+            ideas = listOf("Audio captured offline and ready for AI insights when connected"),
+            decisions = emptyList(),
+            wiifm = "What's In It For Me: This provides an instant offline overview of your audio length and structural complexity before cloud processing."
         )
     }
+
+    data class AIDecision(
+        val text: String,
+        val rationale: String? = null,
+        val evidence: String? = null
+    )
+
+    data class AIInsights(
+        val title: String? = null,
+        val summary: String,
+        val keyPoints: List<String>,
+        val actionItems: List<String>,
+        val ideas: List<String> = emptyList(),
+        val decisions: List<AIDecision> = emptyList(),
+        val wiifm: String
+    )
 
     suspend fun queryRecording(transcript: String, question: String): String = withContext(Dispatchers.IO) {
         try {
@@ -288,12 +358,44 @@ class AIProcessor(private val context: Context) {
         }
     }
 
-    data class AIInsights(
-        val summary: String,
-        val keyPoints: List<String>,
-        val actionItems: List<String>,
-        val wiifm: String
-    )
+    suspend fun queryAllRecordings(contextSnippets: List<String>, question: String): String = withContext(Dispatchers.IO) {
+        try {
+            val generativeModel = createModel(
+                modelName = "gemini-2.5-flash",
+                timeoutMs = QUERY_TIMEOUT_MS
+            )
+
+            val notesContext = contextSnippets.joinToString("\n\n---\n\n")
+
+            val prompt = """
+                You are Srutam AI, an intelligent personal voice notes companion for Srutam.
+                The user is asking a question regarding their voice recordings, transcripts, summaries, and action items.
+                Below are the relevant notes and excerpts retrieved from their library:
+
+                $notesContext
+
+                User Question: $question
+
+                STRICT GUARDRAIL RULES:
+                1. SCOPE RESTRICTION: You are strictly scoped to the user's voice notes, recordings, ideas, transcriptions, summaries, and action items.
+                2. If the user's question is unrelated to their voice notes, recordings, or tasks (e.g. asking general trivia, coding, writing essays, math problems, weather, or general chit-chat outside their notes), you MUST politely refuse to answer:
+                   "I am Srutam AI, designed specifically to help you search, summarize, and understand your voice notes and recordings. I can only assist with queries related to your voice notes and action items in Srutam."
+                3. Do NOT mention internal search algorithms (such as BM25, embeddings, or technical implementation details).
+                4. Answer helpfully, clearly, and concisely based strictly on the retrieved context above.
+                5. When referencing information, cite the note name or date (e.g., "[Recording Title]").
+                6. If the notes do not contain the answer, say that you couldn't find any mention of it in their voice recordings.
+                7. Maintain a crisp, helpful, professional tone.
+            """.trimIndent()
+
+            val response = withTimeout(QUERY_TIMEOUT_MS) {
+                generativeModel.generateContent(prompt)
+            }
+            response.text ?: "I couldn't generate an answer across your voice notes. Please try again."
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying all recordings", e)
+            "Error: ${e.message ?: "Unable to process query across your voice notes"}"
+        }
+    }
 
     companion object {
         private const val TAG = "AIProcessor"

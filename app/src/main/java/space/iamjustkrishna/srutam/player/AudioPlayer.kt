@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.player
+package space.iamjustkrishna.srutam.player
 
 import android.content.Context
 import android.media.MediaPlayer
@@ -20,7 +20,8 @@ data class PlaybackState(
     val duration: Int = 0,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val currentFilePath: String? = null
+    val currentFilePath: String? = null,
+    val speed: Float = 1.0f
 )
 
 class AudioPlayer(private val context: Context) {
@@ -141,6 +142,22 @@ class AudioPlayer(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error seeking", e)
+        }
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                mediaPlayer?.let { player ->
+                    val params = player.playbackParams
+                    params.speed = speed
+                    player.playbackParams = params
+                }
+            }
+            _playbackState.value = _playbackState.value.copy(speed = speed)
+            Log.d(TAG, "Playback speed set to: $speed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting playback speed", e)
         }
     }
 

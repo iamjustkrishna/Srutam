@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.viewmodel
+package space.iamjustkrishna.srutam.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -45,8 +45,10 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     val playbackState: StateFlow<space.iamjustkrishna.srutam.player.PlaybackState>
         get() = audioPlayer.playbackState
 
+    private val database = (application as SrutamApplication).database
+    private val insightDao = database.insightDao()
+
     init {
-        val database = (application as SrutamApplication).database
         repository = RecordingRepository(application.applicationContext, database.recordingDao())
         aiProcessor = AIProcessor(application)
         audioPlayer = AudioPlayer(application)
@@ -69,12 +71,21 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     // Audio playback controls
     fun play() = audioPlayer.play()
-
     fun pause() = audioPlayer.pause()
-
     fun togglePlayPause() = audioPlayer.togglePlayPause()
-
     fun seekTo(position: Int) = audioPlayer.seekTo(position)
+    fun setPlaybackSpeed(speed: Float) = audioPlayer.setPlaybackSpeed(speed)
+
+    fun renameRecording(newName: String) {
+        val current = _recording.value ?: return
+        if (newName.isNotBlank()) {
+            viewModelScope.launch {
+                val updated = current.copy(name = newName.trim())
+                repository.updateRecording(updated)
+                _recording.value = updated
+            }
+        }
+    }
 
     fun askQuestion(question: String) {
         val currentRecording = _recording.value
@@ -185,6 +196,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
                     _recording.value = workingRecording
 
                     val insights = aiProcessor.generateInsights(transcript)
+                    saveInsightsToRoom(workingRecording.id, workingRecording.name, workingRecording.timestamp, insights)
                     workingRecording.copy(
                         transcript = transcript,
                         summary = insights.summary,
@@ -212,6 +224,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
                 if (audioPlayer.playbackState.value.currentFilePath == currentRecording.audioFilePath) {
                     audioPlayer.release()
                 }
+                insightDao.deleteInsightsByRecordingId(currentRecording.id)
                 repository.deleteRecording(currentRecording)
             } catch (e: Exception) {
                 updateRecordingError("Failed to delete file. Try again.")
@@ -261,6 +274,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
                         _recording.value = withTranscript
 
                         val insights = aiProcessor.generateInsights(transcript)
+                        saveInsightsToRoom(withTranscript.id, withTranscript.name, withTranscript.timestamp, insights)
                         withTranscript.copy(
                             summary = insights.summary,
                             keyPoints = gson.toJson(insights.keyPoints),
@@ -290,6 +304,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
                     val updated = withContext(Dispatchers.IO) {
                         val insights = aiProcessor.generateInsights(currentRecording.transcript!!)
+                        saveInsightsToRoom(processingRecording.id, processingRecording.name, processingRecording.timestamp, insights)
                         processingRecording.copy(
                             summary = insights.summary,
                             keyPoints = gson.toJson(insights.keyPoints),
@@ -307,6 +322,76 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
             } catch (e: Exception) {
                 updateRecordingError("Retry failed: ${e.message ?: "Unknown error"}")
             }
+        }
+    }
+
+    private suspend fun saveInsightsToRoom(
+        recordingId: Long,
+        recordingName: String,
+        timestamp: Long,
+        insights: AIProcessor.AIInsights
+    ) = withContext(Dispatchers.IO) {
+        try {
+            insightDao.deleteInsightsByRecordingId(recordingId)
+            val entities = mutableListOf<space.iamjustkrishna.srutam.data.InsightEntity>()
+
+            insights.actionItems.forEachIndexed { idx, rawAction ->
+                val cleanText = rawAction.removePrefix("[ ]").removePrefix("[]").trim()
+                if (cleanText.isNotBlank()) {
+                    entities.add(
+                        space.iamjustkrishna.srutam.data.InsightEntity(
+                            id = "${recordingId}_action_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = space.iamjustkrishna.srutam.data.InsightKind.ACTION,
+                            text = cleanText,
+                            status = space.iamjustkrishna.srutam.data.InsightStatus.OPEN,
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            insights.ideas.forEachIndexed { idx, ideaText ->
+                if (ideaText.isNotBlank()) {
+                    entities.add(
+                        space.iamjustkrishna.srutam.data.InsightEntity(
+                            id = "${recordingId}_idea_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = space.iamjustkrishna.srutam.data.InsightKind.IDEA,
+                            text = ideaText.trim(),
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            insights.decisions.forEachIndexed { idx, dec ->
+                if (dec.text.isNotBlank()) {
+                    entities.add(
+                        space.iamjustkrishna.srutam.data.InsightEntity(
+                            id = "${recordingId}_decision_${idx}_${System.currentTimeMillis()}",
+                            recordingId = recordingId,
+                            recordingName = recordingName,
+                            kind = space.iamjustkrishna.srutam.data.InsightKind.DECISION,
+                            text = dec.text.trim(),
+                            rationale = dec.rationale?.trim(),
+                            evidence = dec.evidence?.trim(),
+                            createdAt = timestamp,
+                            sourceOrder = idx
+                        )
+                    )
+                }
+            }
+
+            if (entities.isNotEmpty()) {
+                insightDao.insertInsights(entities)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DetailViewModel", "Failed to save insights for $recordingId", e)
         }
     }
 

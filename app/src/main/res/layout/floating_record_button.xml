@@ -5,13 +5,13 @@
 
     <ImageView
         android:id="@+id/floating_record_button"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:padding="12dp"
-        android:src="@android:drawable/ic_btn_speak_now"
-        android:background="@android:drawable/presence_online"
+        android:src="@drawable/ic_floating_mic"
+        android:background="@drawable/bg_floating_dock"
         android:contentDescription="@string/floating_button_desc"
-        android:elevation="8dp"
+        android:elevation="12dp"
         android:scaleType="fitCenter" />
 
 </FrameLayout>
