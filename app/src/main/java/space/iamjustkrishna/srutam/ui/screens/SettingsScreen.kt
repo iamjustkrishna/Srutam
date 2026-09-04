@@ -25,15 +25,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
+import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
@@ -54,40 +55,66 @@ fun SettingsScreen(
     var customApiKey by remember {
         mutableStateOf(AppPreferences.getCustomApiKey(context))
     }
-    var isEditingKey by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SquircleActionButton(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = TextPrimary
+                            onClick = onNavigateBack
                         )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Srutam",
+                                fontSize = 28.sp,
+                                fontFamily = PlayfairDisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Settings",
+                                fontSize = 28.sp,
+                                fontFamily = PlayfairDisplayFontFamily,
+                                fontStyle = FontStyle.Italic,
+                                fontWeight = FontWeight.Normal,
+                                color = CobaltBlue
+                            )
+                        }
                     }
-                },
-                actions = {
-                    TextButton(onClick = onNavigateBack) {
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = CobaltContainer,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onNavigateBack)
+                    ) {
                         Text(
                             text = "Done",
-                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = CobaltBlue
+                            color = CobaltBlue,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CeramicWhite)
-            )
+                }
+            }
         },
         containerColor = CeramicWhite,
         modifier = modifier
@@ -97,8 +124,8 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             // =========================================================
             // Section 1: Instant Capture Shortcuts
@@ -107,6 +134,8 @@ fun SettingsScreen(
                 // Row 1: On-Screen Floating Dock
                 SettingsToggleRow(
                     icon = Icons.Default.PictureInPicture,
+                    iconBg = CobaltContainer,
+                    iconTint = CobaltBlue,
                     title = "On-Screen Floating Dock",
                     subtitle = "Discreet edge pill for instant capture from any app",
                     checked = isFloatingDockEnabled,
@@ -131,11 +160,13 @@ fun SettingsScreen(
                     }
                 )
 
-                HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
 
                 // Row 2: Quick Settings Notification Tile
                 SettingsToggleRow(
                     icon = Icons.Default.Notifications,
+                    iconBg = Color(0xFFFEF3C7),
+                    iconTint = Color(0xFFD97706),
                     title = "Quick Settings Tile",
                     subtitle = "Persistent one-tap recording in status bar",
                     checked = isPersistentNotificationEnabled,
@@ -165,21 +196,29 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = null,
-                            tint = CobaltBlue,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(CobaltContainer)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GraphicEq,
+                                contentDescription = null,
+                                tint = CobaltBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Column {
                             Text(
                                 text = "Speech Engine",
@@ -188,14 +227,13 @@ fun SettingsScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Proprietary on-device model • Zero cloud latency",
+                                text = "Proprietary on-device model · Zero cloud latency",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
                         }
                     }
 
-                    // Single-line badge: Srutam Voice v1
                     Surface(
                         color = CobaltContainer,
                         shape = CircleShape
@@ -210,26 +248,34 @@ fun SettingsScreen(
                     }
                 }
 
-                HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = EmeraldSuccess,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(EmeraldContainer)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = EmeraldSuccess,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Column {
                             Text(
                                 text = "Privacy Guarantee",
@@ -245,7 +291,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Single-line badge: 100% On-Device
                     Surface(
                         color = EmeraldContainer,
                         shape = CircleShape
@@ -265,7 +310,7 @@ fun SettingsScreen(
             // Section 3: AI Intelligence Provider
             // =========================================================
             SettingsSection(title = "AI INTELLIGENCE & PROVIDER") {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     // Option A: Srutam Cloud (Default)
                     Row(
                         modifier = Modifier
@@ -281,7 +326,7 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             RadioButton(
                                 selected = selectedProvider == AppPreferences.PROVIDER_SRUTAM_DEFAULT,
@@ -306,8 +351,6 @@ fun SettingsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
                         Surface(color = SlateGrouped, shape = CircleShape) {
                             Text(
                                 text = "Free with limits",
@@ -321,7 +364,11 @@ fun SettingsScreen(
                         }
                     }
 
-                    HorizontalDivider(color = SlateBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+                    HorizontalDivider(
+                        color = SlateBorder.copy(alpha = 0.6f),
+                        thickness = 0.8.dp,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
 
                     // Option B: Custom API Key (BYOK)
                     Row(
@@ -335,7 +382,7 @@ fun SettingsScreen(
                             }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         RadioButton(
                             selected = selectedProvider != AppPreferences.PROVIDER_SRUTAM_DEFAULT,
@@ -364,7 +411,7 @@ fun SettingsScreen(
 
                     // Provider Pills Selection
                     if (selectedProvider != AppPreferences.PROVIDER_SRUTAM_DEFAULT) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -382,14 +429,14 @@ fun SettingsScreen(
                                 Surface(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(10.dp))
                                         .clickable {
                                             selectedProvider = code
                                             AppPreferences.setAIProvider(context, code)
                                         },
                                     color = if (isSelected) CobaltBlue else SlateGrouped,
-                                    border = BorderStroke(0.5.dp, if (isSelected) CobaltBlue else SlateBorder),
-                                    shape = CircleShape
+                                    border = BorderStroke(1.dp, if (isSelected) CobaltBlue else SlateBorder),
+                                    shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier.padding(vertical = 8.dp),
@@ -414,7 +461,7 @@ fun SettingsScreen(
                             onValueChange = { customApiKey = it },
                             placeholder = { Text("Paste $selectedProvider API Key") },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth(),
                             trailingIcon = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -453,12 +500,7 @@ fun SettingsScreen(
             // =========================================================
             // Section 4: Build & App Info
             // =========================================================
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = SlateSurface,
-                border = BorderStroke(0.5.dp, SlateBorder)
-            ) {
+            SettingsSection(title = "ABOUT & STORAGE") {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -478,7 +520,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -499,6 +541,8 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -511,18 +555,19 @@ private fun SettingsSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelMedium,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = TextSecondary,
-            letterSpacing = 0.5.sp,
-            modifier = Modifier.padding(start = 4.dp)
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(start = 6.dp)
         )
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = SlateSurface,
-            border = BorderStroke(0.5.dp, SlateBorder),
+            shape = RoundedCornerShape(20.dp),
+            color = CeramicWhite.copy(alpha = 0.98f),
+            border = BorderStroke(1.dp, SlateBorder),
+            shadowElevation = 2.dp,
             content = { Column(content = content) }
         )
     }
@@ -531,6 +576,8 @@ private fun SettingsSection(
 @Composable
 private fun SettingsToggleRow(
     icon: ImageVector,
+    iconBg: Color = CobaltContainer,
+    iconTint: Color = CobaltBlue,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -540,21 +587,29 @@ private fun SettingsToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(14.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.weight(1f)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = CobaltBlue,
-                modifier = Modifier.size(22.dp)
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBg)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Column {
                 Text(
                     text = title,
@@ -575,7 +630,7 @@ private fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = EmeraldSuccess
+                checkedTrackColor = CobaltBlue
             )
         )
     }

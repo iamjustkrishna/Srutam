@@ -44,7 +44,6 @@ import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
-import space.iamjustkrishna.srutam.ui.mesh.ConceptMeshCanvas
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.viewmodel.ThemeCluster
@@ -62,7 +61,6 @@ fun ActionItemsScreen(
     viewModel: AudioFilesViewModel,
     modifier: Modifier = Modifier
 ) {
-    var isMeshView by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
     var showArchiveDialog by remember { mutableStateOf(false) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
@@ -90,18 +88,12 @@ fun ActionItemsScreen(
         topBar = {
             SrutamTopAppBar(
                 title = "Srutam",
-                accentText = if (isMeshView) "Mesh" else "Insights",
-                subtitle = if (isMeshView) "Interactive Concept Graph" else "Transcribed on this device",
-                subtitleIcon = if (isMeshView) Icons.Default.Hub else Icons.Default.Lock,
-                subtitleColor = if (isMeshView) CobaltBlue else Color(0xFF0F766E),
+                accentText = "Insights",
+                subtitle = "Transcribed on this device",
+                subtitleIcon = Icons.Default.Lock,
+                subtitleColor = Color(0xFF0F766E),
                 actions = {
-                    SquircleActionButton(
-                        icon = if (isMeshView) Icons.Default.ViewAgenda else Icons.Default.Hub,
-                        contentDescription = if (isMeshView) "Switch to List View" else "Explore 2D Concept Mesh",
-                        onClick = { isMeshView = !isMeshView },
-                        tint = if (isMeshView) CobaltBlue else TextPrimary
-                    )
-                    if (!isMeshView && completedActions.isNotEmpty()) {
+                    if (completedActions.isNotEmpty()) {
                         SquircleActionButton(
                             icon = Icons.Default.Archive,
                             contentDescription = "Archive completed actions",
@@ -120,68 +112,54 @@ fun ActionItemsScreen(
         containerColor = Color.Transparent,
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
-        if (isMeshView) {
-            ConceptMeshCanvas(
-                recordings = recordings,
-                insights = allInsights,
-                themes = themeClusters,
-                onRecordingClick = onRecordingClick,
-                onActionToggle = { viewModel.toggleActionComplete(it) },
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // Sleek Single-Row Connected Intelligence Capsule
+            SingleRowInsightsCapsule(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                nextStepsCount = pendingActions.size,
+                ideasCount = allIdeas.size,
+                decisionsCount = allDecisions.size,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             )
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                // Sleek Single-Row Connected Intelligence Capsule
-                SingleRowInsightsCapsule(
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it },
-                    nextStepsCount = pendingActions.size,
-                    ideasCount = allIdeas.size,
-                    decisionsCount = allDecisions.size,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                )
 
-                // Content Area based on Selected Tab
-                when (selectedTab) {
-                    InsightsTab.NEXT_STEPS -> {
-                        NextStepsTab(
-                            pendingActions = pendingActions,
-                            completedActions = completedActions,
-                            themeClusters = themeClusters,
-                            totalActiveCount = totalActiveActions,
-                            completedCount = completedActionsCount,
-                            progressFraction = progressFraction,
-                            archivedCount = archivedActionsCount,
-                            isCompletedExpanded = isCompletedExpanded,
-                            onToggleCompletedExpanded = { isCompletedExpanded = !isCompletedExpanded },
-                            onActionToggle = { viewModel.toggleActionComplete(it) },
-                            onRecordingClick = onRecordingClick,
-                            onArchiveClick = { showArchiveDialog = true },
-                            onRestoreArchived = { viewModel.unarchiveAllActions() },
-                            onDismissTheme = { viewModel.dismissTheme(it) },
-                            onExploreMesh = { isMeshView = true }
-                        )
-                    }
-                    InsightsTab.IDEAS -> {
-                        IdeasStreamTab(
-                            ideas = allIdeas,
-                            onRecordingClick = onRecordingClick
-                        )
-                    }
-                    InsightsTab.DECISIONS -> {
-                        DecisionsTimelineTab(
-                            decisions = allDecisions,
-                            onRecordingClick = onRecordingClick
-                        )
-                    }
+            // Content Area based on Selected Tab
+            when (selectedTab) {
+                InsightsTab.NEXT_STEPS -> {
+                    NextStepsTab(
+                        pendingActions = pendingActions,
+                        completedActions = completedActions,
+                        themeClusters = themeClusters,
+                        totalActiveCount = totalActiveActions,
+                        completedCount = completedActionsCount,
+                        progressFraction = progressFraction,
+                        archivedCount = archivedActionsCount,
+                        isCompletedExpanded = isCompletedExpanded,
+                        onToggleCompletedExpanded = { isCompletedExpanded = !isCompletedExpanded },
+                        onActionToggle = { viewModel.toggleActionComplete(it) },
+                        onRecordingClick = onRecordingClick,
+                        onArchiveClick = { showArchiveDialog = true },
+                        onRestoreArchived = { viewModel.unarchiveAllActions() },
+                        onDismissTheme = { viewModel.dismissTheme(it) }
+                    )
+                }
+                InsightsTab.IDEAS -> {
+                    IdeasStreamTab(
+                        ideas = allIdeas,
+                        onRecordingClick = onRecordingClick
+                    )
+                }
+                InsightsTab.DECISIONS -> {
+                    DecisionsTimelineTab(
+                        decisions = allDecisions,
+                        onRecordingClick = onRecordingClick
+                    )
                 }
             }
         }
@@ -285,55 +263,44 @@ private fun CapsuleTabItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    if (isSelected) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color.White,
-            shadowElevation = 1.dp,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .clickable(onClick = onClick)
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = if (isSelected) dotColor.copy(alpha = 0.12f) else Color.Transparent,
+        border = if (isSelected) BorderStroke(1.dp, dotColor.copy(alpha = 0.32f)) else null,
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = if (isSelected) 10.dp else 8.dp, vertical = 7.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
-            ) {
+            if (isSelected) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(dotColor.copy(alpha = 0.22f), CircleShape)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(dotColor, CircleShape)
+                    )
+                }
+            } else {
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(dotColor, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = "$label · $count",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    maxLines = 1,
-                    softWrap = false
+                        .background(dotColor.copy(alpha = 0.6f), CircleShape)
                 )
             }
-        }
-    } else {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 8.dp, vertical = 7.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .background(dotColor, CircleShape)
-            )
             Spacer(modifier = Modifier.width(5.dp))
             Text(
                 text = "$label · $count",
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF334155),
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color(0xFF0F172A) else TextSecondary,
                 maxLines = 1,
                 softWrap = false
             )

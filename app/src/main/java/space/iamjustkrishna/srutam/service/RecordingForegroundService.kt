@@ -14,13 +14,13 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Log
 import android.os.Vibrator
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
-import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.utils.AudioFileReader
+import space.iamjustkrishna.srutam.utils.AudioStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,24 +38,29 @@ class RecordingForegroundService : Service() {
     private var lastResumeTimeMs = 0L
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var powerButtonPressTime = 0L
-    private val powerButtonDoubleClickThreshold = 1000L // 1 second
+    private val powerButtonDoubleClickThreshold = 1000L
     private var notificationManager: NotificationManager? = null
-    
+
     // WakeLock for screen handling
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
+
+    // Cached PendingIntents to avoid recreating on every notification update
+    private var cachedActivityPendingIntent: PendingIntent? = null
+    private var cachedPausePendingIntent: PendingIntent? = null
+    private var cachedResumePendingIntent: PendingIntent? = null
+    private var cachedStopPendingIntent: PendingIntent? = null
 
     private val powerButtonReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF && isRecording) {
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - powerButtonPressTime < powerButtonDoubleClickThreshold) {
-                    // Double press detected - stop recording
-                    Log.d(TAG, "Power button double-press detected while recording - stopping")
+                    Log.d(TAG, "Power button double-press detected while recording, stopping")
                     stopRecording()
                 } else {
                     powerButtonPressTime = currentTime
-                    Log.d(TAG, "Power button pressed once - waiting for second press")
+                    Log.d(TAG, "Power button pressed once, waiting for second press")
                 }
             }
         }
@@ -67,8 +72,7 @@ class RecordingForegroundService : Service() {
         notificationManager = getSystemService(NotificationManager::class.java)
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         createNotificationChannel()
-        
-        // Initialize WakeLock
+
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = powerManager?.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
@@ -77,7 +81,6 @@ class RecordingForegroundService : Service() {
             setReferenceCounted(false)
         }
 
-        // Register power button receiver
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         registerReceiver(powerButtonReceiver, filter)
         Log.d(TAG, "Power button receiver registered")
@@ -106,18 +109,22 @@ class RecordingForegroundService : Service() {
         }
 
         try {
-            // Acquire WakeLock to keep device awake while recording
-            wakeLock?.acquire(60 * 60 * 1000L) // 1 hour max
+            wakeLock?.acquire(60 * 60 * 1000L)
             Log.d(TAG, "WakeLock acquired for recording")
-            
-            // Provide haptic feedback
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator?.vibrate(android.os.VibrationEffect.createOneShot(100, 50))
             } else {
                 @Suppress("DEPRECATION")
                 vibrator?.vibrate(100)
             }
-            
+
+            accumulatedDurationMs = 0L
+            lastResumeTimeMs = System.currentTimeMillis()
+            elapsedDurationMs = 0L
+            isPaused = false
+            isRecording = true
+
             val notification = createNotification(0L)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -132,10 +139,6 @@ class RecordingForegroundService : Service() {
             }
 
             currentRecordingFile = createAudioFile()
-            accumulatedDurationMs = 0L
-            lastResumeTimeMs = System.currentTimeMillis()
-            elapsedDurationMs = 0L
-            isPaused = false
 
             mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(this)
@@ -153,11 +156,8 @@ class RecordingForegroundService : Service() {
                 try {
                     prepare()
                     start()
-                    isRecording = true
-                    isPaused = false
                     Log.d(TAG, "Recording started: ${currentRecordingFile?.absolutePath}")
 
-                    // Start duration update loop
                     startDurationUpdates()
                 } catch (e: IOException) {
                     Log.e(TAG, "Failed to start recording", e)
@@ -170,18 +170,16 @@ class RecordingForegroundService : Service() {
         }
     }
 
+    /**
+     * Updates in-memory duration state without repeatedly calling notificationManager.notify().
+     * Android's native Chronometer handles the on-screen notification timer ticking,
+     * eliminating the 1-second button flicker completely.
+     */
     private fun startDurationUpdates() {
         serviceScope.launch(Dispatchers.Main) {
-            var lastNotificationUpdate = 0L
             while (isRecording) {
                 if (!isPaused) {
-                    val duration = currentRecordedDurationMs()
-                    elapsedDurationMs = duration
-                    val now = System.currentTimeMillis()
-                    if (now - lastNotificationUpdate >= 1000L) {
-                        updateNotification(duration)
-                        lastNotificationUpdate = now
-                    }
+                    elapsedDurationMs = currentRecordedDurationMs()
                 }
                 delay(100)
             }
@@ -243,8 +241,7 @@ class RecordingForegroundService : Service() {
             mediaRecorder = null
             isRecording = false
             isPaused = false
-            
-            // Release WakeLock
+
             try {
                 if (wakeLock?.isHeld == true) {
                     wakeLock?.release()
@@ -299,7 +296,7 @@ class RecordingForegroundService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             getString(R.string.recording_notification_channel_name),
-            NotificationManager.IMPORTANCE_HIGH
+            NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = getString(R.string.recording_notification_channel_desc)
             setShowBadge(true)
@@ -311,62 +308,116 @@ class RecordingForegroundService : Service() {
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(durationMs: Long): Notification {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+    private fun getActivityPendingIntent(): PendingIntent {
+        if (cachedActivityPendingIntent == null) {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            cachedActivityPendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        return cachedActivityPendingIntent!!
+    }
 
-        val pauseOrResumeIntent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = if (isPaused) ACTION_RESUME_RECORDING else ACTION_PAUSE_RECORDING
+    private fun getPausePendingIntent(): PendingIntent {
+        if (cachedPausePendingIntent == null) {
+            val intent = Intent(this, RecordingForegroundService::class.java).apply {
+                action = ACTION_PAUSE_RECORDING
+            }
+            cachedPausePendingIntent = PendingIntent.getService(
+                this,
+                2,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val pauseOrResumePendingIntent = PendingIntent.getService(
-            this,
-            2,
-            pauseOrResumeIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        return cachedPausePendingIntent!!
+    }
 
-        val stopIntent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = ACTION_STOP_RECORDING
+    private fun getResumePendingIntent(): PendingIntent {
+        if (cachedResumePendingIntent == null) {
+            val intent = Intent(this, RecordingForegroundService::class.java).apply {
+                action = ACTION_RESUME_RECORDING
+            }
+            cachedResumePendingIntent = PendingIntent.getService(
+                this,
+                3,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val stopPendingIntent = PendingIntent.getService(
-            this,
-            1,
-            stopIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        return cachedResumePendingIntent!!
+    }
 
-        // Format duration
+    private fun getStopPendingIntent(): PendingIntent {
+        if (cachedStopPendingIntent == null) {
+            val intent = Intent(this, RecordingForegroundService::class.java).apply {
+                action = ACTION_STOP_RECORDING
+            }
+            cachedStopPendingIntent = PendingIntent.getService(
+                this,
+                1,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        return cachedStopPendingIntent!!
+    }
+
+    private fun formatDuration(durationMs: Long): String {
         val seconds = (durationMs / 1000).toInt()
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
-        val durationText = String.format("%d:%02d", minutes, remainingSeconds)
+        return String.format("%d:%02d", minutes, remainingSeconds)
+    }
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(if (isPaused) "Recording paused - $durationText" else "Recording - $durationText")
-            .setContentText(if (isPaused) "Resume or save the current recording" else "Recording in progress")
+    private fun createNotification(durationMs: Long): Notification {
+        val pendingIntent = getActivityPendingIntent()
+        val stopPendingIntent = getStopPendingIntent()
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(
-                if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
-                if (isPaused) "Resume" else "Pause",
-                pauseOrResumePendingIntent
-            )
-            .addAction(
-                android.R.drawable.ic_menu_save,
-                "Save",
-                stopPendingIntent
-            )
-            .build()
+            .setOnlyAlertOnce(true)
+
+        if (isPaused) {
+            val durationText = formatDuration(durationMs)
+            builder.setContentTitle("Recording paused ($durationText)")
+                .setContentText("Resume or save your recording")
+                .setUsesChronometer(false)
+                .setShowWhen(false)
+                .addAction(
+                    android.R.drawable.ic_media_play,
+                    "Resume",
+                    getResumePendingIntent()
+                )
+        } else {
+            builder.setContentTitle("Recording in progress")
+                .setContentText("Tap to open Srutam")
+                .setUsesChronometer(true)
+                .setWhen(System.currentTimeMillis() - durationMs)
+                .setShowWhen(true)
+                .addAction(
+                    android.R.drawable.ic_media_pause,
+                    "Pause",
+                    getPausePendingIntent()
+                )
+        }
+
+        builder.addAction(
+            android.R.drawable.ic_menu_save,
+            "Save",
+            stopPendingIntent
+        )
+
+        return builder.build()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -375,7 +426,6 @@ class RecordingForegroundService : Service() {
         super.onDestroy()
         serviceScope.cancel()
 
-        // Unregister power button receiver
         try {
             unregisterReceiver(powerButtonReceiver)
             Log.d(TAG, "Power button receiver unregistered")

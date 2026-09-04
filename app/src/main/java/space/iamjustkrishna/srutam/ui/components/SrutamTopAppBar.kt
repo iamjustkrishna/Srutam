@@ -83,7 +83,7 @@ fun SrutamTopAppBar(
                         fontSize = 30.sp,
                         fontFamily = PlayfairDisplayFontFamily,
                         fontStyle = FontStyle.Italic,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Normal,
                         color = CobaltBlue
                     )
                 }
