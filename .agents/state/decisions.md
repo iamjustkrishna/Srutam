@@ -94,5 +94,20 @@
   4. **Multi-Node Similarity Highlighting**: Selecting any node illuminates all connected and similar nodes with glowing halos, animated concentric pulse rings, and vibrant gradient strokes, while dimming unrelated nodes to 15-20% opacity.
   5. **Top Bar & Theme Card Integration**: Added top bar squircle toggle between the structured single-row capsule list and the 2D Concept Mesh, plus direct "Mesh" shortcut buttons on recurring theme cards.
 
+## ADR-013: Milestone 100 Branch Preservation and Core Release Harmonization
+- **Status**: Accepted
+- **Context**: The interactive 2D Concept Mesh with physics simulation, dynamic wire sag, and cross-note concept linkers is a powerful advanced visual feature. To ensure the initial rollout remains laser-focused on lightning-fast voice capture and structured insight review, the mesh view is staged for rollout once the app reaches 100 downloads.
+- **Decision**:
+  1. Preserved the complete 2D Concept Mesh architecture (physics engine, wire simulation, node detail card, and touch canvas) in dedicated milestone branch `once-reached-100`.
+  2. Created clean core release branch `feature/core-release` and merged into `main` with mesh view cleanly decoupled.
+  3. Top bar headers: Bolded **Srutam** across all screens (Notes, Insights, AI) with non-bold italic accents for secondary labels (*Insights*, *AI*).
+  4. Insights filter chips: Replaced stark white backgrounds with organic, softly tinted highlights (`dotColor.copy(alpha = 0.12f)`), radiant aura indicators, and dark slate typography.
+  5. Settings screen: Redesigned with CeramicWhite cards, 20dp squircle corner curvature, squircle icon badge containers, uppercase tracked headers, and Cupertino dividers.
 
-
+## ADR-014: Native Chronometer Notification and Interactive Edge Floating Dock Overlay
+- **Status**: Accepted
+- **Context**: The recording notification suffered from a visible 1-second button flicker caused by continuous `notificationManager.notify()` calls re-inflating RemoteViews. In addition, the on-screen floating dock needed full operational utility to start and control recordings directly without opening the full application.
+- **Decision**:
+  1. Native Notification Chronometer: Enabled `builder.setUsesChronometer(true)` with `.setWhen(System.currentTimeMillis() - durationMs)` and cached `PendingIntent` instances. Stopped the 1000ms notify loop during active recording so Android SystemUI updates time locally with zero button flicker. Notification updates only on discrete state changes (pause, resume, stop).
+  2. Interactive Edge Floating Dock: Expanded the discreet 48dp edge pill into a multi-action console. Idle state provides direct "Record" button, app shortcut, and collapse trigger. In-flight recording state provides live duration timer, pause/resume, stop & save, and cancel actions.
+  3. WindowManager Re-measurement: Added `windowManager.updateViewLayout(floatingView, params)` with `WRAP_CONTENT` on state transitions, allowing touch events to dispatch across the full expanded width without touch window clipping.

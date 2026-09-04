@@ -1,45 +1,42 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone 14 Polish: Zero-Crash Unified Gesture Detector, Flexible Wire Physical Connections with Catenary Sag, and Cross-Note Similar Idea Connector Engine.
+- Milestone: Core Release Polish, Branch Separation (`once-reached-100` vs `main`), Functional Floating Overlay Dock, Notification Chronometer Optimization, and Apple-Grade Settings Overhaul.
 
 ## Verified Features in Codebase
-- [x] **Zero-Crash Unified Touch Gestures (`ConceptMeshCanvas.kt`)**:
-  - Unified single `awaitEachGesture` loop replacing conflicting dual `pointerInput` detectors.
-  - Multi-touch pinch-to-zoom and 1-finger panning with strict guards against `Float.NaN` and infinite values.
-  - Clamped zoom scale range (`0.35f..3.0f`) preventing canvas coordinate runaway.
-  - Dynamic stroke-to-radius clamping (`safeBorder = min(3.dp.toPx(), radius * 0.32f)`) and micro-glyph skipping when `radius < 8.dp.toPx()`, eliminating negative Skia geometry assertions.
-  - Top-level `try/catch` defensive recovery block inside Canvas `onDraw`.
-- [x] **Flexible Wire Physical Connections (`drawFlexibleWire`)**:
-  - Replaced rigid edges with organic cubic Bezier cables exhibiting natural catenary gravitational sag (`cubicTo` with physics deflection).
-  - Multi-layered cable styling: outer protective insulation jacket (rubber/braided) + high-contrast conducting core wire.
-  - Terminal connector plug beads at wire endpoints where cables plug into hardware nodes.
-  - Radiant double-halo energy glow when edge or connected node is highlighted.
-- [x] **Cross-Note Similar Idea Connector Engine (`ConceptMeshModel.kt` & `MeshNodeDetailCard.kt`)**:
-  - Domain concept stems dictionary (`CONCEPT_STEMS`) and lowered similarity threshold for `MeshNodeKind.IDEA` across different recordings.
-  - Generated `SIMILAR_IDEA` edges linking related thoughts across distinct voice notes.
-  - Distinctive radiant Amber-Violet flexible jumper cables for cross-note idea connections.
-  - Connected nodes carousel in `MeshNodeDetailCard.kt` highlights cross-note idea connections with dedicated Amber badges and lightbulb indicators.
-  - Illuminates parent recordings of linked cross-note ideas when an idea is tapped.
-- [x] **Physics-Based Draggable Nodes (`MeshPhysicsEngine.kt` & `ConceptMeshCanvas.kt`)**:
-  - Direct touch dragging of nodes in world space with real-time spring dynamics.
-  - Hooke elasticity along connected edges pulling neighbor nodes naturally.
-  - Soft collision repulsion preventing overlapping nodes.
-  - Frame-rate synchronized relaxation loop using `withFrameNanos` that sleeps when energy dissipates.
-  - Clean gesture discrimination: 1-finger node drag vs canvas pan vs 2-finger pinch zoom.
-- [x] **Label-Free Visual Nodes (`ConceptMeshCanvas.kt`)**:
-  - Removed all text labels and pills below canvas nodes to eliminate visual clutter.
-  - Nodes render as radiant jewel spheres with centered vector glyphs (waveform, lightbulb, checkmark, star).
-  - Tapping opens the bottom frosted-glass detail card with full text, transcript evidence, and parent note shortcuts.
-- [x] **Compact Voice Note Dialog with Scrollable Transcript (`MeshNodeDetailCard.kt`)**:
-  - Voice note detail card constrained to a compact height (~380dp, max 440dp) identical in scale to idea dialogs, preventing full-screen takeover.
-  - Transcript overview contained in dedicated bounded box (`heightIn(max = 135.dp)`) with smooth `verticalScroll`.
-  - Replaced unbounded layout expansion with fixed accent indicator bar and streamlined action button.
-  - Live verified on physical USB hardware: dialog remains compact at bottom while full transcript scrolls inside.
+- [x] **Milestone 100 Branch Preservation (`once-reached-100`)**:
+  - Entire 2D Concept Mesh architecture preserved in dedicated branch `once-reached-100` at commit `aff0b9e`.
+  - Includes `ConceptMeshCanvas.kt`, `ConceptMeshModel.kt`, `MeshNodeDetailCard.kt`, `MeshPhysicsEngine.kt`, zero-crash unified touch gestures, flexible catenary wire connections, cross-note idea connectors, and compact transcript dialogs.
+  - Mesh view decoupled from core release branch `feature/core-release` and merged into `main`.
+- [x] **Top App Bar Typography Harmonization (`SrutamTopAppBar.kt`)**:
+  - Bold **Srutam** (`FontWeight.Bold`) across all screens (Notes, Insights, AI).
+  - Non-bold italic accent text (`FontWeight.Normal`, `FontStyle.Italic`) for secondary titles (*Insights*, *AI*).
+  - Verified live on physical hardware (`AAAEPVORMFIR4PWS`).
+- [x] **Insights Filter Chips Redesign (`ActionItemsScreen.kt`)**:
+  - Removed harsh solid white background on active chips.
+  - Replaced with soft organic tint (`dotColor.copy(alpha = 0.12f)`), gentle border outline (`dotColor.copy(alpha = 0.32f)`), and radiant outer aura dot indicator.
+  - Crisp dark slate active text (`#0F172A`).
+  - Verified live on physical hardware for Next Steps, Ideas, and Decisions tabs.
+- [x] **Settings Screen Visual Overhaul (`SettingsScreen.kt`)**:
+  - Redesigned using Apple-grade CeramicWhite elevated cards with 20dp continuous squircle corners.
+  - Squircle icon badges with Cobalt, Amber, and Emerald container tints.
+  - Elegant Done pill button in top bar and uppercase tracked section headers.
+  - Live verified on physical hardware.
+- [x] **Functional On-Screen Floating Dock (`FloatingButtonService.kt` & `floating_record_button.xml`)**:
+  - Expandable overlay dock accessible over any application.
+  - Idle state: Direct "Record" button, "Open Srutam" shortcut, and collapse action.
+  - Recording state: Live duration display (`REC mm:ss`), pause/resume toggle, red stop & save button, and discard action.
+  - WindowManager dynamic re-measurement on expand/collapse preventing touch bounds clipping.
+  - Verified live on device: one tap starts recording immediately, live timer increments, and stop button saves recording and collapses dock back to discreet edge pill.
+- [x] **Zero-Flicker Recording Notification (`RecordingForegroundService.kt`)**:
+  - Enabled native SystemUI Chronometer (`builder.setUsesChronometer(true)` and `.setWhen(System.currentTimeMillis() - durationMs)`).
+  - Added `.setOnlyAlertOnce(true)` and cached `PendingIntent`s.
+  - Eliminated the 1000ms notify loop during recording; notification updates strictly on state transitions.
+  - Action buttons (Pause/Save) remain completely stable with zero flickering on device.
 - [x] **Build & Verification**:
-  - Clean build verified: `./gradlew assembleDebug` (BUILD SUCCESSFUL in 40s).
-  - Deployed and verified live on USB physical hardware (`AAAEPVORMFIR4PWS`).
-  - Zero em dashes strictly maintained across all files.
+  - Clean build verified: `./gradlew assembleDebug` (BUILD SUCCESSFUL in 17s).
+  - Deployed and live verified on physical USB hardware (`AAAEPVORMFIR4PWS`).
+  - Strict zero em dashes policy maintained across all files.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
