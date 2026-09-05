@@ -56,9 +56,10 @@
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:layout_marginStart="8dp"
-            android:padding="9dp"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
             android:background="@drawable/bg_floating_action_circle"
-            android:src="@drawable/ic_floating_app"
+            android:src="@drawable/srutam_final_log"
             android:contentDescription="Open Srutam"
             android:clickable="true"
             android:focusable="true" />

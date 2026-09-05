@@ -55,9 +55,10 @@
 - [x] **Bold Screen Titles Across Notes, Insights, and AI (`SrutamTopAppBar.kt`)**:
   - Bumped primary title font weight to `FontWeight.ExtraBold` and secondary accent to `FontWeight.SemiBold`.
   - Editorial Playfair Display typography stands out with refined contrast on both light and dark themes.
-- [x] **Side Dock Deep Edge Embedding (`FloatingButtonService.kt`, `MainActivity.kt`)**:
+- [x] **Side Dock Deep Edge Embedding & App Icon Shortcut (`FloatingButtonService.kt`, `MainActivity.kt`, `floating_record_button.xml`)**:
   - Implemented `FLAG_LAYOUT_NO_LIMITS` window layout with `-8dp` x-offset and `52dp` handle pill width.
   - Applied asymmetric padding (11dp embedded side, 6dp outer side) so the 3D logo remains visually centered in the 44dp protruding tab while 8dp sits embedded into the screen bezel.
+  - Replaced generic note document icon on `btn_dock_open_app` with the official 3D Srutam brand logo mark (`srutam_final_log`).
   - Added app startup service restoration in `MainActivity.kt` if enabled in preferences.
 - [x] **Toast Notifications on Recording Actions (`FloatingButtonService.kt`, `Navigation.kt`)**:
   - Added instant feedback on pause ("Recording paused"), resume ("Recording resumed"), save ("Voice note saved"), and discard ("Recording discarded") for both floating dock and in-app studio controls.
