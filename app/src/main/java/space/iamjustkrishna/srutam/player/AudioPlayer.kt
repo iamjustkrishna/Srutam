@@ -30,6 +30,9 @@ class AudioPlayer(private val context: Context) {
     private var progressUpdateJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private var shouldAutoPlayOnPrepared = false
+    private var pendingSeekPosition: Int? = null
+    @Volatile
+    private var isSeeking = false
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -58,18 +61,39 @@ class AudioPlayer(private val context: Context) {
 
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(audioFile.absolutePath)
-                setOnPreparedListener {
+                setOnPreparedListener { mp ->
+                    val fileDuration = mp.duration
+                    val initialPos = pendingSeekPosition ?: 0
+                    pendingSeekPosition = null
+
                     _playbackState.value = _playbackState.value.copy(
                         isLoading = false,
-                        duration = it.duration,
-                        currentPosition = 0,
+                        duration = fileDuration,
+                        currentPosition = initialPos,
                         currentFilePath = currentFilePath
                     )
+
+                    if (initialPos > 0) {
+                        val safePos = initialPos.coerceIn(0, fileDuration)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            mp.seekTo(safePos.toLong(), MediaPlayer.SEEK_CLOSEST)
+                        } else {
+                            mp.seekTo(safePos)
+                        }
+                    }
+
                     if (shouldAutoPlayOnPrepared) {
                         shouldAutoPlayOnPrepared = false
                         play()
                     }
-                    Log.d(TAG, "Audio prepared: duration=${it.duration}ms")
+                    Log.d(TAG, "Audio prepared: duration=${fileDuration}ms, initialPos=${initialPos}ms")
+                }
+                setOnSeekCompleteListener { mp ->
+                    isSeeking = false
+                    _playbackState.value = _playbackState.value.copy(
+                        currentPosition = mp.currentPosition
+                    )
+                    Log.d(TAG, "Seek completed at: ${mp.currentPosition}ms")
                 }
                 setOnCompletionListener {
                     pause()
@@ -78,6 +102,8 @@ class AudioPlayer(private val context: Context) {
                 }
                 setOnErrorListener { mp, what, extra ->
                     Log.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
+                    isSeeking = false
+                    pendingSeekPosition = null
                     _playbackState.value = _playbackState.value.copy(
                         isLoading = false,
                         isPlaying = false,
@@ -134,14 +160,29 @@ class AudioPlayer(private val context: Context) {
 
     fun seekTo(position: Int) {
         try {
-            mediaPlayer?.let { player ->
-                val safePosition = position.coerceIn(0, player.duration)
-                player.seekTo(safePosition)
-                _playbackState.value = _playbackState.value.copy(currentPosition = safePosition)
-                Log.d(TAG, "Seeked to position: $safePosition ms")
+            val player = mediaPlayer
+            if (player == null || _playbackState.value.isLoading) {
+                pendingSeekPosition = position
+                _playbackState.value = _playbackState.value.copy(currentPosition = position)
+                Log.d(TAG, "Player not ready or preparing, queued seek to: $position ms")
+                return
             }
+
+            val totalDuration = player.duration.takeIf { it > 0 } ?: _playbackState.value.duration
+            val safePosition = if (totalDuration > 0) position.coerceIn(0, totalDuration) else position.coerceAtLeast(0)
+
+            isSeeking = true
+            _playbackState.value = _playbackState.value.copy(currentPosition = safePosition)
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                player.seekTo(safePosition.toLong(), MediaPlayer.SEEK_CLOSEST)
+            } else {
+                player.seekTo(safePosition)
+            }
+            Log.d(TAG, "Seeked to position: $safePosition ms (mode: SEEK_CLOSEST)")
         } catch (e: Exception) {
             Log.e(TAG, "Error seeking", e)
+            isSeeking = false
         }
     }
 
@@ -174,8 +215,10 @@ class AudioPlayer(private val context: Context) {
         progressUpdateJob = scope.launch {
             while (isActive && mediaPlayer?.isPlaying == true) {
                 try {
-                    val currentPos = mediaPlayer?.currentPosition ?: 0
-                    _playbackState.value = _playbackState.value.copy(currentPosition = currentPos)
+                    if (!isSeeking) {
+                        val currentPos = mediaPlayer?.currentPosition ?: 0
+                        _playbackState.value = _playbackState.value.copy(currentPosition = currentPos)
+                    }
                     delay(100) // Update every 100ms
                 } catch (e: Exception) {
                     Log.e(TAG, "Error updating progress", e)
@@ -194,6 +237,8 @@ class AudioPlayer(private val context: Context) {
         try {
             stopProgressUpdates()
             shouldAutoPlayOnPrepared = false
+            pendingSeekPosition = null
+            isSeeking = false
             mediaPlayer?.apply {
                 if (isPlaying) {
                     stop()

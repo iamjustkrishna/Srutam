@@ -36,6 +36,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -1625,12 +1626,23 @@ private fun CardWaveformVisualizer(
 
     Row(
         modifier = modifier
-            .height(28.dp)
+            .height(34.dp)
             .padding(horizontal = 4.dp)
             .pointerInput(Unit) {
-                detectTapGestures { offset ->
+                detectTapGestures(
+                    onPress = { offset ->
+                        if (size.width > 0) {
+                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            onSeekFraction?.invoke(fraction)
+                        }
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { change, _ ->
+                    change.consume()
                     if (size.width > 0) {
-                        val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
                         onSeekFraction?.invoke(fraction)
                     }
                 }

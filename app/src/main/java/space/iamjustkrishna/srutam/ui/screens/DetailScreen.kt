@@ -21,6 +21,8 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -291,7 +293,8 @@ fun RecordingDetails(
                 playbackState = playbackState,
                 onPlayPause = { viewModel.togglePlayPause() },
                 onSeek = { viewModel.seekTo(it) },
-                onSpeedChange = { viewModel.setPlaybackSpeed(it) }
+                onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+                fallbackDuration = recording?.duration ?: 0L
             )
         }
 
@@ -803,6 +806,7 @@ fun AudioPlayerCard(
     onPlayPause: () -> Unit,
     onSeek: (Int) -> Unit,
     onSpeedChange: (Float) -> Unit,
+    fallbackDuration: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -855,8 +859,8 @@ fun AudioPlayerCard(
                     }
                 }
 
-                // Interactive Waveform Scrubber
-                val totalDuration = playbackState.duration.coerceAtLeast(1)
+                // Interactive Waveform Scrubber with fallback duration for long audio
+                val totalDuration = (if (playbackState.duration > 0) playbackState.duration else fallbackDuration.toInt()).coerceAtLeast(1)
                 val currentPos = playbackState.currentPosition.coerceIn(0, totalDuration)
                 val progress = (currentPos.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
 
@@ -946,11 +950,24 @@ private fun DetailWaveformScrubber(
 
     Row(
         modifier = modifier
-            .height(32.dp)
+            .height(40.dp)
             .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                    onSeekFraction(fraction)
+                detectTapGestures(
+                    onPress = { offset ->
+                        if (size.width > 0) {
+                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            onSeekFraction(fraction)
+                        }
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { change, _ ->
+                    change.consume()
+                    if (size.width > 0) {
+                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                        onSeekFraction(fraction)
+                    }
                 }
             },
         horizontalArrangement = Arrangement.spacedBy(2.5.dp),

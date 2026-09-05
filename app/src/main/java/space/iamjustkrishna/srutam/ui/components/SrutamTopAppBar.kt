@@ -57,6 +57,7 @@ fun SrutamTopAppBar(
     subtitle: String? = null,
     subtitleIcon: ImageVector? = null,
     subtitleColor: Color = TextSecondary,
+    titleFontWeight: FontWeight = FontWeight.Bold,
     actions: @Composable RowScope.() -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -89,7 +90,7 @@ fun SrutamTopAppBar(
                     text = title,
                     fontSize = 30.sp,
                     fontFamily = PlayfairDisplayFontFamily,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = titleFontWeight,
                     color = Color(0xFF1E2229)
                 )
                 if (accentText != null) {

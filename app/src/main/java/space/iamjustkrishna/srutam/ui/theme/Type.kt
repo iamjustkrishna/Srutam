@@ -1,19 +1,42 @@
 package space.iamjustkrishna.srutam.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.R
 
+@OptIn(ExperimentalTextApi::class)
 val PlayfairDisplayFontFamily = FontFamily(
-    Font(R.font.playfair_display, FontWeight.Normal),
-    Font(R.font.playfair_display, FontWeight.Medium),
-    Font(R.font.playfair_display, FontWeight.SemiBold),
-    Font(R.font.playfair_display, FontWeight.Bold),
-    Font(R.font.playfair_display, FontWeight.ExtraBold)
+    Font(
+        resId = R.font.playfair_display,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    ),
+    Font(
+        resId = R.font.playfair_display,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+    ),
+    Font(
+        resId = R.font.playfair_display,
+        weight = FontWeight.SemiBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600))
+    ),
+    Font(
+        resId = R.font.playfair_display,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))
+    ),
+    Font(
+        resId = R.font.playfair_display,
+        weight = FontWeight.ExtraBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(800))
+    )
 )
 
 

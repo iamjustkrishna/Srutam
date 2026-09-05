@@ -81,6 +81,15 @@
   - Soft-denial rationale cards and permanent-denial banner directing to system settings with "Open App Settings" CTA.
   - Reactive `ON_RESUME` lifecycle observer ensuring automatic transit to the main feed when returning from settings.
   - Verified on physical Realme 7 device with fresh install and persistent relaunch workflows.
+- [x] **Long Audio Seeking Resilience (`AudioPlayer.kt`, `FeedScreen.kt`, `DetailScreen.kt`)**:
+  - Replaced legacy `seekTo(int)` with `seekTo(long, MediaPlayer.SEEK_CLOSEST)` on Android 8.0+ (API 26+) for sample-exact seeking in long AAC/M4A recordings.
+  - Added `@Volatile isSeeking` guard and `setOnSeekCompleteListener` to prevent the 100ms progress update loop from clobbering playback position before hardware seeking completes.
+  - Implemented `pendingSeekPosition` buffer allowing instant seeking even before asynchronous preparation finishes.
+  - Upgraded waveform scrubbers in both FeedScreen and DetailScreen with continuous `detectHorizontalDragGestures` and immediate `onPress` touch-down seeks.
+  - Added fallback to `recording?.duration` in `DetailScreen.kt` preventing zero-duration coercion on long recordings.
+- [x] **Variable Font Weight Calibration & Refined Title Boldness (`Type.kt`, `SrutamTopAppBar.kt`)**:
+  - Added explicit `FontVariation.Settings(FontVariation.weight(...))` across Normal (400) to ExtraBold (800) in `PlayfairDisplayFontFamily` enabling Compose to control variable font weight axes.
+  - Calibrated default `SrutamTopAppBar` title weight to `FontWeight.Bold` (weight 700), giving "Srutam" on the Notes screen a clean, slightly bolder typographic anchor without excessive heaviness.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
