@@ -1,8 +1,12 @@
-﻿package space.iamjustkrishna.srutam
+package space.iamjustkrishna.srutam
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import androidx.compose.ui.platform.LocalContext
+import space.iamjustkrishna.srutam.service.FloatingButtonService
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -72,7 +76,17 @@ fun SrutamApp() {
         }
     }
 
+    val context = LocalContext.current
     val hasCorePermissions = audioPermissionState.status.isGranted && filePermissionState.status.isGranted
+
+    LaunchedEffect(hasCorePermissions) {
+        if (hasCorePermissions && AppPreferences.isFloatingDockEnabled(context)) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
+                val serviceIntent = Intent(context, FloatingButtonService::class.java)
+                context.startService(serviceIntent)
+            }
+        }
+    }
 
     if (hasCorePermissions) {
         SrutamNavigation()

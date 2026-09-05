@@ -89,7 +89,7 @@ fun SrutamTopAppBar(
                     text = title,
                     fontSize = 30.sp,
                     fontFamily = PlayfairDisplayFontFamily,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF1E2229)
                 )
                 if (accentText != null) {
@@ -99,7 +99,7 @@ fun SrutamTopAppBar(
                         fontSize = 30.sp,
                         fontFamily = PlayfairDisplayFontFamily,
                         fontStyle = FontStyle.Italic,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.SemiBold,
                         color = CobaltBlue
                     )
                 }

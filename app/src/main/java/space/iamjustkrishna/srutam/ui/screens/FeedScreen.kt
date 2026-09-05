@@ -1668,36 +1668,39 @@ fun SrutamDialogConfirmButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    enabled: Boolean = true
 ) {
+    val buttonBackground = when {
+        !enabled -> Brush.verticalGradient(listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8)))
+        isDestructive -> Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFDC2626)))
+        else -> Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF2563EB)))
+    }
+    val contentColor = if (enabled) Color.White else Color(0xFFF1F5F9)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = CircleShape,
-                spotColor = if (isDestructive) Color(0x40DC2626) else Color(0x402563EB)
+            .height(42.dp)
+            .then(
+                if (enabled) {
+                    Modifier.shadow(
+                        elevation = 4.dp,
+                        shape = CircleShape,
+                        spotColor = if (isDestructive) Color(0x40DC2626) else Color(0x402563EB)
+                    )
+                } else Modifier
             )
-            .background(
-                brush = Brush.verticalGradient(
-                    if (isDestructive) {
-                        listOf(Color(0xFFEF4444), Color(0xFFDC2626))
-                    } else {
-                        listOf(Color(0xFF3B82F6), Color(0xFF2563EB))
-                    }
-                ),
-                shape = CircleShape
-            )
+            .background(brush = buttonBackground, shape = CircleShape)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color.White,
+            color = contentColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
@@ -1712,7 +1715,7 @@ fun SrutamDialogDismissButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(42.dp)
             .background(
                 color = Color(0xFFF1F5F9),
                 shape = CircleShape
@@ -1728,7 +1731,7 @@ fun SrutamDialogDismissButton(
     ) {
         Text(
             text = text,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF64748B),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1752,18 +1755,18 @@ fun SrutamCustomDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .padding(16.dp)
+                .fillMaxWidth(0.86f)
+                .padding(12.dp)
                 .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(32.dp),
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(26.dp),
                     spotColor = Color(0x380F172A),
                     ambientColor = Color(0x180F172A)
                 ),
-            shape = RoundedCornerShape(32.dp),
+            shape = RoundedCornerShape(26.dp),
             color = Color(0xFAFFFFFF),
             border = BorderStroke(
-                width = 1.2.dp,
+                width = 1.dp,
                 brush = Brush.verticalGradient(
                     listOf(
                         Color.White.copy(alpha = 0.95f),
@@ -1775,35 +1778,35 @@ fun SrutamCustomDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 26.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 iconBadge()
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = title,
-                    fontSize = 21.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0F172A),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     letterSpacing = (-0.3).sp
                 )
                 if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = Color(0xFF64748B),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        lineHeight = 18.sp
+                        lineHeight = 16.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 content()
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (dismissButton != null) {
@@ -1951,13 +1954,14 @@ fun SaveRecordingDialog(
     onDiscard: () -> Unit
 ) {
     var text by remember { mutableStateOf(defaultName) }
+    val isNameValid = text.trim().isNotEmpty()
 
     SrutamCustomDialog(
         onDismissRequest = onDiscard,
         iconBadge = {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(48.dp)
                     .background(
                         brush = Brush.radialGradient(
                             listOf(
@@ -1968,7 +1972,7 @@ fun SaveRecordingDialog(
                         shape = CircleShape
                     )
                     .border(
-                        width = 1.5.dp,
+                        width = 1.2.dp,
                         brush = Brush.verticalGradient(
                             listOf(
                                 Color.White,
@@ -1981,9 +1985,9 @@ fun SaveRecordingDialog(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(34.dp)
                         .shadow(
-                            elevation = 6.dp,
+                            elevation = 4.dp,
                             shape = CircleShape,
                             spotColor = Color(0x4D2563EB)
                         )
@@ -2002,7 +2006,7 @@ fun SaveRecordingDialog(
                         imageVector = Icons.Default.Mic,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -2015,7 +2019,7 @@ fun SaveRecordingDialog(
                 onValueChange = { text = it },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(18.dp),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.GraphicEq,
@@ -2056,7 +2060,12 @@ fun SaveRecordingDialog(
         confirmButton = {
             SrutamDialogConfirmButton(
                 text = "Save Note",
-                onClick = { onSave(text.trim().ifBlank { defaultName }) }
+                enabled = isNameValid,
+                onClick = {
+                    if (isNameValid) {
+                        onSave(text.trim())
+                    }
+                }
             )
         },
         dismissButton = {

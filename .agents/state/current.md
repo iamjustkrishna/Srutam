@@ -52,9 +52,24 @@
   - Matched exact 20dp start padding before "Srutam" on Notes screen with Insights (`ActionItemsScreen`) and AI (`GlobalCopilotScreen`) screens.
   - Retained clean "Srutam" title on Notes screen without secondary accent text.
   - Standardized all screen top bars (`FeedScreen`, `ActionItemsScreen`, `GlobalCopilotScreen`, `SettingsScreen`, `DetailScreen`, `ChatScreen`) on the unified glassmorphic translucent surface (`Color(0xFFF4F5F8).copy(alpha = 0.85f)`) and matching hairline bottom divider (`Color(0xFFD6E0EC).copy(alpha = 0.6f)`).
-- [x] **Build & Physical Verification**:
-  - Clean build `./gradlew assembleDebug` (BUILD SUCCESSFUL in 53s).
-  - Strict zero em dashes policy maintained across all files.
+- [x] **Bold Screen Titles Across Notes, Insights, and AI (`SrutamTopAppBar.kt`)**:
+  - Bumped primary title font weight to `FontWeight.ExtraBold` and secondary accent to `FontWeight.SemiBold`.
+  - Editorial Playfair Display typography stands out with refined contrast on both light and dark themes.
+- [x] **Side Dock Deep Edge Embedding (`FloatingButtonService.kt`, `MainActivity.kt`)**:
+  - Implemented `FLAG_LAYOUT_NO_LIMITS` window layout with `-8dp` x-offset and `52dp` handle pill width.
+  - Applied asymmetric padding (11dp embedded side, 6dp outer side) so the 3D logo remains visually centered in the 44dp protruding tab while 8dp sits embedded into the screen bezel.
+  - Added app startup service restoration in `MainActivity.kt` if enabled in preferences.
+- [x] **Toast Notifications on Recording Actions (`FloatingButtonService.kt`, `Navigation.kt`)**:
+  - Added instant feedback on pause ("Recording paused"), resume ("Recording resumed"), save ("Voice note saved"), and discard ("Recording discarded") for both floating dock and in-app studio controls.
+- [x] **Compact Save Note Dialog & Empty Name Validation (`FeedScreen.kt`)**:
+  - Dialog width reduced to 86% of screen, content padding reduced to 20dp, and badge icon reduced to 48dp.
+  - Added `enabled` parameter to `SrutamDialogConfirmButton`. When title is empty or blank, button is visually disabled with a muted slate gradient and click listener is deactivated.
+- [x] **Clean App Launcher Icon (No Drop Shadow)**:
+  - Re-rendered adaptive launcher foregrounds and legacy mipmaps directly from master 1024x1024 asset without artificial drop shadow behind the 3D voice logo.
+- [x] **Physical Device Verification (Realme 7)**:
+  - Validated all 5 requested features directly on connected hardware.
+  - Strictly zero em dashes maintained across all modified files and commits.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
+

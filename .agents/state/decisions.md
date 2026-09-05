@@ -133,3 +133,13 @@
   3. Kept clean "Srutam" title on the Notes screen without secondary accent text.
   4. Standardized all screen top bars (`FeedScreen`, `ActionItemsScreen`, `GlobalCopilotScreen`, `SettingsScreen`, `DetailScreen`, `ChatScreen`) on the unified glassmorphic translucent background (`Color(0xFFF4F5F8).copy(alpha = 0.85f)`) and matching hairline bottom divider (`Color(0xFFD6E0EC).copy(alpha = 0.6f)`).
 
+## ADR-017: Screen Title Weight, Deep Edge Dock Embedding, Audio Feedback, and Modal Constraints
+- **Status**: Accepted
+- **Context**: The user requested 5 distinct refinements: (1) bolder screen titles in Notes, Insights, and AI screens, (2) deeper side dock edge embedding so it sits nestled into the screen bezel, (3) instant toast confirmation on pause/resume and save/discard, (4) compact save voice note modal with a disabled save button when the title field is empty, and (5) removal of unnecessary shadow behind the 3D logo in the app launcher icon.
+- **Decision**:
+  1. **Bold Screen Titles (`SrutamTopAppBar.kt`)**: Elevated title weight to `FontWeight.ExtraBold` and secondary accent to `FontWeight.SemiBold`, giving the Playfair Display font solid visual anchor across Notes, Insights, and AI headers.
+  2. **Deep Edge Dock Embedding (`FloatingButtonService.kt`)**: Added `FLAG_LAYOUT_NO_LIMITS` with an 8dp negative x-offset and 52dp pill width. Applied asymmetric padding (11dp embedded side, 6dp outer side) so the 3D logo centers naturally within the visible 44dp protruding tab while 8dp remains embedded into the screen bezel. Ensured service automatically starts on app launch when enabled in preferences.
+  3. **Toast Feedback on Recording Events (`FloatingButtonService.kt`, `Navigation.kt`)**: Added standard toast feedback on pause ("Recording paused"), resume ("Recording resumed"), save ("Voice note saved"), and discard ("Recording discarded").
+  4. **Compact Save Note Modal with Blank Name Validation (`FeedScreen.kt`)**: Reduced dialog width to 86% of screen, padding to 20dp, and badge to 48dp. Added `enabled` property to `SrutamDialogConfirmButton`, dynamically disabling the button with a muted slate palette and inactive click listener when the note name is empty or whitespace-only.
+  5. **Clean Launcher Icon Logo**: Re-rendered adaptive launcher foregrounds and legacy mipmaps directly from the clean master 1024x1024 asset without artificial drop shadow layers behind the 3D mark.
+

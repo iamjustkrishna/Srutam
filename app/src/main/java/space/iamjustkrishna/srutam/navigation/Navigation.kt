@@ -184,8 +184,10 @@ private fun RootScreen(
                 onPauseToggle = {
                     if (isServicePaused) {
                         sendRecordingAction(context, RecordingForegroundService.ACTION_RESUME_RECORDING)
+                        android.widget.Toast.makeText(context, "Recording resumed", android.widget.Toast.LENGTH_SHORT).show()
                     } else {
                         sendRecordingAction(context, RecordingForegroundService.ACTION_PAUSE_RECORDING)
+                        android.widget.Toast.makeText(context, "Recording paused", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
                 onFinishRecording = {
@@ -198,6 +200,7 @@ private fun RootScreen(
                 },
                 onCancelRecording = {
                     sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
+                    android.widget.Toast.makeText(context, "Recording discarded", android.widget.Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -216,6 +219,7 @@ private fun RootScreen(
                             newest.renameTo(targetFile)
                         }
                     }
+                    android.widget.Toast.makeText(context, "Voice note saved", android.widget.Toast.LENGTH_SHORT).show()
                     viewModel.loadAudioFiles()
                 },
                 onDiscard = {
@@ -226,6 +230,7 @@ private fun RootScreen(
                     if (newest != null && newest.exists()) {
                         AudioStorage.deleteAudioFile(context, newest.absolutePath)
                     }
+                    android.widget.Toast.makeText(context, "Recording discarded", android.widget.Toast.LENGTH_SHORT).show()
                     viewModel.loadAudioFiles()
                 }
             )

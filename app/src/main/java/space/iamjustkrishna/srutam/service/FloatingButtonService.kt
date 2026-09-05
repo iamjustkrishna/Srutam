@@ -52,6 +52,13 @@ class FloatingButtonService : Service() {
         startStateWatcher()
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (floatingView == null) {
+            showFloatingButton()
+        }
+        return START_STICKY
+    }
+
     private fun showFloatingButton() {
         try {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -69,15 +76,17 @@ class FloatingButtonService : Service() {
             }
 
             val screenHeight = resources.displayMetrics.heightPixels
+            val density = resources.displayMetrics.density
+            val embedOffsetPx = (8 * density).toInt()
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 layoutType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 0
+                x = -embedOffsetPx
                 y = (screenHeight * 0.35f).toInt()
             }
             windowLayoutParams = params
@@ -136,9 +145,10 @@ class FloatingButtonService : Service() {
                         if (isDragging) {
                             val screenWidth = resources.displayMetrics.widthPixels
                             val density = resources.displayMetrics.density
-                            val tabWidth = (44 * density).toInt()
+                            val tabWidth = (52 * density).toInt()
+                            val embedOffsetPx = (8 * density).toInt()
                             isDockedLeft = (params.x + tabWidth / 2) < (screenWidth / 2)
-                            params.x = if (isDockedLeft) 0 else (screenWidth - tabWidth)
+                            params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
                             windowManager?.updateViewLayout(floatingView, params)
                             renderCurrentState()
                         } else {
@@ -204,7 +214,8 @@ class FloatingButtonService : Service() {
         val params = windowLayoutParams ?: return
         val screenWidth = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
-        val tabWidth = (44 * density).toInt()
+        val tabWidth = (52 * density).toInt()
+        val embedOffsetPx = (8 * density).toInt()
 
         if (isExpanded) {
             val estimatedWidthPx = ((if (RecordingForegroundService.isRecording) 230 else 165) * density).toInt()
@@ -214,7 +225,7 @@ class FloatingButtonService : Service() {
                 params.x = Math.max((8 * density).toInt(), screenWidth - estimatedWidthPx - (8 * density).toInt())
             }
         } else {
-            params.x = if (isDockedLeft) 0 else (screenWidth - tabWidth)
+            params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
         }
         windowManager?.updateViewLayout(floatingView, params)
     }
@@ -230,12 +241,19 @@ class FloatingButtonService : Service() {
         val isPaused = RecordingForegroundService.isPaused
 
         if (!isExpanded) {
+            val density = resources.displayMetrics.density
+            val padEmbedded = (11 * density).toInt()
+            val padFree = (6 * density).toInt()
+            val padY = (7 * density).toInt()
+
             if (isDockedLeft) {
+                collapsedBtn?.setPadding(padEmbedded, padY, padFree, padY)
                 collapsedBtn?.setBackgroundResource(
                     if (isRec) R.drawable.bg_floating_dock_recording_edge_left
                     else R.drawable.bg_floating_dock_edge_left
                 )
             } else {
+                collapsedBtn?.setPadding(padFree, padY, padEmbedded, padY)
                 collapsedBtn?.setBackgroundResource(
                     if (isRec) R.drawable.bg_floating_dock_recording_edge_right
                     else R.drawable.bg_floating_dock_edge_right
@@ -306,6 +324,11 @@ class FloatingButtonService : Service() {
             }
         }
         startService(intent)
+        Toast.makeText(
+            this,
+            if (isPaused) "Recording resumed" else "Recording paused",
+            Toast.LENGTH_SHORT
+        ).show()
         renderCurrentState()
     }
 
@@ -314,6 +337,7 @@ class FloatingButtonService : Service() {
             action = RecordingForegroundService.ACTION_STOP_RECORDING
         }
         startService(intent)
+        Toast.makeText(this, "Voice note saved", Toast.LENGTH_SHORT).show()
         isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
@@ -324,6 +348,7 @@ class FloatingButtonService : Service() {
             action = RecordingForegroundService.ACTION_DELETE_RECORDING
         }
         startService(intent)
+        Toast.makeText(this, "Recording discarded", Toast.LENGTH_SHORT).show()
         isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
