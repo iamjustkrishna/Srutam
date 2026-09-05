@@ -77,8 +77,17 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             Surface(
-                color = CeramicWhite,
-                modifier = Modifier.fillMaxWidth()
+                color = Color(0xFFF4F5F8).copy(alpha = 0.85f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawBehind {
+                        drawLine(
+                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
             ) {
                 Row(
                     modifier = Modifier

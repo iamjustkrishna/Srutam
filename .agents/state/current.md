@@ -47,9 +47,13 @@
   - Compact 32dp height filter row with refined typography, count badges, and glowing `✦ Pending AI` badge.
 - [x] **Floating Dock Icon-Only Record Trigger**:
   - Mic icon only (no text) in idle dock expansion for clean and fast capture.
+- [x] **Unified Glassmorphic Top Bars & Notes Screen Alignment**:
+  - Replaced raw `TopAppBar` in `FeedScreen.kt` with `SrutamTopAppBar(title = "Srutam")` and `SquircleActionButton`.
+  - Matched exact 20dp start padding before "Srutam" on Notes screen with Insights (`ActionItemsScreen`) and AI (`GlobalCopilotScreen`) screens.
+  - Retained clean "Srutam" title on Notes screen without secondary accent text.
+  - Standardized all screen top bars (`FeedScreen`, `ActionItemsScreen`, `GlobalCopilotScreen`, `SettingsScreen`, `DetailScreen`, `ChatScreen`) on the unified glassmorphic translucent surface (`Color(0xFFF4F5F8).copy(alpha = 0.85f)`) and matching hairline bottom divider (`Color(0xFFD6E0EC).copy(alpha = 0.6f)`).
 - [x] **Build & Physical Verification**:
-  - Clean build `./gradlew assembleDebug` (BUILD SUCCESSFUL in 41s).
-  - Live verified on physical hardware (`AAAEPVORMFIR4PWS`, Realme 7).
+  - Clean build `./gradlew assembleDebug` (BUILD SUCCESSFUL in 53s).
   - Strict zero em dashes policy maintained across all files.
 
 ## Planned Next Direction

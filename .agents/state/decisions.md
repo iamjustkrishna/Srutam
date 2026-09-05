@@ -123,3 +123,13 @@
   5. Settings Screen Modernization: Minimal `<` chevron back button, clean 20sp "Settings" sans-serif title without "Done" button or "Srutam" prefix, single-line "Srutam Cloud (Default) Free", BYOK provider pills and model presets with custom model editing, real audio storage metrics, and creator footer linked to `@iamjustkrishna`.
   6. Quick Settings Dismissal Sync: Synchronized persistent notification dismissal with `AppPreferences.setPersistentNotificationEnabled(this, false)`.
   7. Edge-Embedded Logo Dock: Overlay handle tab displaying the gold Srutam logo docked flush on left/right screen edge. Tapping expands options (Record, Open App, Close). Recording switches to studio controls with live timer, pause/resume, red stop & save square, and cancel. Stopping or canceling auto-collapses flush back to the edge handle.
+
+## ADR-016: Unified Glassmorphic Top Bars and Strict Horizontal Alignment Across Screens
+- **Status**: Accepted
+- **Context**: The Notes screen (`FeedScreen.kt`) was using a raw Material 3 `TopAppBar` with default 16dp horizontal padding and transparent background, whereas `ActionItemsScreen.kt` and `GlobalCopilotScreen.kt` used `SrutamTopAppBar` with 20dp horizontal padding, 30sp Playfair Display bold typography, a glassmorphic surface (`Color(0xFFF4F5F8)` at 85% opacity), and a hairline divider line (`Color(0xFFD6E0EC)` at 60% opacity). This caused a noticeable horizontal shift and visual inconsistency when switching tabs between Notes, Insights, and AI. Additionally, secondary screens (`SettingsScreen`, `DetailScreen`, `ChatScreen`) had inconsistent opaque headers.
+- **Decision**:
+  1. Replaced raw `TopAppBar` in `FeedScreen.kt` with `SrutamTopAppBar(title = "Srutam")` and `SquircleActionButton` for Search and Settings.
+  2. Fixed start padding before "Srutam" on the Notes screen to 20dp, achieving pixel-perfect alignment with Insights and AI screens with zero jumping during tab switching.
+  3. Kept clean "Srutam" title on the Notes screen without secondary accent text.
+  4. Standardized all screen top bars (`FeedScreen`, `ActionItemsScreen`, `GlobalCopilotScreen`, `SettingsScreen`, `DetailScreen`, `ChatScreen`) on the unified glassmorphic translucent background (`Color(0xFFF4F5F8).copy(alpha = 0.85f)`) and matching hairline bottom divider (`Color(0xFFD6E0EC).copy(alpha = 0.6f)`).
+

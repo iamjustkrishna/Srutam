@@ -80,6 +80,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
@@ -205,9 +207,17 @@ fun DetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = CeramicWhite,
+                    containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
                     titleContentColor = TextPrimary
-                )
+                ),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         }
     ) { paddingValues ->

@@ -55,6 +55,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -144,9 +146,17 @@ fun ChatScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
+                    containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
                     titleContentColor = Color(0xFF1C1C1E)
-                )
+                ),
+                modifier = Modifier.drawBehind {
+                    drawLine(
+                        color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
             )
         },
         bottomBar = {

@@ -100,6 +100,8 @@ import space.iamjustkrishna.srutam.utils.NetworkUtils
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
+import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import kotlin.math.roundToInt
 
 private enum class FabState { IDLE, RECORDING_HELD, RECORDING_LOCKED }
@@ -324,12 +326,12 @@ fun FeedScreen(
                         )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.88f),
+                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
                         titleContentColor = TextPrimary
                     ),
                     modifier = Modifier.drawBehind {
                         drawLine(
-                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1.dp.toPx()
@@ -393,12 +395,12 @@ fun FeedScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.88f),
+                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
                         titleContentColor = Color(0xFF1C1C1E)
                     ),
                     modifier = Modifier.drawBehind {
                         drawLine(
-                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
+                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1.dp.toPx()
@@ -406,66 +408,19 @@ fun FeedScreen(
                     }
                 )
             } else {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Srutam",
-                            fontSize = 30.sp,
-                            fontFamily = PlayfairDisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E2229)
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        titleContentColor = Color(0xFF1E2229)
-                    ),
+                SrutamTopAppBar(
+                    title = "Srutam",
                     actions = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            // Search squircle button matching reference
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.85f),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { isSearchActive = true }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search",
-                                        tint = Color(0xFF1E2229),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            // Settings squircle button matching reference
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.85f),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable(onClick = onSettingsClick)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Settings",
-                                        tint = Color(0xFF1E2229),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
+                        SquircleActionButton(
+                            icon = Icons.Default.Search,
+                            contentDescription = "Search",
+                            onClick = { isSearchActive = true }
+                        )
+                        SquircleActionButton(
+                            icon = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            onClick = onSettingsClick
+                        )
                     }
                 )
             }
