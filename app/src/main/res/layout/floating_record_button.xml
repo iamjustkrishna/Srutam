@@ -38,38 +38,17 @@
         android:elevation="16dp"
         android:visibility="gone">
 
-        <!-- Direct Start Recording Action -->
-        <LinearLayout
+        <!-- Direct Start Recording Action (Icon Only) -->
+        <ImageView
             android:id="@+id/btn_dock_start_record"
-            android:layout_width="wrap_content"
+            android:layout_width="38dp"
             android:layout_height="38dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:padding="10dp"
             android:background="@drawable/bg_floating_record_circle"
-            android:paddingStart="12dp"
-            android:paddingEnd="14dp"
+            android:src="@drawable/ic_floating_mic"
+            android:contentDescription="Record"
             android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_floating_mic"
-                android:clickable="false"
-                android:focusable="false"
-                android:contentDescription="Record" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="Record"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:clickable="false"
-                android:focusable="false"
-                android:textStyle="bold" />
-        </LinearLayout>
+            android:focusable="true" />
 
         <!-- Open Srutam App -->
         <ImageView

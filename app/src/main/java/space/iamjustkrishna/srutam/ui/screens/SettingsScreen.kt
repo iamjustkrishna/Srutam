@@ -6,14 +6,23 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.painterResource
+import space.iamjustkrishna.srutam.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -24,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,17 +77,8 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             Surface(
-                color = Color(0xFFF4F5F8).copy(alpha = 0.88f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .drawBehind {
-                        drawLine(
-                            color = Color(0xFFE2E8F0).copy(alpha = 0.8f),
-                            start = Offset(0f, size.height),
-                            end = Offset(size.width, size.height),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
+                color = CeramicWhite,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
@@ -498,15 +499,17 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         val modelPresets = when (selectedProvider) {
-                            AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini")
-                            AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-5-sonnet", "claude-3-5-haiku")
-                            AppPreferences.PROVIDER_GEMINI -> listOf("gemini-1.5-flash", "gemini-1.5-pro")
-                            AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant")
-                            else -> listOf("gemini-1.5-flash")
+                            AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini", "o3-mini")
+                            AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022")
+                            AppPreferences.PROVIDER_GEMINI -> listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash")
+                            AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant")
+                            else -> listOf("gemini-2.0-flash")
                         }
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             modelPresets.forEach { preset ->
@@ -580,6 +583,41 @@ fun SettingsScreen(
 
             SettingsSection(title = "ABOUT & STORAGE") {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.srutam_final_log),
+                            contentDescription = "Srutam App Logo",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Srutam",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Intelligent Voice and Thought Engine",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(bottom = 14.dp),
+                        color = SlateBorder.copy(alpha = 0.6f),
+                        thickness = 0.8.dp
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -763,13 +801,49 @@ private fun SettingsToggleRow(
             }
         }
 
-        Switch(
+        SrutamSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = CobaltBlue
-            )
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@Composable
+private fun SrutamSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) CobaltBlue else Color(0xFFE2E8F0),
+        animationSpec = tween(durationMillis = 200),
+        label = "trackColor"
+    )
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 22.dp else 2.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "thumbOffset"
+    )
+
+    Box(
+        modifier = modifier
+            .width(46.dp)
+            .height(26.dp)
+            .clip(CircleShape)
+            .background(trackColor)
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 2.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(22.dp)
+                .shadow(elevation = 2.dp, shape = CircleShape)
+                .background(Color.White, CircleShape)
         )
     }
 }

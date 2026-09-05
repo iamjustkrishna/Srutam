@@ -479,30 +479,33 @@ fun FeedScreen(
                 }
             }
 
-            // Compact Segmented Filter Capsule (34dp height)
+            // Compact Modern Segmented Filter Capsule (32dp height)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 2.dp)
-                    .height(34.dp)
+                    .height(32.dp)
                     .background(
-                        color = Color(0xFFE8EEF5).copy(alpha = 0.7f),
-                        shape = RoundedCornerShape(17.dp)
+                        color = Color(0xFFEAEFF5),
+                        shape = RoundedCornerShape(16.dp)
                     )
-                    .border(1.dp, Color(0xFFD6E0EC).copy(alpha = 0.8f), RoundedCornerShape(17.dp))
+                    .border(1.dp, Color(0xFFDCE4EE), RoundedCornerShape(16.dp))
                     .padding(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilterSegmentItem(
-                    label = "All Notes (${audioFiles.size})",
+                    title = "All Notes",
+                    count = audioFiles.size,
                     isSelected = selectedFilter == FeedFilter.DEFAULT,
                     onClick = { selectedFilter = FeedFilter.DEFAULT },
                     modifier = Modifier.weight(1f)
                 )
                 FilterSegmentItem(
-                    label = if (pendingAiCount > 0) "Pending AI ($pendingAiCount)" else "Pending AI",
+                    title = "Pending AI",
+                    count = pendingAiCount,
                     isSelected = selectedFilter == FeedFilter.UNPROCESSED,
+                    isAiPending = true,
                     onClick = { selectedFilter = FeedFilter.UNPROCESSED },
                     modifier = Modifier.weight(1f)
                 )
@@ -1574,34 +1577,77 @@ fun AudioFileCard(
 
 @Composable
 private fun FilterSegmentItem(
-    label: String,
+    title: String,
+    count: Int,
     isSelected: Boolean,
+    isAiPending: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier
             .fillMaxHeight()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         color = if (isSelected) Color.White else Color.Transparent,
-        shape = RoundedCornerShape(16.dp),
-        shadowElevation = if (isSelected) 2.dp else 0.dp
+        shape = RoundedCornerShape(14.dp),
+        border = if (isSelected) BorderStroke(1.dp, Color(0xFFE2E8F0)) else null,
+        shadowElevation = if (isSelected) 1.5.dp else 0.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = label,
-                fontSize = 13.sp,
+                text = title,
+                fontSize = 11.5.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F172A) else Color(0xFF475569),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                letterSpacing = 0.25.sp,
+                color = if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B),
+                maxLines = 1
             )
+            Spacer(modifier = Modifier.width(5.dp))
+            if (isAiPending && count > 0) {
+                Surface(
+                    color = if (isSelected) CobaltContainer else Color(0xFFE0E7FF),
+                    shape = CircleShape
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "✦",
+                            fontSize = 8.5.sp,
+                            color = CobaltBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$count",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CobaltBlue
+                        )
+                    }
+                }
+            } else {
+                Surface(
+                    color = if (isSelected) Color(0xFFF1F5F9) else Color(0xFFE2E8F0).copy(alpha = 0.7f),
+                    shape = CircleShape
+                ) {
+                    Text(
+                        text = "$count",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isSelected) Color(0xFF334155) else Color(0xFF64748B),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                    )
+                }
+            }
         }
     }
 }

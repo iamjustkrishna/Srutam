@@ -11,8 +11,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.ViewConfiguration
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.Manifest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -91,36 +96,44 @@ class FloatingButtonService : Service() {
 
     private fun setupDragAndClick(params: WindowManager.LayoutParams) {
         val collapsedBtn = floatingView?.findViewById<View>(R.id.floating_record_button)
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop.coerceAtLeast(36)
 
         val touchListener = object : View.OnTouchListener {
-            private var lastAction = 0
-            private var moved = false
+            private var isDragging = false
+            private var downX = 0f
+            private var downY = 0f
+            private var startX = 0
+            private var startY = 0
 
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        initialX = params.x
-                        initialY = params.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        lastAction = MotionEvent.ACTION_DOWN
-                        moved = false
+                        downX = event.rawX
+                        downY = event.rawY
+                        startX = params.x
+                        startY = params.y
+                        isDragging = false
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val dx = (event.rawX - initialTouchX).toInt()
-                        val dy = (event.rawY - initialTouchY).toInt()
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                            moved = true
+                        val dx = (event.rawX - downX).toInt()
+                        val dy = (event.rawY - downY).toInt()
+                        val distance = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+
+                        if (!isDragging && distance > touchSlop) {
+                            isDragging = true
                         }
-                        params.x = initialX + dx
-                        params.y = initialY + dy
-                        windowManager?.updateViewLayout(floatingView, params)
-                        lastAction = MotionEvent.ACTION_MOVE
+
+                        if (isDragging) {
+                            val screenHeight = resources.displayMetrics.heightPixels
+                            params.x = startX + dx
+                            params.y = (startY + dy).coerceIn(40, screenHeight - 200)
+                            windowManager?.updateViewLayout(floatingView, params)
+                        }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (moved) {
+                        if (isDragging) {
                             val screenWidth = resources.displayMetrics.widthPixels
                             val density = resources.displayMetrics.density
                             val tabWidth = (44 * density).toInt()
@@ -128,7 +141,7 @@ class FloatingButtonService : Service() {
                             params.x = if (isDockedLeft) 0 else (screenWidth - tabWidth)
                             windowManager?.updateViewLayout(floatingView, params)
                             renderCurrentState()
-                        } else if (lastAction == MotionEvent.ACTION_DOWN) {
+                        } else {
                             toggleExpanded()
                         }
                         return true
@@ -142,9 +155,9 @@ class FloatingButtonService : Service() {
     }
 
     private fun setupExpandedOptions() {
-        // Direct record button
+        // Direct record button (now circular icon only)
         floatingView?.findViewById<View>(R.id.btn_dock_start_record)?.setOnClickListener {
-            Log.d(TAG, "Record button clicked from dock")
+            Log.d(TAG, "Record icon clicked from dock")
             startRecording()
         }
 
@@ -194,7 +207,7 @@ class FloatingButtonService : Service() {
         val tabWidth = (44 * density).toInt()
 
         if (isExpanded) {
-            val estimatedWidthPx = (240 * density).toInt()
+            val estimatedWidthPx = ((if (RecordingForegroundService.isRecording) 230 else 165) * density).toInt()
             if (isDockedLeft) {
                 params.x = (8 * density).toInt()
             } else {
@@ -260,6 +273,16 @@ class FloatingButtonService : Service() {
     }
 
     private fun startRecording() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(this, "Microphone permission required to record", Toast.LENGTH_SHORT).show()
+            openMainActivity()
+            return
+        }
+
         val intent = Intent(this, RecordingForegroundService::class.java).apply {
             action = RecordingForegroundService.ACTION_START_RECORDING
         }

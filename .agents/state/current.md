@@ -31,9 +31,25 @@
   - Stopping or canceling auto-collapses flush back to the edge handle.
 - [x] **Version 2.0.0 (`build.gradle.kts`)**:
   - Bumped to `versionCode = 4`, `versionName = "2.0.0"`.
+- [x] **New 3D Brand Logo Integration**:
+  - Full suite of assets generated from the new 3D fluid azure/cobalt voice and thought logo.
+  - Master 1024x1024 artwork in `art/srutam_logo_1024.png`.
+  - Scaled across all density buckets (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`) for `srutam_final_log.png` and `ic_launcher_foreground.png`.
+  - Safe-zone padding (~62%) and soft elevation shadow applied to adaptive foreground.
+  - `ic_launcher_background.xml` updated to `#FFFFFF`.
+  - Legacy squircle and circular mipmap icons generated for all densities.
+  - Added brand identity header card with the new 3D logo in `SettingsScreen.kt` About section.
+- [x] **Settings Screen Seamless Top Bar & Apple-Style Toggles**:
+  - Top bar background set to seamless `CeramicWhite` without grey artifacts.
+  - Custom `SrutamSwitch` toggle with animated spring thumb physics.
+  - Updated latest workable model presets for OpenAI, Anthropic (`claude-3-7-sonnet-20250219`), Gemini (`gemini-2.0-flash`), and Groq.
+- [x] **Notes Filter Bar Polish**:
+  - Compact 32dp height filter row with refined typography, count badges, and glowing `✦ Pending AI` badge.
+- [x] **Floating Dock Icon-Only Record Trigger**:
+  - Mic icon only (no text) in idle dock expansion for clean and fast capture.
 - [x] **Build & Physical Verification**:
-  - Clean build `./gradlew assembleDebug` (BUILD SUCCESSFUL).
-  - Live verified on physical hardware (`AAAEPVORMFIR4PWS`).
+  - Clean build `./gradlew assembleDebug` (BUILD SUCCESSFUL in 41s).
+  - Live verified on physical hardware (`AAAEPVORMFIR4PWS`, Realme 7).
   - Strict zero em dashes policy maintained across all files.
 
 ## Planned Next Direction

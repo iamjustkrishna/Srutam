@@ -22,10 +22,18 @@ object AppPreferences {
     const val PROVIDER_GEMINI = "GEMINI"
     const val PROVIDER_GROQ = "GROQ"
 
-    fun getCustomModel(context: Context): String {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun getCustomModel(context: Context, provider: String = getAIProvider(context)): String {
+        val saved = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_CUSTOM_MODEL, "")
             .orEmpty()
+        if (saved.isNotBlank()) return saved
+        return when (provider) {
+            PROVIDER_OPENAI -> "gpt-4o"
+            PROVIDER_ANTHROPIC -> "claude-3-7-sonnet-20250219"
+            PROVIDER_GEMINI -> "gemini-2.0-flash"
+            PROVIDER_GROQ -> "llama-3.3-70b-versatile"
+            else -> "gemini-2.0-flash"
+        }
     }
 
     fun setCustomModel(context: Context, model: String) {
