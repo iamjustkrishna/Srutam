@@ -70,6 +70,17 @@
 - [x] **Physical Device Verification (Realme 7)**:
   - Validated all 5 requested features directly on connected hardware.
   - Strictly zero em dashes maintained across all modified files and commits.
+- [x] **First Impression Animated Splash Screen (`SrutamSplashScreen.kt`)**:
+  - Implemented 3D fluid azure voice logo with animated spring scaling and alpha fade-in.
+  - Rendered Playfair Display ExtraBold "Srutam" title with italic tagline "Pure Voice, Crystallized Thought".
+  - Timed 1.2-second smooth cross-fade into permissions onboarding or main feed depending on core permission status.
+- [x] **Intelligent Android Permission Onboarding (`PermissionsOnboardingScreen.kt`, `MainActivity.kt`)**:
+  - Supported comprehensive permissions across minSdk 29 (Android 10) up to targetSdk 36 (Android 16).
+  - Explicitly handles `RECORD_AUDIO` on all versions, `READ_MEDIA_AUDIO` on Android 13+ (API 33+), `READ_EXTERNAL_STORAGE` (+ `WRITE_EXTERNAL_STORAGE` on API 29) on older versions, and zero-permission file deletion via `MediaStore.createDeleteRequest()` on API 30+.
+  - Interactive status cards with real-time green checkmark "Granted" pills versus "Required" / "Recommended" badges.
+  - Soft-denial rationale cards and permanent-denial banner directing to system settings with "Open App Settings" CTA.
+  - Reactive `ON_RESUME` lifecycle observer ensuring automatic transit to the main feed when returning from settings.
+  - Verified on physical Realme 7 device with fresh install and persistent relaunch workflows.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
