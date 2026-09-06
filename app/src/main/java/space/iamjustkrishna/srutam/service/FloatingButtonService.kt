@@ -27,6 +27,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
+import space.iamjustkrishna.srutam.utils.AppPreferences
 
 class FloatingButtonService : Service() {
 
@@ -48,6 +49,7 @@ class FloatingButtonService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "FloatingButtonService created")
+        isDockedLeft = AppPreferences.isFloatingDockOnLeft(this)
         showFloatingButton()
         startStateWatcher()
     }
@@ -78,6 +80,10 @@ class FloatingButtonService : Service() {
             val screenHeight = resources.displayMetrics.heightPixels
             val density = resources.displayMetrics.density
             val embedOffsetPx = (8 * density).toInt()
+            isDockedLeft = AppPreferences.isFloatingDockOnLeft(this)
+            val defaultY = (screenHeight * 0.35f).toInt()
+            val initialY = AppPreferences.getFloatingDockY(this, defaultY)
+
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -85,9 +91,9 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.START
+                gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
                 x = -embedOffsetPx
-                y = (screenHeight * 0.35f).toInt()
+                y = initialY
             }
             windowLayoutParams = params
 
@@ -119,6 +125,14 @@ class FloatingButtonService : Service() {
                     MotionEvent.ACTION_DOWN -> {
                         downX = event.rawX
                         downY = event.rawY
+                        val screenWidth = resources.displayMetrics.widthPixels
+                        val density = resources.displayMetrics.density
+                        val tabWidth = (52 * density).toInt()
+                        val embedOffsetPx = (8 * density).toInt()
+
+                        // Temporarily switch to TOP | START coordinates for continuous screen dragging
+                        params.gravity = Gravity.TOP or Gravity.START
+                        params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
                         startX = params.x
                         startY = params.y
                         isDragging = false
@@ -142,16 +156,23 @@ class FloatingButtonService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
+                        val density = resources.displayMetrics.density
+                        val embedOffsetPx = (8 * density).toInt()
                         if (isDragging) {
                             val screenWidth = resources.displayMetrics.widthPixels
-                            val density = resources.displayMetrics.density
                             val tabWidth = (52 * density).toInt()
-                            val embedOffsetPx = (8 * density).toInt()
                             isDockedLeft = (params.x + tabWidth / 2) < (screenWidth / 2)
-                            params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
+                            AppPreferences.setFloatingDockOnLeft(this@FloatingButtonService, isDockedLeft)
+                            AppPreferences.setFloatingDockY(this@FloatingButtonService, params.y)
+
+                            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
+                            params.x = -embedOffsetPx
                             windowManager?.updateViewLayout(floatingView, params)
                             renderCurrentState()
                         } else {
+                            // Tap event on collapsed dock tab
+                            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
+                            params.x = -embedOffsetPx
                             toggleExpanded()
                         }
                         return true
@@ -165,7 +186,7 @@ class FloatingButtonService : Service() {
     }
 
     private fun setupExpandedOptions() {
-        // Direct record button (now circular icon only)
+        // Direct record button (circular icon only)
         floatingView?.findViewById<View>(R.id.btn_dock_start_record)?.setOnClickListener {
             Log.d(TAG, "Record icon clicked from dock")
             startRecording()
@@ -212,21 +233,11 @@ class FloatingButtonService : Service() {
 
     private fun adjustPositionForExpandedState() {
         val params = windowLayoutParams ?: return
-        val screenWidth = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
-        val tabWidth = (52 * density).toInt()
         val embedOffsetPx = (8 * density).toInt()
 
-        if (isExpanded) {
-            val estimatedWidthPx = ((if (RecordingForegroundService.isRecording) 230 else 165) * density).toInt()
-            if (isDockedLeft) {
-                params.x = (8 * density).toInt()
-            } else {
-                params.x = Math.max((8 * density).toInt(), screenWidth - estimatedWidthPx - (8 * density).toInt())
-            }
-        } else {
-            params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
-        }
+        params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
+        params.x = if (isExpanded) (8 * density).toInt() else -embedOffsetPx
         windowManager?.updateViewLayout(floatingView, params)
     }
 
@@ -239,6 +250,11 @@ class FloatingButtonService : Service() {
 
         val isRec = RecordingForegroundService.isRecording
         val isPaused = RecordingForegroundService.isPaused
+
+        // Mirror layout direction for right docked orientation so actions flow naturally from edge
+        val layoutDir = if (isDockedLeft) View.LAYOUT_DIRECTION_LTR else View.LAYOUT_DIRECTION_RTL
+        expandedIdleLayout?.layoutDirection = layoutDir
+        expandedRecLayout?.layoutDirection = layoutDir
 
         if (!isExpanded) {
             val density = resources.displayMetrics.density
@@ -282,6 +298,7 @@ class FloatingButtonService : Service() {
         windowLayoutParams?.let { params ->
             params.width = WindowManager.LayoutParams.WRAP_CONTENT
             params.height = WindowManager.LayoutParams.WRAP_CONTENT
+            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
             try {
                 windowManager?.updateViewLayout(floatingView, params)
             } catch (e: Exception) {

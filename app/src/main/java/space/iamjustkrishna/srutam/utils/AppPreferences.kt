@@ -105,6 +105,33 @@ object AppPreferences {
             .apply()
     }
 
+    private const val KEY_FLOATING_DOCK_IS_LEFT = "floating_dock_is_left"
+    private const val KEY_FLOATING_DOCK_Y = "floating_dock_y"
+
+    fun isFloatingDockOnLeft(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_FLOATING_DOCK_IS_LEFT, true)
+    }
+
+    fun setFloatingDockOnLeft(context: Context, isLeft: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_FLOATING_DOCK_IS_LEFT, isLeft)
+            .apply()
+    }
+
+    fun getFloatingDockY(context: Context, defaultY: Int): Int {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_FLOATING_DOCK_Y, defaultY)
+    }
+
+    fun setFloatingDockY(context: Context, y: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_FLOATING_DOCK_Y, y)
+            .apply()
+    }
+
     fun getCompletedActionItemIds(context: Context): Set<String> {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getStringSet(KEY_COMPLETED_TASKS, emptySet()) ?: emptySet()
