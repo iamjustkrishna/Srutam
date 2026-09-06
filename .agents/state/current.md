@@ -90,7 +90,13 @@
 - [x] **Variable Font Weight Calibration & Refined Title Boldness (`Type.kt`, `SrutamTopAppBar.kt`)**:
   - Added explicit `FontVariation.Settings(FontVariation.weight(...))` across Normal (400) to ExtraBold (800) in `PlayfairDisplayFontFamily` enabling Compose to control variable font weight axes.
   - Calibrated default `SrutamTopAppBar` title weight to `FontWeight.Bold` (weight 700), giving "Srutam" on the Notes screen a clean, slightly bolder typographic anchor without excessive heaviness.
+- [x] **WorkManager Background AI Processing & Foreground Notifications (`AiProcessingWorker.kt`, `AiSummaryNetworkWorker.kt`)**:
+  - Migrated transcription and summary generation from volatile Activity `viewModelScope` to robust Android `WorkManager` with `CoroutineWorker`.
+  - Foreground service support via `FOREGROUND_SERVICE_DATA_SYNC` ensures tasks survive backgrounding, phone locking, and app closure.
+  - Staged live progress notifications on `ai_processing_channel`: "Transcribing [Title]...", "Generating insights...", and "Analyzing note X of Y" for batches.
+  - Completion notifications on `ai_completion_channel` with deep-link intent (`EXTRA_OPEN_RECORDING_ID`) opening directly to note details.
+  - Silent offline resilience: transcription runs locally; if network is unavailable for cloud summary, note is marked `SUMMARY_PENDING_OFFLINE` without displaying "waiting for internet" notifications. WorkManager's `AiSummaryNetworkWorker` (with `NetworkType.CONNECTED` constraint) resumes cloud insights generation upon reconnecting.
+  - Batch AI processing action button (`Icons.Default.AutoAwesome`) in `FeedScreen` multi-select top app bar, allowing users to queue multiple voice notes at once with immediate toast feedback.
 
 ## Planned Next Direction
-- [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
-
+- [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server. 
