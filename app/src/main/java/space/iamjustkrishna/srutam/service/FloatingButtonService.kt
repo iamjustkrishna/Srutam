@@ -1,7 +1,12 @@
 package space.iamjustkrishna.srutam.service
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -15,6 +20,7 @@ import android.view.ViewConfiguration
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import android.Manifest
@@ -49,16 +55,96 @@ class FloatingButtonService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "FloatingButtonService created")
+        startForegroundWithNotification()
         isDockedLeft = AppPreferences.isFloatingDockOnLeft(this)
         showFloatingButton()
         startStateWatcher()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (floatingView == null) {
-            showFloatingButton()
+        when (intent?.action) {
+            ACTION_STOP_DOCK -> {
+                Log.d(TAG, "Stopping floating dock from notification action")
+                AppPreferences.setFloatingDockEnabled(this, false)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            else -> {
+                startForegroundWithNotification()
+                if (floatingView == null) {
+                    showFloatingButton()
+                }
+            }
         }
         return START_STICKY
+    }
+
+    private fun startForegroundWithNotification() {
+        createNotificationChannel()
+        val notification = createNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.floating_dock_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.floating_dock_channel_desc)
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
+            }
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(): Notification {
+        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val openAppPendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val hideIntent = Intent(this, FloatingButtonService::class.java).apply {
+            action = ACTION_STOP_DOCK
+        }
+        val hidePendingIntent = PendingIntent.getService(
+            this,
+            1,
+            hideIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.srutam_final_log)
+            .setContentTitle(getString(R.string.floating_dock_notif_title))
+            .setContentText(getString(R.string.floating_dock_notif_text))
+            .setContentIntent(openAppPendingIntent)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .addAction(
+                R.drawable.ic_floating_close,
+                getString(R.string.floating_dock_action_hide),
+                hidePendingIntent
+            )
+            .build()
     }
 
     private fun showFloatingButton() {
@@ -418,10 +504,14 @@ class FloatingButtonService : Service() {
                 Log.w(TAG, "Error removing floating view on destroy", e)
             }
         }
+        stopForeground(STOP_FOREGROUND_REMOVE)
         Log.d(TAG, "FloatingButtonService destroyed")
     }
 
     companion object {
         private const val TAG = "FloatingButtonService"
+        private const val NOTIFICATION_ID = 1001
+        private const val CHANNEL_ID = "srutam_floating_dock_channel"
+        const val ACTION_STOP_DOCK = "space.iamjustkrishna.srutam.action.STOP_FLOATING_DOCK"
     }
 }

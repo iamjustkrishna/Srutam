@@ -116,7 +116,7 @@ fun SrutamApp(initialRecordingId: Long? = null) {
         if (appStage == AppStage.MAIN && AppPreferences.isFloatingDockEnabled(context)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(context)) {
                 val serviceIntent = Intent(context, FloatingButtonService::class.java)
-                context.startService(serviceIntent)
+                ContextCompat.startForegroundService(context, serviceIntent)
             }
         }
     }

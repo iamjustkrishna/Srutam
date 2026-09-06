@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
@@ -153,7 +154,7 @@ fun SettingsScreen(
                             AppPreferences.setFloatingDockEnabled(context, enabled)
                             val serviceIntent = Intent(context, FloatingButtonService::class.java)
                             if (enabled) {
-                                context.startService(serviceIntent)
+                                ContextCompat.startForegroundService(context, serviceIntent)
                             } else {
                                 context.stopService(serviceIntent)
                             }

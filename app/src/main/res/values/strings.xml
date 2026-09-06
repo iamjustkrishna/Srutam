@@ -10,4 +10,9 @@
     <string name="ai_processing_channel_desc">Shows progress while transcribing and analyzing voice notes</string>
     <string name="ai_completion_channel_name">AI Insights Ready</string>
     <string name="ai_completion_channel_desc">Notifies you when AI insights are generated</string>
+    <string name="floating_dock_channel_name">Floating Screen Dock</string>
+    <string name="floating_dock_channel_desc">Keeps on-screen floating dock active for quick voice note capture</string>
+    <string name="floating_dock_notif_title">Srutam Floating Dock Active</string>
+    <string name="floating_dock_notif_text">Tap to open Srutam</string>
+    <string name="floating_dock_action_hide">Hide Dock</string>
 </resources>
