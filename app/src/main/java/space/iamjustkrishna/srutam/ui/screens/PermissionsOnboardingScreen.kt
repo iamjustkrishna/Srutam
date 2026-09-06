@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -164,6 +165,34 @@ fun PermissionsOnboardingScreen(
     val isPermanentlyDenied = (hasDeniedOnce && !shouldShowRationale && !hasAllRequired) ||
             (requestAttemptCount >= 2 && !hasAllRequired && !shouldShowRationale)
 
+    PermissionsOnboardingContent(
+        isMicGranted = isMicGranted,
+        isStorageGranted = isStorageGranted,
+        isNotificationsGranted = isNotificationsGranted,
+        isPermanentlyDenied = isPermanentlyDenied,
+        onRequestPermissions = {
+            requestAttemptCount++
+            multiplePermissionsState.launchMultiplePermissionRequest()
+        },
+        onOpenSettings = {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        }
+    )
+}
+
+@Composable
+fun PermissionsOnboardingContent(
+    isMicGranted: Boolean,
+    isStorageGranted: Boolean,
+    isNotificationsGranted: Boolean,
+    isPermanentlyDenied: Boolean,
+    onRequestPermissions: () -> Unit = {},
+    onOpenSettings: () -> Unit = {}
+) {
     val scrollState = rememberScrollState()
 
     Box(
@@ -218,102 +247,89 @@ fun PermissionsOnboardingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To capture thoughts and organize your voice memos seamlessly, Srutam requires a few device permissions.",
+                text = "To provide high-accuracy local transcription and AI insights, Srutam needs access to your microphone and audio files.",
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
                 color = Color(0xFF64748B),
                 lineHeight = 20.sp,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Microphone Permission Card
-            PermissionFeatureCard(
-                icon = Icons.Default.Mic,
-                iconTint = Color(0xFF2563EB),
-                iconBg = Color(0xFFEFF6FF),
-                title = "Microphone Access",
-                subtitle = "Record high-fidelity voice notes and transcribe your thoughts on-device.",
-                isGranted = isMicGranted,
-                isRequired = true
-            )
+            // Permission Cards Stack
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                PermissionFeatureCard(
+                    icon = Icons.Default.Mic,
+                    iconTint = Color(0xFF2563EB),
+                    iconBg = Color(0xFFEFF6FF),
+                    title = "Microphone Access",
+                    subtitle = "Required to capture audio notes and meetings with on-device Whisper transcription.",
+                    isGranted = isMicGranted,
+                    isRequired = true
+                )
 
-            Spacer(modifier = Modifier.height(14.dp))
+                PermissionFeatureCard(
+                    icon = Icons.Outlined.Folder,
+                    iconTint = Color(0xFF7C3AED),
+                    iconBg = Color(0xFFF5F3FF),
+                    title = "Audio Storage",
+                    subtitle = "Required to save M4A audio files and organize them in your local storage.",
+                    isGranted = isStorageGranted,
+                    isRequired = true
+                )
 
-            // Audio Storage Permission Card
-            val storageTitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                "Audio Media Access"
-            } else {
-                "Files & Storage Access"
-            }
-            PermissionFeatureCard(
-                icon = Icons.Outlined.Folder,
-                iconTint = Color(0xFF0284C7),
-                iconBg = Color(0xFFF0F9FF),
-                title = storageTitle,
-                subtitle = "Save audio recordings in your device Music folder, and manage playback and file deletion smoothly.",
-                isGranted = isStorageGranted,
-                isRequired = true
-            )
-
-            // Notifications Permission Card (Android 13+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Spacer(modifier = Modifier.height(14.dp))
                 PermissionFeatureCard(
                     icon = Icons.Default.NotificationsActive,
-                    iconTint = Color(0xFF8B5CF6),
-                    iconBg = Color(0xFFF5F3FF),
-                    title = "Live Recording Controls",
-                    subtitle = "Display recording chronometer, background status, and quick pause/stop in your status bar.",
+                    iconTint = Color(0xFF059669),
+                    iconBg = Color(0xFFECFDF5),
+                    title = "Notifications",
+                    subtitle = "Recommended for persistent background recording controls and audio processing alerts.",
                     isGranted = isNotificationsGranted,
                     isRequired = false
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Rationale / Help Banner if user denied or permanently denied
-            AnimatedVisibility(
-                visible = isPermanentlyDenied || (hasDeniedOnce && shouldShowRationale),
-                enter = fadeIn(),
-                exit = fadeOut()
+            // Info Note
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isPermanentlyDenied) Color(0xFFFEF2F2) else Color(0xFFF0F9FF)
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (isPermanentlyDenied) Color(0xFFFECACA) else Color(0xFFBAE6FD)
+                )
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (isPermanentlyDenied) Color(0xFFFEF2F2) else Color(0xFFEFF6FF)
-                        )
-                        .border(
-                            1.dp,
-                            if (isPermanentlyDenied) Color(0xFFFECACA) else Color(0xFFBFDBFE),
-                            RoundedCornerShape(14.dp)
-                        )
-                        .padding(14.dp)
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = "Info",
-                            tint = if (isPermanentlyDenied) Color(0xFFDC2626) else Color(0xFF2563EB),
-                            modifier = Modifier
-                                .size(20.dp)
-                                .padding(top = 2.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = if (isPermanentlyDenied) {
-                                "Permissions are disabled in system settings. Tap below to open Settings, select Permissions, and enable Microphone and Storage."
-                            } else {
-                                "Srutam requires microphone and audio storage permissions to record and organize notes. Please grant access to continue."
-                            },
-                            fontSize = 13.sp,
-                            color = if (isPermanentlyDenied) Color(0xFF991B1B) else Color(0xFF1E40AF),
-                            lineHeight = 18.sp
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = "Info",
+                        tint = if (isPermanentlyDenied) Color(0xFFDC2626) else Color(0xFF2563EB),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isPermanentlyDenied) {
+                            "Permissions are disabled in system settings. Tap below to open Settings, select Permissions, and enable Microphone and Storage."
+                        } else {
+                            "Srutam requires microphone and audio storage permissions to record and organize notes. Please grant access to continue."
+                        },
+                        fontSize = 13.sp,
+                        color = if (isPermanentlyDenied) Color(0xFF991B1B) else Color(0xFF1E40AF),
+                        lineHeight = 18.sp
+                    )
                 }
             }
         }
@@ -337,14 +353,9 @@ fun PermissionsOnboardingScreen(
             Button(
                 onClick = {
                     if (isPermanentlyDenied) {
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.fromParts("package", context.packageName, null)
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        }
-                        context.startActivity(intent)
+                        onOpenSettings()
                     } else {
-                        requestAttemptCount++
-                        multiplePermissionsState.launchMultiplePermissionRequest()
+                        onRequestPermissions()
                     }
                 },
                 modifier = Modifier

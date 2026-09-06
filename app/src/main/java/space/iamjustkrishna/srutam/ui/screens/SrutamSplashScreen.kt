@@ -61,6 +61,17 @@ fun SrutamSplashScreen(
         onSplashFinished()
     }
 
+    SrutamSplashScreenContent(
+        scale = scale.value,
+        alpha = alpha.value
+    )
+}
+
+@Composable
+fun SrutamSplashScreenContent(
+    scale: Float = 1.0f,
+    alpha: Float = 1.0f
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -79,8 +90,8 @@ fun SrutamSplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .scale(scale.value)
-                .alpha(alpha.value)
+                .scale(scale)
+                .alpha(alpha)
                 .padding(24.dp)
         ) {
             Image(

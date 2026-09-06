@@ -315,6 +315,138 @@ fun FeedScreen(
     }
 
 
+    FeedScreenContent(
+        audioFiles = audioFiles,
+        recordingsByPath = recordingsByPath,
+        playbackState = playbackState,
+        isLoading = isLoading,
+        isOnline = isOnline,
+        selectedFilePaths = selectedFilePaths,
+        removingFilePaths = removingFilePaths,
+        showDeleteToast = showDeleteToast,
+        deleteToastCount = deleteToastCount,
+        onSelectionToggle = { filePath ->
+            selectedFilePaths = if (filePath in selectedFilePaths) {
+                selectedFilePaths - filePath
+            } else {
+                selectedFilePaths + filePath
+            }
+        },
+        onClearSelection = { selectedFilePaths = emptySet() },
+        onDeleteSelected = { showMultiDeleteDialog = true },
+        onProcessBatchAI = {
+            val filesToProcess = audioFiles.filter { it.filePath in selectedFilePaths }
+            if (filesToProcess.isNotEmpty()) {
+                viewModel.processBatchAI(filesToProcess)
+                Toast.makeText(
+                    context,
+                    "Analyzing ${filesToProcess.size} voice notes in background...",
+                    Toast.LENGTH_SHORT
+                ).show()
+                selectedFilePaths = emptySet()
+            }
+        },
+        onProcessPendingOffline = {
+            viewModel.processPendingOfflineRecordings()
+        },
+        onRecordingClick = onRecordingClick,
+        onSettingsClick = onSettingsClick,
+        onPlayFile = { audioFile ->
+            if (playbackState.currentFilePath == audioFile.filePath) {
+                if (playbackState.isPlaying) {
+                    viewModel.audioPlayer.pause()
+                    viewModel.audioPlayer.seekTo(0)
+                } else {
+                    viewModel.audioPlayer.play()
+                }
+            } else {
+                viewModel.playAudio(audioFile)
+            }
+        },
+        onProcessAI = { audioFile ->
+            viewModel.processRecordingForAI(audioFile)
+        },
+        onRenameFile = { audioFile, newName ->
+            viewModel.renameRecording(audioFile, newName)
+        },
+        onDeleteFile = { deleteFiles(listOf(it)) },
+        viewModel = viewModel
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FeedScreenContent(
+    audioFiles: List<AudioFileInfo>,
+    recordingsByPath: Map<String, Recording>,
+    playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
+    isLoading: Boolean = false,
+    isOnline: Boolean = true,
+    selectedFilePaths: Set<String> = emptySet(),
+    removingFilePaths: Set<String> = emptySet(),
+    showDeleteToast: Boolean = false,
+    deleteToastCount: Int = 0,
+    onSelectionToggle: (String) -> Unit = {},
+    onClearSelection: () -> Unit = {},
+    onDeleteSelected: () -> Unit = {},
+    onProcessBatchAI: () -> Unit = {},
+    onProcessPendingOffline: () -> Unit = {},
+    onRecordingClick: (Long) -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onPlayFile: (AudioFileInfo) -> Unit = {},
+    onProcessAI: (AudioFileInfo) -> Unit = {},
+    onRenameFile: (AudioFileInfo, String) -> Unit = { _, _ -> },
+    onDeleteFile: (AudioFileInfo) -> Unit = {},
+    viewModel: AudioFilesViewModel? = null,
+    modifier: Modifier = Modifier
+) {
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
+    var selectedFilter by remember { mutableStateOf(FeedFilter.DEFAULT) }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            delay(120)
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        searchQuery = ""
+    }
+
+    val isSelectionMode = selectedFilePaths.isNotEmpty()
+
+    val filteredAudioFiles = remember(audioFiles, recordingsByPath, selectedFilter, searchQuery) {
+        val baseList = when (selectedFilter) {
+            FeedFilter.DEFAULT -> audioFiles
+            FeedFilter.PROCESSED -> audioFiles.filter { audioFile ->
+                val rec = recordingsByPath[audioFile.filePath]
+                !rec?.actionItems.isNullOrBlank() && rec.actionItems != "[]"
+            }
+            FeedFilter.UNPROCESSED -> audioFiles.filter { audioFile ->
+                val rec = recordingsByPath[audioFile.filePath]
+                rec?.summary.isNullOrBlank()
+            }
+            FeedFilter.LONGEST -> audioFiles.sortedByDescending { it.duration }
+            FeedFilter.SHORTEST -> audioFiles.sortedBy { it.duration }
+        }
+        if (searchQuery.isBlank()) {
+            baseList
+        } else {
+            val q = searchQuery.trim().lowercase()
+            baseList.filter { file ->
+                val rec = recordingsByPath[file.filePath]
+                val nameMatch = file.fileName.lowercase().contains(q) || (rec?.name?.lowercase()?.contains(q) == true)
+                val transcriptMatch = rec?.transcript?.lowercase()?.contains(q) == true ||
+                        rec?.summary?.lowercase()?.contains(q) == true
+                nameMatch || transcriptMatch
+            }
+        }
+    }
+
     Scaffold(
         containerColor = Color(0xFFF4F5F8),
         topBar = {
@@ -340,32 +472,19 @@ fun FeedScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { selectedFilePaths = emptySet() }) {
+                        IconButton(onClick = onClearSelection) {
                             Icon(Icons.Default.Close, contentDescription = "Deselect all")
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = {
-                                val filesToProcess = filteredAudioFiles.filter { it.filePath in selectedFilePaths }
-                                if (filesToProcess.isNotEmpty()) {
-                                    viewModel.processBatchAI(filesToProcess)
-                                    Toast.makeText(
-                                        context,
-                                        "Analyzing ${filesToProcess.size} voice notes in background...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    selectedFilePaths = emptySet()
-                                }
-                            }
-                        ) {
+                        IconButton(onClick = onProcessBatchAI) {
                             Icon(
                                 Icons.Default.AutoAwesome,
                                 contentDescription = "Generate AI Insights for selected",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(onClick = { showMultiDeleteDialog = true }) {
+                        IconButton(onClick = onDeleteSelected) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
                         }
                     }
@@ -447,6 +566,7 @@ fun FeedScreen(
                 )
             }
         },
+        modifier = modifier
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             val pendingAiCount = remember(audioFiles, recordingsByPath) {
@@ -522,7 +642,7 @@ fun FeedScreen(
                         color = CobaltBlue,
                         shape = CircleShape,
                         modifier = Modifier.clickable {
-                            viewModel.processPendingOfflineRecordings()
+                            onProcessPendingOffline()
                         }
                     ) {
                         Text(
@@ -578,63 +698,40 @@ fun FeedScreen(
                     AudioFilesList(
                         audioFiles = filteredAudioFiles,
                         playbackState = playbackState,
-                        onDeleteFile = { deleteFiles(listOf(it)) },
-                        onPlayFile = { audioFile ->
-                            if (playbackState.currentFilePath == audioFile.filePath) {
-                                if (playbackState.isPlaying) {
-                                    viewModel.audioPlayer.pause()
-                                    viewModel.audioPlayer.seekTo(0)
-                                } else {
-                                    viewModel.audioPlayer.play()
-                                }
-                            } else {
-                                viewModel.playAudio(audioFile)
-                            }
-                        },
-                        onProcessAI = { audioFile ->
-                            viewModel.processRecordingForAI(audioFile)
-                        },
-                        onRenameFile = { audioFile, newName ->
-                            viewModel.renameRecording(audioFile, newName)
-                        },
+                        onDeleteFile = onDeleteFile,
+                        onPlayFile = onPlayFile,
+                        onProcessAI = onProcessAI,
+                        onRenameFile = onRenameFile,
                         onRecordingClick = onRecordingClick,
                         recordingsByPath = recordingsByPath,
                         viewModel = viewModel,
                         selectedFilePaths = selectedFilePaths,
                         removingFilePaths = removingFilePaths,
-                        onSelectionToggle = { filePath ->
-                            selectedFilePaths = if (filePath in selectedFilePaths) {
-                                selectedFilePaths - filePath
-                            } else {
-                                selectedFilePaths + filePath
-                            }
-                        },
+                        onSelectionToggle = onSelectionToggle,
                         isSelectionMode = isSelectionMode
                     )
                 }
 
-                // RecordingFAB is now handled by the invariant RootScreen StudioBottomBar and StudioRecordingBottomSheet
-
-        if (showDeleteToast) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(12.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 2.dp
-                ) {
-                    Text(
-                        text = "Deleted $deleteToastCount recording${if (deleteToastCount > 1) "s" else ""}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                    )
+                if (showDeleteToast) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            tonalElevation = 2.dp
+                        ) {
+                            Text(
+                                text = "Deleted $deleteToastCount recording${if (deleteToastCount > 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            )
+                        }
+                    }
                 }
-            }
-        }
             }
         }
     }
@@ -978,7 +1075,7 @@ fun AudioFilesList(
     onRenameFile: (AudioFileInfo, String) -> Unit,
     onRecordingClick: (Long) -> Unit,
     recordingsByPath: Map<String, Recording>,
-    viewModel: AudioFilesViewModel,
+    viewModel: AudioFilesViewModel? = null,
     selectedFilePaths: Set<String> = emptySet(),
     removingFilePaths: Set<String> = emptySet(),
     onSelectionToggle: (String) -> Unit = {},
@@ -1027,7 +1124,7 @@ fun AudioFileCard(
     onRenameClick: (String) -> Unit,
     onDelete: () -> Unit,
     onRecordingClick: (Long) -> Unit,
-    viewModel: AudioFilesViewModel,
+    viewModel: AudioFilesViewModel? = null,
     isSelected: Boolean = false,
     onSelectionToggle: () -> Unit = {},
     isSelectionMode: Boolean = false,
@@ -1094,7 +1191,12 @@ fun AudioFileCard(
     // Determine if AI has processed this file (summary ready)
     val isAiProcessed = recording?.aiStatus == RecordingAiStatus.READY && !recording.summary.isNullOrBlank()
     val isProcessing = recording?.isProcessing == true
-    val playerState by viewModel.audioPlayer.playbackState.collectAsState()
+    val playerState = if (viewModel != null) {
+        val state by viewModel.audioPlayer.playbackState.collectAsState()
+        state
+    } else {
+        space.iamjustkrishna.srutam.player.PlaybackState()
+    }
     val isPlaybackActive = isPlaying && playerState.currentFilePath == audioFile.filePath
 
     Card(
@@ -1120,8 +1222,12 @@ fun AudioFileCard(
                     if (isSelectionMode) {
                         onSelectionToggle()
                     } else {
-                        viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
-                            onRecordingClick(recordingId)
+                        if (viewModel != null) {
+                            viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
+                                onRecordingClick(recordingId)
+                            }
+                        } else {
+                            onRecordingClick(recording?.id ?: 1L)
                         }
                     }
                 },
@@ -1418,10 +1524,10 @@ fun AudioFileCard(
                         onSeekFraction = { fraction ->
                             val targetMs = (fraction * totalDur).toInt()
                             if (isPlaybackActive) {
-                                viewModel.audioPlayer.seekTo(targetMs)
+                                viewModel?.audioPlayer?.seekTo(targetMs)
                             } else {
-                                viewModel.playAudio(audioFile)
-                                viewModel.audioPlayer.seekTo(targetMs)
+                                viewModel?.playAudio(audioFile)
+                                viewModel?.audioPlayer?.seekTo(targetMs)
                             }
                         },
                         modifier = Modifier.weight(1f)

@@ -9,6 +9,7 @@ The following global specialist agents are active and bound to this workspace:
 - **`mobile-ui-agent`**: Builds and polishes UI screens, animations, and edge-to-edge insets.
 - **`ai-integration-agent`**: Implements LLM inference, prompts, and streaming pipelines.
 - **`store-assets-agent`**: Produces store graphics (1024x500 banner, screenshots, icon).
+- **`screen-matrix-agent`**: Executes automated headless screenshot matrix tests across device profiles.
 - **`growth-marketing-agent`**: ASO copywriting, keywords, and app store listings.
 - **`dev-broadcaster-agent`**: Formats git milestones into changelogs and social posts.
 

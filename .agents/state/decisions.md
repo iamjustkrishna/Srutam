@@ -183,4 +183,18 @@
   5. **Low-Importance Silent Notification (`srutam_floating_dock_channel`)**: Configured the notification with `NotificationManager.IMPORTANCE_LOW` (silent, no sound, no vibration, no popup) titled "Srutam Floating Dock Active". Tapping opens Srutam; a "Hide Dock" action allows one-tap dismissal.
   6. **Start Foreground Service Callers (`MainActivity.kt`, `SettingsScreen.kt`)**: Updated service launches to `ContextCompat.startForegroundService()` to prevent background execution limits.
 
-
+## ADR-022: Headless Robolectric Native Graphics and Roborazzi Screen Matrix Testing
+- **Status**: Accepted
+- **Context**: Visual verification across varied Android form factors (compact phones, modern tall phones, foldables, 7-inch tablets, and 10-inch tablets) previously required slow, resource-heavy Android Virtual Devices (AVDs) or physical hardware. Developers lacked a fast, headless, automated mechanism to snapshot and inspect every app screen across canonical device dimensions during development and CI.
+- **Decision**:
+  1. **Robolectric Native Graphics & Roborazzi**: Configured Roborazzi 1.37.0 with Robolectric 4.14.1 running in Native Graphics (RNG) mode (`robolectric.graphicsMode=NATIVE`), enabling pixel-accurate hardware-accelerated Skia rendering directly on the host JVM in ~45 seconds without emulators.
+  2. **Canonical 5-Device Matrix**: Standardized on 5 device configurations covering the Android device spectrum:
+     - `phone-compact`: 360x640 dp, 320 dpi (xhdpi)
+     - `phone-standard`: 411x891 dp, 420 dpi
+     - `foldable`: 673x841 dp, 420 dpi (book-fold inner screen)
+     - `tablet-7inch`: 600x960 dp, 240 dpi (hdpi)
+     - `tablet-10inch`: 1280x800 dp, 160 dpi (mdpi)
+  3. **Stateless UI Decoupling**: Decoupled 8 core screens into stateless `*Content(...)` composables: `01_splash`, `02_permissions`, `03_feed_empty`, `04_feed_populated`, `05_detail`, `06_insights_hub`, `07_copilot_chat`, and `08_settings`.
+  4. **Deterministic Mock Previews**: Created `ScreenMatrixPreviews.kt` providing self-contained, realistic mock models and data for all screens with zero network or database dependencies.
+  5. **Snapshot Storage Hierarchy**: Saved full-screen PNGs to `screenshots/screen-matrix/{device}/{screen}.png` via relative path resolution from subproject `app/` to project root.
+  6. **Universal Specialist Agent & Skill**: Registered `screen-matrix-agent` in `AGENTS.md` and created the `/screen-matrix` skill in the universal agent suite to automate future screen matrix sweeps on demand.

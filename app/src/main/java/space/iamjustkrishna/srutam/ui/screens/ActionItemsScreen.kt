@@ -61,18 +61,47 @@ fun ActionItemsScreen(
     viewModel: AudioFilesViewModel,
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
-    var showArchiveDialog by remember { mutableStateOf(false) }
-    var isCompletedExpanded by remember { mutableStateOf(false) }
-
     val recordingsByPath by viewModel.recordingsByPath.collectAsState()
-    val recordings = remember(recordingsByPath) { recordingsByPath.values.toList() }
-    val allInsights by viewModel.allInsights.collectAsState()
     val activeActions by viewModel.activeActions.collectAsState()
     val allIdeas by viewModel.allIdeas.collectAsState()
     val allDecisions by viewModel.allDecisions.collectAsState()
     val themeClusters by viewModel.themeClusters.collectAsState()
     val archivedActionsCount by viewModel.archivedActionsCount.collectAsState()
+
+    ActionItemsContent(
+        activeActions = activeActions,
+        allIdeas = allIdeas,
+        allDecisions = allDecisions,
+        themeClusters = themeClusters,
+        archivedActionsCount = archivedActionsCount,
+        onRecordingClick = onRecordingClick,
+        onSettingsClick = onSettingsClick,
+        onActionToggle = { viewModel.toggleActionComplete(it) },
+        onArchiveConfirmed = { viewModel.archiveCompletedActions() },
+        onRestoreArchived = { viewModel.unarchiveAllActions() },
+        onDismissTheme = { viewModel.dismissTheme(it) },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun ActionItemsContent(
+    activeActions: List<InsightEntity>,
+    allIdeas: List<InsightEntity>,
+    allDecisions: List<InsightEntity>,
+    themeClusters: List<ThemeCluster> = emptyList(),
+    archivedActionsCount: Int = 0,
+    onRecordingClick: (Long) -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onActionToggle: (InsightEntity) -> Unit = {},
+    onArchiveConfirmed: () -> Unit = {},
+    onRestoreArchived: () -> Unit = {},
+    onDismissTheme: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
+    var showArchiveDialog by remember { mutableStateOf(false) }
+    var isCompletedExpanded by remember { mutableStateOf(false) }
 
     val pendingActions = remember(activeActions) {
         activeActions.filter { it.status == InsightStatus.OPEN }
@@ -142,11 +171,11 @@ fun ActionItemsScreen(
                         archivedCount = archivedActionsCount,
                         isCompletedExpanded = isCompletedExpanded,
                         onToggleCompletedExpanded = { isCompletedExpanded = !isCompletedExpanded },
-                        onActionToggle = { viewModel.toggleActionComplete(it) },
+                        onActionToggle = onActionToggle,
                         onRecordingClick = onRecordingClick,
                         onArchiveClick = { showArchiveDialog = true },
-                        onRestoreArchived = { viewModel.unarchiveAllActions() },
-                        onDismissTheme = { viewModel.dismissTheme(it) }
+                        onRestoreArchived = onRestoreArchived,
+                        onDismissTheme = onDismissTheme
                     )
                 }
                 InsightsTab.IDEAS -> {
@@ -186,7 +215,7 @@ fun ActionItemsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.archiveCompletedActions()
+                        onArchiveConfirmed()
                         showArchiveDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),

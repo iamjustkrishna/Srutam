@@ -102,6 +102,12 @@
   - Mirrored layout direction (`LAYOUT_DIRECTION_RTL`) on right-edge dock ensures `[Record]` and `[Timer]` sit directly adjacent to the right bezel under the user's thumb, with dismiss at the outer tip.
   - Added position persistence in `AppPreferences` (`isFloatingDockOnLeft()`, `getFloatingDockY()`) to restore exact user-placed coordinates across app launches.
   - Promoted `FloatingButtonService` to a Foreground Service with `foregroundServiceType="specialUse"` and silent `IMPORTANCE_LOW` notification ("Srutam Floating Dock Active" with "Hide Dock" action). Prevents Android OS and Realme UI battery daemons from killing the overlay on phone lock.
+- [x] **Headless Robolectric Native Graphics & Roborazzi Screen Matrix Suite**:
+  - Configured Roborazzi 1.37.0 and Robolectric 4.14.1 with native Skia graphics (`robolectric.graphicsMode=NATIVE`).
+  - Created headless screenshot matrix tests across 5 canonical device profiles: `phone-compact` (360x640 dp, xhdpi), `phone-standard` (411x891 dp, 420dpi), `foldable` (673x841 dp, 420dpi), `tablet-7inch` (600x960 dp, hdpi), and `tablet-10inch` (1280x800 dp, mdpi).
+  - Decoupled 8 core screens into stateless previewable composables and created `ScreenMatrixPreviews.kt` with realistic deterministic mock data.
+  - Successfully generated and validated all 40 full-screen snapshots in `screenshots/screen-matrix/{device}/{screen}.png` in ~45 seconds on pure JVM without emulators or physical devices.
+  - Implemented the `screen-matrix-agent` specialist agent and `/screen-matrix` skill for automated one-shot regression sweeps.
 
 ## Planned Next Direction
-- [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server. 
+- [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.

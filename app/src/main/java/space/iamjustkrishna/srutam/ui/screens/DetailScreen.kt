@@ -132,6 +132,64 @@ fun DetailScreen(
         viewModel.loadRecording(recordingId)
     }
 
+    val playbackState by viewModel.playbackState.collectAsState()
+
+    DetailScreenContent(
+        recording = recording,
+        playbackState = playbackState,
+        isOnline = NetworkUtils.isInternetAvailable(context),
+        onNavigateBack = onNavigateBack,
+        onShowChat = onShowChat,
+        onDelete = {
+            val currentRecording = recording ?: return@DetailScreenContent
+            coroutineScope.launch {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val intentSender = AudioStorage.createDeleteRequest(
+                        context = context,
+                        filePaths = listOf(currentRecording.audioFilePath)
+                    )
+                    if (intentSender != null) {
+                        pendingScopedDelete = currentRecording
+                        deleteLauncher.launch(
+                            IntentSenderRequest.Builder(intentSender).build()
+                        )
+                    }
+                } else {
+                    viewModel.deleteRecording()
+                    onNavigateBack()
+                }
+            }
+        },
+        onPlayPause = { viewModel.togglePlayPause() },
+        onSeek = { viewModel.seekTo(it) },
+        onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+        onRename = { viewModel.renameRecording(it) },
+        onGenerateSummary = { viewModel.generateAiSummary() },
+        onRetryProcessing = { viewModel.retryAiProcessing() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreenContent(
+    recording: Recording?,
+    playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
+    isOnline: Boolean = true,
+    onNavigateBack: () -> Unit = {},
+    onShowChat: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onPlayPause: () -> Unit = {},
+    onSeek: (Int) -> Unit = {},
+    onSpeedChange: (Float) -> Unit = {},
+    onRename: (String) -> Unit = {},
+    onGenerateSummary: () -> Unit = {},
+    onRetryProcessing: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val askQuestionsEnabled = recording?.let {
+        !it.isProcessing && !it.transcript.isNullOrBlank()
+    } == true
+
     Scaffold(
         containerColor = CeramicWhite,
         floatingActionButton = {
@@ -185,26 +243,7 @@ fun DetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        val currentRecording = recording ?: return@IconButton
-                        coroutineScope.launch {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                val intentSender = AudioStorage.createDeleteRequest(
-                                    context = context,
-                                    filePaths = listOf(currentRecording.audioFilePath)
-                                )
-                                if (intentSender != null) {
-                                    pendingScopedDelete = currentRecording
-                                    deleteLauncher.launch(
-                                        IntentSenderRequest.Builder(intentSender).build()
-                                    )
-                                }
-                            } else {
-                                viewModel.deleteRecording()
-                                onNavigateBack()
-                            }
-                        }
-                    }) {
+                    IconButton(onClick = onDelete) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFF64748B))
                     }
                 },
@@ -221,7 +260,8 @@ fun DetailScreen(
                     )
                 }
             )
-        }
+        },
+        modifier = modifier
     ) { paddingValues ->
         if (recording == null) {
             Box(
@@ -233,10 +273,16 @@ fun DetailScreen(
                 CircularProgressIndicator()
             }
         } else {
-            RecordingDetails(
-                recording = recording!!,
-                viewModel = viewModel,
-                isOnline = NetworkUtils.isInternetAvailable(context),
+            RecordingDetailsContent(
+                recording = recording,
+                playbackState = playbackState,
+                isOnline = isOnline,
+                onPlayPause = onPlayPause,
+                onSeek = onSeek,
+                onSpeedChange = onSpeedChange,
+                onRename = onRename,
+                onGenerateSummary = onGenerateSummary,
+                onRetryProcessing = onRetryProcessing,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -251,6 +297,33 @@ fun RecordingDetails(
     modifier: Modifier = Modifier
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
+    RecordingDetailsContent(
+        recording = recording,
+        playbackState = playbackState,
+        isOnline = isOnline,
+        onPlayPause = { viewModel.togglePlayPause() },
+        onSeek = { viewModel.seekTo(it) },
+        onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+        onRename = { viewModel.renameRecording(it) },
+        onGenerateSummary = { viewModel.generateAiSummary() },
+        onRetryProcessing = { viewModel.retryAiProcessing() },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun RecordingDetailsContent(
+    recording: Recording,
+    playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
+    isOnline: Boolean = true,
+    onPlayPause: () -> Unit = {},
+    onSeek: (Int) -> Unit = {},
+    onSpeedChange: (Float) -> Unit = {},
+    onRename: (String) -> Unit = {},
+    onGenerateSummary: () -> Unit = {},
+    onRetryProcessing: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     var selectedDetailTabIndex by remember { mutableStateOf(0) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
@@ -266,7 +339,7 @@ fun RecordingDetails(
         RenameDialog(
             currentName = displayName,
             onRename = { newName ->
-                viewModel.renameRecording(newName)
+                onRename(newName)
                 showRenameDialog = false
             },
             onDismiss = { showRenameDialog = false }
@@ -291,9 +364,9 @@ fun RecordingDetails(
         item {
             AudioPlayerCard(
                 playbackState = playbackState,
-                onPlayPause = { viewModel.togglePlayPause() },
-                onSeek = { viewModel.seekTo(it) },
-                onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+                onPlayPause = onPlayPause,
+                onSeek = onSeek,
+                onSpeedChange = onSpeedChange,
                 fallbackDuration = recording?.duration ?: 0L
             )
         }
@@ -338,7 +411,7 @@ fun RecordingDetails(
                     SummaryPromptCard(
                         isOnline = isOnline,
                         hasTranscript = !recording.transcript.isNullOrBlank(),
-                        onGenerateSummary = { viewModel.generateAiSummary() }
+                        onGenerateSummary = onGenerateSummary
                     )
                 }
             }
@@ -414,7 +487,7 @@ fun RecordingDetails(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
-                                onClick = { viewModel.generateAiSummary() },
+                                onClick = onGenerateSummary,
                                 enabled = isOnline,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -464,7 +537,7 @@ fun RecordingDetails(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
-                                onClick = { viewModel.retryAiProcessing() },
+                                onClick = onRetryProcessing,
                                 enabled = isOnline,
                                 modifier = Modifier.fillMaxWidth()
                             ) {

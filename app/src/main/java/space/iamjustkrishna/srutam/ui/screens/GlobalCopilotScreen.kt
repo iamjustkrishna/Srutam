@@ -109,6 +109,40 @@ fun GlobalCopilotScreen(
         }
     }
 
+    GlobalCopilotContent(
+        messages = messages,
+        inputText = inputText,
+        isQueryLoading = isQueryLoading,
+        onInputTextChange = { inputText = it },
+        onSubmitQuery = { submitQuery(it) },
+        onNewSession = {
+            messages = listOf(
+                GlobalChatMessage(
+                    text = "I can search across all your voice notes and answer any question about your recordings, meetings, and ideas.",
+                    isUser = false
+                )
+            )
+        },
+        onSettingsClick = onSettingsClick,
+        onRecordingClick = onRecordingClick,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun GlobalCopilotContent(
+    messages: List<GlobalChatMessage>,
+    inputText: String,
+    isQueryLoading: Boolean = false,
+    onInputTextChange: (String) -> Unit = {},
+    onSubmitQuery: (String) -> Unit = {},
+    onNewSession: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onRecordingClick: (Long) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val listState = rememberLazyListState()
     val isKeyboardOpen = WindowInsets.isImeVisible
 
     Scaffold(
@@ -124,14 +158,7 @@ fun GlobalCopilotScreen(
                         space.iamjustkrishna.srutam.ui.components.SquircleActionButton(
                             icon = Icons.Default.AutoAwesome,
                             contentDescription = "New Session",
-                            onClick = {
-                                messages = listOf(
-                                    GlobalChatMessage(
-                                        text = "I can search across all your voice notes and answer any question about your recordings, meetings, and ideas.",
-                                        isUser = false
-                                    )
-                                )
-                            }
+                            onClick = onNewSession
                         )
                     }
                     space.iamjustkrishna.srutam.ui.components.SquircleActionButton(
@@ -181,7 +208,7 @@ fun GlobalCopilotScreen(
                                     shape = RoundedCornerShape(16.dp),
                                     color = Color(0xFFF1F5F9),
                                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                    modifier = Modifier.clickable { submitQuery(prompt) }
+                                    modifier = Modifier.clickable { onSubmitQuery(prompt) }
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -266,7 +293,7 @@ fun GlobalCopilotScreen(
                 ) {
                     TextField(
                         value = inputText,
-                        onValueChange = { inputText = it },
+                        onValueChange = onInputTextChange,
                         placeholder = {
                             Text(
                                 "Ask anything about your notes...",
@@ -291,7 +318,7 @@ fun GlobalCopilotScreen(
                             .size(38.dp)
                             .clickable(
                                 enabled = inputText.isNotBlank() && !isQueryLoading,
-                                onClick = { submitQuery(inputText) }
+                                onClick = { onSubmitQuery(inputText) }
                             )
                     ) {
                         Box(contentAlignment = Alignment.Center) {
