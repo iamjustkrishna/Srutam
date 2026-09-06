@@ -16,6 +16,7 @@ import android.app.Activity
 import android.os.Build
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -344,6 +345,26 @@ fun FeedScreen(
                         }
                     },
                     actions = {
+                        IconButton(
+                            onClick = {
+                                val filesToProcess = filteredAudioFiles.filter { it.filePath in selectedFilePaths }
+                                if (filesToProcess.isNotEmpty()) {
+                                    viewModel.processBatchAI(filesToProcess)
+                                    Toast.makeText(
+                                        context,
+                                        "Analyzing ${filesToProcess.size} voice notes in background...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    selectedFilePaths = emptySet()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = "Generate AI Insights for selected",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         IconButton(onClick = { showMultiDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
                         }

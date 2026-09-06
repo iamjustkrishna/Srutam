@@ -37,22 +37,39 @@ enum class AppStage {
 }
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_OPEN_RECORDING_ID = "space.iamjustkrishna.srutam.EXTRA_OPEN_RECORDING_ID"
+    }
+
+    private var openRecordingId by mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Srutam)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
+
         setContent {
             SrutamTheme {
-                SrutamApp()
+                SrutamApp(initialRecordingId = openRecordingId)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val id = intent.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L).takeIf { it > 0 }
+        if (id != null) {
+            openRecordingId = id
         }
     }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun SrutamApp() {
+fun SrutamApp(initialRecordingId: Long? = null) {
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
 
@@ -132,7 +149,7 @@ fun SrutamApp() {
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation()
+                SrutamNavigation(initialRecordingId = initialRecordingId)
             }
         }
     }

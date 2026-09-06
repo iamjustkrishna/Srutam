@@ -106,6 +106,9 @@ dependencies {
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.11.0")
 
+    // WorkManager for background AI processing and constraints
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

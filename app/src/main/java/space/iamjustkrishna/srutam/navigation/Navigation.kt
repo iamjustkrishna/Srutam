@@ -54,8 +54,15 @@ sealed class Screen(val route: String) {
 
 @Composable
 fun SrutamNavigation(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    initialRecordingId: Long? = null
 ) {
+    LaunchedEffect(initialRecordingId) {
+        if (initialRecordingId != null && initialRecordingId > 0L) {
+            navController.navigate(Screen.Detail.createRoute(initialRecordingId))
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Root.route

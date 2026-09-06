@@ -6,4 +6,8 @@
     <string name="recording_notification_channel_name">Audio Recording</string>
     <string name="recording_notification_channel_desc">Notifications shown during audio recording</string>
     <string name="floating_button_desc">Floating record button</string>
+    <string name="ai_processing_channel_name">AI Processing</string>
+    <string name="ai_processing_channel_desc">Shows progress while transcribing and analyzing voice notes</string>
+    <string name="ai_completion_channel_name">AI Insights Ready</string>
+    <string name="ai_completion_channel_desc">Notifies you when AI insights are generated</string>
 </resources>

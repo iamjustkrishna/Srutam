@@ -13,6 +13,7 @@ import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.ui.screens.formatDate
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
@@ -222,210 +223,51 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * Process a recording with AI.
-     * Transcription is always local. Summary is only generated when internet is available.
+     * Process a recording with AI using background WorkManager pipeline.
      */
     fun processRecordingForAI(audioFile: AudioFileInfo) {
         viewModelScope.launch(Dispatchers.IO) {
-            var recording: Recording? = null
-            
             try {
-                Log.d(TAG, "Starting AI processing for: ${audioFile.fileName}")
-                
-                // Step 1: Get or create database recording
-                // First try to find by file path
-                recording = repository.getRecordingByPath(audioFile.filePath)
-                
+                Log.d(TAG, "Queueing AI processing for: ${audioFile.fileName}")
+                var recording = repository.getRecordingByPath(audioFile.filePath)
                 if (recording == null) {
-                    // Create new recording in database
                     val newRecording = Recording(
                         audioFilePath = audioFile.filePath,
                         duration = audioFile.duration,
                         name = RecordingNameFormatter.displayName(
                             fileName = audioFile.fileName,
                             timestamp = audioFile.timestamp
-                        )
+                        ),
+                        isProcessing = true,
+                        aiStatus = RecordingAiStatus.TRANSCRIBING
                     )
                     val recordingId = repository.insertRecording(newRecording)
                     recording = newRecording.copy(id = recordingId)
-                    Log.d(TAG, "Created new recording in database with ID: $recordingId")
-                }
-                
-                // Step 2: Mark as processing
-                Log.d(TAG, "Marking recording as processing...")
-                repository.updateRecording(
-                    recording.copy(
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.TRANSCRIBING,
-                        summary = null,
-                        keyPoints = null,
-                        actionItems = null,
-                        wiifm = null,
-                        processingError = null
-                    )
-                )
-                
-                // Step 3: Transcribe locally
-                Log.d(TAG, "Processing audio file: ${audioFile.filePath}")
-                val audioFileObj = File(audioFile.filePath)
-                if (!audioFileObj.exists()) {
-                    throw Exception("Audio file not found: ${audioFileObj.absolutePath}")
-                }
-                
-                val transcript = aiProcessor.transcribeAudio(audioFileObj)
-                Log.d(TAG, "Local transcription complete. Transcript length: ${transcript.length}")
-                recording = recording.copy(transcript = transcript)
-                
-                val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-                if (hasInternet) {
-                    Log.d(TAG, "Internet available, generating AI summary...")
+                } else {
                     repository.updateRecording(
                         recording.copy(
                             isProcessing = true,
-                            aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                            summary = null,
-                            keyPoints = null,
-                            actionItems = null,
-                            wiifm = null,
+                            aiStatus = if (recording.transcript.isNullOrBlank()) {
+                                RecordingAiStatus.TRANSCRIBING
+                            } else {
+                                RecordingAiStatus.SUMMARY_PROCESSING
+                            },
                             processingError = null
                         )
                     )
+                }
 
-                    val insights = aiProcessor.generateInsights(transcript)
-                    val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
-                        insights.title?.takeIf { it.isNotBlank() } ?: recording.name
-                    } else {
-                        recording.name
-                    }
-                    saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
-                    repository.updateRecording(
-                        recording.copy(
-                            name = updatedName,
-                            summary = insights.summary,
-                            keyPoints = gson.toJson(insights.keyPoints),
-                            actionItems = gson.toJson(insights.actionItems),
-                            wiifm = insights.wiifm,
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.READY,
-                            processingError = null
-                        )
-                    )
-                } else {
-                    Log.d(TAG, "Internet unavailable. Transcript stored and summary marked pending.")
-                    repository.updateRecording(
-                        recording.copy(
-                            summary = null,
-                            keyPoints = null,
-                            actionItems = null,
-                            wiifm = null,
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
-                            processingError = null
-                        )
-                    )
-                }
-                
-                Log.d(TAG, "AI processing complete!")
-                _processingError.value = null
-                
-                // Reload files to reflect UI changes
+                AiProcessingWorker.enqueueProcessing(getApplication(), listOf(recording.id))
                 loadAudioFiles()
-                
             } catch (e: Exception) {
-                Log.e(TAG, "Error processing recording", e)
-                _processingError.value = "Processing failed: ${e.message}"
-                
-                // Try to update database with error state
-                try {
-                    if (recording != null) {
-                        repository.updateRecording(recording.copy(
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.ERROR,
-                            processingError = e.message ?: "Unknown error"
-                        ))
-                    }
-                } catch (dbError: Exception) {
-                    Log.e(TAG, "Failed to update error state in database", dbError)
-                }
-                
-                loadAudioFiles()
+                Log.e(TAG, "Error initiating AI processing", e)
+                _processingError.value = "Failed to start AI processing: ${e.message}"
             }
         }
     }
 
     fun generateSummaryForRecording(audioFile: AudioFileInfo) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val recording = repository.getRecordingByPath(audioFile.filePath)
-                if (recording == null) {
-                    processRecordingForAI(audioFile)
-                    return@launch
-                }
-
-                val transcript = recording.transcript
-                if (transcript.isNullOrBlank()) {
-                    processRecordingForAI(audioFile)
-                    return@launch
-                }
-
-                if (!NetworkUtils.isInternetAvailable(getApplication())) {
-                    repository.updateRecording(
-                        recording.copy(
-                            aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
-                            processingError = null
-                        )
-                    )
-                    loadAudioFiles()
-                    return@launch
-                }
-
-                repository.updateRecording(
-                    recording.copy(
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                        summary = null,
-                        keyPoints = null,
-                        actionItems = null,
-                        wiifm = null,
-                        processingError = null
-                    )
-                )
-
-                val insights = aiProcessor.generateInsights(transcript)
-                val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
-                    insights.title?.takeIf { it.isNotBlank() } ?: recording.name
-                } else {
-                    recording.name
-                }
-                saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
-                repository.updateRecording(
-                    recording.copy(
-                        name = updatedName,
-                        summary = insights.summary,
-                        keyPoints = gson.toJson(insights.keyPoints),
-                        actionItems = gson.toJson(insights.actionItems),
-                        wiifm = insights.wiifm,
-                        isProcessing = false,
-                        aiStatus = RecordingAiStatus.READY,
-                        processingError = null
-                    )
-                )
-                loadAudioFiles()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error generating summary", e)
-                val recording = repository.getRecordingByPath(audioFile.filePath)
-                if (recording != null) {
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.ERROR,
-                            processingError = e.message ?: "Failed to generate summary"
-                        )
-                    )
-                }
-                loadAudioFiles()
-            }
-        }
+        processRecordingForAI(audioFile)
     }
 
     fun getOrCreateRecordingId(audioFile: AudioFileInfo, onResult: (Long) -> Unit) {
@@ -458,154 +300,32 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     fun retryAiProcessing(recording: Recording) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Retrying AI processing for recording ID: ${recording.id}")
-                
-                val audioFile = File(recording.audioFilePath)
-                if (!audioFile.exists()) {
-                    throw Exception("Audio file not found: ${recording.audioFilePath}")
-                }
-
-                // If transcript is missing, redo full pipeline
-                if (recording.transcript.isNullOrBlank()) {
-                    Log.d(TAG, "No transcript found, restarting full AI pipeline")
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = true,
-                            aiStatus = RecordingAiStatus.TRANSCRIBING,
-                            summary = null,
-                            keyPoints = null,
-                            actionItems = null,
-                            wiifm = null,
-                            processingError = null
-                        )
+                repository.updateRecording(
+                    recording.copy(
+                        isProcessing = true,
+                        aiStatus = if (recording.transcript.isNullOrBlank()) {
+                            RecordingAiStatus.TRANSCRIBING
+                        } else {
+                            RecordingAiStatus.SUMMARY_PROCESSING
+                        },
+                        processingError = null
                     )
-
-                    val transcript = aiProcessor.transcribeAudio(audioFile)
-                    Log.d(TAG, "Transcription complete. Transcript length: ${transcript.length}")
-
-                    val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-                    if (hasInternet) {
-                        Log.d(TAG, "Internet available, generating AI summary...")
-                        repository.updateRecording(
-                            recording.copy(
-                                isProcessing = true,
-                                aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                                transcript = transcript,
-                                summary = null,
-                                keyPoints = null,
-                                actionItems = null,
-                                wiifm = null,
-                                processingError = null
-                            )
-                        )
-
-                        val insights = aiProcessor.generateInsights(transcript)
-                        repository.updateRecording(
-                            recording.copy(
-                                transcript = transcript,
-                                summary = insights.summary,
-                                keyPoints = gson.toJson(insights.keyPoints),
-                                actionItems = gson.toJson(insights.actionItems),
-                                wiifm = insights.wiifm,
-                                isProcessing = false,
-                                aiStatus = RecordingAiStatus.READY,
-                                processingError = null
-                            )
-                        )
-                    } else {
-                        Log.d(TAG, "Internet unavailable. Transcript stored, summary marked pending.")
-                        repository.updateRecording(
-                            recording.copy(
-                                transcript = transcript,
-                                summary = null,
-                                keyPoints = null,
-                                actionItems = null,
-                                wiifm = null,
-                                isProcessing = false,
-                                aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
-                                processingError = null
-                            )
-                        )
-                    }
-                } else {
-                    // Transcript exists, just retry summary generation
-                    Log.d(TAG, "Transcript exists, retrying summary generation only")
-                    val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-                    if (!hasInternet) {
-                        Log.w(TAG, "Internet not available, cannot retry summary generation")
-                        _processingError.value = "Internet connection required to generate AI summary"
-                        return@launch
-                    }
-
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = true,
-                            aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                            summary = null,
-                            keyPoints = null,
-                            actionItems = null,
-                            wiifm = null,
-                            processingError = null
-                        )
-                    )
-
-                    val insights = aiProcessor.generateInsights(recording.transcript!!)
-                    val updatedName = if (recording.name.isBlank() || recording.name == "Voice Note" || recording.name.startsWith("Voice note", ignoreCase = true)) {
-                        insights.title?.takeIf { it.isNotBlank() } ?: recording.name
-                    } else {
-                        recording.name
-                    }
-                    saveInsightsToRoom(recording.id, updatedName, recording.timestamp, insights)
-                    repository.updateRecording(
-                        recording.copy(
-                            name = updatedName,
-                            summary = insights.summary,
-                            keyPoints = gson.toJson(insights.keyPoints),
-                            actionItems = gson.toJson(insights.actionItems),
-                            wiifm = insights.wiifm,
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.READY,
-                            processingError = null
-                        )
-                    )
-                }
-
-                Log.d(TAG, "AI retry processing complete!")
-                _processingError.value = null
+                )
+                AiProcessingWorker.enqueueProcessing(getApplication(), listOf(recording.id))
                 loadAudioFiles()
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error retrying AI processing", e)
-                _processingError.value = "Retry failed: ${e.message}"
-
-                try {
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.ERROR,
-                            processingError = e.message ?: "Unknown error during retry"
-                        )
-                    )
-                } catch (dbError: Exception) {
-                    Log.e(TAG, "Failed to update error state in database", dbError)
-                }
-
-                loadAudioFiles()
+                _processingError.value = "Failed to retry: ${e.message}"
             }
         }
     }
 
     fun processPendingOfflineRecordings() {
         viewModelScope.launch(Dispatchers.IO) {
-            val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-            if (!hasInternet) {
-                Log.d(TAG, "Cannot process pending offline recordings: No internet")
-                return@launch
-            }
-
             val currentMap = recordingsByPath.value
             val pending = currentMap.values.filter { rec ->
-                !rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing
+                rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||
+                    (!rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing)
             }
 
             if (pending.isEmpty()) {
@@ -613,13 +333,55 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
 
-            Log.d(TAG, "Batch processing ${pending.size} pending offline recordings")
-            for (recording in pending) {
-                try {
-                    retryAiProcessing(recording)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed auto-processing recording ${recording.id}", e)
+            Log.d(TAG, "Batch processing ${pending.size} pending offline recordings via WorkManager")
+            val pendingIds = pending.map { it.id }
+            AiProcessingWorker.enqueueProcessing(getApplication(), pendingIds)
+            loadAudioFiles()
+        }
+    }
+
+    fun processBatchAI(audioFiles: List<AudioFileInfo>) {
+        if (audioFiles.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val ids = mutableListOf<Long>()
+                for (audioFile in audioFiles) {
+                    var recording = repository.getRecordingByPath(audioFile.filePath)
+                    if (recording == null) {
+                        val newRecording = Recording(
+                            audioFilePath = audioFile.filePath,
+                            duration = audioFile.duration,
+                            name = RecordingNameFormatter.displayName(
+                                fileName = audioFile.fileName,
+                                timestamp = audioFile.timestamp
+                            ),
+                            isProcessing = true,
+                            aiStatus = RecordingAiStatus.TRANSCRIBING
+                        )
+                        val newId = repository.insertRecording(newRecording)
+                        ids.add(newId)
+                    } else {
+                        repository.updateRecording(
+                            recording.copy(
+                                isProcessing = true,
+                                aiStatus = if (recording.transcript.isNullOrBlank()) {
+                                RecordingAiStatus.TRANSCRIBING
+                            } else {
+                                RecordingAiStatus.SUMMARY_PROCESSING
+                            },
+                                processingError = null
+                            )
+                        )
+                        ids.add(recording.id)
+                    }
                 }
+                if (ids.isNotEmpty()) {
+                    AiProcessingWorker.enqueueProcessing(getApplication(), ids)
+                }
+                loadAudioFiles()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing batch AI", e)
+                _processingError.value = "Failed to start batch AI: ${e.message}"
             }
         }
     }

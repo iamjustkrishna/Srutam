@@ -9,6 +9,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.player.AudioPlayer
 import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -148,73 +149,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        viewModelScope.launch {
-            try {
-                val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-                if (!hasInternet) {
-                    val pendingRecording = currentRecording.copy(
-                        isProcessing = false,
-                        aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
-                        processingError = null
-                    )
-                    repository.updateRecording(pendingRecording)
-                    _recording.value = pendingRecording
-                    return@launch
-                }
-
-                val processingRecording = currentRecording.copy(
-                    isProcessing = true,
-                    aiStatus = if (currentRecording.transcript.isNullOrBlank()) {
-                        RecordingAiStatus.TRANSCRIBING
-                    } else {
-                        RecordingAiStatus.SUMMARY_PROCESSING
-                    },
-                    summary = null,
-                    keyPoints = null,
-                    actionItems = null,
-                    wiifm = null,
-                    processingError = null
-                )
-                repository.updateRecording(processingRecording)
-                _recording.value = processingRecording
-
-                val updated = withContext(Dispatchers.IO) {
-                    val transcript = currentRecording.transcript
-                        ?: aiProcessor.transcribeAudio(audioFile)
-
-                    val workingRecording = processingRecording.copy(
-                        transcript = transcript,
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                        summary = null,
-                        keyPoints = null,
-                        actionItems = null,
-                        wiifm = null,
-                        processingError = null
-                    )
-                    repository.updateRecording(workingRecording)
-                    _recording.value = workingRecording
-
-                    val insights = aiProcessor.generateInsights(transcript)
-                    saveInsightsToRoom(workingRecording.id, workingRecording.name, workingRecording.timestamp, insights)
-                    workingRecording.copy(
-                        transcript = transcript,
-                        summary = insights.summary,
-                        keyPoints = gson.toJson(insights.keyPoints),
-                        actionItems = gson.toJson(insights.actionItems),
-                        wiifm = insights.wiifm,
-                        isProcessing = false,
-                        aiStatus = RecordingAiStatus.READY,
-                        processingError = null
-                    )
-                }
-
-                repository.updateRecording(updated)
-                _recording.value = updated
-            } catch (e: Exception) {
-                updateRecordingError(e.message ?: "Failed to generate summary")
-            }
-        }
+        AiProcessingWorker.enqueueProcessing(getApplication(), listOf(currentRecording.id))
     }
 
     fun deleteRecording() {
@@ -240,89 +175,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        viewModelScope.launch {
-            try {
-                val hasInternet = NetworkUtils.isInternetAvailable(getApplication())
-                if (!hasInternet) {
-                    updateRecordingError("Internet connection required to retry AI processing")
-                    return@launch
-                }
-
-                // If transcript is missing, redo full pipeline
-                if (currentRecording.transcript.isNullOrBlank()) {
-                    val processingRecording = currentRecording.copy(
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.TRANSCRIBING,
-                        summary = null,
-                        keyPoints = null,
-                        actionItems = null,
-                        wiifm = null,
-                        processingError = null
-                    )
-                    repository.updateRecording(processingRecording)
-                    _recording.value = processingRecording
-
-                    val updated = withContext(Dispatchers.IO) {
-                        val transcript = aiProcessor.transcribeAudio(audioFile)
-
-                        val withTranscript = processingRecording.copy(
-                            transcript = transcript,
-                            isProcessing = true,
-                            aiStatus = RecordingAiStatus.SUMMARY_PROCESSING
-                        )
-                        repository.updateRecording(withTranscript)
-                        _recording.value = withTranscript
-
-                        val insights = aiProcessor.generateInsights(transcript)
-                        saveInsightsToRoom(withTranscript.id, withTranscript.name, withTranscript.timestamp, insights)
-                        withTranscript.copy(
-                            summary = insights.summary,
-                            keyPoints = gson.toJson(insights.keyPoints),
-                            actionItems = gson.toJson(insights.actionItems),
-                            wiifm = insights.wiifm,
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.READY,
-                            processingError = null
-                        )
-                    }
-
-                    repository.updateRecording(updated)
-                    _recording.value = updated
-                } else {
-                    // Transcript exists, just retry summary generation
-                    val processingRecording = currentRecording.copy(
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.SUMMARY_PROCESSING,
-                        summary = null,
-                        keyPoints = null,
-                        actionItems = null,
-                        wiifm = null,
-                        processingError = null
-                    )
-                    repository.updateRecording(processingRecording)
-                    _recording.value = processingRecording
-
-                    val updated = withContext(Dispatchers.IO) {
-                        val insights = aiProcessor.generateInsights(currentRecording.transcript!!)
-                        saveInsightsToRoom(processingRecording.id, processingRecording.name, processingRecording.timestamp, insights)
-                        processingRecording.copy(
-                            summary = insights.summary,
-                            keyPoints = gson.toJson(insights.keyPoints),
-                            actionItems = gson.toJson(insights.actionItems),
-                            wiifm = insights.wiifm,
-                            isProcessing = false,
-                            aiStatus = RecordingAiStatus.READY,
-                            processingError = null
-                        )
-                    }
-
-                    repository.updateRecording(updated)
-                    _recording.value = updated
-                }
-            } catch (e: Exception) {
-                updateRecordingError("Retry failed: ${e.message ?: "Unknown error"}")
-            }
-        }
+        AiProcessingWorker.enqueueProcessing(getApplication(), listOf(currentRecording.id))
     }
 
     private suspend fun saveInsightsToRoom(
