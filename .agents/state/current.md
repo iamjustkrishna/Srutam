@@ -97,6 +97,11 @@
   - Completion notifications on `ai_completion_channel` with deep-link intent (`EXTRA_OPEN_RECORDING_ID`) opening directly to note details.
   - Silent offline resilience: transcription runs locally; if network is unavailable for cloud summary, note is marked `SUMMARY_PENDING_OFFLINE` without displaying "waiting for internet" notifications. WorkManager's `AiSummaryNetworkWorker` (with `NetworkType.CONNECTED` constraint) resumes cloud insights generation upon reconnecting.
   - Batch AI processing action button (`Icons.Default.AutoAwesome`) in `FeedScreen` multi-select top app bar, allowing users to queue multiple voice notes at once with immediate toast feedback.
+- [x] **Floating Dock Right-Edge Anchoring & Phone-Lock Foreground Persistence (`FloatingButtonService.kt`)**:
+  - Replaced manual left-relative coordinate math with native `Gravity.END` when docked on the right side. Eliminates width guessing errors and guarantees an exact 8dp margin when expanded and 8dp embedded tab when collapsed.
+  - Mirrored layout direction (`LAYOUT_DIRECTION_RTL`) on right-edge dock ensures `[Record]` and `[Timer]` sit directly adjacent to the right bezel under the user's thumb, with dismiss at the outer tip.
+  - Added position persistence in `AppPreferences` (`isFloatingDockOnLeft()`, `getFloatingDockY()`) to restore exact user-placed coordinates across app launches.
+  - Promoted `FloatingButtonService` to a Foreground Service with `foregroundServiceType="specialUse"` and silent `IMPORTANCE_LOW` notification ("Srutam Floating Dock Active" with "Hide Dock" action). Prevents Android OS and Realme UI battery daemons from killing the overlay on phone lock.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server. 
