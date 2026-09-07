@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -91,6 +92,7 @@ fun ActionItemsContent(
     allDecisions: List<InsightEntity>,
     themeClusters: List<ThemeCluster> = emptyList(),
     archivedActionsCount: Int = 0,
+    initialTab: InsightsTab = InsightsTab.NEXT_STEPS,
     onRecordingClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onActionToggle: (InsightEntity) -> Unit = {},
@@ -99,7 +101,7 @@ fun ActionItemsContent(
     onDismissTheme: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     var showArchiveDialog by remember { mutableStateOf(false) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
 
@@ -246,41 +248,55 @@ private fun SingleRowInsightsCapsule(
     decisionsCount: Int,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        modifier = modifier.fillMaxWidth()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .background(
+                color = Color(0xFFF1F5F9),
+                shape = RoundedCornerShape(19.dp)
+            )
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(19.dp))
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            CapsuleTabItem(
-                label = "Next Steps",
-                count = nextStepsCount,
-                dotColor = CobaltBlue,
-                isSelected = selectedTab == InsightsTab.NEXT_STEPS,
-                onClick = { onTabSelected(InsightsTab.NEXT_STEPS) }
-            )
-            CapsuleTabItem(
-                label = "Ideas",
-                count = ideasCount,
-                dotColor = Color(0xFFD97706),
-                isSelected = selectedTab == InsightsTab.IDEAS,
-                onClick = { onTabSelected(InsightsTab.IDEAS) }
-            )
-            CapsuleTabItem(
-                label = "Decisions",
-                count = decisionsCount,
-                dotColor = Color(0xFF0D9488),
-                isSelected = selectedTab == InsightsTab.DECISIONS,
-                onClick = { onTabSelected(InsightsTab.DECISIONS) }
-            )
-        }
+        CapsuleTabItem(
+            label = "Next Steps",
+            count = nextStepsCount,
+            dotColor = CobaltBlue,
+            gradientColors = listOf(
+                Color(0xFF2563EB).copy(alpha = 0.18f),
+                Color(0xFF3B82F6).copy(alpha = 0.08f)
+            ),
+            isSelected = selectedTab == InsightsTab.NEXT_STEPS,
+            onClick = { onTabSelected(InsightsTab.NEXT_STEPS) },
+            modifier = Modifier.weight(1f)
+        )
+        CapsuleTabItem(
+            label = "Ideas",
+            count = ideasCount,
+            dotColor = Color(0xFFD97706),
+            gradientColors = listOf(
+                Color(0xFFD97706).copy(alpha = 0.18f),
+                Color(0xFFF59E0B).copy(alpha = 0.08f)
+            ),
+            isSelected = selectedTab == InsightsTab.IDEAS,
+            onClick = { onTabSelected(InsightsTab.IDEAS) },
+            modifier = Modifier.weight(1f)
+        )
+        CapsuleTabItem(
+            label = "Decisions",
+            count = decisionsCount,
+            dotColor = Color(0xFF0D9488),
+            gradientColors = listOf(
+                Color(0xFF0D9488).copy(alpha = 0.18f),
+                Color(0xFF14B8A6).copy(alpha = 0.08f)
+            ),
+            isSelected = selectedTab == InsightsTab.DECISIONS,
+            onClick = { onTabSelected(InsightsTab.DECISIONS) },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -289,20 +305,38 @@ private fun CapsuleTabItem(
     label: String,
     count: Int,
     dotColor: Color,
+    gradientColors: List<Color>,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = if (isSelected) dotColor.copy(alpha = 0.12f) else Color.Transparent,
-        border = if (isSelected) BorderStroke(1.dp, dotColor.copy(alpha = 0.32f)) else null,
-        modifier = Modifier
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(shape)
+            .then(
+                if (isSelected) {
+                    Modifier
+                        .background(
+                            brush = Brush.horizontalGradient(gradientColors),
+                            shape = shape
+                        )
+                        .border(
+                            BorderStroke(1.dp, dotColor.copy(alpha = 0.32f)),
+                            shape = shape
+                        )
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = if (isSelected) 10.dp else 8.dp, vertical = 7.dp)
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 4.dp)
         ) {
             if (isSelected) {
                 Box(
@@ -321,7 +355,7 @@ private fun CapsuleTabItem(
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(dotColor.copy(alpha = 0.6f), CircleShape)
+                        .background(dotColor.copy(alpha = 0.45f), CircleShape)
                 )
             }
             Spacer(modifier = Modifier.width(5.dp))
@@ -331,7 +365,8 @@ private fun CapsuleTabItem(
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 color = if (isSelected) Color(0xFF0F172A) else TextSecondary,
                 maxLines = 1,
-                softWrap = false
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

@@ -66,6 +66,20 @@ abstract class BaseScreenMatrixTest(private val deviceFolder: String) {
     }
 
     @Test
+    fun capture_06_insights_ideas() {
+        captureScreen("06_insights_ideas") {
+            MatrixInsightsIdeasPreview()
+        }
+    }
+
+    @Test
+    fun capture_06_insights_decisions() {
+        captureScreen("06_insights_decisions") {
+            MatrixInsightsDecisionsPreview()
+        }
+    }
+
+    @Test
     fun capture_07_copilot_chat() {
         captureScreen("07_copilot_chat") {
             MatrixCopilotPreview()

@@ -198,3 +198,10 @@
   4. **Deterministic Mock Previews**: Created `ScreenMatrixPreviews.kt` providing self-contained, realistic mock models and data for all screens with zero network or database dependencies.
   5. **Snapshot Storage Hierarchy**: Saved full-screen PNGs to `screenshots/screen-matrix/{device}/{screen}.png` via relative path resolution from subproject `app/` to project root.
   6. **Universal Specialist Agent & Skill**: Registered `screen-matrix-agent` in `AGENTS.md` and created the `/screen-matrix` skill in the universal agent suite to automate future screen matrix sweeps on demand.
+
+## ADR-023: Insights Segmented Capsule Filters and Tailored Light Gradients
+- **Status**: Accepted
+- **Context**: The Insights top filter bar suffered from wrap_content layout asymmetry where active tabs floated as isolated small pills leaving unbalanced grey gaps on standard phones, foldables, and tablets. Tab switching also caused sibling items to jitter due to dynamic horizontal padding.
+- **Decision**:
+  1. Converted the filter bar into a true 38dp segmented control with 3dp container insets and equal-width partition weighting (`Modifier.weight(1f).fillMaxHeight()`), guaranteeing an exact 1/3 slot per tab with zero position shifting across all screen profiles.
+  2. Applied category-tailored light horizontal gradients to active tabs: Cobalt Blue (`#2563EB` 18% to 8%) for Next Steps, Warm Amber (`#D97706` 18% to 8%) for Ideas, and Teal/Emerald (`#0D9488` 18% to 8%) for Decisions, accompanied by 32% opacity border strokes and glowing concentric jewel dots.

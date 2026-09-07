@@ -254,16 +254,27 @@ fun MatrixDetailPreview() {
 }
 
 @Composable
-fun MatrixInsightsPreview() {
+fun MatrixInsightsPreview(initialTab: InsightsTab = InsightsTab.NEXT_STEPS) {
     SrutamTheme {
         ActionItemsContent(
             activeActions = ScreenMatrixMocks.mockActiveActions,
             allIdeas = ScreenMatrixMocks.mockIdeas,
             allDecisions = ScreenMatrixMocks.mockDecisions,
             themeClusters = ScreenMatrixMocks.mockThemeClusters,
-            archivedActionsCount = 1
+            archivedActionsCount = 1,
+            initialTab = initialTab
         )
     }
+}
+
+@Composable
+fun MatrixInsightsIdeasPreview() {
+    MatrixInsightsPreview(initialTab = InsightsTab.IDEAS)
+}
+
+@Composable
+fun MatrixInsightsDecisionsPreview() {
+    MatrixInsightsPreview(initialTab = InsightsTab.DECISIONS)
 }
 
 @Composable

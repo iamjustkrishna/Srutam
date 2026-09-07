@@ -107,7 +107,11 @@
   - Created headless screenshot matrix tests across 5 canonical device profiles: `phone-compact` (360x640 dp, xhdpi), `phone-standard` (411x891 dp, 420dpi), `foldable` (673x841 dp, 420dpi), `tablet-7inch` (600x960 dp, hdpi), and `tablet-10inch` (1280x800 dp, mdpi).
   - Decoupled 8 core screens into stateless previewable composables and created `ScreenMatrixPreviews.kt` with realistic deterministic mock data.
   - Successfully generated and validated all 40 full-screen snapshots in `screenshots/screen-matrix/{device}/{screen}.png` in ~45 seconds on pure JVM without emulators or physical devices.
-  - Implemented the `screen-matrix-agent` specialist agent and `/screen-matrix` skill for automated one-shot regression sweeps.
+- [x] **Insights Segmented Capsule Filters & Category Light Gradients**:
+  - Redesigned `SingleRowInsightsCapsule` with equal 1/3 partition weighting (`Modifier.weight(1f).fillMaxHeight()`) inside a 38dp capsule container with 3dp insets.
+  - Implemented category-tailored light horizontal gradients on selected tabs: Cobalt Blue (`#2563EB` 18% to 8%) for Next Steps, Warm Amber (`#D97706` 18% to 8%) for Ideas, and Teal/Emerald (`#0D9488` 18% to 8%) for Decisions.
+  - Added glowing concentric jewel indicators and bold text for active tabs, with centered muted dots for inactive tabs.
+  - Verified and snapshotted across all 5 device profiles on the JVM and installed directly to connected hardware.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
