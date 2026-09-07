@@ -4,7 +4,7 @@ Srutam is an Android audio note app that lets you start recording quickly with a
 
 ## What it does
 
-- Double-press Volume Down to start or stop recording
+- Hold down or tap to start recording
 - Record audio in the background with a foreground service
 - Store recordings in app-private external storage
 - Show recordings in a feed with filters and rename support
