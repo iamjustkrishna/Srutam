@@ -49,6 +49,9 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     private val database = (application as SrutamApplication).database
     private val insightDao = database.insightDao()
 
+    private val _noteInsights = MutableStateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>>(emptyList())
+    val noteInsights: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = _noteInsights.asStateFlow()
+
     init {
         repository = RecordingRepository(application.applicationContext, database.recordingDao())
         aiProcessor = AIProcessor(application)
@@ -67,6 +70,23 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
             }
+        }
+        viewModelScope.launch {
+            insightDao.getInsightsByRecordingIdFlow(recordingId).collect { insights ->
+                _noteInsights.value = insights
+            }
+        }
+    }
+
+    fun toggleActionComplete(insight: space.iamjustkrishna.srutam.data.InsightEntity) {
+        viewModelScope.launch {
+            val newStatus = if (insight.status == space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED) {
+                space.iamjustkrishna.srutam.data.InsightStatus.OPEN
+            } else {
+                space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED
+            }
+            val completedAt = if (newStatus == space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED) System.currentTimeMillis() else null
+            insightDao.updateActionStatus(insight.id, newStatus, completedAt)
         }
     }
 

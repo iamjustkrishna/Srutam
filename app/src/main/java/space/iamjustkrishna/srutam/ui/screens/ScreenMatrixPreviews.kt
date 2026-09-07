@@ -237,8 +237,11 @@ fun MatrixFeedPopulatedPreview() {
 }
 
 @Composable
-fun MatrixDetailPreview() {
+fun MatrixDetailPreview(initialTabIndex: Int = 0) {
     val recording = ScreenMatrixMocks.mockRecordings[ScreenMatrixMocks.mockAudioFiles[0].filePath]!!
+    val noteInsights = ScreenMatrixMocks.mockActiveActions.filter { it.recordingId == 1L } +
+        ScreenMatrixMocks.mockIdeas.filter { it.recordingId == 1L } +
+        ScreenMatrixMocks.mockDecisions.filter { it.recordingId == 1L }
     SrutamTheme {
         DetailScreenContent(
             recording = recording,
@@ -248,9 +251,16 @@ fun MatrixDetailPreview() {
                 duration = recording.duration.toInt(),
                 currentPosition = 35000
             ),
-            isOnline = true
+            noteInsights = noteInsights,
+            isOnline = true,
+            initialTabIndex = initialTabIndex
         )
     }
+}
+
+@Composable
+fun MatrixDetailInsightsPreview() {
+    MatrixDetailPreview(initialTabIndex = 2)
 }
 
 @Composable

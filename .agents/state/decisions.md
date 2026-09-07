@@ -205,3 +205,15 @@
 - **Decision**:
   1. Converted the filter bar into a true 38dp segmented control with 3dp container insets and equal-width partition weighting (`Modifier.weight(1f).fillMaxHeight()`), guaranteeing an exact 1/3 slot per tab with zero position shifting across all screen profiles.
   2. Applied category-tailored light horizontal gradients to active tabs: Cobalt Blue (`#2563EB` 18% to 8%) for Next Steps, Warm Amber (`#D97706` 18% to 8%) for Ideas, and Teal/Emerald (`#0D9488` 18% to 8%) for Decisions, accompanied by 32% opacity border strokes and glowing concentric jewel dots.
+
+## ADR-024: Note Details Reactive Insights Tab and Real-Time Task Toggling
+- **Status**: Accepted
+- **Context**: The Note Details screen previously featured a static "✓ Tasks" tab that only rendered a plain bullet list parsed from recording JSON strings. It lacked integration with first-class Room `InsightEntity` models, lacked interactive task completion, and omitted extracted Key Ideas and Decisions for that specific voice note.
+- **Decision**:
+  1. Replaced the "✓ Tasks" tab with an Apple-style `"💡 Insights"` tab positioned in the third slot: `[ ✦ Summary ]  [ 📄 Transcript ]  [ 💡 Insights ]` (Option 2).
+  2. Connected `DetailViewModel` to Room's reactive `InsightDao.getInsightsByRecordingIdFlow(recordingId)` to stream live `InsightEntity` records.
+  3. Added `toggleActionComplete(insight: InsightEntity)` executing asynchronous status updates (`OPEN` vs `COMPLETED`) directly in Room database with timestamp tracking.
+  4. Implemented polished, sectioned insight cards for Next Steps (22dp rounded checkbox, completion counter pill, strikethrough styling), Key Ideas (amber bulb badge, quote containers), and Decisions (emerald checkmark badge, rationale, quote containers).
+  5. Built in graceful fallback to legacy JSON arrays for older notes without database insight rows.
+  6. Added `capture_05_detail_insights` to Roborazzi test suite and generated verified screenshots across 5 screen profiles.
+

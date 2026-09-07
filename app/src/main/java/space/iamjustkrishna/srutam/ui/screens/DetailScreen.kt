@@ -39,11 +39,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import space.iamjustkrishna.srutam.data.InsightEntity
+import space.iamjustkrishna.srutam.data.InsightKind
+import space.iamjustkrishna.srutam.data.InsightStatus
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
@@ -110,6 +117,7 @@ fun DetailScreen(
     viewModel: DetailViewModel = viewModel()
 ) {
     val recording by viewModel.recording.collectAsState()
+    val noteInsights by viewModel.noteInsights.collectAsState()
     val context = LocalContext.current
     val askQuestionsEnabled = recording?.let {
         !it.isProcessing && !it.transcript.isNullOrBlank()
@@ -137,6 +145,7 @@ fun DetailScreen(
     DetailScreenContent(
         recording = recording,
         playbackState = playbackState,
+        noteInsights = noteInsights,
         isOnline = NetworkUtils.isInternetAvailable(context),
         onNavigateBack = onNavigateBack,
         onShowChat = onShowChat,
@@ -165,7 +174,8 @@ fun DetailScreen(
         onSpeedChange = { viewModel.setPlaybackSpeed(it) },
         onRename = { viewModel.renameRecording(it) },
         onGenerateSummary = { viewModel.generateAiSummary() },
-        onRetryProcessing = { viewModel.retryAiProcessing() }
+        onRetryProcessing = { viewModel.retryAiProcessing() },
+        onActionToggle = { viewModel.toggleActionComplete(it) }
     )
 }
 
@@ -174,7 +184,9 @@ fun DetailScreen(
 fun DetailScreenContent(
     recording: Recording?,
     playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
+    noteInsights: List<InsightEntity> = emptyList(),
     isOnline: Boolean = true,
+    initialTabIndex: Int = 0,
     onNavigateBack: () -> Unit = {},
     onShowChat: () -> Unit = {},
     onDelete: () -> Unit = {},
@@ -184,6 +196,7 @@ fun DetailScreenContent(
     onRename: (String) -> Unit = {},
     onGenerateSummary: () -> Unit = {},
     onRetryProcessing: () -> Unit = {},
+    onActionToggle: (InsightEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val askQuestionsEnabled = recording?.let {
@@ -276,13 +289,16 @@ fun DetailScreenContent(
             RecordingDetailsContent(
                 recording = recording,
                 playbackState = playbackState,
+                noteInsights = noteInsights,
                 isOnline = isOnline,
+                initialTabIndex = initialTabIndex,
                 onPlayPause = onPlayPause,
                 onSeek = onSeek,
                 onSpeedChange = onSpeedChange,
                 onRename = onRename,
                 onGenerateSummary = onGenerateSummary,
                 onRetryProcessing = onRetryProcessing,
+                onActionToggle = onActionToggle,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -297,9 +313,11 @@ fun RecordingDetails(
     modifier: Modifier = Modifier
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
+    val noteInsights by viewModel.noteInsights.collectAsState()
     RecordingDetailsContent(
         recording = recording,
         playbackState = playbackState,
+        noteInsights = noteInsights,
         isOnline = isOnline,
         onPlayPause = { viewModel.togglePlayPause() },
         onSeek = { viewModel.seekTo(it) },
@@ -307,6 +325,7 @@ fun RecordingDetails(
         onRename = { viewModel.renameRecording(it) },
         onGenerateSummary = { viewModel.generateAiSummary() },
         onRetryProcessing = { viewModel.retryAiProcessing() },
+        onActionToggle = { viewModel.toggleActionComplete(it) },
         modifier = modifier
     )
 }
@@ -315,16 +334,19 @@ fun RecordingDetails(
 fun RecordingDetailsContent(
     recording: Recording,
     playbackState: space.iamjustkrishna.srutam.player.PlaybackState,
+    noteInsights: List<InsightEntity> = emptyList(),
     isOnline: Boolean = true,
+    initialTabIndex: Int = 0,
     onPlayPause: () -> Unit = {},
     onSeek: (Int) -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
     onRename: (String) -> Unit = {},
     onGenerateSummary: () -> Unit = {},
     onRetryProcessing: () -> Unit = {},
+    onActionToggle: (InsightEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var selectedDetailTabIndex by remember { mutableStateOf(0) }
+    var selectedDetailTabIndex by remember { mutableStateOf(initialTabIndex) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
     val displayName = remember(recording.audioFilePath, recording.timestamp, recording.name) {
@@ -344,6 +366,22 @@ fun RecordingDetailsContent(
             },
             onDismiss = { showRenameDialog = false }
         )
+    }
+
+    val actions = remember(noteInsights) {
+        noteInsights.filter { it.kind == InsightKind.ACTION }
+    }
+    val ideas = remember(noteInsights) {
+        noteInsights.filter { it.kind == InsightKind.IDEA }
+    }
+    val decisions = remember(noteInsights) {
+        noteInsights.filter { it.kind == InsightKind.DECISION }
+    }
+    val legacyActions = remember(recording.actionItems) {
+        parseJsonArray(recording.actionItems)
+    }
+    val legacyPoints = remember(recording.keyPoints) {
+        parseJsonArray(recording.keyPoints)
     }
 
     LazyColumn(
@@ -380,7 +418,7 @@ fun RecordingDetailsContent(
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("✦ Summary", "📄 Transcript", "✓ Tasks").forEachIndexed { index, title ->
+                listOf("✦ Summary", "📄 Transcript", "💡 Insights").forEachIndexed { index, title ->
                     val isSelected = (selectedDetailTabIndex == index)
                     Box(
                         modifier = Modifier
@@ -611,34 +649,239 @@ fun RecordingDetailsContent(
             }
         }
 
-        // Tab 2: Action Items / Tasks
+        // Tab 2: Insights (Next Steps, Key Ideas, Decisions)
         if (selectedDetailTabIndex == 2) {
-            item {
-                val actionItems = parseJsonArray(recording.actionItems)
-                if (actionItems.isNotEmpty()) {
-                    BulletListCard(
-                        title = "Action Items",
-                        items = actionItems
-                    )
-                } else {
+            val hasRoomInsights = noteInsights.isNotEmpty()
+            val hasLegacyContent = legacyActions.isNotEmpty() || legacyPoints.isNotEmpty()
+
+            if (!hasRoomInsights && !hasLegacyContent) {
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-                        border = BorderStroke(0.5.dp, SlateBorder)
+                        border = BorderStroke(1.dp, SlateBorder)
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(32.dp),
-                            contentAlignment = Alignment.Center
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = SlateGrouped,
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lightbulb,
+                                        contentDescription = null,
+                                        tint = CobaltBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No action items extracted for this note.",
-                                color = Color(0xFF8E8E93),
-                                fontSize = 14.sp
+                                text = "No Insights Extracted Yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Generate an AI summary to extract Next Steps, Key Ideas, and Decisions for this voice note.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
                             )
                         }
+                    }
+                }
+            } else if (hasRoomInsights) {
+                // Next Steps Section
+                if (actions.isNotEmpty()) {
+                    item {
+                        val completedCount = actions.count { it.status == InsightStatus.COMPLETED }
+                        val allDone = completedCount == actions.size
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = CobaltContainer,
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "✓",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = CobaltBlue
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Next Steps",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (allDone) EmeraldContainer else SlateGrouped,
+                                border = BorderStroke(
+                                    0.5.dp,
+                                    if (allDone) EmeraldSuccess.copy(alpha = 0.3f) else SlateBorder
+                                )
+                            ) {
+                                Text(
+                                    text = "$completedCount/${actions.size} done",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (allDone) OnEmeraldContainer else TextSecondary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    items(actions, key = { it.id }) { action ->
+                        DetailActionItemCard(
+                            action = action,
+                            onToggle = { onActionToggle(action) }
+                        )
+                    }
+                }
+
+                // Key Ideas Section
+                if (ideas.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFFEF3C7),
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lightbulb,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Key Ideas",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(0.5.dp, Color(0xFFFDE68A))
+                            ) {
+                                Text(
+                                    text = "${ideas.size}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFB45309),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    items(ideas, key = { it.id }) { idea ->
+                        DetailIdeaItemCard(idea = idea)
+                    }
+                }
+
+                // Decisions Section
+                if (decisions.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = EmeraldContainer,
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = EmeraldSuccess,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Decisions",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = EmeraldContainer,
+                                border = BorderStroke(0.5.dp, Color(0xFFA7F3D0))
+                            ) {
+                                Text(
+                                    text = "${decisions.size}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = OnEmeraldContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    items(decisions, key = { it.id }) { decision ->
+                        DetailDecisionItemCard(decision = decision)
+                    }
+                }
+            } else {
+                // Fallback for legacy recordings
+                if (legacyActions.isNotEmpty()) {
+                    item {
+                        BulletListCard(
+                            title = "Action Items",
+                            items = legacyActions
+                        )
+                    }
+                }
+                if (legacyPoints.isNotEmpty()) {
+                    item {
+                        BulletListCard(
+                            title = "Key Points",
+                            items = legacyPoints
+                        )
                     }
                 }
             }
@@ -1070,5 +1313,218 @@ private fun parseJsonArray(json: String?): List<String> {
         gson.fromJson(json, Array<String>::class.java).toList()
     } catch (e: Exception) {
         listOf(json)
+    }
+}
+
+@Composable
+private fun DetailActionItemCard(
+    action: InsightEntity,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCompleted = action.status == InsightStatus.COMPLETED
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, if (isCompleted) SlateBorder.copy(alpha = 0.5f) else SlateBorder),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isCompleted) EmeraldSuccess else SlateSurface,
+                border = BorderStroke(
+                    1.5.dp,
+                    if (isCompleted) EmeraldSuccess else Color(0xFFCBD5E1)
+                ),
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onToggle)
+            ) {
+                if (isCompleted) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Completed",
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onToggle)
+            ) {
+                Text(
+                    text = action.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isCompleted) TextMuted else TextPrimary,
+                    textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                )
+                if (!action.evidence.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = SlateGrouped,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "\"${action.evidence}\"",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailIdeaItemCard(
+    idea: InsightEntity,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF3C7),
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lightbulb,
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "IDEA",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB45309),
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = idea.text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+
+            if (!idea.evidence.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFFFBEB),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "\"${idea.evidence}\"",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF92400E),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailDecisionItemCard(
+    decision: InsightEntity,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = EmeraldContainer,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = EmeraldSuccess,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "DECISION",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OnEmeraldContainer,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = decision.text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+
+            if (!decision.rationale.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Rationale: ${decision.rationale}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            if (!decision.evidence.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFECFDF5),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "\"${decision.evidence}\"",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF065F46),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
     }
 }

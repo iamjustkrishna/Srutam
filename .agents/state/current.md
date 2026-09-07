@@ -112,6 +112,16 @@
   - Implemented category-tailored light horizontal gradients on selected tabs: Cobalt Blue (`#2563EB` 18% to 8%) for Next Steps, Warm Amber (`#D97706` 18% to 8%) for Ideas, and Teal/Emerald (`#0D9488` 18% to 8%) for Decisions.
   - Added glowing concentric jewel indicators and bold text for active tabs, with centered muted dots for inactive tabs.
   - Verified and snapshotted across all 5 device profiles on the JVM and installed directly to connected hardware.
+- [x] **Note Details Reactive Insights Tab & Real-Time Task Completion (`DetailScreen.kt`, `DetailViewModel.kt`)**:
+  - Replaced legacy static Tasks tab with `"💡 Insights"` tab in the Apple-style segmented control (`[ ✦ Summary ]  [ 📄 Transcript ]  [ 💡 Insights ]`).
+  - Connected `DetailViewModel` to `InsightDao.getInsightsByRecordingIdFlow(recordingId)` to stream `InsightEntity` models reactively.
+  - Next Steps: interactive 22dp rounded checkboxes with immediate room database updates (`updateActionStatus`) toggling between `OPEN` and `COMPLETED`, strikethrough styling, and transcript evidence quote snippets.
+  - Key Ideas: styled cards with amber lightbulb badge, bold idea typography, and transcript quote snippets.
+  - Decisions: styled cards with emerald checkmark badge, bold decision typography, rationale, and transcript quote snippets.
+  - Graceful fallback: legacy recordings without Room insight records cleanly display `recording.actionItems` and `recording.keyPoints`.
+  - Added Roborazzi matrix test `capture_05_detail_insights` and verified on JVM across all 5 screen profiles.
+  - Built debug APK and installed directly to connected physical device `AAAEPVORMFIR4PWS`.
 
 ## Planned Next Direction
 - [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
+

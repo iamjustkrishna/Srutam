@@ -59,6 +59,13 @@ abstract class BaseScreenMatrixTest(private val deviceFolder: String) {
     }
 
     @Test
+    fun capture_05_detail_insights() {
+        captureScreen("05_detail_insights") {
+            MatrixDetailInsightsPreview()
+        }
+    }
+
+    @Test
     fun capture_06_insights_hub() {
         captureScreen("06_insights_hub") {
             MatrixInsightsPreview()
