@@ -48,13 +48,16 @@ android {
     signingConfigs {
         create("release") {
             val storeFilePath = keystoreProperties.getProperty("RELEASE_STORE_FILE")
-            if (!storeFilePath.isNullOrBlank()) {
+            val storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
+            val keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
+            val keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+            if (!storeFilePath.isNullOrBlank() && !storePassword.isNullOrBlank() && !keyAlias.isNullOrBlank()) {
                 val resolvedFile = file(storeFilePath)
                 if (resolvedFile.exists()) {
-                    storeFile = resolvedFile
-                    storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
-                    keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
-                    keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+                    this.storeFile = resolvedFile
+                    this.storePassword = storePassword
+                    this.keyAlias = keyAlias
+                    this.keyPassword = keyPassword ?: storePassword
                 }
             }
         }
@@ -65,8 +68,11 @@ android {
             val releaseSigning = signingConfigs.findByName("release")
             if (releaseSigning?.storeFile != null) {
                 signingConfig = releaseSigning
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -117,13 +123,15 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.material3)
 
+    // Modern Fragment SDK (resolves outdated fragment:1.0.0 warning)
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
+
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    // ML Kit GenAI (Gemini Nano)
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
+    // Gemini Generative AI SDK
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
     // Navigation Compose
