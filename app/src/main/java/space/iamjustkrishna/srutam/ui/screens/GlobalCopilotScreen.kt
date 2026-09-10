@@ -40,6 +40,7 @@ data class GlobalChatMessage(
     val text: String,
     val isUser: Boolean,
     val citedNotes: List<Pair<Long, String>> = emptyList(),
+    val isSystem: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -142,12 +143,31 @@ fun GlobalCopilotScreen(
         }
     }
 
+    fun clearFocusedRecording() {
+        onClearFocusedRecording()
+        val systemMsg = GlobalChatMessage(
+            text = "Switched to all voice notes. Now referencing all your recordings and ideas.",
+            isUser = false,
+            isSystem = true
+        )
+        messages = if (messages.size <= 1) {
+            listOf(defaultGlobalMessage, systemMsg)
+        } else {
+            messages + systemMsg
+        }
+        coroutineScope.launch {
+            if (messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+        }
+    }
+
     GlobalCopilotContent(
         messages = messages,
         inputText = inputText,
         isQueryLoading = isQueryLoading,
         focusedRecordingTitle = focusedRecording?.name?.ifBlank { "Voice Note" },
-        onClearFocusedRecording = onClearFocusedRecording,
+        onClearFocusedRecording = { clearFocusedRecording() },
         onInputTextChange = { inputText = it },
         onSubmitQuery = { submitQuery(it) },
         onNewSession = {
@@ -186,6 +206,12 @@ fun GlobalCopilotContent(
 ) {
     val listState = rememberLazyListState()
     val isKeyboardOpen = WindowInsets.isImeVisible
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -330,13 +356,19 @@ fun GlobalCopilotContent(
 
                 // Chat Messages
                 items(messages) { message ->
-                    if (message.isUser) {
-                        UserMessageBubble(message.text)
-                    } else {
-                        AiMessageBubble(
-                            message = message,
-                            onRecordingClick = onRecordingClick
-                        )
+                    when {
+                        message.isSystem -> {
+                            SystemMessagePill(message.text)
+                        }
+                        message.isUser -> {
+                            UserMessageBubble(message.text)
+                        }
+                        else -> {
+                            AiMessageBubble(
+                                message = message,
+                                onRecordingClick = onRecordingClick
+                            )
+                        }
                     }
                 }
 
@@ -539,6 +571,42 @@ private fun AiMessageBubble(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemMessagePill(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFF1F5F9),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 0.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "✦",
+                    fontSize = 11.sp,
+                    color = CobaltBlue,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = text,
+                    fontSize = 12.sp,
+                    color = Color(0xFF475569),
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
