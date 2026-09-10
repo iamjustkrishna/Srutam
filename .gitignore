@@ -1,36 +1,131 @@
-# Android Studio / IntelliJ
+# ==============================================================================
+# Android Studio / IntelliJ / VS Code / Editors
+# ==============================================================================
 *.iml
 .idea/
-
-# Local assistant/tooling state
+.vscode/
+.fleet/
 .claude/
 
-# Local machine config and secrets
+# ==============================================================================
+# Local Machine Config, Secrets & Credentials
+# ==============================================================================
 local.properties
 keystore.properties
 *.keystore
 *.jks
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+secrets.xml
+google-services.json
+.env
+.env.*
+*.env
+api_keys.json
+credentials.json
 
-# Gradle / Kotlin build state
+# ==============================================================================
+# Ideas, Brand Strategy, Marketing & Private Notes
+# ==============================================================================
+personal_brand_x/
+ideas/
+docs/ideas/
+roadmap/
+roadmaps/
+*.ideas.md
+*draft*.md
+*.scratch.*
+.agents/state/social-drafts.md
+QUICK_START.md
+cleanup.bat
+cleanup_*.py
+
+# ==============================================================================
+# Screenshots, Visuals & Media Captures
+# ==============================================================================
+screenshots/
+visuals/
+captures/
+screen_matrix/
+recordings/
+*.mp4
+*.mov
+*.mkv
+*.gif
+screenshot*.png
+screen_*.png
+
+# Block loose/future images by default
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg
+
+# Explicitly whitelist app production resources & store art
+!app/src/main/res/**
+!app/src/main/assets/**
+!app/src/main/ic_launcher-playstore.png
+!art/**
+
+# ==============================================================================
+# Local ASR Lab, ML Models, Audio & Python Environment
+# ==============================================================================
+asr-lab/
+models/
+*.onnx
+*.ort
+*.bin
+*.pt
+*.safetensors
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# ==============================================================================
+# Gradle / Kotlin / Android Build State
+# ==============================================================================
 .gradle/
 .gradle-user-home/
 .kotlin/
 build/
 **/build/
-captures/
 .externalNativeBuild/
 .cxx/
 
-# Build outputs
+# ==============================================================================
+# Build Outputs
+# ==============================================================================
 *.apk
 *.ap_
 *.aab
 *.aar
 *.dex
 *.class
-*.log
 
-# Temporary/generated vendor downloads
+# ==============================================================================
+# Logs & System Crash Dumps
+# ==============================================================================
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+# ==============================================================================
+# Temporary / Vendor Downloads & Archives
+# ==============================================================================
 .tmp-*/
 *.zip
 *.tar
@@ -39,12 +134,9 @@ captures/
 *.tar.bz2
 sherpa-onnx-master-src/
 
-# Local notes/artifacts not needed to build the app
-QUICK_START.md
-cleanup.bat
-cleanup_*.py
-screenshot.png
-
-# OS files
+# ==============================================================================
+# OS Files
+# ==============================================================================
 .DS_Store
 Thumbs.db
+desktop.ini
