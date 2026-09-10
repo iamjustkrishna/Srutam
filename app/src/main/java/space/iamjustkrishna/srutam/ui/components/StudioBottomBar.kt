@@ -146,7 +146,7 @@ fun StudioBottomBar(
                     SolidColor(Color(0xFFE2E8F0))
                 }
             ),
-            shadowElevation = if (isBarActiveRecording) 8.dp else 6.dp
+            shadowElevation = 0.dp
         ) {
             Box(
                 modifier = Modifier
@@ -295,12 +295,6 @@ fun StudioBottomBar(
                     modifier = Modifier
                         .size(56.dp)
                         .scale(recordScale)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = CircleShape,
-                            ambientColor = Color(0xFFDC2626).copy(alpha = 0.3f),
-                            spotColor = Color(0xFFDC2626).copy(alpha = 0.45f)
-                        )
                         .clip(CircleShape)
                         .background(Color(0xFFEF4444))
                         .clickable {
@@ -323,12 +317,6 @@ fun StudioBottomBar(
                     modifier = Modifier
                         .size(56.dp)
                         .scale(recordScale)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = CircleShape,
-                            ambientColor = Color(0xFFDC2626).copy(alpha = 0.3f),
-                            spotColor = Color(0xFFDC2626).copy(alpha = 0.45f)
-                        )
                         .clip(CircleShape)
                         .background(Color(0xFFFECACA).copy(alpha = 0.75f))
                         .border(1.dp, Color(0xFFFCA5A5).copy(alpha = 0.5f), CircleShape)
@@ -589,7 +577,8 @@ private fun StudioTabItem(
                 ),
             shape = CircleShape,
             color = Color.White,
-            shadowElevation = 4.dp
+            border = BorderStroke(0.5.dp, Color(0xFFE2E8F0)),
+            shadowElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
@@ -692,7 +681,7 @@ private fun SlideToLockIndicator(
             1.dp,
             if (isNearLock) Color(0xFFEF4444) else Color(0xFFFECACA)
         ),
-        shadowElevation = 8.dp
+        shadowElevation = 0.dp
     ) {
         Box(
             modifier = Modifier

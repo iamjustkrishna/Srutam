@@ -410,7 +410,7 @@ fun GlobalCopilotContent(
                 shape = RoundedCornerShape(26.dp),
                 color = Color.White,
                 border = BorderStroke(1.dp, Color(0xFFE5E5EA)),
-                shadowElevation = 6.dp
+                shadowElevation = 0.dp
             ) {
                 Row(
                     modifier = Modifier
