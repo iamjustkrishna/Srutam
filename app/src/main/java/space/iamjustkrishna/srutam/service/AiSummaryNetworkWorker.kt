@@ -27,7 +27,8 @@ class AiSummaryNetworkWorker(
             val allRecordings = recordingDao.getAllRecordings().first()
             val pendingRecordings = allRecordings.filter { rec ->
                 rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||
-                    (!rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing)
+                    (!rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing) ||
+                    (rec.summary?.startsWith("This recording contains approximately") == true && !rec.isProcessing)
             }
 
             if (pendingRecordings.isEmpty()) {

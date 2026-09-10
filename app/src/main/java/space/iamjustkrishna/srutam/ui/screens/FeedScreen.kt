@@ -347,7 +347,21 @@ fun FeedScreen(
             }
         },
         onProcessPendingOffline = {
-            viewModel.processPendingOfflineRecordings()
+            viewModel.processPendingOfflineRecordings { count ->
+                if (count > 0) {
+                    Toast.makeText(
+                        context,
+                        "Analyzing $count pending voice note${if (count > 1) "s" else ""} in background...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        context,
+                        "All voice notes are already processed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         },
         onRecordingClick = onRecordingClick,
         onSettingsClick = onSettingsClick,

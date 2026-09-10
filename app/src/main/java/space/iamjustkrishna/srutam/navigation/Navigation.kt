@@ -37,12 +37,16 @@ import space.iamjustkrishna.srutam.ui.screens.FeedScreen
 import space.iamjustkrishna.srutam.ui.screens.GlobalCopilotScreen
 import space.iamjustkrishna.srutam.ui.screens.SaveRecordingDialog
 import space.iamjustkrishna.srutam.ui.screens.SettingsScreen
+import androidx.activity.compose.BackHandler
 import space.iamjustkrishna.srutam.utils.AudioFileReader
 import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 
 sealed class Screen(val route: String) {
-    data object Root : Screen("root")
+    data object Root : Screen("root?focusRecordingId={focusRecordingId}") {
+        fun createRoute(focusRecordingId: Long? = null) =
+            if (focusRecordingId != null) "root?focusRecordingId=$focusRecordingId" else "root"
+    }
     data object Detail : Screen("detail/{recordingId}") {
         fun createRoute(recordingId: Long) = "detail/$recordingId"
     }
@@ -67,8 +71,20 @@ fun SrutamNavigation(
         navController = navController,
         startDestination = Screen.Root.route
     ) {
-        composable(Screen.Root.route) {
-            RootScreen(navController = navController)
+        composable(
+            route = Screen.Root.route,
+            arguments = listOf(
+                navArgument("focusRecordingId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) { backStackEntry ->
+            val focusRecordingId = backStackEntry.arguments?.getLong("focusRecordingId")?.takeIf { it > 0 }
+            RootScreen(
+                navController = navController,
+                initialFocusRecordingId = focusRecordingId
+            )
         }
 
         composable(
@@ -81,7 +97,13 @@ fun SrutamNavigation(
             DetailScreen(
                 recordingId = recordingId,
                 onNavigateBack = { navController.popBackStack() },
-                onShowChat = { navController.navigate(Screen.Chat.createRoute(recordingId)) }
+                onShowChat = {
+                    navController.navigate(Screen.Root.createRoute(recordingId)) {
+                        popUpTo(Screen.Root.route) {
+                            inclusive = true
+                        }
+                    }
+                }
             )
         }
 
@@ -110,10 +132,23 @@ fun SrutamNavigation(
 @Composable
 private fun RootScreen(
     navController: NavHostController,
+    initialFocusRecordingId: Long? = null,
     viewModel: AudioFilesViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    var currentTab by remember { mutableStateOf(RootTab.NOTES) }
+    var currentTab by remember { mutableStateOf(if (initialFocusRecordingId != null && initialFocusRecordingId > 0) RootTab.AI else RootTab.NOTES) }
+    var focusedRecordingId by remember { mutableStateOf(initialFocusRecordingId) }
+
+    LaunchedEffect(initialFocusRecordingId) {
+        if (initialFocusRecordingId != null && initialFocusRecordingId > 0L) {
+            currentTab = RootTab.AI
+            focusedRecordingId = initialFocusRecordingId
+        }
+    }
+
+    BackHandler(enabled = currentTab != RootTab.NOTES) {
+        currentTab = RootTab.NOTES
+    }
 
     var isServiceRecording by remember { mutableStateOf(false) }
     var isServicePaused by remember { mutableStateOf(false) }
@@ -160,6 +195,8 @@ private fun RootScreen(
             RootTab.AI -> {
                 GlobalCopilotScreen(
                     viewModel = viewModel,
+                    focusedRecordingId = focusedRecordingId,
+                    onClearFocusedRecording = { focusedRecordingId = null },
                     onRecordingClick = { recordingId ->
                         navController.navigate(Screen.Detail.createRoute(recordingId))
                     },

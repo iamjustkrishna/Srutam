@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -41,11 +43,18 @@ data class GlobalChatMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-private val STARTER_PROMPTS = listOf(
+private val GLOBAL_STARTER_PROMPTS = listOf(
     "What did I talk about recently?",
     "List all action items across notes",
     "Summarize my key ideas",
     "What decisions were made?"
+)
+
+private val NOTE_STARTER_PROMPTS = listOf(
+    "Summarize this note",
+    "What are the action items?",
+    "What decisions were made?",
+    "Explain key points"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -54,23 +63,43 @@ fun GlobalCopilotScreen(
     viewModel: AudioFilesViewModel,
     onRecordingClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
+    focusedRecordingId: Long? = null,
+    onClearFocusedRecording: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
+    var focusedRecording by remember { mutableStateOf<space.iamjustkrishna.srutam.data.Recording?>(null) }
     var inputText by remember { mutableStateOf("") }
     var isQueryLoading by remember { mutableStateOf(false) }
+
+    val defaultGlobalMessage = remember {
+        GlobalChatMessage(
+            text = "I can search across all your voice notes and answer any question about your recordings, meetings, and ideas.",
+            isUser = false
+        )
+    }
+
     var messages by remember {
-        mutableStateOf(
-            listOf(
+        mutableStateOf(listOf(defaultGlobalMessage))
+    }
+
+    LaunchedEffect(focusedRecordingId) {
+        if (focusedRecordingId != null && focusedRecordingId > 0L) {
+            val rec = viewModel.getRecordingById(focusedRecordingId)
+            focusedRecording = rec
+            val noteName = rec?.name?.ifBlank { "Voice Note" } ?: "Voice Note"
+            messages = listOf(
                 GlobalChatMessage(
-                    text = "I can search across all your voice notes and answer any question about your recordings, meetings, and ideas.",
+                    text = "I'm focusing on your note \"$noteName\". You can ask me anything about this recording, or dismiss the banner to search across all notes.",
                     isUser = false
                 )
             )
-        )
+        } else {
+            focusedRecording = null
+        }
     }
 
     fun submitQuery(query: String) {
@@ -89,7 +118,11 @@ fun GlobalCopilotScreen(
 
         coroutineScope.launch {
             try {
-                val (answer, citedNotes) = viewModel.queryAllVoiceNotes(trimmed)
+                val (answer, citedNotes) = if (focusedRecordingId != null && focusedRecordingId > 0L) {
+                    viewModel.querySpecificRecording(focusedRecordingId, trimmed)
+                } else {
+                    viewModel.queryAllVoiceNotes(trimmed)
+                }
                 messages = messages + GlobalChatMessage(
                     text = answer,
                     isUser = false,
@@ -113,15 +146,22 @@ fun GlobalCopilotScreen(
         messages = messages,
         inputText = inputText,
         isQueryLoading = isQueryLoading,
+        focusedRecordingTitle = focusedRecording?.name?.ifBlank { "Voice Note" },
+        onClearFocusedRecording = onClearFocusedRecording,
         onInputTextChange = { inputText = it },
         onSubmitQuery = { submitQuery(it) },
         onNewSession = {
-            messages = listOf(
-                GlobalChatMessage(
-                    text = "I can search across all your voice notes and answer any question about your recordings, meetings, and ideas.",
-                    isUser = false
+            if (focusedRecording != null) {
+                val noteName = focusedRecording?.name?.ifBlank { "Voice Note" } ?: "Voice Note"
+                messages = listOf(
+                    GlobalChatMessage(
+                        text = "I'm focusing on your note \"$noteName\". Ask me anything about this recording.",
+                        isUser = false
+                    )
                 )
-            )
+            } else {
+                messages = listOf(defaultGlobalMessage)
+            }
         },
         onSettingsClick = onSettingsClick,
         onRecordingClick = onRecordingClick,
@@ -135,6 +175,8 @@ fun GlobalCopilotContent(
     messages: List<GlobalChatMessage>,
     inputText: String,
     isQueryLoading: Boolean = false,
+    focusedRecordingTitle: String? = null,
+    onClearFocusedRecording: () -> Unit = {},
     onInputTextChange: (String) -> Unit = {},
     onSubmitQuery: (String) -> Unit = {},
     onNewSession: () -> Unit = {},
@@ -152,7 +194,7 @@ fun GlobalCopilotContent(
             space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar(
                 title = "Srutam",
                 accentText = "AI",
-                subtitle = "Ask across all your voice notes",
+                subtitle = if (focusedRecordingTitle != null) "Focusing on note" else "Ask across all your voice notes",
                 actions = {
                     if (messages.size > 1) {
                         space.iamjustkrishna.srutam.ui.components.SquircleActionButton(
@@ -176,6 +218,58 @@ fun GlobalCopilotContent(
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
+            // Dismissable Note Context Banner
+            if (focusedRecordingTitle != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = CobaltContainer.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, CobaltBorder.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = CobaltBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Focusing on: $focusedRecordingTitle",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CobaltBlue,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = onClearFocusedRecording,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear focused note",
+                                tint = CobaltBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -203,7 +297,8 @@ fun GlobalCopilotContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(horizontal = 2.dp)
                         ) {
-                            items(STARTER_PROMPTS) { prompt ->
+                            val promptList = if (focusedRecordingTitle != null) NOTE_STARTER_PROMPTS else GLOBAL_STARTER_PROMPTS
+                            items(promptList) { prompt ->
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
                                     color = Color(0xFFF1F5F9),
@@ -296,7 +391,7 @@ fun GlobalCopilotContent(
                         onValueChange = onInputTextChange,
                         placeholder = {
                             Text(
-                                "Ask anything about your notes...",
+                                if (focusedRecordingTitle != null) "Ask about this note..." else "Ask anything about your notes...",
                                 fontSize = 13.sp,
                                 color = Color(0xFF8E8E93)
                             )

@@ -198,6 +198,35 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         AiProcessingWorker.enqueueProcessing(getApplication(), listOf(currentRecording.id))
     }
 
+    fun reprocessWithAi() {
+        val currentRecording = _recording.value ?: return
+        val audioFile = File(currentRecording.audioFilePath)
+        if (!audioFile.exists()) {
+            updateRecordingError("Audio file not found")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val updated = currentRecording.copy(
+                summary = null,
+                wiifm = null,
+                keyPoints = null,
+                actionItems = null,
+                isProcessing = true,
+                aiStatus = if (currentRecording.transcript.isNullOrBlank()) {
+                    RecordingAiStatus.TRANSCRIBING
+                } else {
+                    RecordingAiStatus.SUMMARY_PROCESSING
+                },
+                processingError = null
+            )
+            repository.updateRecording(updated)
+            _recording.value = updated
+            insightDao.deleteInsightsByRecordingId(currentRecording.id)
+            AiProcessingWorker.enqueueProcessing(getApplication(), listOf(currentRecording.id))
+        }
+    }
+
     private suspend fun saveInsightsToRoom(
         recordingId: Long,
         recordingName: String,

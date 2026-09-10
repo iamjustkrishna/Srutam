@@ -320,23 +320,81 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun processPendingOfflineRecordings() {
+    fun processPendingOfflineRecordings(onComplete: ((Int) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentMap = recordingsByPath.value
-            val pending = currentMap.values.filter { rec ->
-                rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||
-                    (!rec.transcript.isNullOrBlank() && rec.summary.isNullOrBlank() && !rec.isProcessing)
-            }
+            try {
+                val currentFiles = _audioFiles.value.ifEmpty { AudioFileReader.getAudioFiles() }
+                val currentMap = _recordingsByPath.value
 
-            if (pending.isEmpty()) {
-                Log.d(TAG, "No pending offline recordings found")
-                return@launch
-            }
+                // Find all audio files that either have no summary, are pending offline, or have fallback summary
+                val pendingFiles = currentFiles.filter { audioFile ->
+                    val rec = currentMap[audioFile.filePath]
+                    rec == null ||
+                        rec.summary.isNullOrBlank() ||
+                        rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||
+                        rec.summary?.startsWith("This recording contains approximately") == true
+                }
 
-            Log.d(TAG, "Batch processing ${pending.size} pending offline recordings via WorkManager")
-            val pendingIds = pending.map { it.id }
-            AiProcessingWorker.enqueueProcessing(getApplication(), pendingIds)
-            loadAudioFiles()
+                if (pendingFiles.isEmpty()) {
+                    Log.d(TAG, "No pending offline recordings found")
+                    withContext(Dispatchers.Main) {
+                        onComplete?.invoke(0)
+                    }
+                    return@launch
+                }
+
+                Log.d(TAG, "Batch processing ${pendingFiles.size} pending recordings via WorkManager")
+                val ids = mutableListOf<Long>()
+                for (audioFile in pendingFiles) {
+                    var recording = currentMap[audioFile.filePath] ?: repository.getRecordingByPath(audioFile.filePath)
+                    if (recording == null) {
+                        val newRecording = Recording(
+                            audioFilePath = audioFile.filePath,
+                            duration = audioFile.duration,
+                            name = RecordingNameFormatter.displayName(
+                                fileName = audioFile.fileName,
+                                timestamp = audioFile.timestamp
+                            ),
+                            isProcessing = true,
+                            aiStatus = RecordingAiStatus.TRANSCRIBING
+                        )
+                        val newId = repository.insertRecording(newRecording)
+                        ids.add(newId)
+                    } else if (!recording.isProcessing) {
+                        val isFallback = recording.summary?.startsWith("This recording contains approximately") == true
+                        repository.updateRecording(
+                            recording.copy(
+                                summary = if (isFallback) null else recording.summary,
+                                wiifm = if (isFallback) null else recording.wiifm,
+                                keyPoints = if (isFallback) null else recording.keyPoints,
+                                isProcessing = true,
+                                aiStatus = if (recording.transcript.isNullOrBlank()) {
+                                    RecordingAiStatus.TRANSCRIBING
+                                } else {
+                                    RecordingAiStatus.SUMMARY_PROCESSING
+                                },
+                                processingError = null
+                            )
+                        )
+                        ids.add(recording.id)
+                    }
+                }
+
+                if (ids.isNotEmpty()) {
+                    AiProcessingWorker.enqueueProcessing(getApplication(), ids)
+                    loadAudioFiles()
+                }
+
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(ids.size)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing pending offline recordings", e)
+                _processingError.value = "Failed to process pending notes: ${e.message}"
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(0)
+                }
+            }
         }
     }
 
@@ -470,6 +528,24 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
         val answer = aiProcessor.queryAllRecordings(snippets, question)
         Pair(answer, citedNotes)
+    }
+
+    suspend fun getRecordingById(recordingId: Long): Recording? = withContext(Dispatchers.IO) {
+        repository.getRecordingById(recordingId)
+            ?: _recordingsByPath.value.values.find { it.id == recordingId }
+    }
+
+    suspend fun querySpecificRecording(recordingId: Long, question: String): Pair<String, List<Pair<Long, String>>> = withContext(Dispatchers.IO) {
+        val rec = repository.getRecordingById(recordingId)
+            ?: _recordingsByPath.value.values.find { it.id == recordingId }
+
+        if (rec == null || rec.transcript.isNullOrBlank()) {
+            return@withContext Pair("This voice note does not have a transcript available yet. Please transcribe it first.", emptyList())
+        }
+
+        val noteTitle = rec.name.ifBlank { "Voice Note" }
+        val answer = aiProcessor.queryRecording(rec.transcript, question)
+        Pair(answer, listOf(Pair(rec.id, noteTitle)))
     }
 
     fun toggleActionComplete(insight: InsightEntity) {

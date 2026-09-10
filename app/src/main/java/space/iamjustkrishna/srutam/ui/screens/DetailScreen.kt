@@ -37,14 +37,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import android.widget.Toast
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -53,6 +56,7 @@ import space.iamjustkrishna.srutam.data.InsightKind
 import space.iamjustkrishna.srutam.data.InsightStatus
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.OutlinedButton
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -173,8 +177,30 @@ fun DetailScreen(
         onSeek = { viewModel.seekTo(it) },
         onSpeedChange = { viewModel.setPlaybackSpeed(it) },
         onRename = { viewModel.renameRecording(it) },
-        onGenerateSummary = { viewModel.generateAiSummary() },
-        onRetryProcessing = { viewModel.retryAiProcessing() },
+        onGenerateSummary = {
+            viewModel.generateAiSummary()
+            if (NetworkUtils.isInternetAvailable(context)) {
+                Toast.makeText(context, "Analyzing voice note in background...", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Queued for processing. AI summary will generate when internet is available.", Toast.LENGTH_LONG).show()
+            }
+        },
+        onRetryProcessing = {
+            viewModel.retryAiProcessing()
+            if (NetworkUtils.isInternetAvailable(context)) {
+                Toast.makeText(context, "Retrying processing in background...", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Queued for retry when internet is connected.", Toast.LENGTH_LONG).show()
+            }
+        },
+        onReprocess = {
+            viewModel.reprocessWithAi()
+            if (NetworkUtils.isInternetAvailable(context)) {
+                Toast.makeText(context, "Re-processing note with AI...", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Queued for fresh AI processing when internet connects.", Toast.LENGTH_LONG).show()
+            }
+        },
         onActionToggle = { viewModel.toggleActionComplete(it) }
     )
 }
@@ -196,6 +222,7 @@ fun DetailScreenContent(
     onRename: (String) -> Unit = {},
     onGenerateSummary: () -> Unit = {},
     onRetryProcessing: () -> Unit = {},
+    onReprocess: () -> Unit = {},
     onActionToggle: (InsightEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -298,6 +325,7 @@ fun DetailScreenContent(
                 onRename = onRename,
                 onGenerateSummary = onGenerateSummary,
                 onRetryProcessing = onRetryProcessing,
+                onReprocess = onReprocess,
                 onActionToggle = onActionToggle,
                 modifier = Modifier.padding(paddingValues)
             )
@@ -325,6 +353,7 @@ fun RecordingDetails(
         onRename = { viewModel.renameRecording(it) },
         onGenerateSummary = { viewModel.generateAiSummary() },
         onRetryProcessing = { viewModel.retryAiProcessing() },
+        onReprocess = { viewModel.reprocessWithAi() },
         onActionToggle = { viewModel.toggleActionComplete(it) },
         modifier = modifier
     )
@@ -343,6 +372,7 @@ fun RecordingDetailsContent(
     onRename: (String) -> Unit = {},
     onGenerateSummary: () -> Unit = {},
     onRetryProcessing: () -> Unit = {},
+    onReprocess: () -> Unit = {},
     onActionToggle: (InsightEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -444,6 +474,8 @@ fun RecordingDetailsContent(
 
         // Tab 0: Summary & Insights
         if (selectedDetailTabIndex == 0) {
+            val isFallbackSummary = recording.summary?.startsWith("This recording contains approximately") == true
+
             if (!recording.isProcessing && recording.summary.isNullOrBlank()) {
                 item {
                     SummaryPromptCard(
@@ -451,6 +483,59 @@ fun RecordingDetailsContent(
                         hasTranscript = !recording.transcript.isNullOrBlank(),
                         onGenerateSummary = onGenerateSummary
                     )
+                }
+            }
+
+            // Fallback summary indicator card with one-click re-process
+            if (!recording.isProcessing && isFallbackSummary) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Offline Audio Overview",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "This note has local audio details, but full AI summary, action items, and key points haven't been generated yet because of offline or spotty connection.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onReprocess,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Generate Full AI Insights")
+                            }
+                        }
+                    }
                 }
             }
 
@@ -526,7 +611,6 @@ fun RecordingDetailsContent(
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = onGenerateSummary,
-                                enabled = isOnline,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Generate AI Summary")
@@ -576,7 +660,6 @@ fun RecordingDetailsContent(
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = onRetryProcessing,
-                                enabled = isOnline,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Retry Processing")
@@ -590,7 +673,7 @@ fun RecordingDetailsContent(
             if (recording.summary != null) {
                 item {
                     SectionCard(
-                        title = "Summary",
+                        title = if (isFallbackSummary) "Audio Overview" else "Summary",
                         content = recording.summary
                     )
                 }
@@ -613,6 +696,27 @@ fun RecordingDetailsContent(
                         title = "Key Points",
                         items = parseJsonArray(recording.keyPoints)
                     )
+                }
+            }
+
+            // Re-process option for notes with existing summary
+            if (!recording.isProcessing && !isFallbackSummary && recording.summary != null) {
+                item {
+                    OutlinedButton(
+                        onClick = onReprocess,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 16.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Re-process Note with AI", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }
@@ -933,7 +1037,7 @@ fun SummaryPromptCard(
                 text = if (hasTranscript) {
                     "Transcript is ready locally. AI summary is not generated yet."
                 } else {
-                    "Transcript is not available yet."
+                    "Transcript and AI summary not generated yet."
                 },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -943,12 +1047,16 @@ fun SummaryPromptCard(
             Text(
                 text = if (isOnline) {
                     if (hasTranscript) {
-                        "Tap below to generate the AI summary."
+                        "Tap below to generate the AI summary, key points, and action items."
                     } else {
                         "Tap below to transcribe locally and generate the AI summary."
                     }
                 } else {
-                    "You are offline. The transcript stays local, and AI summary will be enabled when internet is available."
+                    if (hasTranscript) {
+                        "You are offline. Tap below to queue AI summary generation when internet connects."
+                    } else {
+                        "You are offline. Tap below to transcribe audio locally and queue AI summary."
+                    }
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -956,7 +1064,7 @@ fun SummaryPromptCard(
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onGenerateSummary,
-                enabled = isOnline
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(if (hasTranscript) "Generate AI Summary" else "Transcribe and Summarize")
             }

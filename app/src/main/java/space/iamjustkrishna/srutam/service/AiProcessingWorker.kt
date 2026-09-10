@@ -136,7 +136,8 @@ class AiProcessingWorker(
             }
 
             // Stage 2: AI Summary and Insights (Requires internet)
-            if (!recording.summary.isNullOrBlank() && recording.aiStatus == RecordingAiStatus.READY) {
+            val isFallbackSummary = recording.summary?.startsWith("This recording contains approximately") == true
+            if (!recording.summary.isNullOrBlank() && recording.aiStatus == RecordingAiStatus.READY && !isFallbackSummary) {
                 completedCount++
                 lastCompletedRecording = recording
                 continue

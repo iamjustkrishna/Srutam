@@ -113,9 +113,8 @@ class AIProcessor(private val context: Context) {
             // Parse JSON response
             parseAIResponse(responseText)
         } catch (e: Exception) {
-            Log.e(TAG, "Error generating insights, using fallback", e)
-            // Fallback to basic analysis
-            generateFallbackInsights(transcript)
+            Log.e(TAG, "Error generating insights", e)
+            throw e
         }
     }
 
@@ -289,7 +288,7 @@ class AIProcessor(private val context: Context) {
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing AI response", e)
-            generateFallbackInsights(responseText)
+            throw e
         }
     }
 
