@@ -136,7 +136,7 @@ fun StudioBottomBar(
                 .weight(1f)
                 .height(56.dp),
             shape = CircleShape,
-            color = Color.Transparent,
+            color = Color(0xFFF8FAFC),
             border = BorderStroke(
                 1.dp,
                 if (isBarActiveRecording) {
@@ -164,7 +164,7 @@ fun StudioBottomBar(
                             }
                         } else {
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFF8FAFC).copy(alpha = 0.95f), Color(0xFFF1F5F9).copy(alpha = 0.95f))
+                                listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
                             )
                         }
                     )
@@ -318,7 +318,7 @@ fun StudioBottomBar(
                         .size(56.dp)
                         .scale(recordScale)
                         .clip(CircleShape)
-                        .background(Color(0xFFFECACA).copy(alpha = 0.75f))
+                        .background(Color(0xFFFECACA))
                         .border(1.dp, Color(0xFFFCA5A5).copy(alpha = 0.5f), CircleShape)
                         .pointerInput(Unit) {
                             awaitEachGesture {
