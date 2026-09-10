@@ -19,7 +19,9 @@
             android:src="@drawable/srutam_final_log"
             android:background="@drawable/bg_floating_dock_edge_left"
             android:contentDescription="@string/floating_button_desc"
-            android:elevation="14dp"
+            android:elevation="0dp"
+            android:outlineProvider="background"
+            android:clipToOutline="true"
             android:scaleType="fitCenter" />
     </FrameLayout>
 
@@ -35,7 +37,9 @@
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
         android:background="@drawable/bg_floating_dock_card"
-        android:elevation="16dp"
+        android:elevation="0dp"
+        android:outlineProvider="background"
+        android:clipToOutline="true"
         android:visibility="gone">
 
         <!-- Direct Start Recording Action (Icon Only) -->
@@ -90,7 +94,9 @@
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
         android:background="@drawable/bg_floating_dock_card"
-        android:elevation="16dp"
+        android:elevation="0dp"
+        android:outlineProvider="background"
+        android:clipToOutline="true"
         android:visibility="gone">
 
         <!-- Live Duration Display -->

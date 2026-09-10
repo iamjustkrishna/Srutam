@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -15,6 +16,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import android.view.ViewConfiguration
 import android.widget.ImageView
@@ -347,6 +349,7 @@ class FloatingButtonService : Service() {
             val padEmbedded = (11 * density).toInt()
             val padFree = (6 * density).toInt()
             val padY = (7 * density).toInt()
+            val radius = 22 * density
 
             if (isDockedLeft) {
                 collapsedBtn?.setPadding(padEmbedded, padY, padFree, padY)
@@ -354,18 +357,45 @@ class FloatingButtonService : Service() {
                     if (isRec) R.drawable.bg_floating_dock_recording_edge_left
                     else R.drawable.bg_floating_dock_edge_left
                 )
+                collapsedBtn?.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect((-radius).toInt(), 0, view.width, view.height, radius)
+                    }
+                }
             } else {
                 collapsedBtn?.setPadding(padFree, padY, padEmbedded, padY)
                 collapsedBtn?.setBackgroundResource(
                     if (isRec) R.drawable.bg_floating_dock_recording_edge_right
                     else R.drawable.bg_floating_dock_edge_right
                 )
+                collapsedBtn?.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, (view.width + radius).toInt(), view.height, radius)
+                    }
+                }
             }
+            collapsedBtn?.clipToOutline = true
+            collapsedBtn?.elevation = 0f
             collapsedLayout?.visibility = View.VISIBLE
             expandedIdleLayout?.visibility = View.GONE
             expandedRecLayout?.visibility = View.GONE
         } else {
             collapsedLayout?.visibility = View.GONE
+            val density = resources.displayMetrics.density
+            val radius = 22 * density
+            val cardOutlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, radius)
+                }
+            }
+            expandedIdleLayout?.outlineProvider = cardOutlineProvider
+            expandedIdleLayout?.clipToOutline = true
+            expandedIdleLayout?.elevation = 0f
+
+            expandedRecLayout?.outlineProvider = cardOutlineProvider
+            expandedRecLayout?.clipToOutline = true
+            expandedRecLayout?.elevation = 0f
+
             if (isRec) {
                 expandedIdleLayout?.visibility = View.GONE
                 expandedRecLayout?.visibility = View.VISIBLE
