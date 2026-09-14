@@ -68,6 +68,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.HorizontalDivider
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.ui.theme.CeramicWhite
 import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
@@ -110,7 +112,9 @@ fun BYOKOnboardingScreen(
     var selectedChoice by rememberSaveable { mutableStateOf(initialChoice) }
     var selectedProvider by rememberSaveable { mutableStateOf(AppPreferences.PROVIDER_GEMINI) }
     var apiKeyText by rememberSaveable { mutableStateOf("") }
-    var selectedModel by rememberSaveable { mutableStateOf("") }
+    var selectedModel by rememberSaveable {
+        mutableStateOf(AppPreferences.getCustomModel(context, AppPreferences.PROVIDER_GEMINI))
+    }
     var keyErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
     val isByok = selectedChoice == OnboardingAiChoice.BYOK
@@ -121,6 +125,12 @@ fun BYOKOnboardingScreen(
         AppPreferences.PROVIDER_ANTHROPIC to "Anthropic",
         AppPreferences.PROVIDER_GROQ to "Groq"
     )
+
+    fun selectProvider(provider: String) {
+        selectedProvider = provider
+        selectedModel = AppPreferences.getCustomModel(context, provider)
+        keyErrorText = null
+    }
 
     fun handleContinue() {
         if (selectedChoice == OnboardingAiChoice.SRUTAM_CLOUD) {
@@ -136,9 +146,12 @@ fun BYOKOnboardingScreen(
             keyErrorText = null
             AppPreferences.setAIProvider(context, selectedProvider)
             AppPreferences.setCustomApiKey(context, keyTrimmed)
-            if (selectedModel.isNotBlank()) {
-                AppPreferences.setCustomModel(context, selectedModel.trim())
+            val modelToSave = if (selectedModel.isNotBlank()) {
+                selectedModel.trim()
+            } else {
+                AppPreferences.getCustomModel(context, selectedProvider)
             }
+            AppPreferences.setCustomModel(context, modelToSave)
             AppPreferences.setByokOnboardingCompleted(context, true)
             Toast.makeText(context, "API Key saved successfully", Toast.LENGTH_SHORT).show()
             onComplete()
@@ -237,11 +250,7 @@ fun BYOKOnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = when {
-                        isDark -> CosmicVoidCard
-                        !isByok -> CeramicWhite
-                        else -> CeramicWhite.copy(alpha = 0.85f)
-                    }
+                    containerColor = if (isDark) CosmicVoidCard else Color.White
                 ),
                 border = BorderStroke(
                     width = if (!isByok) 1.5.dp else 1.dp,
@@ -251,7 +260,7 @@ fun BYOKOnboardingScreen(
                         else -> SlateBorder
                     }
                 ),
-                elevation = CardDefaults.cardElevation(if (!isByok) 4.dp else 1.dp)
+                elevation = CardDefaults.cardElevation(if (!isByok) 4.dp else 1.5.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -336,11 +345,7 @@ fun BYOKOnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = when {
-                        isDark -> CosmicVoidCard
-                        isByok -> CeramicWhite
-                        else -> CeramicWhite.copy(alpha = 0.85f)
-                    }
+                    containerColor = if (isDark) CosmicVoidCard else Color.White
                 ),
                 border = BorderStroke(
                     width = if (isByok) 1.5.dp else 1.dp,
@@ -350,7 +355,7 @@ fun BYOKOnboardingScreen(
                         else -> SlateBorder
                     }
                 ),
-                elevation = CardDefaults.cardElevation(if (isByok) 4.dp else 1.dp)
+                elevation = CardDefaults.cardElevation(if (isByok) 4.dp else 1.5.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -436,17 +441,14 @@ fun BYOKOnboardingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 16.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (isDark) Color(0xFF070B18) else SlateGrouped)
-                                .border(
-                                    BorderStroke(
-                                        1.dp,
-                                        if (isDark) CosmicVoidCardBorder else SlateBorder
-                                    ),
-                                    RoundedCornerShape(16.dp)
-                                )
-                                .padding(14.dp)
                         ) {
+                            HorizontalDivider(
+                                color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.7f),
+                                thickness = 1.dp
+                            )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
                             Text(
                                 text = "SELECT PROVIDER",
                                 fontSize = 11.sp,
@@ -468,12 +470,12 @@ fun BYOKOnboardingScreen(
                                             .weight(1f)
                                             .clip(RoundedCornerShape(10.dp))
                                             .clickable {
-                                                selectedProvider = code
+                                                selectProvider(code)
                                             },
                                         color = when {
                                             isSelected -> if (isDark) CosmicGlowBlue else CobaltBlue
-                                            isDark -> CosmicVoidCard
-                                            else -> CeramicWhite
+                                            isDark -> CosmicVoidBackground
+                                            else -> Color(0xFFF8FAFC)
                                         },
                                         border = BorderStroke(
                                             1.dp,
@@ -483,11 +485,10 @@ fun BYOKOnboardingScreen(
                                                 else -> SlateBorder
                                             }
                                         ),
-                                        shape = RoundedCornerShape(10.dp),
-                                        shadowElevation = if (!isDark && !isSelected) 0.5.dp else 0.dp
+                                        shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Box(
-                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            modifier = Modifier.padding(vertical = 9.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -566,8 +567,8 @@ fun BYOKOnboardingScreen(
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = if (isDark) CosmicGlowBlue else CobaltBlue,
                                     unfocusedBorderColor = if (isDark) CosmicVoidCardBorder else SlateBorder,
-                                    focusedContainerColor = if (isDark) CosmicVoidCard else CeramicWhite,
-                                    unfocusedContainerColor = if (isDark) CosmicVoidCard else CeramicWhite,
+                                    focusedContainerColor = if (isDark) CosmicVoidBackground else Color(0xFFF8FAFC),
+                                    unfocusedContainerColor = if (isDark) CosmicVoidBackground else Color(0xFFF8FAFC),
                                     focusedTextColor = if (isDark) Color.White else TextPrimary,
                                     unfocusedTextColor = if (isDark) Color.White else TextPrimary
                                 )
@@ -580,6 +581,70 @@ fun BYOKOnboardingScreen(
                                     fontSize = 12.sp,
                                     color = Color(0xFFEF4444)
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Text(
+                                text = "LATEST MODEL",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                                letterSpacing = 0.8.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val modelPresets = when (selectedProvider) {
+                                AppPreferences.PROVIDER_GEMINI -> listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash")
+                                AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini", "o3-mini")
+                                AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022")
+                                AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant")
+                                else -> listOf("gemini-2.0-flash")
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                modelPresets.forEach { preset ->
+                                    val isSelected = selectedModel == preset
+                                    Surface(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                selectedModel = preset
+                                            },
+                                        color = when {
+                                            isSelected -> if (isDark) Color(0xFF1E3A8A) else CobaltContainer
+                                            isDark -> CosmicVoidBackground
+                                            else -> Color(0xFFF8FAFC)
+                                        },
+                                        border = BorderStroke(
+                                            1.dp,
+                                            when {
+                                                isSelected -> if (isDark) CosmicGlowBlue else CobaltBlue
+                                                isDark -> CosmicVoidCardBorder
+                                                else -> SlateBorder
+                                            }
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = preset,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = when {
+                                                isSelected -> if (isDark) Color(0xFF93C5FD) else CobaltBlue
+                                                isDark -> TextOnDarkSecondary
+                                                else -> TextPrimary
+                                            },
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
