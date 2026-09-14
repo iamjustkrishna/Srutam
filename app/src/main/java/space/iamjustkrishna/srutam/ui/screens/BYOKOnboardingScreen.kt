@@ -73,12 +73,20 @@ import space.iamjustkrishna.srutam.ui.theme.CeramicWhite
 import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
 import space.iamjustkrishna.srutam.ui.theme.CobaltBorder
 import space.iamjustkrishna.srutam.ui.theme.CobaltContainer
+import space.iamjustkrishna.srutam.ui.theme.CosmicGlowBlue
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidBackground
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
+import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.SlateBorder
 import space.iamjustkrishna.srutam.ui.theme.SlateGrouped
 import space.iamjustkrishna.srutam.ui.theme.SlateSurface
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
+import space.iamjustkrishna.srutam.ui.theme.StardustGold
 import space.iamjustkrishna.srutam.ui.theme.TextMuted
+import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
+import space.iamjustkrishna.srutam.ui.theme.TextOnDarkSecondary
 import space.iamjustkrishna.srutam.ui.theme.TextPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextSecondary
 import space.iamjustkrishna.srutam.utils.AppPreferences
@@ -97,6 +105,7 @@ fun BYOKOnboardingScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
+    val isDark = LocalIsCosmicDark.current
 
     var selectedChoice by rememberSaveable { mutableStateOf(initialChoice) }
     var selectedProvider by rememberSaveable { mutableStateOf(AppPreferences.PROVIDER_GEMINI) }
@@ -139,7 +148,21 @@ fun BYOKOnboardingScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SlateSurface)
+            .then(
+                if (isDark) {
+                    Modifier.background(CosmicVoidBackground)
+                } else {
+                    Modifier.background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFFFFFFFF),
+                                Color(0xFFF8FAFC),
+                                Color(0xFFF1F5F9)
+                            )
+                        )
+                    )
+                }
+            )
     ) {
         Column(
             modifier = Modifier
@@ -149,30 +172,35 @@ fun BYOKOnboardingScreen(
                 .padding(top = 48.dp, bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Branded Jewel Header Icon
+            // Floating Branded 3D Mark with Soft Ambient Glow
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFFEFF6FF),
-                                Color(0xFFDBEAFE)
-                            )
-                        )
-                    )
-                    .border(
-                        BorderStroke(1.5.dp, Color(0xFFBFDBFE)),
-                        RoundedCornerShape(26.dp)
-                    )
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(26.dp))
+                modifier = Modifier.size(92.dp)
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = if (isDark) {
+                                    listOf(
+                                        CosmicGlowBlue.copy(alpha = 0.25f),
+                                        Color.Transparent
+                                    )
+                                } else {
+                                    listOf(
+                                        CobaltBlue.copy(alpha = 0.15f),
+                                        Color.Transparent
+                                    )
+                                }
+                            ),
+                            shape = CircleShape
+                        )
+                )
                 Image(
                     painter = painterResource(id = R.drawable.srutam_final_log),
                     contentDescription = "Srutam Mark",
-                    modifier = Modifier.size(52.dp)
+                    modifier = Modifier.size(72.dp)
                 )
             }
 
@@ -183,7 +211,7 @@ fun BYOKOnboardingScreen(
                 fontFamily = PlayfairDisplayFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp,
-                color = TextPrimary,
+                color = if (isDark) Color.White else TextPrimary,
                 textAlign = TextAlign.Center
             )
 
@@ -192,7 +220,7 @@ fun BYOKOnboardingScreen(
             Text(
                 text = "Select how Srutam summarizes your thoughts, discovers recurring themes, and extracts action items.",
                 fontSize = 14.sp,
-                color = TextSecondary,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(horizontal = 8.dp)
@@ -209,11 +237,19 @@ fun BYOKOnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (!isByok) CeramicWhite else CeramicWhite.copy(alpha = 0.7f)
+                    containerColor = when {
+                        isDark -> CosmicVoidCard
+                        !isByok -> CeramicWhite
+                        else -> CeramicWhite.copy(alpha = 0.85f)
+                    }
                 ),
                 border = BorderStroke(
-                    width = if (!isByok) 2.dp else 1.dp,
-                    color = if (!isByok) CobaltBlue else SlateBorder
+                    width = if (!isByok) 1.5.dp else 1.dp,
+                    color = when {
+                        !isByok -> if (isDark) CosmicGlowBlue else CobaltBlue
+                        isDark -> CosmicVoidCardBorder
+                        else -> SlateBorder
+                    }
                 ),
                 elevation = CardDefaults.cardElevation(if (!isByok) 4.dp else 1.dp)
             ) {
@@ -229,12 +265,14 @@ fun BYOKOnboardingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFEFF6FF))
+                            .background(
+                                if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.35f) else Color(0xFFEFF6FF)
+                            )
                     ) {
                         Icon(
                             imageVector = Icons.Default.CloudQueue,
                             contentDescription = null,
-                            tint = CobaltBlue,
+                            tint = if (isDark) CosmicGlowBlue else CobaltBlue,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -248,17 +286,17 @@ fun BYOKOnboardingScreen(
                                 text = "Srutam Cloud",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) Color.White else TextPrimary
                             )
                             Surface(
-                                color = Color(0xFFECFDF5),
+                                color = if (isDark) Color(0xFF064E3B).copy(alpha = 0.6f) else Color(0xFFECFDF5),
                                 shape = CircleShape
                             ) {
                                 Text(
                                     text = "Free",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF059669),
+                                    color = if (isDark) Color(0xFF34D399) else Color(0xFF059669),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -269,7 +307,7 @@ fun BYOKOnboardingScreen(
                         Text(
                             text = "Out-of-the-box transcription and AI summaries. Zero setup needed.",
                             fontSize = 13.sp,
-                            color = TextSecondary,
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
                             lineHeight = 18.sp
                         )
                     }
@@ -280,7 +318,10 @@ fun BYOKOnboardingScreen(
                             selectedChoice = OnboardingAiChoice.SRUTAM_CLOUD
                             keyErrorText = null
                         },
-                        colors = RadioButtonDefaults.colors(selectedColor = CobaltBlue)
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = if (isDark) CosmicGlowBlue else CobaltBlue,
+                            unselectedColor = if (isDark) CosmicVoidCardBorder else SlateBorder
+                        )
                     )
                 }
             }
@@ -295,11 +336,19 @@ fun BYOKOnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isByok) CeramicWhite else CeramicWhite.copy(alpha = 0.7f)
+                    containerColor = when {
+                        isDark -> CosmicVoidCard
+                        isByok -> CeramicWhite
+                        else -> CeramicWhite.copy(alpha = 0.85f)
+                    }
                 ),
                 border = BorderStroke(
-                    width = if (isByok) 2.dp else 1.dp,
-                    color = if (isByok) CobaltBlue else SlateBorder
+                    width = if (isByok) 1.5.dp else 1.dp,
+                    color = when {
+                        isByok -> if (isDark) CosmicGlowBlue else CobaltBlue
+                        isDark -> CosmicVoidCardBorder
+                        else -> SlateBorder
+                    }
                 ),
                 elevation = CardDefaults.cardElevation(if (isByok) 4.dp else 1.dp)
             ) {
@@ -318,12 +367,14 @@ fun BYOKOnboardingScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFFEF3C7))
+                                .background(
+                                    if (isDark) Color(0xFF78350F).copy(alpha = 0.35f) else Color(0xFFFEF3C7)
+                                )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Key,
                                 contentDescription = null,
-                                tint = Color(0xFFD97706),
+                                tint = if (isDark) StardustGold else Color(0xFFD97706),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -337,17 +388,17 @@ fun BYOKOnboardingScreen(
                                     text = "Bring Your Own Key",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = if (isDark) Color.White else TextPrimary
                                 )
                                 Surface(
-                                    color = Color(0xFFEFF6FF),
+                                    color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFEFF6FF),
                                     shape = CircleShape
                                 ) {
                                     Text(
                                         text = "BYOK",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = CobaltBlue,
+                                        color = if (isDark) Color(0xFF93C5FD) else CobaltBlue,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                     )
                                 }
@@ -358,7 +409,7 @@ fun BYOKOnboardingScreen(
                             Text(
                                 text = "Connect your Gemini, OpenAI, Claude, or Groq key for unlimited requests and model control.",
                                 fontSize = 13.sp,
-                                color = TextSecondary,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 lineHeight = 18.sp
                             )
                         }
@@ -368,7 +419,10 @@ fun BYOKOnboardingScreen(
                             onClick = {
                                 selectedChoice = OnboardingAiChoice.BYOK
                             },
-                            colors = RadioButtonDefaults.colors(selectedColor = CobaltBlue)
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = if (isDark) CosmicGlowBlue else CobaltBlue,
+                                unselectedColor = if (isDark) CosmicVoidCardBorder else SlateBorder
+                            )
                         )
                     }
 
@@ -382,16 +436,26 @@ fun BYOKOnboardingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 16.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isDark) Color(0xFF070B18) else SlateGrouped)
+                                .border(
+                                    BorderStroke(
+                                        1.dp,
+                                        if (isDark) CosmicVoidCardBorder else SlateBorder
+                                    ),
+                                    RoundedCornerShape(16.dp)
+                                )
+                                .padding(14.dp)
                         ) {
                             Text(
                                 text = "SELECT PROVIDER",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextSecondary,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 letterSpacing = 0.8.sp
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -406,12 +470,21 @@ fun BYOKOnboardingScreen(
                                             .clickable {
                                                 selectedProvider = code
                                             },
-                                        color = if (isSelected) CobaltBlue else SlateGrouped,
+                                        color = when {
+                                            isSelected -> if (isDark) CosmicGlowBlue else CobaltBlue
+                                            isDark -> CosmicVoidCard
+                                            else -> CeramicWhite
+                                        },
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isSelected) CobaltBlue else SlateBorder
+                                            when {
+                                                isSelected -> if (isDark) CosmicGlowBlue else CobaltBlue
+                                                isDark -> CosmicVoidCardBorder
+                                                else -> SlateBorder
+                                            }
                                         ),
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(10.dp),
+                                        shadowElevation = if (!isDark && !isSelected) 0.5.dp else 0.dp
                                     ) {
                                         Box(
                                             modifier = Modifier.padding(vertical = 8.dp),
@@ -421,24 +494,24 @@ fun BYOKOnboardingScreen(
                                                 text = label,
                                                 fontSize = 12.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) Color.White else TextPrimary
+                                                color = if (isSelected) Color.White else if (isDark) TextOnDarkPrimary else TextPrimary
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
                                 text = "API KEY",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextSecondary,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 letterSpacing = 0.8.sp
                             )
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
                                 value = apiKeyText,
@@ -450,21 +523,21 @@ fun BYOKOnboardingScreen(
                                     Text(
                                         text = "Paste your $selectedProvider API key",
                                         fontSize = 13.sp,
-                                        color = TextMuted
+                                        color = if (isDark) TextOnDarkSecondary.copy(alpha = 0.7f) else TextMuted
                                     )
                                 },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = null,
-                                        tint = TextMuted,
+                                        tint = if (isDark) TextOnDarkSecondary else TextMuted,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 },
                                 trailingIcon = {
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = CobaltContainer,
+                                        color = if (isDark) Color(0xFF1E3A8A) else CobaltContainer,
                                         modifier = Modifier
                                             .padding(end = 6.dp)
                                             .clip(RoundedCornerShape(8.dp))
@@ -480,7 +553,7 @@ fun BYOKOnboardingScreen(
                                             text = "PASTE",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = CobaltBlue,
+                                            color = if (isDark) Color(0xFF93C5FD) else CobaltBlue,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                                         )
                                     }
@@ -491,10 +564,12 @@ fun BYOKOnboardingScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = CobaltBlue,
-                                    unfocusedBorderColor = SlateBorder,
-                                    focusedContainerColor = CeramicWhite,
-                                    unfocusedContainerColor = CeramicWhite
+                                    focusedBorderColor = if (isDark) CosmicGlowBlue else CobaltBlue,
+                                    unfocusedBorderColor = if (isDark) CosmicVoidCardBorder else SlateBorder,
+                                    focusedContainerColor = if (isDark) CosmicVoidCard else CeramicWhite,
+                                    unfocusedContainerColor = if (isDark) CosmicVoidCard else CeramicWhite,
+                                    focusedTextColor = if (isDark) Color.White else TextPrimary,
+                                    unfocusedTextColor = if (isDark) Color.White else TextPrimary
                                 )
                             )
 
@@ -521,7 +596,7 @@ fun BYOKOnboardingScreen(
                     .height(54.dp),
                 shape = RoundedCornerShape(27.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CobaltBlue
+                    containerColor = if (isDark) CosmicGlowBlue else CobaltBlue
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp)
             ) {
@@ -551,7 +626,7 @@ fun BYOKOnboardingScreen(
                 text = "Skip for now",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextSecondary,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable {
