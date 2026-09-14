@@ -5,28 +5,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-private val AppleStudioDarkColorScheme = darkColorScheme(
-    primary = CobaltBlue,
+enum class ThemeMode {
+    LIGHT,
+    COSMIC_DARK,
+    SYSTEM
+}
+
+val LocalThemeMode = compositionLocalOf { ThemeMode.SYSTEM }
+val LocalIsCosmicDark = compositionLocalOf { false }
+
+private val CosmicVoidColorScheme = darkColorScheme(
+    primary = CosmicGlowBlue,
     onPrimary = Color.White,
-    primaryContainer = CobaltBlueDark,
-    onPrimaryContainer = Color.White,
+    primaryContainer = Color(0xFF1E3A8A),
+    onPrimaryContainer = Color(0xFFDBEAFE),
     secondary = StudioCrimson,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFF451214),
     onSecondaryContainer = Color(0xFFFCA5A5),
-    tertiary = EmeraldSuccess,
+    tertiary = Color(0xFF8B5CF6),
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFF064E3B),
-    onTertiaryContainer = Color(0xFFA7F3D0),
-    background = DarkSurfaceBase,
-    onBackground = TextOnDarkPrimary,
-    surface = DarkSurfaceCard,
-    onSurface = TextOnDarkPrimary,
-    surfaceVariant = DarkSurfaceBorder,
-    onSurfaceVariant = TextOnDarkSecondary,
-    outline = DarkSurfaceBorder,
+    tertiaryContainer = Color(0xFF2E1065),
+    onTertiaryContainer = Color(0xFFDDD6FE),
+    background = CosmicVoidBackground,
+    onBackground = Color(0xFFF8FAFC),
+    surface = CosmicVoidCard,
+    onSurface = Color(0xFFF8FAFC),
+    surfaceVariant = CosmicVoidCardBorder,
+    onSurfaceVariant = Color(0xFF94A3B8),
+    outline = CosmicVoidCardBorder,
     error = StudioCrimson,
     onError = Color.White,
     errorContainer = Color(0xFF451214),
@@ -61,19 +72,29 @@ private val AppleStudioLightColorScheme = lightColorScheme(
 
 @Composable
 fun SrutamTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    darkTheme: Boolean = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.COSMIC_DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    },
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) {
-        AppleStudioDarkColorScheme
+        CosmicVoidColorScheme
     } else {
         AppleStudioLightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalThemeMode provides themeMode,
+        LocalIsCosmicDark provides darkTheme
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

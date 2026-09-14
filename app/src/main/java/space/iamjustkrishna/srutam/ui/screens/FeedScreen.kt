@@ -102,6 +102,7 @@ import space.iamjustkrishna.srutam.utils.NetworkUtils
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import kotlin.math.roundToInt
@@ -461,8 +462,10 @@ fun FeedScreenContent(
         }
     }
 
+    val isDark = LocalIsCosmicDark.current
+
     Scaffold(
-        containerColor = Color(0xFFF4F5F8),
+        containerColor = if (isDark) CosmicVoidBackground else Color(0xFFF4F5F8),
         topBar = {
             if (isSelectionMode) {
                 TopAppBar(
@@ -470,16 +473,17 @@ fun FeedScreenContent(
                         Text(
                             "${selectedFilePaths.size} selected",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary
                         )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
-                        titleContentColor = TextPrimary
+                        containerColor = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
+                        titleContentColor = if (isDark) TextOnDarkPrimary else TextPrimary
                     ),
                     modifier = Modifier.drawBehind {
                         drawLine(
-                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                            color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.6f) else Color(0xFFD6E0EC).copy(alpha = 0.6f),
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1.dp.toPx()
@@ -550,12 +554,12 @@ fun FeedScreenContent(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
-                        titleContentColor = Color(0xFF1C1C1E)
+                        containerColor = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
+                        titleContentColor = if (isDark) TextOnDarkPrimary else Color(0xFF1C1C1E)
                     ),
                     modifier = Modifier.drawBehind {
                         drawLine(
-                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                            color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.6f) else Color(0xFFD6E0EC).copy(alpha = 0.6f),
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1.dp.toPx()
@@ -582,29 +586,40 @@ fun FeedScreenContent(
         },
         modifier = modifier
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-            val pendingAiCount = remember(audioFiles, recordingsByPath) {
-                audioFiles.count { audioFile ->
-                    val rec = recordingsByPath[audioFile.filePath]
-                    rec?.summary.isNullOrBlank()
-                }
-            }
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            CosmicBackground()
 
-            // Compact Modern Segmented Filter Capsule (32dp height)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp)
-                    .height(32.dp)
-                    .background(
-                        color = Color(0xFFEAEFF5),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .border(1.dp, Color(0xFFDCE4EE), RoundedCornerShape(16.dp))
-                    .padding(2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                val pendingAiCount = remember(audioFiles, recordingsByPath) {
+                    audioFiles.count { audioFile ->
+                        val rec = recordingsByPath[audioFile.filePath]
+                        rec?.summary.isNullOrBlank()
+                    }
+                }
+
+                // Compact Modern Segmented Filter Capsule (32dp height)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .height(32.dp)
+                        .background(
+                            color = if (isDark) Color(0xFF0C1225) else Color(0xFFEAEFF5),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (isDark) CosmicVoidCardBorder else Color(0xFFDCE4EE),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 FilterSegmentItem(
                     title = "All Notes",
                     count = audioFiles.size,
@@ -747,6 +762,7 @@ fun FeedScreenContent(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -1213,19 +1229,24 @@ fun AudioFileCard(
     }
     val isPlaybackActive = isPlaying && playerState.currentFilePath == audioFile.filePath
 
+    val isDark = LocalIsCosmicDark.current
     Card(
         shape = RoundedCornerShape(26.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isProcessing) Color(0xFFF4F8FF) else Color.White,
-            contentColor = Color(0xFF0F172A)
+            containerColor = if (isDark) {
+                if (isProcessing) Color(0xFF131D38) else CosmicVoidCard
+            } else {
+                if (isProcessing) Color(0xFFF4F8FF) else Color.White
+            },
+            contentColor = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
         ),
         border = if (isSelected) {
-            BorderStroke(2.dp, Color(0xFF0066FF))
+            BorderStroke(2.dp, if (isDark) CosmicGlowBlue else Color(0xFF0066FF))
         } else if (isProcessing) {
-            BorderStroke(1.dp, Color(0xFF0066FF).copy(alpha = 0.4f))
+            BorderStroke(1.dp, if (isDark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFF0066FF).copy(alpha = 0.4f))
         } else {
-            BorderStroke(1.dp, Color(0xFFE8EAEF))
+            BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFE8EAEF))
         },
         modifier = modifier
             .fillMaxWidth()
@@ -1263,12 +1284,21 @@ fun AudioFileCard(
                     label = "shimmer_offset"
                 )
                 val shimmerBrush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFF4F8FF),
-                        Color(0xFF0066FF).copy(alpha = 0.12f),
-                        Color(0xFF64D2FF).copy(alpha = 0.22f),
-                        Color(0xFFF4F8FF)
-                    ),
+                    colors = if (isDark) {
+                        listOf(
+                            Color(0xFF0C1225),
+                            Color(0xFF1E3A8A).copy(alpha = 0.35f),
+                            Color(0xFF3B82F6).copy(alpha = 0.25f),
+                            Color(0xFF0C1225)
+                        )
+                    } else {
+                        listOf(
+                            Color(0xFFF4F8FF),
+                            Color(0xFF0066FF).copy(alpha = 0.12f),
+                            Color(0xFF64D2FF).copy(alpha = 0.22f),
+                            Color(0xFFF4F8FF)
+                        )
+                    },
                     start = Offset(shimmerOffset, 0f),
                     end = Offset(shimmerOffset + 400f, 200f)
                 )
@@ -1295,7 +1325,7 @@ fun AudioFileCard(
                         text = displayName,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
+                        color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -1307,8 +1337,11 @@ fun AudioFileCard(
                         isProcessing -> {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFEBF3FF),
-                                border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.2f))
+                                color = if (isDark) Color(0xFF1E293B) else Color(0xFFEBF3FF),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isDark) CosmicGlowBlue.copy(alpha = 0.4f) else Color(0xFF2563EB).copy(alpha = 0.2f)
+                                )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1318,13 +1351,13 @@ fun AudioFileCard(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(11.dp),
                                         strokeWidth = 1.8.dp,
-                                        color = Color(0xFF2563EB)
+                                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
                                     )
                                     Text(
                                         text = "Analyzing...",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF2563EB)
+                                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
                                     )
                                 }
                             }
@@ -1463,7 +1496,7 @@ fun AudioFileCard(
                     text = formatHumanRelativeDate(audioFile.timestamp),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF64748B)
+                    color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
                 )
 
                 // Row 2.5: Summary Preview (Only shown AFTER AI processed, in smaller font size; NO placeholder text!)
@@ -1472,7 +1505,7 @@ fun AudioFileCard(
                         text = "Transcribing audio and extracting insights...",
                         fontSize = 12.sp,
                         lineHeight = 16.sp,
-                        color = Color(0xFF2563EB),
+                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB),
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1483,7 +1516,7 @@ fun AudioFileCard(
                         text = recording!!.summary!!.trim(),
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        color = Color(0xFF475569),
+                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569),
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1556,7 +1589,7 @@ fun AudioFileCard(
                         },
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0F172A)
+                        color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
                     )
 
                     // MoreVert button with custom redesigned dropdown menu in the last row

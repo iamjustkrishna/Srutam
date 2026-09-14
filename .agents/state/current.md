@@ -133,9 +133,18 @@
   - Updated `MainActivity.kt` with `AppStage.BYOK_SETUP` lifecycle routing smoothly following permissions check and preceding main feed.
   - Added `isByokOnboardingCompleted()` and `setByokOnboardingCompleted()` to `AppPreferences.kt`.
   - Added Robolectric unit tests in `AppPreferencesTest.kt` and Roborazzi visual screen matrix snapshots (`02b_byok_onboarding.png` and `02c_byok_expanded.png`). Verified with `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`.
+- [x] **Track 3: Cosmic Void Space Dark Mode & Appearance Control (`srutam-2.1/cosmic-dark`)**:
+  - Cosmic Void color tokens in `Color.kt` (`CosmicVoidBackground = #050714`, `CosmicVoidCard = #0C1225`, `CosmicVoidCardBorder = #1A1F3A`, `CosmicGlowBlue`, `CosmicGlowPurple`, `StardustGold`, `StardustWhite`).
+  - Created `CosmicBackground.kt` with 48 deterministic static stardust coordinates and radial void gradient (zero CPU and battery loops).
+  - Updated `Theme.kt`: Added `ThemeMode` enum (`LIGHT`, `COSMIC_DARK`, `SYSTEM`), `LocalThemeMode`, `LocalIsCosmicDark`, and `CosmicVoidColorScheme`.
+  - Added persistent `KEY_THEME_MODE` with `themeModeFlow` in `AppPreferences.kt` (`getThemeMode(context)`, `setThemeMode(context, mode)`).
+  - Updated `MainActivity.kt`: Observes `AppPreferences.themeModeFlow` and passes active `ThemeMode` to `SrutamTheme`.
+  - Updated `SettingsScreen.kt`: Added "APPEARANCE" section at the top with a 3-way segmented control (`Light` | `Cosmic Dark` | `System`), adapted all text colors, cards, and dividers to `LocalIsCosmicDark.current`.
+  - Updated `SrutamTopAppBar.kt` and `StudioBottomBar.kt`: Adapted top app bar, squircle action buttons, bottom morphing capsule, tabs, active recording controls, and slide-to-lock indicator to `LocalIsCosmicDark.current`.
+  - Updated `FeedScreen.kt`: Adapted scaffold, top app bars, filter segmented capsule, `AudioFileCard` card container, processing shimmer gradient, analyzing pills, and duration text to `LocalIsCosmicDark.current`.
+  - Added Robolectric unit tests in `AppPreferencesTest.kt` verifying default state and updates. Captured Roborazzi visual screen matrix snapshots (`04b_feed_cosmic_dark.png` and `08b_settings_cosmic_dark.png`).
+  - Verified compilation via `./gradlew assembleDebug` and tests via `./gradlew testDebugUnitTest`.
 
 ## Planned Next Direction
-- [ ] **Track 3: Cosmic Void Dark Mode & Appearance Control (`srutam-2.1/cosmic-dark`)**: Deep void `#050714` color palette, static stardust canvas, 3-way theme switcher (Light | Cosmic Dark | System) in Settings.
-
-
-
+- [ ] **Track 4: Adaptive Tablet Navigation Rail & 3-Panel Workspace (`srutam-2.1/tab-layout`)**: Adaptive window width threshold (`<600dp` phone bottom dock vs `>=600dp` side navigation rail + 2-pane / 3-pane split view) inspired by `tab_reference_design/`.
+- [ ] **Track 5: Actionable AI Reminders & Calendar Hub (`srutam-2.1/reminders`)**: Room entity `ReminderEntity`, extraction in `AIProcessor.kt`, `AlarmManager` alerts, and 'Upcoming' reminders hub.
