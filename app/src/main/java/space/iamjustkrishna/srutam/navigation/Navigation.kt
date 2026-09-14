@@ -38,6 +38,8 @@ import space.iamjustkrishna.srutam.ui.screens.GlobalCopilotScreen
 import space.iamjustkrishna.srutam.ui.screens.SaveRecordingDialog
 import space.iamjustkrishna.srutam.ui.screens.SettingsScreen
 import androidx.activity.compose.BackHandler
+import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.utils.AudioFileReader
 import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
@@ -235,7 +237,7 @@ private fun RootScreen(
                     }
                 },
                 onFinishRecording = {
-                    sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING)
+                    sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
                     val newest = AudioFileReader.getRecordingsDirectory()
                         .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
                         ?.maxByOrNull { f -> f.lastModified() }
@@ -257,14 +259,28 @@ private fun RootScreen(
                     val dir = AudioFileReader.getRecordingsDirectory()
                     val newest = dir.listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
                         ?.maxByOrNull { f -> f.lastModified() }
+                    var savedFile = newest
                     if (newest != null && newest.exists() && chosenName.isNotBlank() && chosenName != newest.nameWithoutExtension) {
                         val targetFile = File(dir, "$chosenName.m4a")
                         if (!targetFile.exists()) {
-                            newest.renameTo(targetFile)
+                            if (newest.renameTo(targetFile)) {
+                                savedFile = targetFile
+                            }
                         }
                     }
                     android.widget.Toast.makeText(context, "Voice note saved", android.widget.Toast.LENGTH_SHORT).show()
                     viewModel.loadAudioFiles()
+
+                    if (savedFile != null && savedFile.exists() && AppPreferences.isAutoAiEnabled(context)) {
+                        val audioFileInfo = AudioFileInfo(
+                            filePath = savedFile.absolutePath,
+                            fileName = savedFile.name,
+                            duration = 0L,
+                            timestamp = savedFile.lastModified(),
+                            sizeBytes = savedFile.length()
+                        )
+                        viewModel.processRecordingForAI(audioFileInfo)
+                    }
                 },
                 onDiscard = {
                     showSaveDialog = false
@@ -282,9 +298,10 @@ private fun RootScreen(
     }
 }
 
-private fun sendRecordingAction(context: Context, action: String) {
+private fun sendRecordingAction(context: Context, action: String, deferAutoAi: Boolean = false) {
     val intent = Intent(context, RecordingForegroundService::class.java).apply {
         this.action = action
+        putExtra(RecordingForegroundService.EXTRA_DEFER_AUTO_AI, deferAutoAi)
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(intent)

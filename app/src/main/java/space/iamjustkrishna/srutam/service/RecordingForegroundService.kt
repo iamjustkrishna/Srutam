@@ -19,8 +19,14 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
+import space.iamjustkrishna.srutam.SrutamApplication
+import space.iamjustkrishna.srutam.data.Recording
+import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileReader
 import space.iamjustkrishna.srutam.utils.AudioStorage
+import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -92,7 +98,10 @@ class RecordingForegroundService : Service() {
             ACTION_START_RECORDING -> startRecording()
             ACTION_PAUSE_RECORDING -> pauseRecording()
             ACTION_RESUME_RECORDING -> resumeRecording()
-            ACTION_STOP_RECORDING -> stopRecording()
+            ACTION_STOP_RECORDING -> {
+                val deferAutoAi = intent?.getBooleanExtra(EXTRA_DEFER_AUTO_AI, false) ?: false
+                stopRecording(deleteAfterStop = false, deferAutoAi = deferAutoAi)
+            }
             ACTION_DELETE_RECORDING -> stopRecording(deleteAfterStop = true)
             else -> {
                 Log.w(TAG, "Unknown action: ${intent?.action}")
@@ -224,7 +233,7 @@ class RecordingForegroundService : Service() {
         }
     }
 
-    private fun stopRecording(deleteAfterStop: Boolean = false) {
+    private fun stopRecording(deleteAfterStop: Boolean = false, deferAutoAi: Boolean = false) {
         if (!isRecording) {
             Log.w(TAG, "Not recording")
             stopSelf()
@@ -260,6 +269,9 @@ class RecordingForegroundService : Service() {
                 } else {
                     Log.d(TAG, "Recording stopped: ${file.absolutePath}, duration: $duration ms")
                     saveRecordingToDatabase(file, duration)
+                    if (!deferAutoAi && AppPreferences.isAutoAiEnabled(applicationContext)) {
+                        triggerAutoAiForFile(file, duration)
+                    }
                 }
             }
 
@@ -277,6 +289,42 @@ class RecordingForegroundService : Service() {
 
     private fun saveRecordingToDatabase(file: File, duration: Long) {
         Log.d(TAG, "Recording saved to file: ${file.absolutePath}")
+    }
+
+    private fun triggerAutoAiForFile(file: File, duration: Long) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val database = SrutamApplication.getInstance().database
+                val repository = RecordingRepository(applicationContext, database.recordingDao())
+                var recording = repository.getRecordingByPath(file.absolutePath)
+                if (recording == null) {
+                    val newRecording = Recording(
+                        audioFilePath = file.absolutePath,
+                        duration = duration,
+                        name = RecordingNameFormatter.displayName(
+                            fileName = file.name,
+                            timestamp = file.lastModified()
+                        ),
+                        isProcessing = true,
+                        aiStatus = RecordingAiStatus.TRANSCRIBING
+                    )
+                    val id = repository.insertRecording(newRecording)
+                    recording = newRecording.copy(id = id)
+                } else {
+                    repository.updateRecording(
+                        recording.copy(
+                            isProcessing = true,
+                            aiStatus = RecordingAiStatus.TRANSCRIBING,
+                            processingError = null
+                        )
+                    )
+                }
+                AiProcessingWorker.enqueueProcessing(applicationContext, listOf(recording.id))
+                Log.d(TAG, "Auto-AI enqueued for recording ID: ${recording.id}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error triggering auto-AI in RecordingForegroundService", e)
+            }
+        }
     }
 
     private fun createAudioFile(): File {
@@ -469,6 +517,7 @@ class RecordingForegroundService : Service() {
         const val ACTION_RESUME_RECORDING = "space.iamjustkrishna.srutam.RESUME_RECORDING"
         const val ACTION_STOP_RECORDING = "space.iamjustkrishna.srutam.STOP_RECORDING"
         const val ACTION_DELETE_RECORDING = "space.iamjustkrishna.srutam.DELETE_RECORDING"
+        const val EXTRA_DEFER_AUTO_AI = "space.iamjustkrishna.srutam.DEFER_AUTO_AI"
 
         @Volatile
         var isRecording = false

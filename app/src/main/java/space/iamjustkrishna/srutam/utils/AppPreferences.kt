@@ -14,6 +14,7 @@ object AppPreferences {
     private const val KEY_FLOATING_DOCK = "floating_screen_dock"
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
+    private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
 
     // AI Providers
     const val PROVIDER_SRUTAM_DEFAULT = "SRUTAM_DEFAULT"
@@ -78,6 +79,18 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_AI_PROVIDER, provider)
+            .apply()
+    }
+
+    fun isAutoAiEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_AUTO_AI_ENABLED, false)
+    }
+
+    fun setAutoAiEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
             .apply()
     }
 

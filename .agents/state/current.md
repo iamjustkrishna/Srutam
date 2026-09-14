@@ -121,7 +121,14 @@
   - Graceful fallback: legacy recordings without Room insight records cleanly display `recording.actionItems` and `recording.keyPoints`.
   - Added Roborazzi matrix test `capture_05_detail_insights` and verified on JVM across all 5 screen profiles.
   - Built debug APK and installed directly to connected physical device `AAAEPVORMFIR4PWS`.
+- [x] **Track 1: Auto-AI Processing Pipeline (`srutam-2.1/auto-ai`)**:
+  - Added `KEY_AUTO_AI_ENABLED` to `AppPreferences.kt` with persistent getter and setter (default: `false`).
+  - Added "Auto AI Processing" toggle card in `SettingsScreen.kt` under AI Intelligence & Provider section using `SrutamSwitch` and `Icons.Default.AutoAwesome`.
+  - Integrated deferred auto-AI intent flag (`EXTRA_DEFER_AUTO_AI`) in `RecordingForegroundService.kt` to avoid race conditions with user renaming in save dialog.
+  - Added auto-triggering on note save in `Navigation.kt` (`onSave`) and on background service recording stop (`FloatingButtonService`, `QuickRecordingTileService`, notification actions) via `AiProcessingWorker.enqueueProcessing()`.
+  - Added Robolectric unit tests in `AppPreferencesTest.kt` verifying default state and toggle behavior. Verified with `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`.
 
 ## Planned Next Direction
-- [ ] **Track C / Cloud and MCP Sync**: Sync `InsightEntity` records with Srutam Cloud / MCP server.
+- [ ] **Track 2: First-Run BYOK Onboarding Flow (`srutam-2.1/byok`)**: Add dedicated `BYOKOnboardingScreen` after permissions grant with Srutam Cloud vs BYOK options, provider selector, paste button, and model selection.
+
 
