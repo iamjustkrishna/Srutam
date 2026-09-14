@@ -54,23 +54,42 @@ object AppPreferences {
     const val PROVIDER_GROQ = "GROQ"
 
     fun getCustomModel(context: Context, provider: String = getAIProvider(context)): String {
-        val saved = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_CUSTOM_MODEL, "")
-            .orEmpty()
-        if (saved.isNotBlank()) return saved
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val providerModel = prefs.getString("${KEY_CUSTOM_MODEL}_$provider", "")
+        if (!providerModel.isNullOrBlank()) return providerModel
+
+        val legacySaved = prefs.getString(KEY_CUSTOM_MODEL, "").orEmpty()
+        if (legacySaved.isNotBlank() && isModelValidForProvider(legacySaved, provider)) {
+            return legacySaved
+        }
+        return getDefaultModelForProvider(provider)
+    }
+
+    fun getDefaultModelForProvider(provider: String): String {
         return when (provider) {
-            PROVIDER_OPENAI -> "gpt-4o"
-            PROVIDER_ANTHROPIC -> "claude-3-7-sonnet-20250219"
-            PROVIDER_GEMINI -> "gemini-2.0-flash"
-            PROVIDER_GROQ -> "llama-3.3-70b-versatile"
-            else -> "gemini-2.0-flash"
+            PROVIDER_OPENAI -> "gpt-5.6-sol"
+            PROVIDER_ANTHROPIC -> "claude-sonnet-4.6"
+            PROVIDER_GEMINI -> "gemini-3.8-flash"
+            PROVIDER_GROQ -> "qwen3.6-27b"
+            else -> "gemini-3.8-flash"
         }
     }
 
-    fun setCustomModel(context: Context, model: String) {
+    private fun isModelValidForProvider(model: String, provider: String): Boolean {
+        return when (provider) {
+            PROVIDER_OPENAI -> model.startsWith("gpt-") || model.startsWith("o")
+            PROVIDER_ANTHROPIC -> model.startsWith("claude-")
+            PROVIDER_GEMINI -> model.startsWith("gemini-")
+            PROVIDER_GROQ -> model.startsWith("qwen") || model.startsWith("minimax") || model.startsWith("whisper") || model.startsWith("llama") || model.startsWith("deepseek")
+            else -> false
+        }
+    }
+
+    fun setCustomModel(context: Context, model: String, provider: String = getAIProvider(context)) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_CUSTOM_MODEL, model.trim())
+            .putString("${KEY_CUSTOM_MODEL}_$provider", model.trim())
             .apply()
     }
 

@@ -53,8 +53,10 @@ class AIProcessor(private val context: Context) {
         val apiKey = AppPreferences.getGeminiApiKey(context)
             .takeIf { it.isNotBlank() }
             ?: space.iamjustkrishna.srutam.BuildConfig.GEMINI_API_KEY.trim()
+        val customModel = AppPreferences.getCustomModel(context, AppPreferences.PROVIDER_GEMINI)
+        val effectiveModel = if (customModel.isNotBlank()) customModel else modelName
         return GenerativeModel(
-            modelName = modelName,
+            modelName = effectiveModel,
             apiKey = apiKey,
             requestOptions = RequestOptions(timeout = timeoutMs)
         )
@@ -104,7 +106,7 @@ class AIProcessor(private val context: Context) {
             val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis)
             val response = withTimeout(INSIGHTS_TIMEOUT_MS) {
                 createModel(
-                    modelName = "gemini-2.5-flash-lite",
+                    modelName = "gemini-3.8-flash",
                     timeoutMs = INSIGHTS_TIMEOUT_MS
                 ).generateContent(prompt)
             }
@@ -139,7 +141,7 @@ class AIProcessor(private val context: Context) {
 
             val response = withTimeout(CHUNK_SUMMARY_TIMEOUT_MS) {
                 createModel(
-                    modelName = "gemini-2.5-flash-lite",
+                    modelName = "gemini-3.8-flash",
                     timeoutMs = CHUNK_SUMMARY_TIMEOUT_MS
                 ).generateContent(prompt)
             }
@@ -398,7 +400,7 @@ class AIProcessor(private val context: Context) {
     suspend fun queryRecording(transcript: String, question: String): String = withContext(Dispatchers.IO) {
         try {
             val generativeModel = createModel(
-                modelName = "gemini-2.5-flash",
+                modelName = "gemini-3.8-flash",
                 timeoutMs = QUERY_TIMEOUT_MS
             )
 
@@ -426,7 +428,7 @@ class AIProcessor(private val context: Context) {
     suspend fun queryAllRecordings(contextSnippets: List<String>, question: String): String = withContext(Dispatchers.IO) {
         try {
             val generativeModel = createModel(
-                modelName = "gemini-2.5-flash",
+                modelName = "gemini-3.8-flash",
                 timeoutMs = QUERY_TIMEOUT_MS
             )
 

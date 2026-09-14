@@ -17,6 +17,7 @@ import android.os.Build
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -147,7 +148,7 @@ fun FeedScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(isOnline) {
-        if (isOnline) {
+        if (isOnline && AppPreferences.isAutoAiEnabled(context)) {
             viewModel.processPendingOfflineRecordings()
         }
     }
@@ -348,7 +349,7 @@ fun FeedScreen(
             }
         },
         onProcessPendingOffline = {
-            viewModel.processPendingOfflineRecordings { count ->
+            viewModel.processPendingOfflineRecordings(force = true) { count ->
                 if (count > 0) {
                     Toast.makeText(
                         context,

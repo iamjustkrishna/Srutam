@@ -485,6 +485,9 @@ fun SettingsScreen(
                                 if (selectedProvider == AppPreferences.PROVIDER_SRUTAM_DEFAULT) {
                                     selectedProvider = AppPreferences.PROVIDER_OPENAI
                                     AppPreferences.setAIProvider(context, AppPreferences.PROVIDER_OPENAI)
+                                    val newModel = AppPreferences.getCustomModel(context, AppPreferences.PROVIDER_OPENAI)
+                                    customModel = newModel
+                                    AppPreferences.setCustomModel(context, newModel, AppPreferences.PROVIDER_OPENAI)
                                 }
                             }
                             .padding(vertical = 8.dp),
@@ -497,6 +500,9 @@ fun SettingsScreen(
                                 if (selectedProvider == AppPreferences.PROVIDER_SRUTAM_DEFAULT) {
                                     selectedProvider = AppPreferences.PROVIDER_OPENAI
                                     AppPreferences.setAIProvider(context, AppPreferences.PROVIDER_OPENAI)
+                                    val newModel = AppPreferences.getCustomModel(context, AppPreferences.PROVIDER_OPENAI)
+                                    customModel = newModel
+                                    AppPreferences.setCustomModel(context, newModel, AppPreferences.PROVIDER_OPENAI)
                                 }
                             },
                             colors = RadioButtonDefaults.colors(
@@ -542,6 +548,9 @@ fun SettingsScreen(
                                         .clickable {
                                             selectedProvider = code
                                             AppPreferences.setAIProvider(context, code)
+                                            val newModel = AppPreferences.getCustomModel(context, code)
+                                            customModel = newModel
+                                            AppPreferences.setCustomModel(context, newModel, code)
                                         },
                                     color = if (isSelected) CobaltBlue else SlateGrouped,
                                     border = BorderStroke(1.dp, if (isSelected) CobaltBlue else SlateBorder),
@@ -617,11 +626,30 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         val modelPresets = when (selectedProvider) {
-                            AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini", "o3-mini")
-                            AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022")
-                            AppPreferences.PROVIDER_GEMINI -> listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash")
-                            AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant")
-                            else -> listOf("gemini-2.0-flash")
+                            AppPreferences.PROVIDER_OPENAI -> listOf(
+                                "gpt-5.6-sol",
+                                "gpt-5.6-terra",
+                                "gpt-5.6-luna",
+                                "gpt-5.5",
+                                "gpt-5.5-pro"
+                            )
+                            AppPreferences.PROVIDER_ANTHROPIC -> listOf(
+                                "claude-sonnet-4.6",
+                                "claude-fable-5.1",
+                                "claude-opus-4.8",
+                                "claude-haiku-4.5"
+                            )
+                            AppPreferences.PROVIDER_GROQ -> listOf(
+                                "qwen3.6-27b",
+                                "minimax-m2.7",
+                                "whisper-large-v3",
+                                "whisper-large-v3-turbo"
+                            )
+                            AppPreferences.PROVIDER_GEMINI -> listOf(
+                                "gemini-3.8-flash",
+                                "gemini-3-pro"
+                            )
+                            else -> listOf("gemini-3.8-flash", "gemini-3-pro")
                         }
 
                         Row(
@@ -637,7 +665,7 @@ fun SettingsScreen(
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
                                             customModel = preset
-                                            AppPreferences.setCustomModel(context, preset)
+                                            AppPreferences.setCustomModel(context, preset, selectedProvider)
                                             Toast.makeText(context, "Model set to $preset", Toast.LENGTH_SHORT).show()
                                         },
                                     color = if (isSelected) CobaltContainer else SlateGrouped,

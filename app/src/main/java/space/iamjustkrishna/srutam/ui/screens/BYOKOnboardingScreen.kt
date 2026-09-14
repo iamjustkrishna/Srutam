@@ -151,7 +151,7 @@ fun BYOKOnboardingScreen(
             } else {
                 AppPreferences.getCustomModel(context, selectedProvider)
             }
-            AppPreferences.setCustomModel(context, modelToSave)
+            AppPreferences.setCustomModel(context, modelToSave, selectedProvider)
             AppPreferences.setByokOnboardingCompleted(context, true)
             Toast.makeText(context, "API Key saved successfully", Toast.LENGTH_SHORT).show()
             onComplete()
@@ -596,11 +596,30 @@ fun BYOKOnboardingScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             val modelPresets = when (selectedProvider) {
-                                AppPreferences.PROVIDER_GEMINI -> listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash")
-                                AppPreferences.PROVIDER_OPENAI -> listOf("gpt-4o", "gpt-4o-mini", "o3-mini")
-                                AppPreferences.PROVIDER_ANTHROPIC -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022")
-                                AppPreferences.PROVIDER_GROQ -> listOf("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "llama-3.1-8b-instant")
-                                else -> listOf("gemini-2.0-flash")
+                                AppPreferences.PROVIDER_OPENAI -> listOf(
+                                    "gpt-5.6-sol",
+                                    "gpt-5.6-terra",
+                                    "gpt-5.6-luna",
+                                    "gpt-5.5",
+                                    "gpt-5.5-pro"
+                                )
+                                AppPreferences.PROVIDER_ANTHROPIC -> listOf(
+                                    "claude-sonnet-4.6",
+                                    "claude-fable-5.1",
+                                    "claude-opus-4.8",
+                                    "claude-haiku-4.5"
+                                )
+                                AppPreferences.PROVIDER_GROQ -> listOf(
+                                    "qwen3.6-27b",
+                                    "minimax-m2.7",
+                                    "whisper-large-v3",
+                                    "whisper-large-v3-turbo"
+                                )
+                                AppPreferences.PROVIDER_GEMINI -> listOf(
+                                    "gemini-3.8-flash",
+                                    "gemini-3-pro"
+                                )
+                                else -> listOf("gemini-3.8-flash", "gemini-3-pro")
                             }
 
                             Row(

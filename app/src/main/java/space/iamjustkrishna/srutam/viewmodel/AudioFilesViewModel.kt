@@ -325,7 +325,12 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun processPendingOfflineRecordings(onComplete: ((Int) -> Unit)? = null) {
+    fun processPendingOfflineRecordings(force: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
+        if (!force && !AppPreferences.isAutoAiEnabled(getApplication())) {
+            Log.d(TAG, "Auto AI processing is disabled in Settings. Skipping automatic pending recordings sync.")
+            onComplete?.invoke(0)
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentFiles = _audioFiles.value.ifEmpty { AudioFileReader.getAudioFiles() }

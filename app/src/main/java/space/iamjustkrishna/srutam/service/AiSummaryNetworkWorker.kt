@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import kotlinx.coroutines.flow.first
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.utils.AppPreferences
 
 class AiSummaryNetworkWorker(
     appContext: Context,
@@ -20,6 +21,10 @@ class AiSummaryNetworkWorker(
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "AiSummaryNetworkWorker triggered with active internet connection")
+        if (!AppPreferences.isAutoAiEnabled(applicationContext)) {
+            Log.d(TAG, "Auto AI processing is disabled in Settings. Skipping background sync.")
+            return Result.success()
+        }
         val database = AppDatabase.getDatabase(applicationContext)
         val recordingDao = database.recordingDao()
 
