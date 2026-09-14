@@ -7,6 +7,7 @@ import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.player.PlaybackState
+import space.iamjustkrishna.srutam.ui.components.RootTab
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
 import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
@@ -347,3 +348,50 @@ fun MatrixFeedCosmicDarkPreview() {
         )
     }
 }
+
+@Composable
+fun MatrixTabletWorkspacePreview() {
+    SrutamTheme {
+        TabletWorkspaceLayout(
+            currentTab = RootTab.NOTES,
+            onTabSelected = {},
+            onSettingsClick = {},
+            audioFiles = ScreenMatrixMocks.mockAudioFiles,
+            recordingsByPath = ScreenMatrixMocks.mockRecordings,
+            playbackState = PlaybackState(
+                isPlaying = true,
+                currentFilePath = ScreenMatrixMocks.mockAudioFiles[0].filePath,
+                duration = 142000,
+                currentPosition = 42000
+            ),
+            activeActions = ScreenMatrixMocks.mockActiveActions,
+            allIdeas = ScreenMatrixMocks.mockIdeas,
+            allDecisions = ScreenMatrixMocks.mockDecisions,
+            themeClusters = ScreenMatrixMocks.mockThemeClusters
+        )
+    }
+}
+
+@Composable
+fun MatrixTabletWorkspaceCosmicDarkPreview() {
+    SrutamTheme(themeMode = ThemeMode.COSMIC_DARK) {
+        TabletWorkspaceLayout(
+            currentTab = RootTab.NOTES,
+            onTabSelected = {},
+            onSettingsClick = {},
+            audioFiles = ScreenMatrixMocks.mockAudioFiles,
+            recordingsByPath = ScreenMatrixMocks.mockRecordings,
+            playbackState = PlaybackState(
+                isPlaying = true,
+                currentFilePath = ScreenMatrixMocks.mockAudioFiles[0].filePath,
+                duration = 142000,
+                currentPosition = 42000
+            ),
+            activeActions = ScreenMatrixMocks.mockActiveActions,
+            allIdeas = ScreenMatrixMocks.mockIdeas,
+            allDecisions = ScreenMatrixMocks.mockDecisions,
+            themeClusters = ScreenMatrixMocks.mockThemeClusters
+        )
+    }
+}
+

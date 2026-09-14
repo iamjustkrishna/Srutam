@@ -145,6 +145,14 @@
   - Added Robolectric unit tests in `AppPreferencesTest.kt` verifying default state and updates. Captured Roborazzi visual screen matrix snapshots (`04b_feed_cosmic_dark.png` and `08b_settings_cosmic_dark.png`).
   - Verified compilation via `./gradlew assembleDebug` and tests via `./gradlew testDebugUnitTest`.
 
+- [x] **Track 4: Adaptive Tablet Navigation Rail & 3-Panel Workspace (`srutam-2.1/tab-layout`)**:
+  - Implemented `TabletSideNavRail.kt` featuring Srutam brand header, vertical tab navigation (Notes, Insights, AI, Settings), folder organization pills, and local storage metric card.
+  - Implemented `TabletWorkspaceScreen.kt` with adaptive 3-panel split layout (`TabletNotes3PanelWorkspace`) for tablets (>=600dp) with note list, center detail player with waveform scrubbers, and right AI insights panel.
+  - Integrated adaptive switching in `Navigation.kt` (`LocalConfiguration.current.screenWidthDp >= 600`) switching between phone bottom dock and tablet 3-panel workspace.
+  - Added preview composables `MatrixTabletWorkspacePreview` and `MatrixTabletWorkspaceCosmicDarkPreview` in `ScreenMatrixPreviews.kt`.
+  - Added Roborazzi matrix tests `capture_09_tablet_workspace` and `capture_09b_tablet_workspace_cosmic_dark` across tablet-7inch and tablet-10inch profiles.
+  - Verified compilation with `./gradlew assembleDebug` and test execution with `./gradlew testDebugUnitTest` and `./gradlew recordRoborazziDebug`.
+
 ## Planned Next Direction
-- [ ] **Track 4: Adaptive Tablet Navigation Rail & 3-Panel Workspace (`srutam-2.1/tab-layout`)**: Adaptive window width threshold (`<600dp` phone bottom dock vs `>=600dp` side navigation rail + 2-pane / 3-pane split view) inspired by `tab_reference_design/`.
 - [ ] **Track 5: Actionable AI Reminders & Calendar Hub (`srutam-2.1/reminders`)**: Room entity `ReminderEntity`, extraction in `AIProcessor.kt`, `AlarmManager` alerts, and 'Upcoming' reminders hub.
+

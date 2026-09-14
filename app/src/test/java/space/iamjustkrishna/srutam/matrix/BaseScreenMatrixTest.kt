@@ -127,4 +127,18 @@ abstract class BaseScreenMatrixTest(private val deviceFolder: String) {
             MatrixSettingsCosmicDarkPreview()
         }
     }
+
+    @Test
+    fun capture_09_tablet_workspace() {
+        captureScreen("09_tablet_workspace") {
+            MatrixTabletWorkspacePreview()
+        }
+    }
+
+    @Test
+    fun capture_09b_tablet_workspace_cosmic_dark() {
+        captureScreen("09b_tablet_workspace_cosmic_dark") {
+            MatrixTabletWorkspaceCosmicDarkPreview()
+        }
+    }
 }
