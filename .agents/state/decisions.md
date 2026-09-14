@@ -217,3 +217,34 @@
   5. Built in graceful fallback to legacy JSON arrays for older notes without database insight rows.
   6. Added `capture_05_detail_insights` to Roborazzi test suite and generated verified screenshots across 5 screen profiles.
 
+## ADR-025: Srutam 2.1 Multi-Track Delivery and Pre-2.1 Instant Rollback Protocol
+- **Status**: Accepted
+- **Context**: Srutam 2.1 introduced 5 sequential architectural feature tracks: Auto-AI background processing, BYOK onboarding flow, Cosmic Void dark mode, adaptive tablet 3-panel workspace, and actionable AI reminders with exact alarms. To guarantee production safety and zero risk of breaking existing functionality, a permanent, immutable rollback protocol is required so developers and agents can instantly revert to the pre-2.1 working baseline if needed.
+- **Git Safety Anchors**:
+  1. **Pre-2.1 Base Commit**: `9d70583933842d61e97e8567cda0a3c54382cac3` (commit message: "r8 reduc").
+  2. **Pre-2.1 Safety Tag**: `v2.0.0-pre-2.1` pointing directly to `9d70583`.
+  3. **Pre-2.1 Archive Branch**: `archive/v2.0.0-base` tracking commit `9d70583`.
+  4. **Srutam 2.1 Release Tag**: `v2.1.0` pointing to the tip of `main` containing all 5 merged feature tracks.
+- **Rollback Protocol ("IF CONDITION TO DO WHAT")**:
+  - **IF condition**: If any unexpected runtime regression, database migration issue, or device crash occurs in Srutam 2.1 and immediate reversion to the pre-2.1 working baseline is needed:
+    - **Step 1 (Temporary inspection/build without touching main)**:
+      ```bash
+      git checkout v2.0.0-pre-2.1
+      ./gradlew assembleDebug
+      ```
+    - **Step 2 (Hard revert main to pre-2.1 baseline)**:
+      ```bash
+      git checkout main
+      git reset --hard v2.0.0-pre-2.1
+      ```
+    - **Step 3 (Safe non-destructive revert alternative on main)**:
+      ```bash
+      git checkout main
+      git revert -m 1 97cef0e cd6f4e4 fec71ea 48f1b0a c9d0eb1
+      ```
+    - **Step 4 (Return back to 2.1 working version)**:
+      ```bash
+      git checkout v2.1.0
+      ```
+
+
