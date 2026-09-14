@@ -25,6 +25,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import space.iamjustkrishna.srutam.navigation.SrutamNavigation
 import space.iamjustkrishna.srutam.service.FloatingButtonService
+import space.iamjustkrishna.srutam.ui.screens.BYOKOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.PermissionsOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -33,6 +34,7 @@ import space.iamjustkrishna.srutam.utils.AppPreferences
 enum class AppStage {
     SPLASH,
     PERMISSIONS,
+    BYOK_SETUP,
     MAIN
 }
 
@@ -133,7 +135,11 @@ fun SrutamApp(initialRecordingId: Long? = null) {
                 SrutamSplashScreen(
                     onSplashFinished = {
                         if (checkCorePermissionsGranted()) {
-                            appStage = AppStage.MAIN
+                            if (!AppPreferences.isByokOnboardingCompleted(context)) {
+                                appStage = AppStage.BYOK_SETUP
+                            } else {
+                                appStage = AppStage.MAIN
+                            }
                         } else {
                             appStage = AppStage.PERMISSIONS
                         }
@@ -144,6 +150,17 @@ fun SrutamApp(initialRecordingId: Long? = null) {
                 PermissionsOnboardingScreen(
                     multiplePermissionsState = multiplePermissionsState,
                     onAllPermissionsGranted = {
+                        if (!AppPreferences.isByokOnboardingCompleted(context)) {
+                            appStage = AppStage.BYOK_SETUP
+                        } else {
+                            appStage = AppStage.MAIN
+                        }
+                    }
+                )
+            }
+            AppStage.BYOK_SETUP -> {
+                BYOKOnboardingScreen(
+                    onComplete = {
                         appStage = AppStage.MAIN
                     }
                 )

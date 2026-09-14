@@ -127,8 +127,15 @@
   - Integrated deferred auto-AI intent flag (`EXTRA_DEFER_AUTO_AI`) in `RecordingForegroundService.kt` to avoid race conditions with user renaming in save dialog.
   - Added auto-triggering on note save in `Navigation.kt` (`onSave`) and on background service recording stop (`FloatingButtonService`, `QuickRecordingTileService`, notification actions) via `AiProcessingWorker.enqueueProcessing()`.
   - Added Robolectric unit tests in `AppPreferencesTest.kt` verifying default state and toggle behavior. Verified with `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`.
+- [x] **Track 2: First-Run BYOK Onboarding Flow (`srutam-2.1/byok`)**:
+  - Created `BYOKOnboardingScreen.kt` with Apple Studio styling, Srutam 3D logo jewel badge, and dual cards for "Srutam Cloud" (Free tier) vs "Bring Your Own Key" (BYOK).
+  - Implemented inline BYOK configuration with provider pills (Gemini, OpenAI, Anthropic, Groq), clipboard paste support, and password-masked key input field.
+  - Updated `MainActivity.kt` with `AppStage.BYOK_SETUP` lifecycle routing smoothly following permissions check and preceding main feed.
+  - Added `isByokOnboardingCompleted()` and `setByokOnboardingCompleted()` to `AppPreferences.kt`.
+  - Added Robolectric unit tests in `AppPreferencesTest.kt` and Roborazzi visual screen matrix snapshots (`02b_byok_onboarding.png` and `02c_byok_expanded.png`). Verified with `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`.
 
 ## Planned Next Direction
-- [ ] **Track 2: First-Run BYOK Onboarding Flow (`srutam-2.1/byok`)**: Add dedicated `BYOKOnboardingScreen` after permissions grant with Srutam Cloud vs BYOK options, provider selector, paste button, and model selection.
+- [ ] **Track 3: Cosmic Void Dark Mode & Appearance Control (`srutam-2.1/cosmic-dark`)**: Deep void `#050714` color palette, static stardust canvas, 3-way theme switcher (Light | Cosmic Dark | System) in Settings.
+
 
 

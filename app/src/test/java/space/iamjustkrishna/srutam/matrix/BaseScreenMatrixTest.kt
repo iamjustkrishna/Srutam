@@ -38,6 +38,20 @@ abstract class BaseScreenMatrixTest(private val deviceFolder: String) {
     }
 
     @Test
+    fun capture_02b_byok_onboarding() {
+        captureScreen("02b_byok_onboarding") {
+            MatrixBYOKOnboardingPreview()
+        }
+    }
+
+    @Test
+    fun capture_02c_byok_expanded() {
+        captureScreen("02c_byok_expanded") {
+            MatrixBYOKExpandedPreview()
+        }
+    }
+
+    @Test
     fun capture_03_feed_empty() {
         captureScreen("03_feed_empty") {
             MatrixFeedEmptyPreview()

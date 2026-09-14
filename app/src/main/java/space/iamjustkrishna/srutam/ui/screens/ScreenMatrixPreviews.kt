@@ -206,6 +206,23 @@ fun MatrixPermissionsPreview() {
 }
 
 @Composable
+fun MatrixBYOKOnboardingPreview() {
+    SrutamTheme {
+        BYOKOnboardingScreen(onComplete = {})
+    }
+}
+
+@Composable
+fun MatrixBYOKExpandedPreview() {
+    SrutamTheme {
+        BYOKOnboardingScreen(
+            onComplete = {},
+            initialChoice = OnboardingAiChoice.BYOK
+        )
+    }
+}
+
+@Composable
 fun MatrixFeedEmptyPreview() {
     SrutamTheme {
         FeedScreenContent(

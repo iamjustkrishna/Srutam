@@ -39,4 +39,18 @@ class AppPreferencesTest {
         AppPreferences.setAutoAiEnabled(context, false)
         assertFalse(AppPreferences.isAutoAiEnabled(context))
     }
+
+    @Test
+    fun byokOnboardingCompleted_defaultsToFalse() {
+        assertFalse(AppPreferences.isByokOnboardingCompleted(context))
+    }
+
+    @Test
+    fun byokOnboardingCompleted_updatesStateProperly() {
+        AppPreferences.setByokOnboardingCompleted(context, true)
+        assertTrue(AppPreferences.isByokOnboardingCompleted(context))
+
+        AppPreferences.setByokOnboardingCompleted(context, false)
+        assertFalse(AppPreferences.isByokOnboardingCompleted(context))
+    }
 }
