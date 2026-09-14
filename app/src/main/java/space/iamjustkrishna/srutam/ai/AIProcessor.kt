@@ -186,6 +186,16 @@ class AIProcessor(private val context: Context) {
                   "rationale": "Brief reason or context behind the decision"
                 }
               ],
+              "reminders": [
+                {
+                  "title": "Concise event or meeting title (e.g. Sync with Alex, Dentist Appointment, Submit Tax Return)",
+                  "timeDescription": "Time expression as stated in transcript (e.g. tomorrow at 3pm, next Friday, in 2 hours)",
+                  "estimatedTimeOffsetHours": 24,
+                  "person": "Name of person or null",
+                  "location": "Location or platform or null",
+                  "type": "MEETING, DEADLINE, CALL, or REMINDER"
+                }
+              ],
               "wiifm": "What's In It For Me: This recording helps you by [specific personal benefit]. You can use this to [concrete application or value]."
             }
 
@@ -195,8 +205,9 @@ class AIProcessor(private val context: Context) {
             - Action Items: CRITICAL - Only extract actionable tasks or commitments IF EXPLICITLY MENTIONED in the transcript. Most voice notes (e.g. personal thoughts, diary entries, ideas) do NOT contain any tasks. If no clear action items are explicitly mentioned, you MUST return [] for "actionItems". NEVER invent generic to-dos.
             - Ideas: 0-4 distinct proposals, concepts, or thoughts worth remembering. Empty array [] if none.
             - Decisions: Only include explicit conclusions, choices, or agreements made in the transcript. Empty array [] if none.
+            - Reminders: Extract scheduled meetings, events, appointments, or deadlines explicitly mentioned with an estimated future time. Empty array [] if none.
             - WIIFM: Must start with "What's In It For Me:", explain personal utility and value.
-            - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, and decisions may be empty [].
+            - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, decisions, and reminders may be empty [].
         """.trimIndent()
     }
 
@@ -277,6 +288,35 @@ class AIProcessor(private val context: Context) {
                 }.map { AIDecision(text = it.trim()) }
             }
 
+            val rawRemindersList = jsonObject["reminders"] as? List<*> ?: emptyList<Any>()
+            val parsedReminders = rawRemindersList.mapNotNull { item ->
+                when (item) {
+                    is Map<*, *> -> {
+                        val title = item["title"] as? String
+                        if (!title.isNullOrBlank()) {
+                            val timeDesc = item["timeDescription"] as? String ?: ""
+                            val offsetHours = (item["estimatedTimeOffsetHours"] as? Number)?.toDouble() ?: -1.0
+                            val eventTimeMs = if (offsetHours > 0) {
+                                System.currentTimeMillis() + (offsetHours * 3600 * 1000).toLong()
+                            } else {
+                                parseTimeDescription(timeDesc)
+                            }
+                            AIReminder(
+                                title = title.trim(),
+                                eventTimeMs = eventTimeMs,
+                                originalText = timeDesc,
+                                person = (item["person"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                                location = (item["location"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                                type = (item["type"] as? String)?.trim()?.uppercase()?.takeIf {
+                                    it in listOf("MEETING", "DEADLINE", "CALL", "REMINDER")
+                                } ?: "REMINDER"
+                            )
+                        } else null
+                    }
+                    else -> null
+                }
+            }
+
             AIInsights(
                 title = (jsonObject["title"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                 summary = jsonObject["summary"] as? String ?: "Summary not available",
@@ -284,11 +324,26 @@ class AIProcessor(private val context: Context) {
                 actionItems = rawActionItems,
                 ideas = finalIdeas,
                 decisions = finalDecisions,
+                reminders = parsedReminders,
                 wiifm = jsonObject["wiifm"] as? String ?: (jsonObject["whatsInItForMe"] as? String) ?: "Value not specified"
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing AI response", e)
             throw e
+        }
+    }
+
+    private fun parseTimeDescription(timeDesc: String): Long {
+        val lower = timeDesc.lowercase()
+        val now = System.currentTimeMillis()
+        return when {
+            lower.contains("tomorrow") -> now + 24 * 3600 * 1000L
+            lower.contains("day after") -> now + 48 * 3600 * 1000L
+            lower.contains("next week") -> now + 7 * 24 * 3600 * 1000L
+            lower.contains("tonight") || lower.contains("today") -> now + 4 * 3600 * 1000L
+            lower.contains("in an hour") || lower.contains("1 hour") -> now + 3600 * 1000L
+            lower.contains("in 2 hours") || lower.contains("2 hours") -> now + 2 * 3600 * 1000L
+            else -> now + 24 * 3600 * 1000L // Default to tomorrow
         }
     }
 
@@ -309,6 +364,7 @@ class AIProcessor(private val context: Context) {
             actionItems = emptyList(),
             ideas = listOf("Audio captured offline and ready for AI insights when connected"),
             decisions = emptyList(),
+            reminders = emptyList(),
             wiifm = "What's In It For Me: This provides an instant offline overview of your audio length and structural complexity before cloud processing."
         )
     }
@@ -319,6 +375,15 @@ class AIProcessor(private val context: Context) {
         val evidence: String? = null
     )
 
+    data class AIReminder(
+        val title: String,
+        val eventTimeMs: Long,
+        val originalText: String = "",
+        val person: String? = null,
+        val location: String? = null,
+        val type: String = "REMINDER" // MEETING, DEADLINE, REMINDER, CALL
+    )
+
     data class AIInsights(
         val title: String? = null,
         val summary: String,
@@ -326,6 +391,7 @@ class AIProcessor(private val context: Context) {
         val actionItems: List<String>,
         val ideas: List<String> = emptyList(),
         val decisions: List<AIDecision> = emptyList(),
+        val reminders: List<AIReminder> = emptyList(),
         val wiifm: String
     )
 

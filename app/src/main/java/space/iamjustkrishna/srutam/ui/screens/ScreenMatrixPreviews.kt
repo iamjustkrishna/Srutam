@@ -6,6 +6,7 @@ import space.iamjustkrishna.srutam.data.InsightKind
 import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.data.ReminderEntity
 import space.iamjustkrishna.srutam.player.PlaybackState
 import space.iamjustkrishna.srutam.ui.components.RootTab
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -186,6 +187,31 @@ object ScreenMatrixMocks {
             citedNotes = listOf(Pair(1L, "Architecture & Product Strategy"))
         )
     )
+
+    val mockReminders = listOf(
+        ReminderEntity(
+            id = "rem_1",
+            recordingId = 1L,
+            recordingName = "Architecture & Product Strategy",
+            title = "Sync with Alex on Roborazzi native graphics",
+            eventTimeMs = System.currentTimeMillis() + 1000 * 60 * 60 * 20,
+            originalText = "Tomorrow at 3pm",
+            person = "Alex",
+            location = "Google Meet",
+            type = "MEETING"
+        ),
+        ReminderEntity(
+            id = "rem_2",
+            recordingId = 2L,
+            recordingName = "Edge AI Whisper Tuning",
+            title = "Submit ONNX INT8 quantization benchmark report",
+            eventTimeMs = System.currentTimeMillis() + 1000 * 60 * 60 * 48,
+            originalText = "In 2 days",
+            person = null,
+            location = null,
+            type = "DEADLINE"
+        )
+    )
 }
 
 @Composable
@@ -291,6 +317,7 @@ fun MatrixInsightsPreview(initialTab: InsightsTab = InsightsTab.NEXT_STEPS) {
             allDecisions = ScreenMatrixMocks.mockDecisions,
             themeClusters = ScreenMatrixMocks.mockThemeClusters,
             archivedActionsCount = 1,
+            upcomingReminders = ScreenMatrixMocks.mockReminders,
             initialTab = initialTab
         )
     }
