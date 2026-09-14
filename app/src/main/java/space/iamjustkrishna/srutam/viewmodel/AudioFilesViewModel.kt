@@ -58,8 +58,12 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
     private val database = (application as space.iamjustkrishna.srutam.SrutamApplication).database
     private val insightDao = database.insightDao()
+    private val reminderDao = database.reminderDao()
 
     val allInsights: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getAllInsightsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val upcomingReminders: StateFlow<List<space.iamjustkrishna.srutam.data.ReminderEntity>> = reminderDao.getAllActiveRemindersFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val activeActions: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getActiveActionsFlow()
@@ -130,6 +134,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 if (recording != null) {
                     try {
                         insightDao.deleteInsightsByRecordingId(recording.id)
+                        reminderDao.deleteRemindersByRecordingId(recording.id)
                         repository.deleteRecording(recording)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error deleting audio file: ${audioFile.filePath}", e)
@@ -459,6 +464,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                         val recording = repository.getRecordingByPath(audioFile.filePath)
                         if (recording != null) {
                             insightDao.deleteInsightsByRecordingId(recording.id)
+                            reminderDao.deleteRemindersByRecordingId(recording.id)
                             repository.deleteRecording(recording)
                         } else {
                             val deleted = space.iamjustkrishna.srutam.utils.AudioStorage
@@ -554,6 +560,12 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
             val newStatus = if (isNowCompleted) InsightStatus.COMPLETED else InsightStatus.OPEN
             val completedAt = if (isNowCompleted) System.currentTimeMillis() else null
             insightDao.updateActionStatus(insight.id, newStatus, completedAt)
+        }
+    }
+
+    fun updateReminderStatus(id: String, status: String) {
+        viewModelScope.launch {
+            reminderDao.updateReminderStatus(id, status)
         }
     }
 

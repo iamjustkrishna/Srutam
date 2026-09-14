@@ -28,6 +28,9 @@ import space.iamjustkrishna.srutam.data.InsightKind
 import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.data.ReminderDao
+import space.iamjustkrishna.srutam.data.ReminderEntity
+import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import java.io.File
 
@@ -65,6 +68,7 @@ class AiProcessingWorker(
         val database = AppDatabase.getDatabase(applicationContext)
         val recordingDao = database.recordingDao()
         val insightDao = database.insightDao()
+        val reminderDao = database.reminderDao()
         val aiProcessor = AIProcessor(applicationContext)
 
         val totalCount = recordingIds.size
@@ -178,6 +182,7 @@ class AiProcessingWorker(
 
                     saveInsightsToRoom(
                         insightDao = insightDao,
+                        reminderDao = reminderDao,
                         recordingId = recording.id,
                         recordingName = updatedName,
                         timestamp = recording.timestamp,
@@ -365,6 +370,7 @@ class AiProcessingWorker(
 
     private suspend fun saveInsightsToRoom(
         insightDao: InsightDao,
+        reminderDao: ReminderDao,
         recordingId: Long,
         recordingName: String,
         timestamp: Long,
@@ -428,6 +434,32 @@ class AiProcessingWorker(
 
             if (entities.isNotEmpty()) {
                 insightDao.insertInsights(entities)
+            }
+
+            // Save and schedule actionable reminders
+            reminderDao.deleteRemindersByRecordingId(recordingId)
+            val reminderEntities = mutableListOf<ReminderEntity>()
+            insights.reminders.forEachIndexed { idx, rem ->
+                if (rem.title.isNotBlank()) {
+                    val entity = ReminderEntity(
+                        id = "${recordingId}_reminder_${idx}_${System.currentTimeMillis()}",
+                        recordingId = recordingId,
+                        recordingName = recordingName,
+                        title = rem.title,
+                        eventTimeMs = rem.eventTimeMs,
+                        originalText = rem.originalText,
+                        person = rem.person,
+                        location = rem.location,
+                        type = rem.type,
+                        status = ReminderStatus.ACTIVE,
+                        createdAt = timestamp
+                    )
+                    reminderEntities.add(entity)
+                    ReminderScheduler.scheduleReminder(applicationContext, entity)
+                }
+            }
+            if (reminderEntities.isNotEmpty()) {
+                reminderDao.insertReminders(reminderEntities)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed saving insights to Room for recording $recordingId", e)

@@ -153,6 +153,20 @@
   - Added Roborazzi matrix tests `capture_09_tablet_workspace` and `capture_09b_tablet_workspace_cosmic_dark` across tablet-7inch and tablet-10inch profiles.
   - Verified compilation with `./gradlew assembleDebug` and test execution with `./gradlew testDebugUnitTest` and `./gradlew recordRoborazziDebug`.
 
-## Planned Next Direction
-- [ ] **Track 5: Actionable AI Reminders & Calendar Hub (`srutam-2.1/reminders`)**: Room entity `ReminderEntity`, extraction in `AIProcessor.kt`, `AlarmManager` alerts, and 'Upcoming' reminders hub.
+- [x] **Track 5: Actionable AI Reminders & Calendar Hub (`srutam-2.1/reminders`)**:
+  - Defined `ReminderEntity` Room entity with indexed recordingId, eventTimeMs, and status (`ACTIVE`, `DISMISSED`, `COMPLETED`).
+  - Implemented `ReminderDao` with active upcoming flow queries, status updates, and note cleanup.
+  - Bumped `AppDatabase` to version 5 with `ReminderEntity` registration.
+  - Implemented `ReminderAlarmReceiver` broadcast receiver posting high-priority heads-up event notifications on `srutam_reminders_channel` with deep-link note navigation.
+  - Implemented `ReminderScheduler` scheduling dual exact alarms (15-min heads-up and at event time) with graceful Android 12+ permission handling.
+  - Upgraded `AIProcessor.kt` structured schema to extract future scheduled meetings, appointments, and deadlines (`AIReminder`).
+  - Connected `AiProcessingWorker.kt` to persist reminders to Room and schedule system notifications.
+  - Added "UPCOMING EVENTS & REMINDERS" carousel in `ActionItemsScreen.kt` with event type badges (`MEETING`, `DEADLINE`, `CALL`), relative time pills, person/location chips, and one-tap completion.
+  - Added comprehensive Room unit tests in `ReminderEntityTest.kt` verifying querying, completion, and deletion.
+  - Recorded Roborazzi visual screen snapshot `06_insights_hub.png` demonstrating the upcoming reminders hub.
+  - Verified compilation with `./gradlew assembleDebug` and test execution with `./gradlew testDebugUnitTest`.
+
+## Srutam 2.1 Delivery Status
+All 5 planned tracks are fully implemented, verified via automated unit and screenshot tests, and ready for release.
+
 

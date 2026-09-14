@@ -5,10 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Recording::class, InsightEntity::class], version = 4, exportSchema = false)
+@Database(entities = [Recording::class, InsightEntity::class, ReminderEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recordingDao(): RecordingDao
     abstract fun insightDao(): InsightDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         @Volatile

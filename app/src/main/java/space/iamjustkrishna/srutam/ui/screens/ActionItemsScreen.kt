@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -19,13 +20,17 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.ViewAgenda
@@ -43,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.InsightStatus
+import space.iamjustkrishna.srutam.data.ReminderEntity
+import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -68,6 +75,7 @@ fun ActionItemsScreen(
     val allDecisions by viewModel.allDecisions.collectAsState()
     val themeClusters by viewModel.themeClusters.collectAsState()
     val archivedActionsCount by viewModel.archivedActionsCount.collectAsState()
+    val upcomingReminders by viewModel.upcomingReminders.collectAsState()
 
     ActionItemsContent(
         activeActions = activeActions,
@@ -75,9 +83,11 @@ fun ActionItemsScreen(
         allDecisions = allDecisions,
         themeClusters = themeClusters,
         archivedActionsCount = archivedActionsCount,
+        upcomingReminders = upcomingReminders,
         onRecordingClick = onRecordingClick,
         onSettingsClick = onSettingsClick,
         onActionToggle = { viewModel.toggleActionComplete(it) },
+        onReminderComplete = { viewModel.updateReminderStatus(it, ReminderStatus.COMPLETED) },
         onArchiveConfirmed = { viewModel.archiveCompletedActions() },
         onRestoreArchived = { viewModel.unarchiveAllActions() },
         onDismissTheme = { viewModel.dismissTheme(it) },
@@ -92,10 +102,12 @@ fun ActionItemsContent(
     allDecisions: List<InsightEntity>,
     themeClusters: List<ThemeCluster> = emptyList(),
     archivedActionsCount: Int = 0,
+    upcomingReminders: List<ReminderEntity> = emptyList(),
     initialTab: InsightsTab = InsightsTab.NEXT_STEPS,
     onRecordingClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onActionToggle: (InsightEntity) -> Unit = {},
+    onReminderComplete: (String) -> Unit = {},
     onArchiveConfirmed: () -> Unit = {},
     onRestoreArchived: () -> Unit = {},
     onDismissTheme: (String) -> Unit = {},
@@ -148,6 +160,14 @@ fun ActionItemsContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (upcomingReminders.isNotEmpty()) {
+                UpcomingRemindersSection(
+                    reminders = upcomingReminders,
+                    onReminderClick = onRecordingClick,
+                    onReminderComplete = onReminderComplete
+                )
+            }
+
             // Sleek Single-Row Connected Intelligence Capsule
             SingleRowInsightsCapsule(
                 selectedTab = selectedTab,
@@ -1174,3 +1194,220 @@ private fun DecisionsTimelineTab(
         }
     }
 }
+
+@Composable
+fun UpcomingRemindersSection(
+    reminders: List<ReminderEntity>,
+    onReminderClick: (Long) -> Unit,
+    onReminderComplete: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsCosmicDark.current
+    val cardBg = if (isDark) CosmicVoidCard else Color.White
+    val cardBorder = if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)
+    val textPrimary = if (isDark) TextOnDarkPrimary else TextPrimary
+    val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Event,
+                    contentDescription = null,
+                    tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "UPCOMING EVENTS & REMINDERS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
+                    color = textSecondary
+                )
+            }
+            Surface(
+                shape = CircleShape,
+                color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.4f) else Color(0xFFEFF6FF)
+            ) {
+                Text(
+                    text = "${reminders.size}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) CosmicGlowBlue else CobaltBlue,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(vertical = 4.dp)
+        ) {
+            items(reminders, key = { it.id }) { reminder ->
+                ReminderCard(
+                    reminder = reminder,
+                    cardBg = cardBg,
+                    cardBorder = cardBorder,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    isDark = isDark,
+                    onClick = { onReminderClick(reminder.recordingId) },
+                    onComplete = { onReminderComplete(reminder.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderCard(
+    reminder: ReminderEntity,
+    cardBg: Color,
+    cardBorder: Color,
+    textPrimary: Color,
+    textSecondary: Color,
+    isDark: Boolean,
+    onClick: () -> Unit,
+    onComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val typeColor = when (reminder.type.uppercase()) {
+        "MEETING" -> if (isDark) CosmicGlowBlue else CobaltBlue
+        "DEADLINE" -> Color(0xFFDC2626)
+        "CALL" -> Color(0xFF0D9488)
+        else -> Color(0xFFD97706)
+    }
+
+    Surface(
+        modifier = modifier
+            .width(260.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = typeColor.copy(alpha = if (isDark) 0.25f else 0.12f)
+                ) {
+                    Text(
+                        text = reminder.type.uppercase(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = typeColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onComplete,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Mark done",
+                        tint = textSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = reminder.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = textSecondary,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatHumanRelativeDate(reminder.eventTimeMs),
+                    fontSize = 11.sp,
+                    color = textSecondary
+                )
+            }
+
+            if (!reminder.person.isNullOrBlank() || !reminder.location.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    reminder.person?.let { person ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = textSecondary,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = person,
+                                fontSize = 11.sp,
+                                color = textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    reminder.location?.let { loc ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = textSecondary,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = loc,
+                                fontSize = 11.sp,
+                                color = textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
