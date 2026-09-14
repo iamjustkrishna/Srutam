@@ -74,6 +74,9 @@ fun SettingsScreen(
     var customModel by remember {
         mutableStateOf(AppPreferences.getCustomModel(context))
     }
+    var isAutoAiEnabled by remember {
+        mutableStateOf(AppPreferences.isAutoAiEnabled(context))
+    }
 
     Scaffold(
         topBar = {
@@ -312,6 +315,22 @@ fun SettingsScreen(
             // Section 3: AI Intelligence Provider
             // =========================================================
             SettingsSection(title = "AI INTELLIGENCE & PROVIDER") {
+                // Auto AI Processing Toggle
+                SettingsToggleRow(
+                    icon = Icons.Default.AutoAwesome,
+                    iconBg = Color(0xFFF3E8FF),
+                    iconTint = Color(0xFF7C3AED),
+                    title = "Auto AI Processing",
+                    subtitle = "Automatically transcribe and generate insights for newly saved notes",
+                    checked = isAutoAiEnabled,
+                    onCheckedChange = { enabled ->
+                        isAutoAiEnabled = enabled
+                        AppPreferences.setAutoAiEnabled(context, enabled)
+                    }
+                )
+
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
+
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Option A: Srutam Cloud (Default)
                     Row(
