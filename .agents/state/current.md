@@ -169,4 +169,12 @@
 ## Srutam 2.1 Delivery Status
 All 5 planned tracks are fully implemented, verified via automated unit and screenshot tests, and ready for release.
 
+- [x] **BYOK Onboarding Screen UI Polish (`BYOKOnboardingScreen.kt`)**:
+  - Replaced clumsy 80dp double-bordered box around the hero logo with a floating 3D mark accompanied by a subtle ambient radial glow backdrop.
+  - Implemented vertical canvas gradient (`#FFFFFF` -> `#F8FAFC` -> `#F1F5F9`) and elevated cards with soft shadows and refined borders.
+  - Added a dedicated inset container (`#F1F5F9` in Light mode, `#070B18` in Cosmic Dark mode) grouping provider chips and API key input with high contrast.
+  - Full support for `LocalIsCosmicDark.current` across text, surfaces, borders, chips, and CTA buttons.
+  - Verified with Roborazzi screenshot capture (`02b_byok_onboarding.png`, `02c_byok_expanded.png`), debug APK assembly, and direct device installation over ADB.
+
+
 
