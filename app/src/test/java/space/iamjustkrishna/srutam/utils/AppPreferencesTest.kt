@@ -2,6 +2,7 @@ package space.iamjustkrishna.srutam.utils
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -52,5 +53,21 @@ class AppPreferencesTest {
 
         AppPreferences.setByokOnboardingCompleted(context, false)
         assertFalse(AppPreferences.isByokOnboardingCompleted(context))
+    }
+
+    @Test
+    fun themeMode_defaultsToSystem() {
+        assertEquals(AppPreferences.THEME_SYSTEM, AppPreferences.getThemeMode(context))
+    }
+
+    @Test
+    fun themeMode_updatesStateAndFlow() {
+        AppPreferences.setThemeMode(context, AppPreferences.THEME_COSMIC_DARK)
+        assertEquals(AppPreferences.THEME_COSMIC_DARK, AppPreferences.getThemeMode(context))
+        assertEquals(AppPreferences.THEME_COSMIC_DARK, AppPreferences.themeModeFlow.value)
+
+        AppPreferences.setThemeMode(context, AppPreferences.THEME_LIGHT)
+        assertEquals(AppPreferences.THEME_LIGHT, AppPreferences.getThemeMode(context))
+        assertEquals(AppPreferences.THEME_LIGHT, AppPreferences.themeModeFlow.value)
     }
 }

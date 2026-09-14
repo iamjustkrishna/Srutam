@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -47,6 +48,7 @@ import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
+import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileReader
@@ -58,7 +60,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val isDark = LocalIsCosmicDark.current
 
+    var themeMode by remember {
+        mutableStateOf(AppPreferences.getThemeMode(context))
+    }
     var isFloatingDockEnabled by remember {
         mutableStateOf(AppPreferences.isFloatingDockEnabled(context))
     }
@@ -81,12 +87,12 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             Surface(
-                color = Color(0xFFF4F5F8).copy(alpha = 0.85f),
+                color = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .drawBehind {
                         drawLine(
-                            color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                            color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.6f) else Color(0xFFD6E0EC).copy(alpha = 0.6f),
                             start = Offset(0f, size.height),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1.dp.toPx()
@@ -107,7 +113,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Back",
-                            tint = TextPrimary,
+                            tint = if (isDark) TextOnDarkPrimary else TextPrimary,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -116,28 +122,106 @@ fun SettingsScreen(
                         text = "Settings",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        color = if (isDark) TextOnDarkPrimary else TextPrimary
                     )
                 }
             }
         },
-        containerColor = CeramicWhite,
+        containerColor = if (isDark) CosmicVoidBackground else CeramicWhite,
         modifier = modifier
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            // =========================================================
-            // Section 1: Instant Capture Shortcuts
-            // =========================================================
-            SettingsSection(title = "INSTANT CAPTURE SHORTCUTS") {
-                // Row 1: On-Screen Floating Dock
-                SettingsToggleRow(
+            CosmicBackground()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
+            ) {
+                // =========================================================
+                // Section 0: Appearance & Theme
+                // =========================================================
+                SettingsSection(title = "APPEARANCE") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "Theme Interface",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
+                            )
+                            Text(
+                                text = "Choose light ceramic, deep space cosmic dark, or system mode",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
+                            )
+                        }
+
+                        // 3-way segmented control
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (isDark) Color(0xFF070B19) else Color(0xFFF1F5F9))
+                                .border(
+                                    1.dp,
+                                    if (isDark) CosmicVoidCardBorder else SlateBorder,
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            ThemeSegmentOption(
+                                label = "Light",
+                                icon = Icons.Default.LightMode,
+                                isSelected = themeMode == AppPreferences.THEME_LIGHT,
+                                onClick = {
+                                    themeMode = AppPreferences.THEME_LIGHT
+                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_LIGHT)
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            ThemeSegmentOption(
+                                label = "Cosmic Dark",
+                                icon = Icons.Default.DarkMode,
+                                isSelected = themeMode == AppPreferences.THEME_COSMIC_DARK,
+                                onClick = {
+                                    themeMode = AppPreferences.THEME_COSMIC_DARK
+                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_COSMIC_DARK)
+                                },
+                                modifier = Modifier.weight(1.3f)
+                            )
+                            ThemeSegmentOption(
+                                label = "System",
+                                icon = Icons.Default.BrightnessAuto,
+                                isSelected = themeMode == AppPreferences.THEME_SYSTEM,
+                                onClick = {
+                                    themeMode = AppPreferences.THEME_SYSTEM
+                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_SYSTEM)
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // =========================================================
+                // Section 1: Instant Capture Shortcuts
+                // =========================================================
+                SettingsSection(title = "INSTANT CAPTURE SHORTCUTS") {
+                    // Row 1: On-Screen Floating Dock
+                    SettingsToggleRow(
                     icon = Icons.Default.PictureInPicture,
                     iconBg = CobaltContainer,
                     iconTint = CobaltBlue,
@@ -229,31 +313,31 @@ fun SettingsScreen(
                                 text = "Speech Engine",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
                                 text = "Proprietary on-device model · Zero cloud latency",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
                     }
 
                     Surface(
-                        color = CobaltContainer,
+                        color = if (isDark) Color(0xFF1E3A8A) else CobaltContainer,
                         shape = CircleShape
                     ) {
                         Text(
                             text = "Srutam Voice v1",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = CobaltBlue,
+                            color = if (isDark) Color.White else CobaltBlue,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 }
 
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
+                HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
 
                 Row(
                     modifier = Modifier
@@ -272,7 +356,7 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(EmeraldContainer)
+                                .background(if (isDark) EmeraldContainer.copy(alpha = 0.2f) else EmeraldContainer)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
@@ -286,25 +370,25 @@ fun SettingsScreen(
                                 text = "Privacy Guarantee",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
                                 text = "Raw audio files never leave your device",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
                     }
 
                     Surface(
-                        color = EmeraldContainer,
+                        color = if (isDark) Color(0xFF064E3B) else EmeraldContainer,
                         shape = CircleShape
                     ) {
                         Text(
                             text = "100% On-Device",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = EmeraldSuccess,
+                            color = if (isDark) Color.White else EmeraldSuccess,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
@@ -361,15 +445,18 @@ fun SettingsScreen(
                                     text = "Srutam Cloud (Default)",
                                     fontSize = 14.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
+                                    color = if (isDark) TextOnDarkPrimary else TextPrimary,
                                     maxLines = 1
                                 )
-                                Surface(color = SlateGrouped, shape = CircleShape) {
+                                Surface(
+                                    color = if (isDark) Color(0xFF1E293B) else SlateGrouped,
+                                    shape = CircleShape
+                                ) {
                                     Text(
                                         text = "Free",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = TextSecondary,
+                                        color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                     )
                                 }
@@ -377,7 +464,7 @@ fun SettingsScreen(
                             Text(
                                 text = "Out-of-the-box summaries and chat",
                                 fontSize = 12.sp,
-                                color = TextSecondary,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -385,7 +472,7 @@ fun SettingsScreen(
                     }
 
                     HorizontalDivider(
-                        color = SlateBorder.copy(alpha = 0.6f),
+                        color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f),
                         thickness = 0.8.dp,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
@@ -412,19 +499,21 @@ fun SettingsScreen(
                                     AppPreferences.setAIProvider(context, AppPreferences.PROVIDER_OPENAI)
                                 }
                             },
-                            colors = RadioButtonDefaults.colors(selectedColor = CobaltBlue)
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = if (isDark) CosmicGlowBlue else CobaltBlue
+                            )
                         )
                         Column {
                             Text(
                                 text = "Custom API Key (BYOK)",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
                                 text = "Bring your own key for unlimited queries",
                                 fontSize = 12.sp,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
                     }
@@ -631,19 +720,19 @@ fun SettingsScreen(
                                 text = "Srutam",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
                                 text = "Intelligent Voice and Thought Engine",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
                     }
 
                     HorizontalDivider(
                         modifier = Modifier.padding(bottom = 14.dp),
-                        color = SlateBorder.copy(alpha = 0.6f),
+                        color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f),
                         thickness = 0.8.dp
                     )
 
@@ -656,12 +745,12 @@ fun SettingsScreen(
                             text = "Storage Location",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary
                         )
                         Text(
                             text = "App-Private Music",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary
                         )
                     }
 
@@ -676,12 +765,12 @@ fun SettingsScreen(
                             text = "Audio Storage",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary
                         )
                         Text(
                             text = "$formattedStorage (${audioFiles.size} notes)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary
                         )
                     }
 
@@ -696,12 +785,12 @@ fun SettingsScreen(
                             text = "Version",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary
                         )
                         Text(
                             text = "Srutam v2.0.0 (Build 4)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary
                         )
                     }
                 }
@@ -719,7 +808,7 @@ fun SettingsScreen(
                     text = "Developed with care by Krishna",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextSecondary
+                    color = if (isDark) TextOnDarkSecondary else TextSecondary
                 )
                 Row(
                     modifier = Modifier
@@ -736,18 +825,72 @@ fun SettingsScreen(
                         text = "𝕏",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = if (isDark) Color.White else Color(0xFF0F172A)
                     )
                     Text(
                         text = "@iamjustkrishna",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = CobaltBlue
+                        color = if (isDark) CosmicGlowBlue else CobaltBlue
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+        }
+    }
+}
+
+@Composable
+private fun ThemeSegmentOption(
+    label: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsCosmicDark.current
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (isSelected) {
+            if (isDark) CosmicGlowBlue.copy(alpha = 0.25f) else Color.White
+        } else {
+            Color.Transparent
+        },
+        border = if (isSelected) {
+            BorderStroke(1.dp, if (isDark) CosmicGlowBlue else Color(0xFFCBD5E1))
+        } else null,
+        shadowElevation = if (isSelected && !isDark) 1.dp else 0.dp,
+        modifier = modifier.height(38.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) {
+                    if (isDark) CosmicGlowBlue else CobaltBlue
+                } else {
+                    if (isDark) TextOnDarkSecondary else TextSecondary
+                },
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                fontSize = 12.5.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) {
+                    if (isDark) Color.White else TextPrimary
+                } else {
+                    if (isDark) TextOnDarkSecondary else TextSecondary
+                }
+            )
         }
     }
 }
@@ -757,12 +900,13 @@ private fun SettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isDark = LocalIsCosmicDark.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = TextSecondary,
+            color = if (isDark) TextOnDarkSecondary else TextSecondary,
             letterSpacing = 1.sp,
             modifier = Modifier.padding(start = 6.dp)
         )
@@ -770,9 +914,9 @@ private fun SettingsSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = CeramicWhite.copy(alpha = 0.98f),
-            border = BorderStroke(1.dp, SlateBorder),
-            shadowElevation = 2.dp,
+            color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.98f),
+            border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
+            shadowElevation = if (isDark) 0.dp else 2.dp,
             content = { Column(content = content) }
         )
     }
@@ -788,6 +932,7 @@ private fun SettingsToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val isDark = LocalIsCosmicDark.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -806,7 +951,7 @@ private fun SettingsToggleRow(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(iconBg)
+                    .background(if (isDark) iconBg.copy(alpha = 0.2f) else iconBg)
             ) {
                 Icon(
                     imageVector = icon,
@@ -820,12 +965,12 @@ private fun SettingsToggleRow(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = if (isDark) TextOnDarkPrimary else TextPrimary
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = if (isDark) TextOnDarkSecondary else TextSecondary
                 )
             }
         }
@@ -843,8 +988,13 @@ private fun SrutamSwitch(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     val trackColor by animateColorAsState(
-        targetValue = if (checked) CobaltBlue else Color(0xFFE2E8F0),
+        targetValue = if (checked) {
+            if (isDark) CosmicGlowBlue else CobaltBlue
+        } else {
+            if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)
+        },
         animationSpec = tween(durationMillis = 200),
         label = "trackColor"
     )

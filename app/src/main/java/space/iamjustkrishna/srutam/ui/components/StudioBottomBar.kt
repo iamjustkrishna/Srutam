@@ -83,6 +83,7 @@ fun StudioBottomBar(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val isDark = LocalIsCosmicDark.current
     var recordingMode by remember { mutableStateOf(RecordingMode.IDLE) }
     var dragYOffset by remember { mutableFloatStateOf(0f) }
 
@@ -130,20 +131,20 @@ fun StudioBottomBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── 1. Morphing Capsule on the Left ──
+        // 1. Morphing Capsule on the Left
         Surface(
             modifier = Modifier
                 .weight(1f)
                 .height(56.dp),
             shape = CircleShape,
-            color = Color(0xFFF8FAFC),
+            color = if (isDark) CosmicVoidCard else Color(0xFFF8FAFC),
             border = BorderStroke(
                 1.dp,
                 if (isBarActiveRecording) {
-                    if (isPaused) Brush.horizontalGradient(listOf(Color(0xFFFDE68A), Color(0xFFFEF3C7)))
-                    else Brush.horizontalGradient(listOf(Color(0xFFFECACA), Color(0xFFFEE2E2)))
+                    if (isPaused) Brush.horizontalGradient(if (isDark) listOf(Color(0xFF78350F), Color(0xFF451A03)) else listOf(Color(0xFFFDE68A), Color(0xFFFEF3C7)))
+                    else Brush.horizontalGradient(if (isDark) listOf(Color(0xFF991B1B), Color(0xFF7F1D1D)) else listOf(Color(0xFFFECACA), Color(0xFFFEE2E2)))
                 } else {
-                    SolidColor(Color(0xFFE2E8F0))
+                    SolidColor(if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0))
                 }
             ),
             shadowElevation = 0.dp
@@ -155,16 +156,19 @@ fun StudioBottomBar(
                         if (isBarActiveRecording) {
                             if (isPaused) {
                                 Brush.horizontalGradient(
-                                    listOf(Color(0xFFFFFBEB), Color(0xFFFEF3C7), Color(0xFFFFFFFF))
+                                    if (isDark) listOf(Color(0xFF291B06), Color(0xFF1E1405), Color(0xFF291B06))
+                                    else listOf(Color(0xFFFFFBEB), Color(0xFFFEF3C7), Color(0xFFFFFFFF))
                                 )
                             } else {
                                 Brush.horizontalGradient(
-                                    listOf(Color(0xFFFFF7F7), Color(0xFFFFFFFF), Color(0xFFFFF5F5))
+                                    if (isDark) listOf(Color(0xFF330C10), Color(0xFF22080B), Color(0xFF330C10))
+                                    else listOf(Color(0xFFFFF7F7), Color(0xFFFFFFFF), Color(0xFFFFF5F5))
                                 )
                             }
                         } else {
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+                                if (isDark) listOf(CosmicVoidCard, Color(0xFF0F1528))
+                                else listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
                             )
                         }
                     )
@@ -211,7 +215,7 @@ fun StudioBottomBar(
                                 Icon(
                                     imageVector = Icons.Default.Menu,
                                     contentDescription = null,
-                                    tint = if (currentTab == RootTab.NOTES) Color(0xFF0F172A) else Color(0xFF64748B),
+                                    tint = if (currentTab == RootTab.NOTES) (if (isDark) Color.White else Color(0xFF0F172A)) else (if (isDark) TextOnDarkSecondary else Color(0xFF64748B)),
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
@@ -226,7 +230,7 @@ fun StudioBottomBar(
                                 Icon(
                                     imageVector = Icons.Default.Checklist,
                                     contentDescription = null,
-                                    tint = if (currentTab == RootTab.ACTIONS) Color(0xFF0F172A) else Color(0xFF64748B),
+                                    tint = if (currentTab == RootTab.ACTIONS) (if (isDark) Color.White else Color(0xFF0F172A)) else (if (isDark) TextOnDarkSecondary else Color(0xFF64748B)),
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
@@ -243,7 +247,7 @@ fun StudioBottomBar(
                                     text = "✦",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (currentTab == RootTab.AI) Color(0xFF0F172A) else Color(0xFF64748B)
+                                    color = if (currentTab == RootTab.AI) (if (isDark) Color.White else Color(0xFF0F172A)) else (if (isDark) TextOnDarkSecondary else Color(0xFF64748B))
                                 )
                             },
                             isSelected = currentTab == RootTab.AI,
@@ -419,6 +423,7 @@ private fun ActiveRecordingControls(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_dot")
     val dotAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
@@ -446,7 +451,7 @@ private fun ActiveRecordingControls(
             onClick = onCancel,
             modifier = Modifier
                 .size(36.dp)
-                .background(Color(0xFFFEE2E2), CircleShape)
+                .background(if (isDark) Color(0xFF451214) else Color(0xFFFEE2E2), CircleShape)
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
@@ -484,7 +489,7 @@ private fun ActiveRecordingControls(
                 text = formattedTime,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
-                color = if (isPaused) Color(0xFFF59E0B) else Color(0xFF0F172A)
+                color = if (isPaused) Color(0xFFF59E0B) else (if (isDark) Color.White else Color(0xFF0F172A))
             )
         }
 
@@ -505,13 +510,23 @@ private fun ActiveRecordingControls(
             onClick = onPauseToggle,
             modifier = Modifier
                 .size(36.dp)
-                .background(if (isPaused) Color(0xFFEFF6FF) else Color(0xFFF1F5F9), CircleShape)
-                .border(1.dp, if (isPaused) Color(0xFFBFDBFE) else Color(0xFFE2E8F0), CircleShape)
+                .background(
+                    if (isPaused) (if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF))
+                    else (if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
+                    CircleShape
+                )
+                .border(
+                    1.dp,
+                    if (isPaused) (if (isDark) CosmicGlowBlue else Color(0xFFBFDBFE))
+                    else (if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)),
+                    CircleShape
+                )
         ) {
             Icon(
                 imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 contentDescription = if (isPaused) "Resume Recording" else "Pause Recording",
-                tint = if (isPaused) Color(0xFF2563EB) else Color(0xFF475569),
+                tint = if (isPaused) (if (isDark) CosmicGlowBlue else Color(0xFF2563EB))
+                else (if (isDark) TextOnDarkSecondary else Color(0xFF475569)),
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -565,6 +580,7 @@ private fun StudioTabItem(
     badgeCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     if (isSelected) {
         Surface(
             modifier = modifier
@@ -576,8 +592,8 @@ private fun StudioTabItem(
                     onClick = onClick
                 ),
             shape = CircleShape,
-            color = Color.White,
-            border = BorderStroke(0.5.dp, Color(0xFFE2E8F0)),
+            color = if (isDark) CosmicGlowBlue.copy(alpha = 0.28f) else Color.White,
+            border = BorderStroke(0.5.dp, if (isDark) CosmicGlowBlue.copy(alpha = 0.6f) else Color(0xFFE2E8F0)),
             shadowElevation = 0.dp
         ) {
             Row(
@@ -591,7 +607,7 @@ private fun StudioTabItem(
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = label,
-                    color = Color(0xFF0F172A),
+                    color = if (isDark) Color.White else Color(0xFF0F172A),
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -619,7 +635,7 @@ private fun StudioTabItem(
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = label,
-                    color = Color(0xFF64748B),
+                    color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B),
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -631,7 +647,7 @@ private fun StudioTabItem(
                         modifier = Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF2563EB)),
+                            .background(if (isDark) CosmicGlowBlue else Color(0xFF2563EB)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(

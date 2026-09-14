@@ -60,3 +60,17 @@ val CyanBlue80 = PremiumTeal80
 val Blue40 = PremiumBlue40
 val BlueGrey40 = PremiumIndigo40
 val CyanBlue40 = PremiumAccentCyan
+
+// =========================================================================
+// Cosmic Void Dark Mode Tokens (Space Theme)
+// =========================================================================
+val CosmicVoidBackground = Color(0xFF050714)
+val CosmicVoidCard = Color(0xFF0C1225)
+val CosmicVoidCardBorder = Color(0xFF1A1F3A)
+val CosmicVoidCardBorderGlow = Color(0xFF2E1065)
+val CosmicGlowPurple = Color(0xFF7C3AED)
+val CosmicGlowBlue = Color(0xFF3B82F6)
+val CosmicNebulaPink = Color(0xFFEC4899)
+val CosmicAuroraGreen = Color(0xFF10B981)
+val StardustGold = Color(0xFFFBBF24)
+val StardustWhite = Color(0xFFFFFFFF)

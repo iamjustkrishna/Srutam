@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import space.iamjustkrishna.srutam.ui.screens.BYOKOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.PermissionsOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
+import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import space.iamjustkrishna.srutam.utils.AppPreferences
 
 enum class AppStage {
@@ -53,7 +55,15 @@ class MainActivity : ComponentActivity() {
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
 
         setContent {
-            SrutamTheme {
+            val themeModeStr by AppPreferences.themeModeFlow.collectAsState(
+                initial = AppPreferences.getThemeMode(this)
+            )
+            val themeMode = when (themeModeStr) {
+                AppPreferences.THEME_LIGHT -> ThemeMode.LIGHT
+                AppPreferences.THEME_COSMIC_DARK -> ThemeMode.COSMIC_DARK
+                else -> ThemeMode.SYSTEM
+            }
+            SrutamTheme(themeMode = themeMode) {
                 SrutamApp(initialRecordingId = openRecordingId)
             }
         }

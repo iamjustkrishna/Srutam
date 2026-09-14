@@ -8,6 +8,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.player.PlaybackState
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
+import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.viewmodel.ThemeCluster
 
@@ -319,5 +320,30 @@ fun MatrixCopilotPreview() {
 fun MatrixSettingsPreview() {
     SrutamTheme {
         SettingsScreen(onNavigateBack = {})
+    }
+}
+
+@Composable
+fun MatrixSettingsCosmicDarkPreview() {
+    SrutamTheme(themeMode = ThemeMode.COSMIC_DARK) {
+        SettingsScreen(onNavigateBack = {})
+    }
+}
+
+@Composable
+fun MatrixFeedCosmicDarkPreview() {
+    SrutamTheme(themeMode = ThemeMode.COSMIC_DARK) {
+        FeedScreenContent(
+            audioFiles = ScreenMatrixMocks.mockAudioFiles,
+            recordingsByPath = ScreenMatrixMocks.mockRecordings,
+            playbackState = PlaybackState(
+                isPlaying = true,
+                currentFilePath = ScreenMatrixMocks.mockAudioFiles[0].filePath,
+                duration = 142000,
+                currentPosition = 42000
+            ),
+            isLoading = false,
+            isOnline = true
+        )
     }
 }

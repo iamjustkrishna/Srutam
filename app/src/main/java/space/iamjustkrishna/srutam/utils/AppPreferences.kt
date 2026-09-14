@@ -1,6 +1,9 @@
 package space.iamjustkrishna.srutam.utils
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object AppPreferences {
     private const val PREFS_NAME = "srutam_prefs"
@@ -16,6 +19,32 @@ object AppPreferences {
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
+    private const val KEY_THEME_MODE = "theme_mode"
+
+    // Theme Modes
+    const val THEME_LIGHT = "LIGHT"
+    const val THEME_COSMIC_DARK = "COSMIC_DARK"
+    const val THEME_SYSTEM = "SYSTEM"
+
+    private val _themeModeFlow = MutableStateFlow<String?>(null)
+    val themeModeFlow: StateFlow<String?> = _themeModeFlow.asStateFlow()
+
+    fun getThemeMode(context: Context): String {
+        val mode = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+        if (_themeModeFlow.value == null) {
+            _themeModeFlow.value = mode
+        }
+        return mode
+    }
+
+    fun setThemeMode(context: Context, mode: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_THEME_MODE, mode)
+            .apply()
+        _themeModeFlow.value = mode
+    }
 
     // AI Providers
     const val PROVIDER_SRUTAM_DEFAULT = "SRUTAM_DEFAULT"
