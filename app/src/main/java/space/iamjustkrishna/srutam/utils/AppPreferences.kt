@@ -15,6 +15,7 @@ object AppPreferences {
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
+    private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
 
     // AI Providers
     const val PROVIDER_SRUTAM_DEFAULT = "SRUTAM_DEFAULT"
@@ -91,6 +92,18 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
+            .apply()
+    }
+
+    fun isByokOnboardingCompleted(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_BYOK_ONBOARDING_COMPLETED, false)
+    }
+
+    fun setByokOnboardingCompleted(context: Context, completed: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
             .apply()
     }
 
