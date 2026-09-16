@@ -30,19 +30,25 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import space.iamjustkrishna.srutam.analytics.DailyNoteCount
+import space.iamjustkrishna.srutam.analytics.UserActivityMetrics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -417,12 +423,14 @@ fun TabletWorkspaceLayout(
                     }
                     RootTab.ACTIONS -> {
                         val archivedCount by (viewModel?.archivedActionsCount?.collectAsState() ?: remember { mutableIntStateOf(0) })
+                        val activityMetrics by (viewModel?.activityMetrics?.collectAsState() ?: remember { mutableStateOf(UserActivityMetrics()) })
                         TabletInsights3ColumnWorkspace(
                             activeActions = activeActions,
                             allIdeas = allIdeas,
                             allDecisions = allDecisions,
                             themeClusters = themeClusters,
                             isLargeTablet = isLargeTablet,
+                            activityMetrics = activityMetrics,
                             onActionToggle = onActionToggle,
                             onRecordingClick = { recId ->
                                 val targetAudio = effectiveAudioFiles.firstOrNull { audio ->
@@ -4239,6 +4247,7 @@ fun TabletInsights3ColumnWorkspace(
     allDecisions: List<InsightEntity>,
     themeClusters: List<ThemeCluster> = emptyList(),
     isLargeTablet: Boolean,
+    activityMetrics: UserActivityMetrics = UserActivityMetrics(),
     onActionToggle: (InsightEntity) -> Unit,
     onRecordingClick: (Long) -> Unit = {},
     onViewAllNotes: () -> Unit,
@@ -4252,6 +4261,10 @@ fun TabletInsights3ColumnWorkspace(
     val paneBg = if (isDark) CosmicVoidCard else Color.White
     val textPrimary = if (isDark) TextOnDarkPrimary else TextPrimary
     val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
+
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT || configuration.screenWidthDp < configuration.screenHeightDp
+    val showActivitySidebar = !isPortrait && configuration.screenWidthDp >= 1000
 
     var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
@@ -4278,19 +4291,24 @@ fun TabletInsights3ColumnWorkspace(
         )
     }
 
-    Box(
+    Row(
         modifier = modifier
             .fillMaxSize()
-            .background(paneBg),
-        contentAlignment = Alignment.TopStart
+            .background(paneBg)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .widthIn(max = 760.dp)
-                .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 20.dp)
+                .weight(1f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.TopStart
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 760.dp)
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, end = if (showActivitySidebar) 20.dp else 24.dp, top = 20.dp)
+            ) {
             // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -4400,30 +4418,89 @@ fun TabletInsights3ColumnWorkspace(
             }
         }
     }
+
+    if (showActivitySidebar) {
+        VerticalDivider(
+            color = if (isDark) CosmicVoidCardBorder else Color(0xFFF1F5F9),
+            modifier = Modifier.fillMaxHeight()
+        )
+
+        TabletInsightsActivitySidebar(
+            metrics = activityMetrics,
+            onViewAllNotes = onViewAllNotes,
+            onNavigateToTab = { tab -> selectedTab = tab },
+            modifier = Modifier
+                .width(360.dp)
+                .fillMaxHeight()
+                .padding(start = 20.dp, end = 24.dp, top = 20.dp)
+        )
+    }
+}
 }
 
 @Composable
-private fun TabletInsightColumnCard(
-    title: String,
-    count: Int,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accentColor: Color,
-    items: List<InsightEntity>,
-    isAction: Boolean,
-    onActionToggle: (InsightEntity) -> Unit,
+fun TabletInsightsActivitySidebar(
+    metrics: UserActivityMetrics,
+    onViewAllNotes: () -> Unit,
+    onNavigateToTab: (InsightsTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
-    val cardBg = if (isDark) CosmicVoidBackground else Color(0xFFF8FAFC)
-    val cardBorder = if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)
     val textPrimary = if (isDark) TextOnDarkPrimary else TextPrimary
     val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
 
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 120.dp)
+    ) {
+        item {
+            RecentActivityCard(
+                metrics = metrics,
+                onViewAll = onViewAllNotes,
+                onNavigateToTab = onNavigateToTab,
+                isDark = isDark,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary
+            )
+        }
+
+        item {
+            WeeklyActivityCard(
+                metrics = metrics,
+                isDark = isDark,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary
+            )
+        }
+
+        item {
+            HowSrutamHelpsCard(
+                isDark = isDark,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentActivityCard(
+    metrics: UserActivityMetrics,
+    onViewAll: () -> Unit,
+    onNavigateToTab: (InsightsTab) -> Unit,
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color
+) {
+    val cardBg = if (isDark) CosmicVoidBackground else Color.White
+    val cardBorder = if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)
+
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = cardBg,
         border = BorderStroke(1.dp, cardBorder),
-        modifier = modifier
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -4431,82 +4508,439 @@ private fun TabletInsightColumnCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                Column {
                     Text(
-                        text = title,
-                        fontSize = 15.sp,
+                        text = "Recent activity",
+                        fontFamily = PlayfairDisplayFontFamily,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Your voice notes, at a glance.",
+                        fontSize = 11.sp,
+                        color = textSecondary
+                    )
                 }
-                Text(
-                    text = "$count items",
-                    fontSize = 12.sp,
-                    color = textSecondary
-                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onViewAll)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "View all",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) CosmicGlowBlue else CobaltBlue
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            if (items.isEmpty()) {
-                Text(
-                    text = "No $title recorded yet.",
-                    fontSize = 12.sp,
-                    color = textSecondary,
-                    modifier = Modifier.padding(vertical = 12.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActivityMiniMetricTile(
+                    count = metrics.notesLast7Days,
+                    title = "Notes",
+                    subtitle = "Last 7 days",
+                    icon = Icons.Outlined.Description,
+                    iconTint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = onViewAll,
+                    modifier = Modifier.weight(1f)
                 )
-            } else {
-                items.forEach { item ->
-                    val isCompleted = isAction && item.status == InsightStatus.COMPLETED
+
+                ActivityMiniMetricTile(
+                    count = metrics.aiExtractedLast7Days,
+                    title = "AI extracted",
+                    subtitle = "Last 7 days",
+                    icon = Icons.Default.AutoAwesome,
+                    iconTint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = onViewAll,
+                    modifier = Modifier.weight(1f)
+                )
+
+                ActivityMiniMetricTile(
+                    count = metrics.actionItemsCompleted,
+                    title = "Action items",
+                    subtitle = "Completed",
+                    icon = Icons.Default.CheckCircleOutline,
+                    iconTint = Color(0xFF10B981),
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = { onNavigateToTab(InsightsTab.NEXT_STEPS) },
+                    modifier = Modifier.weight(1f)
+                )
+
+                ActivityMiniMetricTile(
+                    count = metrics.ideasCaptured,
+                    title = "Ideas",
+                    subtitle = "Captured",
+                    icon = Icons.Outlined.Lightbulb,
+                    iconTint = Color(0xFFD97706),
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = { onNavigateToTab(InsightsTab.IDEAS) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityMiniMetricTile(
+    count: Int,
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isDark) CosmicVoidCard else Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFF1F5F9)),
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = count.toString(),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = title,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 12.sp,
+                minLines = 2,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 8.5.sp,
+                color = textSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyActivityCard(
+    metrics: UserActivityMetrics,
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color
+) {
+    val cardBg = if (isDark) CosmicVoidBackground else Color.White
+    val cardBorder = if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)
+    var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Weekly activity",
+                fontFamily = PlayfairDisplayFontFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Notes recorded over the last 7 days.",
+                fontSize = 11.sp,
+                color = textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            AnimatedVisibility(
+                visible = selectedDayIndex != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                val day = selectedDayIndex?.let { metrics.weeklyActivity.getOrNull(it) }
+                if (day != null) {
                     Surface(
-                        onClick = { if (isAction) onActionToggle(item) },
-                        enabled = isAction,
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isDark) CosmicVoidCard else Color.White,
-                        border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)),
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isDark) CosmicVoidCard else Color(0xFFEFF6FF),
+                        border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFDBEAFE)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(bottom = 10.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.Top
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (isAction) {
-                                Checkbox(
-                                    checked = isCompleted,
-                                    onCheckedChange = { onActionToggle(item) },
-                                    colors = CheckboxDefaults.colors(checkedColor = accentColor)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${day.count} voice ${if (day.count == 1) "note" else "notes"} on ${day.fullDayName}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) CosmicGlowBlue else CobaltBlue
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = textSecondary,
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable { selectedDayIndex = null }
+                            )
+                        }
+                    }
+                }
+            }
+
+            val maxCount = metrics.maxDailyCount.coerceAtLeast(4)
+            val midCount = maxCount / 2
+            val chartHeight = 100.dp
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(chartHeight + 24.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .height(chartHeight)
+                        .padding(end = 8.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(text = "$maxCount", fontSize = 10.sp, color = textSecondary)
+                    Text(text = "$midCount", fontSize = 10.sp, color = textSecondary)
+                    Text(text = "0", fontSize = 10.sp, color = textSecondary)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(chartHeight),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        HorizontalDivider(color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.5f) else Color(0xFFF1F5F9))
+                        HorizontalDivider(color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.5f) else Color(0xFFF1F5F9))
+                        HorizontalDivider(color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.5f) else Color(0xFFF1F5F9))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        metrics.weeklyActivity.forEachIndexed { index, day ->
+                            val isSelected = selectedDayIndex == index
+                            val heightFraction = (day.count.toFloat() / maxCount).coerceIn(0f, 1f)
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable {
+                                        selectedDayIndex = if (selectedDayIndex == index) null else index
+                                    },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Bottom
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .height(chartHeight)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    val barHeight = (chartHeight * heightFraction).coerceAtLeast(if (day.count > 0) 6.dp else 2.dp)
+                                    val barColor = when {
+                                        day.isToday -> if (isDark) CosmicGlowBlue else CobaltBlue
+                                        isSelected -> if (isDark) CosmicGlowBlue else CobaltBlue
+                                        day.count > 0 -> if (isDark) CosmicGlowBlue.copy(alpha = 0.6f) else Color(0xFF93C5FD)
+                                        else -> if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .width(18.dp)
+                                            .height(barHeight)
+                                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                            .background(barColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
                                 Text(
-                                    text = item.text,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (isCompleted) textSecondary else textPrimary,
-                                    textDecoration = if (isCompleted) TextDecoration.LineThrough else null,
-                                    lineHeight = 16.sp
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "From ${item.recordingName}",
+                                    text = day.dayLabel,
                                     fontSize = 10.sp,
-                                    color = textSecondary
+                                    fontWeight = if (day.isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (day.isToday || isSelected) textPrimary else textSecondary
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HowSrutamHelpsCard(
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color
+) {
+    val cardBg = if (isDark) CosmicVoidBackground else Color.White
+    val cardBorder = if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = cardBg,
+        border = BorderStroke(1.dp, cardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "How Srutam helps",
+                fontFamily = PlayfairDisplayFontFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HelpFeatureRow(
+                    icon = Icons.Default.Mic,
+                    title = "Capture",
+                    description = "Speak naturally, anytime.",
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary
+                )
+
+                HelpFeatureRow(
+                    icon = Icons.Default.AutoAwesome,
+                    title = "Extract",
+                    description = "AI finds key points, tasks and decisions.",
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary
+                )
+
+                HelpFeatureRow(
+                    icon = Icons.Default.CheckCircleOutline,
+                    title = "Stay on track",
+                    description = "Turn conversations into action.",
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpFeatureRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.35f) else Color(0xFFEFF6FF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = description,
+                fontSize = 11.sp,
+                color = textSecondary
+            )
         }
     }
 }

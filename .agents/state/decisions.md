@@ -388,3 +388,20 @@
   3. **Multi-Line Query Input Expansion**: Updated `TabletCopilot3PanelWorkspace` and `GlobalCopilotScreen` query input rows to anchor `Alignment.Bottom`. Configured `BasicTextField` with `singleLine = false`, `minLines = 1`, `maxLines = 5`, `lineHeight = 18.sp`, and bounded container height (`heightIn(min = 20.dp, max = 110.dp)`), allowing text to expand upwards smoothly as users type while keeping the circular send button anchored at the bottom baseline.
   4. **Circular Ambient Glow Shadow on Record Shutter**: Replaced clipped `Surface(shadowElevation = ...)` on `TabletFloatingRecordShutter` with `.shadow(elevation = shadowElevation, shape = CircleShape, clip = false, spotColor = Color(0xFFEF4444).copy(alpha = 0.45f), ambientColor = Color(0xFFEF4444).copy(alpha = 0.25f))` with spring-animated elevation across idle, pressed, and holding states.
   5. **Verification**: Full test suite passing (`testDebugUnitTest`), Kotlin compilation clean (`compileDebugKotlin`), and verified live on tablet emulator (`emulator-5554`, 2560x1600) with interactive screenshots confirming pixel-perfect design parity.
+
+## ADR-036: Universal User Activity Analytics Engine & Tablet Landscape Activity Sidebar
+- **Status**: Accepted
+- **Context**: 
+  1. On large landscape displays (tablets with `screenWidthDp >= 1000.dp`), the space to the right of the single-column tabbed insights container was unused. The user requested an activity sidebar matching their reference design.
+  2. The user required activity metrics to be tracked universally across all form factors (phones, foldables, tablets) in state, while rendering the visual sidebar on large screens for now.
+  3. The right column needed:
+     - "Recent activity" card with "View all ->" and 4 metric tiles: Notes (last 7 days), AI extracted (last 7 days), Action items (completed), Ideas (captured), with interactive tab switching.
+     - "Weekly activity" bar chart representing voice notes recorded over the rolling last 7 days, with dynamic Y-axis markers (0, mid, max), today highlighted, and interactive tap tooltip showing note count per day.
+     - "How Srutam helps" educational guidance card with 3 feature badges: Capture, Extract, and Stay on track.
+- **Decision**:
+  1. **Universal Analytics Engine (`UserActivityAnalytics.kt`)**: Built pure analytical engine without database migrations. Derived `DailyNoteCount` and `UserActivityMetrics` directly from existing Room `Recording` and `InsightEntity` tables. Added unit tests in `UserActivityAnalyticsTest.kt`.
+  2. **Reactive State Pipeline (`AudioFilesViewModel.kt`)**: Combined `repository.allRecordings` and `insightDao.getAllInsightsFlow()` into a unified `activityMetrics: StateFlow<UserActivityMetrics>` available to all screens and form factors.
+  3. **Responsive Right Column (`TabletWorkspaceScreen.kt`)**: In `TabletInsights3ColumnWorkspace`, conditionally attached `TabletInsightsActivitySidebar(modifier = Modifier.width(360.dp))` separated by a `VerticalDivider` alongside `Modifier.weight(1f).widthIn(max = 760.dp)` when `!isPortrait && screenWidthDp >= 1000`.
+  4. **Interactive Navigation & Tooltips**: Tapping "View all" or Notes tile routes to Notes workspace; tapping Action items routes to Next Steps; tapping Ideas routes to Ideas tab; tapping bars displays an animated dismissible tooltip with note counts.
+  5. **Typography & Theme Polish**: Standardized tile titles to 2-line centered layout with `minLines = 2` to prevent awkward truncation and guarantee uniform subtitle baselines. Provided full theme adaptivity across Light and Cosmic Void Dark modes.
+  6. **Verification**: Clean unit test execution (`testDebugUnitTest`), Kotlin compilation clean (`compileDebugKotlin`), debug APK installed and verified live on tablet emulator (`emulator-5554`, 2560x1600 landscape and portrait) with screenshot evidence.

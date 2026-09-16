@@ -28,10 +28,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import space.iamjustkrishna.srutam.analytics.UserActivityAnalytics
+import space.iamjustkrishna.srutam.analytics.UserActivityMetrics
 import java.io.File
 
 data class ThemeCluster(
@@ -60,6 +63,14 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     private val database = (application as space.iamjustkrishna.srutam.SrutamApplication).database
     private val insightDao = database.insightDao()
     private val reminderDao = database.reminderDao()
+    private val repository: RecordingRepository = RecordingRepository(application.applicationContext, database.recordingDao())
+
+    val activityMetrics: StateFlow<UserActivityMetrics> = combine(
+        repository.allRecordings,
+        insightDao.getAllInsightsFlow()
+    ) { recordings, insights ->
+        UserActivityAnalytics.computeMetrics(recordings, insights)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserActivityMetrics())
 
     val allInsights: StateFlow<List<space.iamjustkrishna.srutam.data.InsightEntity>> = insightDao.getAllInsightsFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -82,14 +93,10 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     private val _themeClusters = MutableStateFlow<List<ThemeCluster>>(emptyList())
     val themeClusters: StateFlow<List<ThemeCluster>> = _themeClusters.asStateFlow()
 
-    private val aiProcessor: AIProcessor
-    private val repository: RecordingRepository
+    private val aiProcessor: AIProcessor = AIProcessor(application)
     private val gson = Gson()
 
     init {
-        repository = RecordingRepository(application.applicationContext, database.recordingDao())
-        aiProcessor = AIProcessor(application)
-
         observeRecordings()
         loadAudioFiles()
 

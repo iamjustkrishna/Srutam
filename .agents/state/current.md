@@ -2,6 +2,15 @@
 
 ## Active Focus
 - Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- [x] **Universal User Activity Analytics Engine & Tablet Landscape Activity Sidebar (`UserActivityAnalytics.kt`, `AudioFilesViewModel.kt`, `TabletWorkspaceScreen.kt`, `UserActivityAnalyticsTest.kt`)**:
+  - Implemented universal on-device analytics engine (`UserActivityAnalytics.kt`) that computes rolling 7-day voice note history, AI-extracted note counts, completed action items, captured ideas, and daily note volume from existing Room `Recording` and `InsightEntity` tables without requiring database migrations.
+  - Exposed reactive `activityMetrics: StateFlow<UserActivityMetrics>` in `AudioFilesViewModel.kt` combining `repository.allRecordings` and `insightDao.getAllInsightsFlow()`, tracking user activities universally across all devices.
+  - Built responsive 360dp activity column in `TabletWorkspaceScreen.kt` conditionally shown when `!isPortrait && screenWidthDp >= 1000` alongside the single-column tabbed insights container (`Modifier.weight(1f).widthIn(max = 760.dp)`).
+  - Implemented `RecentActivityCard` with "View all ->" shortcut and 4 metric tiles (Notes, AI extracted, Action items, Ideas), with 2-line centered typography preventing truncation, and direct tap routing to Notes, Next Steps, and Ideas tabs.
+  - Implemented `WeeklyActivityCard` with responsive 7-day vertical bar chart, dynamic Y-axis markers (0, mid, max), rolling day labels with today highlighted, and interactive animated tap tooltips showing exact voice note counts.
+  - Implemented `HowSrutamHelpsCard` with 3 feature guidance rows (Capture, Extract, Stay on track) and circular icon badges.
+  - Full theme adaptivity supported across Light Mode and Cosmic Void Dark Mode.
+  - Verified live on running Android tablet emulator (`emulator-5554`, 2560x1600 landscape and portrait) and passed all unit tests in `UserActivityAnalyticsTest.kt` (`testDebugUnitTest`).
 - [x] **Tablet Landscape Insights Layout Unification & AI Multi-Line Input Polish (`TabletWorkspaceScreen.kt`, `GlobalCopilotScreen.kt`)**:
   - Unified `TabletInsights3ColumnWorkspace` across both landscape and portrait orientations: removed the fragmented 3-column parallel grid on wide displays (>=600dp / 2560x1600) and replaced it with a start-aligned container (`Modifier.widthIn(max = 760.dp)`) matching the approved reference design.
   - Included executive header ("Insights", subtitle, and "✦ AI-Extracted" badge), 3-option capsule switcher (`Next Steps`, `Ideas`, `Decisions`), `ActionProgressCard`, and tab content (`NextStepsTab`, `IdeasStreamTab`, `DecisionsTimelineTab`) with flush 0dp horizontal padding.
