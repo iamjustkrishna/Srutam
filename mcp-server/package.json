@@ -1,0 +1,38 @@
+{
+  "name": "@srutam/mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for Srutam - fetch voice notes, ideas, and action items inside AI coding agents",
+  "main": "dist/index.js",
+  "bin": {
+    "srutam-mcp": "./dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "srutam",
+    "voice-notes",
+    "ai-agent",
+    "cursor",
+    "antigravity"
+  ],
+  "author": "Krishna (@iamjustkrishna)",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}

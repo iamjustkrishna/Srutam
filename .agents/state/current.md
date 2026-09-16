@@ -1,7 +1,28 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- Milestone: Srutam Cloud Sync & Model Context Protocol (MCP) Developer Brain.
+- [x] **Supabase Cloud Sync & Local MCP Agent Server (`supabase/`, `mcp-server/`, `app/`)**:
+  - Implemented end-to-end cloud sync with Supabase and Model Context Protocol (MCP) server so users can capture voice memos on mobile and have structured insights, transcripts, and action items accessible directly in AI coding environments (Cursor, Antigravity, Claude Desktop).
+  - Database & Backend Schema (`supabase/migrations/20260916_01_srutam_cloud_mcp.sql`):
+    - Configured tables: `api_keys` (SHA-256 hashed Personal Access Tokens), `notes` (metadata, transcripts, summaries, key points, WIIFM, privacy flags, pgvector embeddings), `action_items` (task status and completion attribution), and `agent_logs` (audit trail left by coding agents).
+    - Hardened Row Level Security (RLS) policies for user isolation and created secure RPC functions (`verify_srutam_api_key`, `mcp_search_notes`).
+  - Standalone MCP Server Package (`mcp-server/`):
+    - Built TypeScript package implementing `@modelcontextprotocol/sdk` over standard `stdio` transport.
+    - Implemented 6 tools: `search_notes`, `list_recent_notes`, `get_note_detail`, `list_action_items`, `update_action_item`, `append_agent_work_log`.
+    - Tested and built cleanly to `mcp-server/dist/`.
+  - Android Room DB Migration & Local-First Architecture:
+    - Updated `Recording` entity with `syncStatus`, `isPrivate`, `cloudId`, and `lastSyncedAt`. Added `SyncStatus` enum (`NOT_SYNCED`, `PENDING`, `SYNCING`, `SYNCED`, `FAILED`).
+    - Added reactive sync queries in `RecordingDao` and `InsightDao`. Bumped `AppDatabase` to version 6.
+  - Cloud Client & Background Sync Engine:
+    - Created `SupabaseCloudClient.kt` handling REST note upserts (POST for new notes, PATCH for existing notes), Personal Access Token generation (`srtm_live_...`), key listing, key revocation, and remote action item sync.
+    - Created `SupabaseAuthManager.kt` managing Google ID token sign-in, Email Magic Link, and dev credentials.
+    - Created `CloudSyncWorker.kt` (Android `CoroutineWorker` with `NetworkType.CONNECTED` constraint and exponential retry) and `CloudSyncManager.kt` orchestrating automatic push sync after AI completes and pull sync on app resume.
+  - UI & Privacy Controls:
+    - Built `DeveloperMcpSection.kt` inside `SettingsScreen.kt`: Cloud sync status card, manual sync trigger, 1-tap API key generator with clipboard copy, active key list with revoke button, copyable MCP config snippets for Cursor and Antigravity, and opt-in sign-in dialog.
+    - Added Privacy Lock toggle (`Icons.Default.Lock` / `LockOpen`) to `DetailScreen.kt` top app bar, allowing users to exclude sensitive notes from external agents with instant cloud sync update.
+  - Validation:
+    - Passed Kotlin compilation (`.\gradlew compileDebugKotlin`), all 30 unit tests (`.\gradlew testDebugUnitTest`), and assembled debug APK (`.\gradlew assembleDebug`).
 - [x] **Mobile Landscape Damped Sidebar with Spring Resistance & Dynamic Note Expansion (`TabletWorkspaceScreen.kt`)**:
   - Solved cramped vertical scrolling issue on standard phones rotated to landscape orientation (e.g. 1080x2400 @ 420dpi, height ~411dp) where the static top navigation area occupied ~220-250dp, leaving barely ~50dp for the notes list (displaying only 1 note).
   - Built `MobileLandscapeDampedSidebar` with a custom `NestedScrollConnection` providing damped upward scroll resistance (`dampFactor = 0.75f`) and spring physics (`Spring.DampingRatioLowBouncy`, `Spring.StiffnessMediumLow`).

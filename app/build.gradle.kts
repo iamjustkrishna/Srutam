@@ -40,6 +40,11 @@ android {
         val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
 
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: "https://bnahuqxvpbtzaupyumeo.supabase.co"
+        val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuYWh1cXh2cGJ0emF1cHl1bWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODM3NDQsImV4cCI6MjEwNTE1OTc0NH0.2GNtlaNyVSYy77FSYQ2mReZuzxbl4XSlZGQ-SJ-p7Ag"
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+
         ndk {
             abiFilters.add("arm64-v8a")
         }
@@ -152,6 +157,14 @@ dependencies {
 
     // WorkManager for background AI processing and constraints
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // OkHttp for resilient cloud sync & Supabase REST client
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Credential Manager for 1-Tap Google Sign-In
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
 
     testImplementation(libs.junit)
     testImplementation(libs.roborazzi)

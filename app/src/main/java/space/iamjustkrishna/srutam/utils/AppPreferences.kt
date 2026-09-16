@@ -281,4 +281,80 @@ object AppPreferences {
             .remove(KEY_DISMISSED_THEMES)
             .apply()
     }
+
+    // ==============================================================================
+    // Cloud Sync & Developer Brain (MCP)
+    // ==============================================================================
+
+    private const val KEY_CLOUD_USER_ID = "cloud_user_id"
+    private const val KEY_CLOUD_USER_EMAIL = "cloud_user_email"
+    private const val KEY_CLOUD_ACCESS_TOKEN = "cloud_access_token"
+    private const val KEY_CLOUD_REFRESH_TOKEN = "cloud_refresh_token"
+    private const val KEY_CLOUD_LAST_SYNC_TIME = "cloud_last_sync_time"
+
+    private val _cloudAuthStateFlow = MutableStateFlow(false)
+    val cloudAuthStateFlow: StateFlow<Boolean> = _cloudAuthStateFlow.asStateFlow()
+
+    fun isCloudSignedIn(context: Context): Boolean {
+        val token = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CLOUD_ACCESS_TOKEN, null)
+        val signedIn = !token.isNullOrBlank()
+        _cloudAuthStateFlow.value = signedIn
+        return signedIn
+    }
+
+    fun getCloudUserId(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CLOUD_USER_ID, null)
+    }
+
+    fun getCloudUserEmail(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CLOUD_USER_EMAIL, null)
+    }
+
+    fun getCloudAccessToken(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CLOUD_ACCESS_TOKEN, null)
+    }
+
+    fun saveCloudSession(
+        context: Context,
+        userId: String,
+        email: String?,
+        accessToken: String,
+        refreshToken: String?
+    ) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CLOUD_USER_ID, userId)
+            .putString(KEY_CLOUD_USER_EMAIL, email)
+            .putString(KEY_CLOUD_ACCESS_TOKEN, accessToken)
+            .putString(KEY_CLOUD_REFRESH_TOKEN, refreshToken)
+            .apply()
+        _cloudAuthStateFlow.value = true
+    }
+
+    fun clearCloudSession(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_CLOUD_USER_ID)
+            .remove(KEY_CLOUD_USER_EMAIL)
+            .remove(KEY_CLOUD_ACCESS_TOKEN)
+            .remove(KEY_CLOUD_REFRESH_TOKEN)
+            .apply()
+        _cloudAuthStateFlow.value = false
+    }
+
+    fun getCloudLastSyncTime(context: Context): Long {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getLong(KEY_CLOUD_LAST_SYNC_TIME, 0L)
+    }
+
+    fun setCloudLastSyncTime(context: Context, timestamp: Long) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_CLOUD_LAST_SYNC_TIME, timestamp)
+            .apply()
+    }
 }

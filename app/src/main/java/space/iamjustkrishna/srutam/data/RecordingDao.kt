@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.data
+package space.iamjustkrishna.srutam.data
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -39,4 +39,16 @@ interface RecordingDao {
 
     @Query("SELECT COUNT(*) FROM recordings")
     suspend fun getRecordingCount(): Int
+
+    @Query("SELECT * FROM recordings WHERE syncStatus = 'PENDING'")
+    suspend fun getPendingSyncRecordings(): List<Recording>
+
+    @Query("UPDATE recordings SET syncStatus = :status, cloudId = :cloudId, lastSyncedAt = :syncedAt WHERE id = :id")
+    suspend fun updateSyncStatus(id: Long, status: String, cloudId: String?, syncedAt: Long)
+
+    @Query("UPDATE recordings SET isPrivate = :isPrivate WHERE id = :id")
+    suspend fun updatePrivacy(id: Long, isPrivate: Boolean)
+
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE id = :id")
+    suspend fun markForSync(id: Long)
 }

@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.data
+package space.iamjustkrishna.srutam.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -18,5 +18,9 @@ data class Recording(
     val wiifm: String? = null, // What's In It For Me
     val aiStatus: String = RecordingAiStatus.NOT_REQUESTED,
     val isProcessing: Boolean = false,
-    val processingError: String? = null
+    val processingError: String? = null,
+    val syncStatus: String = SyncStatus.NOT_SYNCED,
+    val isPrivate: Boolean = false,
+    val cloudId: String? = null,
+    val lastSyncedAt: Long? = null
 )
