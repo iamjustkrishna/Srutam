@@ -4457,8 +4457,6 @@ fun TabletInsightsActivitySidebar(
         item {
             RecentActivityCard(
                 metrics = metrics,
-                onViewAll = onViewAllNotes,
-                onNavigateToTab = onNavigateToTab,
                 isDark = isDark,
                 textPrimary = textPrimary,
                 textSecondary = textSecondary
@@ -4487,8 +4485,6 @@ fun TabletInsightsActivitySidebar(
 @Composable
 private fun RecentActivityCard(
     metrics: UserActivityMetrics,
-    onViewAll: () -> Unit,
-    onNavigateToTab: (InsightsTab) -> Unit,
     isDark: Boolean,
     textPrimary: Color,
     textSecondary: Color
@@ -4503,48 +4499,20 @@ private fun RecentActivityCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Recent activity",
-                        fontFamily = PlayfairDisplayFontFamily,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Your voice notes, at a glance.",
-                        fontSize = 11.sp,
-                        color = textSecondary
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onViewAll)
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "View all",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isDark) CosmicGlowBlue else CobaltBlue
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = if (isDark) CosmicGlowBlue else CobaltBlue,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
+            Column {
+                Text(
+                    text = "Recent activity",
+                    fontFamily = PlayfairDisplayFontFamily,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Your voice notes, at a glance.",
+                    fontSize = 11.sp,
+                    color = textSecondary
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -4562,7 +4530,6 @@ private fun RecentActivityCard(
                     isDark = isDark,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = onViewAll,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -4575,7 +4542,6 @@ private fun RecentActivityCard(
                     isDark = isDark,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = onViewAll,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -4588,7 +4554,6 @@ private fun RecentActivityCard(
                     isDark = isDark,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = { onNavigateToTab(InsightsTab.NEXT_STEPS) },
                     modifier = Modifier.weight(1f)
                 )
 
@@ -4601,7 +4566,6 @@ private fun RecentActivityCard(
                     isDark = isDark,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = { onNavigateToTab(InsightsTab.IDEAS) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -4619,14 +4583,12 @@ private fun ActivityMiniMetricTile(
     isDark: Boolean,
     textPrimary: Color,
     textSecondary: Color,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (isDark) CosmicVoidCard else Color(0xFFF8FAFC),
         border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFF1F5F9)),
-        onClick = onClick,
         modifier = modifier
     ) {
         Column(

@@ -13,7 +13,7 @@
   - Implemented universal on-device analytics engine (`UserActivityAnalytics.kt`) that computes rolling 7-day voice note history, AI-extracted note counts, completed action items, captured ideas, and daily note volume from existing Room `Recording` and `InsightEntity` tables without requiring database migrations.
   - Exposed reactive `activityMetrics: StateFlow<UserActivityMetrics>` in `AudioFilesViewModel.kt` combining `repository.allRecordings` and `insightDao.getAllInsightsFlow()`, tracking user activities universally across all devices.
   - Built responsive 360dp activity column in `TabletWorkspaceScreen.kt` conditionally shown when `!isPortrait && screenWidthDp >= 1000` alongside the single-column tabbed insights container (`Modifier.weight(1f).widthIn(max = 760.dp)`).
-  - Implemented `RecentActivityCard` with "View all ->" shortcut and 4 metric tiles (Notes, AI extracted, Action items, Ideas), with 2-line centered typography preventing truncation, and direct tap routing to Notes, Next Steps, and Ideas tabs.
+  - Implemented `RecentActivityCard` with clean header typography and 4 static metric tiles (Notes, AI extracted, Action items, Ideas) with 2-line centered typography preventing truncation (removed unused "View all" action and made tiles non-clickable per spec).
   - Implemented `WeeklyActivityCard` with responsive 7-day vertical bar chart, dynamic Y-axis markers (0, mid, max), rolling day labels with today highlighted, and interactive animated tap tooltips showing exact voice note counts.
   - Implemented `HowSrutamHelpsCard` with 3 feature guidance rows (Capture, Extract, Stay on track) and circular icon badges.
   - Full theme adaptivity supported across Light Mode and Cosmic Void Dark Mode.
