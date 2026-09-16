@@ -2,6 +2,12 @@
 
 ## Active Focus
 - Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- [x] **Screen Orientation State Preservation via rememberSaveable (`Navigation.kt`, `TabletWorkspaceScreen.kt`, `ActionItemsScreen.kt`)**:
+  - Solved screen orientation regression where rotating the device between portrait and landscape caused the active screen to bounce back to the initial Notes tab, losing the user's place on Insights or AI screens.
+  - Replaced volatile `remember` with persistent `rememberSaveable` on `currentTab` and `focusedRecordingId` in `RootScreen` (`Navigation.kt`), saving tab state across Android Activity recreation and configuration changes into the saved instance state Bundle.
+  - Upgraded sub-state persistence with `rememberSaveable`: `selectedFilePath` (retaining selected note in tablet workspace), `detailTab` (retaining Summary / Transcript / Insights selection on tablet note detail view), and `selectedTab` (retaining Next Steps / Ideas / Decisions on both tablet and phone Insights screens).
+  - Verified live on running Android tablet emulator (`emulator-5554`, 2560x1600): navigated to Insights in landscape, rotated device to portrait, and confirmed active screen stays reliably on Insights.
+  - Passed all unit tests (`testDebugUnitTest`) with 0 failures.
 - [x] **Tablet Portrait AI Screen Input Bar & Record Button Side-by-Side Alignment (`TabletWorkspaceScreen.kt`)**:
   - Solved layout issue in tablet portrait orientation (`isPortrait == true`) where moving the floating record shutter to the right caused the query chat text field to float awkwardly 96dp above the bottom, stacked vertically above the shutter button.
   - Replaced the hardcoded `96.dp` portrait bottom padding with dynamic baseline calculation `val bottomPad = if (isKeyboardOpen) 12.dp else 24.dp`.

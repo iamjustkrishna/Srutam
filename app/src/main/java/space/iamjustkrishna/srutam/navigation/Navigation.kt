@@ -33,6 +33,7 @@ import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -161,8 +162,8 @@ private fun RootScreen(
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
 
-    var currentTab by remember { mutableStateOf(if (initialFocusRecordingId != null && initialFocusRecordingId > 0) RootTab.AI else RootTab.NOTES) }
-    var focusedRecordingId by remember { mutableStateOf(initialFocusRecordingId) }
+    var currentTab by rememberSaveable { mutableStateOf(if (initialFocusRecordingId != null && initialFocusRecordingId > 0) RootTab.AI else RootTab.NOTES) }
+    var focusedRecordingId by rememberSaveable { mutableStateOf(initialFocusRecordingId) }
 
     LaunchedEffect(initialFocusRecordingId) {
         if (initialFocusRecordingId != null && initialFocusRecordingId > 0L) {

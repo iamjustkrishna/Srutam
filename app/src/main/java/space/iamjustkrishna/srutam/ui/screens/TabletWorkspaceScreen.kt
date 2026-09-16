@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
@@ -297,7 +298,7 @@ fun TabletWorkspaceLayout(
         recordingsByPath
     }
 
-    var selectedFilePath by remember {
+    var selectedFilePath by rememberSaveable {
         mutableStateOf<String?>(null)
     }
     var previousAudioFilesCount by remember { mutableIntStateOf(audioFiles.size) }
@@ -924,7 +925,7 @@ fun TabletExecutiveDetailWorkspace(
     val progress = (currentPosition.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
     val isAudioPlaying = playbackState.isPlaying && playbackState.currentFilePath == audioFile.filePath
 
-    var detailTab by remember { mutableStateOf(TabletDetailTab.SUMMARY) }
+    var detailTab by rememberSaveable { mutableStateOf(TabletDetailTab.SUMMARY) }
     var transcriptSearch by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -4266,7 +4267,7 @@ fun TabletInsights3ColumnWorkspace(
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT || configuration.screenWidthDp < configuration.screenHeightDp
     val showActivitySidebar = !isPortrait && configuration.screenWidthDp >= 1000
 
-    var selectedTab by remember { mutableStateOf(InsightsTab.NEXT_STEPS) }
+    var selectedTab by rememberSaveable { mutableStateOf(InsightsTab.NEXT_STEPS) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
     var showArchiveDialog by remember { mutableStateOf(false) }
 

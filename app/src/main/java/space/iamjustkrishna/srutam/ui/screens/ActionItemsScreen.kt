@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,7 +116,7 @@ fun ActionItemsContent(
     onDismissTheme: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableStateOf(initialTab) }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var showArchiveDialog by remember { mutableStateOf(false) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
 
