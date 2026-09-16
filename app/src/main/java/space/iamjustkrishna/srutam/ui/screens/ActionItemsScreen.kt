@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +53,7 @@ import space.iamjustkrishna.srutam.data.ReminderEntity
 import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
+import space.iamjustkrishna.srutam.ui.components.ArchiveTasksDialog
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.viewmodel.ThemeCluster
@@ -217,50 +219,19 @@ fun ActionItemsContent(
     }
 
     if (showArchiveDialog) {
-        AlertDialog(
-            onDismissRequest = { showArchiveDialog = false },
-            title = {
-                Text(
-                    text = "Archive Completed Tasks",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
+        ArchiveTasksDialog(
+            taskCount = completedActions.size,
+            onConfirm = {
+                onArchiveConfirmed()
+                showArchiveDialog = false
             },
-            text = {
-                Text(
-                    text = "Archive ${completedActions.size} completed items? They will be hidden from your active task view. You can restore them anytime.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onArchiveConfirmed()
-                        showArchiveDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Archive", color = Color.White, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showArchiveDialog = false }
-                ) {
-                    Text("Cancel", color = TextSecondary)
-                }
-            },
-            containerColor = CeramicWhite,
-            shape = RoundedCornerShape(20.dp)
+            onDismiss = { showArchiveDialog = false }
         )
     }
 }
 
 @Composable
-private fun SingleRowInsightsCapsule(
+internal fun SingleRowInsightsCapsule(
     selectedTab: InsightsTab,
     onTabSelected: (InsightsTab) -> Unit,
     nextStepsCount: Int,
@@ -268,15 +239,20 @@ private fun SingleRowInsightsCapsule(
     decisionsCount: Int,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(38.dp)
             .background(
-                color = Color(0xFFF1F5F9),
+                color = if (isDark) CosmicVoidCard else Color(0xFFF1F5F9),
                 shape = RoundedCornerShape(19.dp)
             )
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(19.dp))
+            .border(
+                1.dp,
+                if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0),
+                RoundedCornerShape(19.dp)
+            )
             .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -383,7 +359,11 @@ private fun CapsuleTabItem(
                 text = "$label · $count",
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF0F172A) else TextSecondary,
+                color = if (isSelected) {
+                    if (LocalIsCosmicDark.current) TextOnDarkPrimary else Color(0xFF0F172A)
+                } else {
+                    if (LocalIsCosmicDark.current) TextOnDarkSecondary else TextSecondary
+                },
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
@@ -399,6 +379,7 @@ private fun InsightsSectionHeader(
     badgeColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -408,13 +389,13 @@ private fun InsightsSectionHeader(
             text = title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = TextSecondary,
+            color = if (isDark) TextOnDarkSecondary else TextSecondary,
             letterSpacing = 1.sp
         )
         if (badgeText != null) {
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = badgeColor.copy(alpha = 0.12f),
+                color = badgeColor.copy(alpha = if (isDark) 0.22f else 0.12f),
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 Text(
@@ -436,12 +417,20 @@ private fun CompactActionCard(
     onRecordingClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
     val isCompleted = action.status == InsightStatus.COMPLETED
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, if (isCompleted) SlateBorder.copy(alpha = 0.5f) else SlateBorder),
+        color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) {
+                if (isCompleted) CosmicVoidCardBorder.copy(alpha = 0.5f) else CosmicVoidCardBorder
+            } else {
+                if (isCompleted) SlateBorder.copy(alpha = 0.5f) else SlateBorder
+            }
+        ),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -451,10 +440,18 @@ private fun CompactActionCard(
             // Checkbox
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = if (isCompleted) EmeraldSuccess else SlateSurface,
+                color = if (isCompleted) {
+                    if (isDark) CosmicAuroraGreen else EmeraldSuccess
+                } else {
+                    if (isDark) Color(0xFF1E293B) else SlateSurface
+                },
                 border = BorderStroke(
                     1.5.dp,
-                    if (isCompleted) EmeraldSuccess else Color(0xFFCBD5E1)
+                    if (isCompleted) {
+                        if (isDark) CosmicAuroraGreen else EmeraldSuccess
+                    } else {
+                        if (isDark) CosmicVoidCardBorder else Color(0xFFCBD5E1)
+                    }
                 ),
                 modifier = Modifier
                     .size(22.dp)
@@ -480,7 +477,11 @@ private fun CompactActionCard(
                     text = action.text,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isCompleted) TextMuted else TextPrimary,
+                    color = if (isCompleted) {
+                        if (isDark) TextOnDarkSecondary.copy(alpha = 0.6f) else TextMuted
+                    } else {
+                        if (isDark) TextOnDarkPrimary else TextPrimary
+                    },
                     textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -501,10 +502,15 @@ private fun RecurringThemeCard(
     onExploreMesh: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFFDDD6FE)), // Subtle violet accent
+        color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) Color(0xFF4C1D95).copy(alpha = 0.5f) else Color(0xFFDDD6FE)
+        ),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -518,14 +524,14 @@ private fun RecurringThemeCard(
                         text = cluster.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = if (isDark) TextOnDarkPrimary else TextPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Surfaced across ${cluster.noteCount} notes",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF7C3AED)
+                        color = if (isDark) Color(0xFFA78BFA) else Color(0xFF7C3AED)
                     )
                 }
                 Row(
@@ -535,7 +541,7 @@ private fun RecurringThemeCard(
                     if (onExploreMesh != null) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF3E8FF),
+                            color = if (isDark) Color(0xFF2E1065).copy(alpha = 0.6f) else Color(0xFFF3E8FF),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable { onExploreMesh() }
@@ -548,14 +554,14 @@ private fun RecurringThemeCard(
                                 Icon(
                                     imageVector = Icons.Default.Hub,
                                     contentDescription = null,
-                                    tint = Color(0xFF7C3AED),
+                                    tint = if (isDark) Color(0xFFC4B5FD) else Color(0xFF7C3AED),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Mesh",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF7C3AED)
+                                    color = if (isDark) Color(0xFFC4B5FD) else Color(0xFF7C3AED)
                                 )
                             }
                         }
@@ -567,7 +573,7 @@ private fun RecurringThemeCard(
                         Text(
                             text = "Not related",
                             fontSize = 11.sp,
-                            color = TextMuted
+                            color = if (isDark) TextOnDarkSecondary else TextMuted
                         )
                     }
                 }
@@ -577,13 +583,13 @@ private fun RecurringThemeCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF5F3FF),
+                    color = if (isDark) Color(0xFF16102E) else Color(0xFFF5F3FF),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "\"${cluster.sampleSnippets.first()}\"",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF4C1D95),
+                        color = if (isDark) Color(0xFFDDD6FE) else Color(0xFF4C1D95),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(10.dp)
@@ -613,24 +619,29 @@ private fun DecisionCard(
     onRecordingClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFFA7F3D0)), // Subtle emerald border
+        color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) Color(0xFF065F46).copy(alpha = 0.5f) else Color(0xFFA7F3D0)
+        ),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = EmeraldContainer,
+                    color = if (isDark) Color(0xFF065F46).copy(alpha = 0.5f) else EmeraldContainer,
                     modifier = Modifier.size(24.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = EmeraldSuccess,
+                            tint = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -640,7 +651,7 @@ private fun DecisionCard(
                     text = "DECISION",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = OnEmeraldContainer,
+                    color = if (isDark) Color(0xFFA7F3D0) else OnEmeraldContainer,
                     letterSpacing = 0.8.sp
                 )
             }
@@ -650,7 +661,7 @@ private fun DecisionCard(
                 text = decision.text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = if (isDark) TextOnDarkPrimary else TextPrimary
             )
 
             if (!decision.rationale.isNullOrBlank()) {
@@ -658,7 +669,7 @@ private fun DecisionCard(
                 Text(
                     text = "Rationale: ${decision.rationale}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = if (isDark) TextOnDarkSecondary else TextSecondary
                 )
             }
 
@@ -670,12 +681,15 @@ private fun DecisionCard(
             ) {
                 OriginNotePill(
                     name = decision.recordingName,
-                    onClick = onRecordingClick
+                    onClick = onRecordingClick,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = formatDate(decision.createdAt),
                     fontSize = 11.sp,
-                    color = TextMuted
+                    color = if (isDark) TextOnDarkSecondary else TextMuted,
+                    maxLines = 1
                 )
             }
         }
@@ -688,24 +702,29 @@ private fun IdeaCard(
     onRecordingClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFFFDE68A)), // Subtle amber border
+        color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.95f),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFDE68A)
+        ),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFEF3C7),
+                    color = if (isDark) Color(0xFF78350F).copy(alpha = 0.5f) else Color(0xFFFEF3C7),
                     modifier = Modifier.size(24.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Lightbulb,
                             contentDescription = null,
-                            tint = Color(0xFFD97706),
+                            tint = if (isDark) StardustGold else Color(0xFFD97706),
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -715,7 +734,7 @@ private fun IdeaCard(
                     text = "IDEA",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFB45309),
+                    color = if (isDark) StardustGold else Color(0xFFB45309),
                     letterSpacing = 0.8.sp
                 )
             }
@@ -725,7 +744,7 @@ private fun IdeaCard(
                 text = idea.text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = if (isDark) TextOnDarkPrimary else TextPrimary
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -736,12 +755,15 @@ private fun IdeaCard(
             ) {
                 OriginNotePill(
                     name = idea.recordingName,
-                    onClick = onRecordingClick
+                    onClick = onRecordingClick,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = formatDate(idea.createdAt),
                     fontSize = 11.sp,
-                    color = TextMuted
+                    color = if (isDark) TextOnDarkSecondary else TextMuted,
+                    maxLines = 1
                 )
             }
         }
@@ -754,10 +776,12 @@ private fun OriginNotePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = SlateGrouped,
-        border = BorderStroke(1.dp, SlateBorder),
+        color = if (isDark) Color(0xFF1E293B) else SlateGrouped,
+        border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
@@ -769,7 +793,7 @@ private fun OriginNotePill(
             Icon(
                 imageVector = Icons.Default.GraphicEq,
                 contentDescription = null,
-                tint = CobaltBlue,
+                tint = if (isDark) CosmicGlowBlue else CobaltBlue,
                 modifier = Modifier.size(12.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -777,7 +801,7 @@ private fun OriginNotePill(
                 text = name.ifBlank { "Voice Note" },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextPrimary,
+                color = if (isDark) TextOnDarkPrimary else TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -786,7 +810,7 @@ private fun OriginNotePill(
 }
 
 @Composable
-private fun NextStepsTab(
+internal fun NextStepsTab(
     pendingActions: List<InsightEntity>,
     completedActions: List<InsightEntity>,
     themeClusters: List<ThemeCluster>,
@@ -802,19 +826,22 @@ private fun NextStepsTab(
     onRestoreArchived: () -> Unit,
     onDismissTheme: (String) -> Unit,
     onExploreMesh: (() -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Progress Card
         item {
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = CeramicWhite.copy(alpha = 0.95f),
-                border = BorderStroke(1.dp, SlateBorder),
+                color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.95f),
+                border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -828,18 +855,20 @@ private fun NextStepsTab(
                                 text = "Action Progress",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
                                 text = "$completedCount of $totalActiveCount items completed",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
                         if (completedCount > 0) {
                             Button(
                                 onClick = onArchiveClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = CobaltContainer),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isDark) Color(0xFF1E293B) else CobaltContainer
+                                ),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
@@ -847,7 +876,7 @@ private fun NextStepsTab(
                                     text = "Archive ($completedCount)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = OnCobaltContainer
+                                    color = if (isDark) CosmicGlowBlue else OnCobaltContainer
                                 )
                             }
                         }
@@ -860,8 +889,8 @@ private fun NextStepsTab(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = CobaltBlue,
-                        trackColor = SlateGrouped
+                        color = if (isDark) CosmicGlowBlue else CobaltBlue,
+                        trackColor = if (isDark) Color(0xFF1E293B) else SlateGrouped
                     )
                 }
             }
@@ -895,7 +924,7 @@ private fun NextStepsTab(
                 InsightsSectionHeader(
                     title = "NEEDS ATTENTION",
                     badgeText = "${pendingActions.size} open",
-                    badgeColor = CobaltBlue
+                    badgeColor = if (isDark) CosmicGlowBlue else CobaltBlue
                 )
             }
         }
@@ -904,32 +933,42 @@ private fun NextStepsTab(
             item {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = CeramicWhite.copy(alpha = 0.9f),
-                    border = BorderStroke(1.dp, SlateBorder),
+                    color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.9f),
+                    border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.TaskAlt,
-                            contentDescription = null,
-                            tint = CobaltBlue,
-                            modifier = Modifier.size(36.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) Color(0xFF1E293B) else CobaltContainer.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TaskAlt,
+                                contentDescription = null,
+                                tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "No action items yet",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Commitments and to-dos mentioned in voice notes will appear here automatically.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -949,8 +988,8 @@ private fun NextStepsTab(
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = SlateSurface,
-                        border = BorderStroke(1.dp, SlateBorder),
+                        color = if (isDark) Color(0xFF131B2E) else SlateSurface,
+                        border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
@@ -965,12 +1004,12 @@ private fun NextStepsTab(
                                 text = "Completed (${completedActions.size})",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                             Icon(
                                 imageVector = if (isCompletedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = TextSecondary,
+                                tint = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -995,8 +1034,8 @@ private fun NextStepsTab(
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = SlateSurface,
-                    border = BorderStroke(1.dp, SlateBorder),
+                    color = if (isDark) Color(0xFF131B2E) else SlateSurface,
+                    border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -1007,7 +1046,7 @@ private fun NextStepsTab(
                         Text(
                             text = "$archivedCount tasks archived",
                             fontSize = 12.sp,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary
                         )
                         TextButton(
                             onClick = onRestoreArchived,
@@ -1017,7 +1056,7 @@ private fun NextStepsTab(
                                 text = "Restore all",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = CobaltBlue
+                                color = if (isDark) CosmicGlowBlue else CobaltBlue
                             )
                         }
                     }
@@ -1028,21 +1067,24 @@ private fun NextStepsTab(
 }
 
 @Composable
-private fun IdeasStreamTab(
+internal fun IdeasStreamTab(
     ideas: List<InsightEntity>,
     onRecordingClick: (Long) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFFEF3C7).copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                color = if (isDark) Color(0xFF2E1A05).copy(alpha = 0.8f) else Color(0xFFFEF3C7).copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, if (isDark) Color(0xFF78350F) else Color(0xFFFDE68A)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1052,7 +1094,7 @@ private fun IdeasStreamTab(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = null,
-                        tint = Color(0xFFD97706),
+                        tint = if (isDark) StardustGold else Color(0xFFD97706),
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1061,12 +1103,12 @@ private fun IdeasStreamTab(
                             text = "Connected Ideas",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
+                            color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
                         )
                         Text(
                             text = "Distinct proposals and thoughts distilled from your voice notes.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFB45309)
+                            color = if (isDark) Color(0xFFFCD34D) else Color(0xFFB45309)
                         )
                     }
                 }
@@ -1077,25 +1119,42 @@ private fun IdeasStreamTab(
             item {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = CeramicWhite.copy(alpha = 0.9f),
-                    border = BorderStroke(1.dp, SlateBorder),
+                    color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.9f),
+                    border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) Color(0xFF2E1A05) else Color(0xFFFEF3C7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lightbulb,
+                                contentDescription = null,
+                                tint = if (isDark) StardustGold else Color(0xFFD97706),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "No ideas captured yet",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Speak freely about creative proposals, brainstorms, and new plans in your voice notes.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -1112,21 +1171,24 @@ private fun IdeasStreamTab(
 }
 
 @Composable
-private fun DecisionsTimelineTab(
+internal fun DecisionsTimelineTab(
     decisions: List<InsightEntity>,
     onRecordingClick: (Long) -> Unit,
+    contentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsCosmicDark.current
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = EmeraldContainer.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+                color = if (isDark) Color(0xFF06281E).copy(alpha = 0.8f) else EmeraldContainer.copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, if (isDark) Color(0xFF065F46) else Color(0xFFA7F3D0)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1136,7 +1198,7 @@ private fun DecisionsTimelineTab(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = EmeraldSuccess,
+                        tint = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1145,12 +1207,12 @@ private fun DecisionsTimelineTab(
                             text = "Decisions & Agreements",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = OnEmeraldContainer
+                            color = if (isDark) Color(0xFFA7F3D0) else OnEmeraldContainer
                         )
                         Text(
                             text = "Explicit commitments and conclusions made across your voice notes.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF047857)
+                            color = if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
                         )
                     }
                 }
@@ -1161,25 +1223,42 @@ private fun DecisionsTimelineTab(
             item {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = CeramicWhite.copy(alpha = 0.9f),
-                    border = BorderStroke(1.dp, SlateBorder),
+                    color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.9f),
+                    border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) Color(0xFF06281E) else EmeraldContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TaskAlt,
+                                contentDescription = null,
+                                tint = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "No decisions logged yet",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = if (isDark) TextOnDarkPrimary else TextPrimary,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "State your choices, conclusions, and agreements in your recordings to track them here.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }

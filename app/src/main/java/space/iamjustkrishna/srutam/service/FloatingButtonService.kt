@@ -457,11 +457,7 @@ class FloatingButtonService : Service() {
             }
         }
         startService(intent)
-        Toast.makeText(
-            this,
-            if (isPaused) "Recording resumed" else "Recording paused",
-            Toast.LENGTH_SHORT
-        ).show()
+        showElevatedToast(if (isPaused) "Recording resumed" else "Recording paused")
         renderCurrentState()
     }
 
@@ -470,7 +466,7 @@ class FloatingButtonService : Service() {
             action = RecordingForegroundService.ACTION_STOP_RECORDING
         }
         startService(intent)
-        Toast.makeText(this, "Voice note saved", Toast.LENGTH_SHORT).show()
+        showElevatedToast("Voice note saved")
         isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
@@ -481,10 +477,17 @@ class FloatingButtonService : Service() {
             action = RecordingForegroundService.ACTION_DELETE_RECORDING
         }
         startService(intent)
-        Toast.makeText(this, "Recording discarded", Toast.LENGTH_SHORT).show()
+        showElevatedToast("Recording discarded")
         isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
+    }
+
+    private fun showElevatedToast(message: String) {
+        val toast = Toast.makeText(this, message, Toast.LENGTH_SHORT)
+        val yOffsetPx = (140 * resources.displayMetrics.density).toInt()
+        toast.setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, yOffsetPx)
+        toast.show()
     }
 
     private fun openMainActivity() {

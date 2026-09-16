@@ -106,7 +106,7 @@ class AIProcessor(private val context: Context) {
             val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis)
             val response = withTimeout(INSIGHTS_TIMEOUT_MS) {
                 createModel(
-                    modelName = "gemini-3.8-flash",
+                    modelName = "gemini-2.5-flash",
                     timeoutMs = INSIGHTS_TIMEOUT_MS
                 ).generateContent(prompt)
             }
@@ -141,7 +141,7 @@ class AIProcessor(private val context: Context) {
 
             val response = withTimeout(CHUNK_SUMMARY_TIMEOUT_MS) {
                 createModel(
-                    modelName = "gemini-3.8-flash",
+                    modelName = "gemini-2.5-flash",
                     timeoutMs = CHUNK_SUMMARY_TIMEOUT_MS
                 ).generateContent(prompt)
             }
@@ -349,7 +349,7 @@ class AIProcessor(private val context: Context) {
         }
     }
 
-    private fun generateFallbackInsights(transcript: String): AIInsights {
+    fun generateFallbackInsights(transcript: String): AIInsights {
         // Basic fallback when AI is not available
         val sentences = transcript.split(". ").filter { it.isNotBlank() }
         val wordCount = transcript.split(" ").size
@@ -400,7 +400,7 @@ class AIProcessor(private val context: Context) {
     suspend fun queryRecording(transcript: String, question: String): String = withContext(Dispatchers.IO) {
         try {
             val generativeModel = createModel(
-                modelName = "gemini-3.8-flash",
+                modelName = "gemini-2.5-flash",
                 timeoutMs = QUERY_TIMEOUT_MS
             )
 
@@ -428,7 +428,7 @@ class AIProcessor(private val context: Context) {
     suspend fun queryAllRecordings(contextSnippets: List<String>, question: String): String = withContext(Dispatchers.IO) {
         try {
             val generativeModel = createModel(
-                modelName = "gemini-3.8-flash",
+                modelName = "gemini-2.5-flash",
                 timeoutMs = QUERY_TIMEOUT_MS
             )
 

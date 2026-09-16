@@ -416,7 +416,7 @@ fun GlobalCopilotContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     TextField(
                         value = inputText,
@@ -428,20 +428,25 @@ fun GlobalCopilotContent(
                                 color = Color(0xFF8E8E93)
                             )
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 40.dp, max = 120.dp),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
-                        singleLine = true
+                        singleLine = false,
+                        minLines = 1,
+                        maxLines = 5
                     )
 
                     Surface(
                         shape = CircleShape,
                         color = if (inputText.isNotBlank() && !isQueryLoading) CobaltBlue else Color(0xFFE5E5EA),
                         modifier = Modifier
+                            .padding(bottom = 6.dp)
                             .size(38.dp)
                             .clickable(
                                 enabled = inputText.isNotBlank() && !isQueryLoading,

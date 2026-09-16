@@ -69,9 +69,9 @@ object AppPreferences {
         return when (provider) {
             PROVIDER_OPENAI -> "gpt-5.6-sol"
             PROVIDER_ANTHROPIC -> "claude-sonnet-4.6"
-            PROVIDER_GEMINI -> "gemini-3.8-flash"
+            PROVIDER_GEMINI -> "gemini-2.5-flash"
             PROVIDER_GROQ -> "qwen3.6-27b"
-            else -> "gemini-3.8-flash"
+            else -> "gemini-2.5-flash"
         }
     }
 
@@ -131,9 +131,16 @@ object AppPreferences {
             .apply()
     }
 
+    private val _autoAiEnabledFlow = MutableStateFlow<Boolean?>(null)
+    val autoAiEnabledFlow: StateFlow<Boolean?> = _autoAiEnabledFlow.asStateFlow()
+
     fun isAutoAiEnabled(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val enabled = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_AUTO_AI_ENABLED, false)
+        if (_autoAiEnabledFlow.value == null) {
+            _autoAiEnabledFlow.value = enabled
+        }
+        return enabled
     }
 
     fun setAutoAiEnabled(context: Context, enabled: Boolean) {
@@ -141,6 +148,7 @@ object AppPreferences {
             .edit()
             .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
             .apply()
+        _autoAiEnabledFlow.value = enabled
     }
 
     fun isByokOnboardingCompleted(context: Context): Boolean {

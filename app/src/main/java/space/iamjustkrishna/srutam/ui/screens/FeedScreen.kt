@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.ui.components.*
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -67,7 +68,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import kotlin.math.sin
+import kotlin.math.cos
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -746,7 +751,7 @@ fun FeedScreenContent(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(12.dp)
+                            .padding(bottom = 96.dp, start = 12.dp, end = 12.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -1790,53 +1795,56 @@ private fun CardWaveformVisualizer(
     onSeekFraction: ((Float) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val barHeights = remember {
-        listOf(
-            6, 10, 16, 22, 14, 8, 18, 24, 12, 8,
-            14, 20, 26, 16, 10, 22, 18, 8, 14, 20,
-            12, 6, 16, 24, 16, 10, 18, 22, 14, 8,
-            12, 18, 24, 14, 10, 6
-        )
-    }
+    val isDark = LocalIsCosmicDark.current
+    val activeColor = if (isDark) CosmicGlowBlue else Color(0xFF0066FF)
+    val inactiveColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
 
-    Row(
+    Canvas(
         modifier = modifier
             .height(34.dp)
             .padding(horizontal = 4.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = { offset ->
+            .pointerInput(onSeekFraction) {
+                if (onSeekFraction != null) {
+                    detectTapGestures(
+                        onPress = { offset ->
+                            if (size.width > 0) {
+                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                onSeekFraction(fraction)
+                            }
+                        }
+                    )
+                }
+            }
+            .pointerInput(onSeekFraction) {
+                if (onSeekFraction != null) {
+                    detectHorizontalDragGestures { change, _ ->
+                        change.consume()
                         if (size.width > 0) {
-                            val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                            onSeekFraction?.invoke(fraction)
+                            val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            onSeekFraction(fraction)
                         }
                     }
-                )
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, _ ->
-                    change.consume()
-                    if (size.width > 0) {
-                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                        onSeekFraction?.invoke(fraction)
-                    }
                 }
-            },
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            }
     ) {
-        barHeights.forEachIndexed { index, heightDp ->
-            val barFraction = index.toFloat() / (barHeights.size - 1).coerceAtLeast(1)
-            val isPlayed = isPlaying && (progress >= barFraction)
+        val barWidth = 2.5.dp.toPx()
+        val targetSpacing = 2.dp.toPx()
+        val step = barWidth + targetSpacing
+        val count = (size.width / step).toInt().coerceAtLeast(16)
+        val spacing = if (count > 1) (size.width - (count * barWidth)) / (count - 1) else targetSpacing
+        val centerY = size.height / 2
 
-            Box(
-                modifier = Modifier
-                    .width(2.5.dp)
-                    .height(heightDp.dp)
-                    .background(
-                        color = if (isPlayed) Color(0xFF0066FF) else Color(0xFFCBD5E1),
-                        shape = CircleShape
-                    )
+        for (i in 0 until count) {
+            val factor = 0.25f + 0.75f * ((sin(i * 0.42f) * cos(i * 0.16f) + 1f) / 2f)
+            val barHeight = (size.height * factor).coerceAtLeast(5.dp.toPx())
+            val x = i * (barWidth + spacing)
+            val barFraction = i.toFloat() / (count - 1).coerceAtLeast(1)
+            val isPassed = isPlaying && (progress >= barFraction)
+            drawRoundRect(
+                color = if (isPassed) activeColor else inactiveColor,
+                topLeft = Offset(x, centerY - barHeight / 2),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
             )
         }
     }
@@ -1848,735 +1856,6 @@ private fun Recording?.isProcessedForFilter(): Boolean {
         !summary.isNullOrBlank() ||
         aiStatus == RecordingAiStatus.READY ||
         aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE
-}
-
-@Composable
-fun SrutamDialogConfirmButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isDestructive: Boolean = false,
-    enabled: Boolean = true
-) {
-    val buttonBackground = when {
-        !enabled -> Brush.verticalGradient(listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8)))
-        isDestructive -> Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFDC2626)))
-        else -> Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF2563EB)))
-    }
-    val contentColor = if (enabled) Color.White else Color(0xFFF1F5F9)
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(42.dp)
-            .then(
-                if (enabled) {
-                    Modifier.shadow(
-                        elevation = 4.dp,
-                        shape = CircleShape,
-                        spotColor = if (isDestructive) Color(0x40DC2626) else Color(0x402563EB)
-                    )
-                } else Modifier
-            )
-            .background(brush = buttonBackground, shape = CircleShape)
-            .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun SrutamDialogDismissButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(42.dp)
-            .background(
-                color = Color(0xFFF1F5F9),
-                shape = CircleShape
-            )
-            .border(
-                width = 1.dp,
-                color = Color(0xFFE2E8F0),
-                shape = CircleShape
-            )
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF64748B),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun SrutamCustomDialog(
-    onDismissRequest: () -> Unit,
-    iconBadge: @Composable () -> Unit,
-    title: String,
-    subtitle: String? = null,
-    content: @Composable () -> Unit,
-    confirmButton: @Composable () -> Unit,
-    dismissButton: (@Composable () -> Unit)? = null
-) {
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .padding(12.dp)
-                .shadow(
-                    elevation = 20.dp,
-                    shape = RoundedCornerShape(26.dp),
-                    spotColor = Color(0x380F172A),
-                    ambientColor = Color(0x180F172A)
-                ),
-            shape = RoundedCornerShape(26.dp),
-            color = Color(0xFAFFFFFF),
-            border = BorderStroke(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.95f),
-                        Color(0xFFCBD5E1).copy(alpha = 0.45f)
-                    )
-                )
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                iconBadge()
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    letterSpacing = (-0.3).sp
-                )
-                if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(14.dp))
-                content()
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (dismissButton != null) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            dismissButton()
-                        }
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        confirmButton()
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RenameDialog(
-    currentName: String,
-    onRename: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var text by remember { mutableStateOf(currentName) }
-
-    SrutamCustomDialog(
-        onDismissRequest = onDismiss,
-        iconBadge = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color(0xFFDBEAFE),
-                                Color(0xFFEFF6FF)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White,
-                                Color(0xFFBFDBFE)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(
-                            elevation = 6.dp,
-                            shape = CircleShape,
-                            spotColor = Color(0x4D2563EB)
-                        )
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFF3B82F6),
-                                    Color(0xFF1D4ED8)
-                                )
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        },
-        title = "Rename Recording",
-        subtitle = "Enter a new title for this audio recording.",
-        content = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = null,
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (text.isNotBlank()) {
-                        IconButton(
-                            onClick = { text = "" },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear text",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF8FAFC),
-                    unfocusedContainerColor = Color(0xFFF8FAFC),
-                    focusedBorderColor = Color(0xFF2563EB),
-                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                    focusedTextColor = Color(0xFF0F172A),
-                    unfocusedTextColor = Color(0xFF0F172A)
-                ),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            )
-        },
-        confirmButton = {
-            SrutamDialogConfirmButton(
-                text = "Rename",
-                onClick = { onRename(text.takeIf { it.isNotBlank() } ?: currentName) }
-            )
-        },
-        dismissButton = {
-            SrutamDialogDismissButton(
-                text = "Cancel",
-                onClick = onDismiss
-            )
-        }
-    )
-}
-
-@Composable
-fun SaveRecordingDialog(
-    defaultName: String,
-    onSave: (String) -> Unit,
-    onDiscard: () -> Unit
-) {
-    var text by remember { mutableStateOf(defaultName) }
-    val isNameValid = text.trim().isNotEmpty()
-
-    SrutamCustomDialog(
-        onDismissRequest = onDiscard,
-        iconBadge = {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color(0xFFDBEAFE),
-                                Color(0xFFEFF6FF)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.2.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White,
-                                Color(0xFFBFDBFE)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = CircleShape,
-                            spotColor = Color(0x4D2563EB)
-                        )
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFF3B82F6),
-                                    Color(0xFF1D4ED8)
-                                )
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        },
-        title = "Save Voice Note",
-        subtitle = "Give your new recording a name or keep the default.",
-        content = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = null,
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (text.isNotBlank()) {
-                        IconButton(
-                            onClick = { text = "" },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear text",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF8FAFC),
-                    unfocusedContainerColor = Color(0xFFF8FAFC),
-                    focusedBorderColor = Color(0xFF2563EB),
-                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                    focusedTextColor = Color(0xFF0F172A),
-                    unfocusedTextColor = Color(0xFF0F172A)
-                ),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            )
-        },
-        confirmButton = {
-            SrutamDialogConfirmButton(
-                text = "Save Note",
-                enabled = isNameValid,
-                onClick = {
-                    if (isNameValid) {
-                        onSave(text.trim())
-                    }
-                }
-            )
-        },
-        dismissButton = {
-            SrutamDialogDismissButton(
-                text = "Discard",
-                onClick = onDiscard
-            )
-        }
-    )
-}
-
-@Composable
-fun AudioInfoDialog(
-    displayName: String,
-    audioFile: AudioFileInfo,
-    onDismiss: () -> Unit
-) {
-    SrutamCustomDialog(
-        onDismissRequest = onDismiss,
-        iconBadge = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color(0xFFE2E8F0),
-                                Color(0xFFF1F5F9)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White,
-                                Color(0xFFCBD5E1)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = CircleShape,
-                            spotColor = Color(0x260F172A)
-                        )
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFF64748B),
-                                    Color(0xFF475569)
-                                )
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-        },
-        title = "File Info",
-        subtitle = "Audio metadata and storage location details.",
-        content = {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    InfoRow(label = "Title", value = displayName)
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                    InfoRow(label = "Duration", value = formatDuration(audioFile.duration))
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                    InfoRow(label = "Recorded Date", value = formatDate(audioFile.timestamp))
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                    InfoRow(label = "File Size", value = formatFileSize(audioFile.sizeBytes))
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                    InfoRow(label = "File Path", value = audioFile.filePath)
-                }
-            }
-        },
-        confirmButton = {
-            SrutamDialogConfirmButton(
-                text = "Done",
-                onClick = onDismiss
-            )
-        }
-    )
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF64748B)
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF0F172A)
-        )
-    }
-}
-
-@Composable
-fun DeleteConfirmationDialog(
-    recordingName: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    SrutamCustomDialog(
-        onDismissRequest = onDismiss,
-        iconBadge = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color(0xFFFEE2E2),
-                                Color(0xFFFEF2F2)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White,
-                                Color(0xFFFECACA)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(
-                            elevation = 6.dp,
-                            shape = CircleShape,
-                            spotColor = Color(0x4DDC2626)
-                        )
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFFEF4444),
-                                    Color(0xFFDC2626)
-                                )
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        },
-        title = "Delete Recording?",
-        subtitle = "Are you sure you want to permanently delete \"$recordingName\"? This action cannot be undone.",
-        content = {},
-        confirmButton = {
-            SrutamDialogConfirmButton(
-                text = "Delete",
-                onClick = onConfirm,
-                isDestructive = true
-            )
-        },
-        dismissButton = {
-            SrutamDialogDismissButton(
-                text = "Cancel",
-                onClick = onDismiss
-            )
-        }
-    )
-}
-
-@Composable
-fun MultiDeleteConfirmationDialog(
-    recordingNames: List<String>,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    SrutamCustomDialog(
-        onDismissRequest = onDismiss,
-        iconBadge = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                Color(0xFFFEE2E2),
-                                Color(0xFFFEF2F2)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White,
-                                Color(0xFFFECACA)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(
-                            elevation = 6.dp,
-                            shape = CircleShape,
-                            spotColor = Color(0x4DDC2626)
-                        )
-                        .background(
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    Color(0xFFEF4444),
-                                    Color(0xFFDC2626)
-                                )
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        },
-        title = "Delete ${recordingNames.size} Recording${if (recordingNames.size > 1) "s" else ""}?",
-        subtitle = "You are about to permanently delete the following recordings:",
-        content = {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 160.dp)
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(recordingNames) { name ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = name,
-                                fontSize = 12.sp,
-                                color = Color(0xFF0F172A),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            SrutamDialogConfirmButton(
-                text = "Delete All",
-                onClick = onConfirm,
-                isDestructive = true
-            )
-        },
-        dismissButton = {
-            SrutamDialogDismissButton(
-                text = "Cancel",
-                onClick = onDismiss
-            )
-        }
-    )
 }
 
 @Composable

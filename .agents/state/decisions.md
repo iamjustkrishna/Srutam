@@ -247,4 +247,144 @@
       git checkout v2.1.0
       ```
 
+## ADR-026: Tablet Workspace 2-Panel Portrait & Landscape Architecture Redesign
+- **Status**: Accepted
+- **Context**: The tablet experience on Android tablets (both 7-inch portrait and 10-inch portrait/landscape) needed a dedicated, productive layout matching the approved design spec. The layout required a left sidebar with brand wordmark, tab navigation, active note pill highlight, and pinned new note button, paired with an executive detail workspace featuring audio scrubbers, segmented tab switcher, 3-column insight cards (Next Steps, Key Ideas, Key Decisions), transcript preview with embedded search, and referenced notes.
+- **Decision**:
+  1. **2-Panel Unified Architecture (`TabletWorkspaceScreen.kt`)**: Replaced raw phone scaling on tablets with a responsive 2-panel architecture:
+     - Left Sidebar: 240dp on compact tablets (<768dp) and 280dp on standard tablets (>=768dp). Houses "Srutam" wordmark, 4 navigation tabs (Notes, Insights, AI, Settings), Recent notes list with active note capsule highlight, and pinned "+ New Note" bottom button.
+     - Right Detail Workspace: Full-featured note workspace with back navigation, action buttons (Share, Bookmark, More), title and date, "Summarized" status badge, audio player with custom waveform scrubber and 10s seek/speed controls, segmented view switcher (`Summary` | `Transcript` | `Insights`), and responsive cards.
+  2. **Responsive 3-Column Insight Cards**: On standard wide screens (>=768dp), Next Steps, Key Ideas, and Key Decisions sit in equal 1/3 columns. On compact portrait tablets (<768dp), cards transition smoothly to a horizontal scroll row with 240-260dp fixed widths, preventing text wrapping or column squishing.
+  3. **Transcript Inline Search**: Embedded search bar inside the transcript preview card allows instant keyword filtering of spoken lines with timestamp seeking.
+  4. **Dual Appearance**: Full support for both Light Mode and Cosmic Void Dark Mode across all sidebar pills, waveform scrubbers, cards, and input fields.
+  5. **Portrait Summary Cleanup**: In portrait tablet orientation (`Configuration.ORIENTATION_PORTRAIT` or `screenWidthDp < screenHeightDp`), suppressed the 3-column cards (`Next Steps`, `Key Ideas`, `Key Decisions`) from the Summary section to maintain a clean vertical flow and eliminate card squishing. The dedicated `Insights` tab remains accessible for full-screen breakdown. In landscape mode, the 3-column cards remain visible side by side.
+  6. **Centered Floating Studio Record Shutter**: Replaced the pinned sidebar "+ New Note" button with a floating record shutter positioned at `Alignment.BottomCenter` within a root `Box` overlaid above all screens. Idle state is a 56dp circular crimson ring button with spring tactile feedback; active state animates into a centered studio capsule with trash/discard, pulsing recording dot, live `MM:SS` timer, pause/resume, and red stop square button.
+  7. **Universal Recording Save Flow**: Hoisted `SaveRecordingDialog` in `Navigation.kt` outside the `isTablet` branch, ensuring voice notes recorded on tablets can be titled, saved to the Room database, and written to disk with the exact same UX as phone.
+  8. **Roborazzi Native Verification**: Captured and verified pixel-accurate snapshots across both `tablet-7inch` and `tablet-10inch` profiles in Light and Cosmic Dark modes.
 
+## ADR-027: Tablet Note Management Actions & FileProvider Audio Sharing
+- **Status**: Accepted
+- **Context**: The tablet executive detail workspace provides header buttons for sharing, renaming, and deleting audio notes. These needed to be safely wired to the underlying storage and Room repository while complying with modern Android scoped storage and file sharing policies.
+- **Decision**:
+  1. **FileProvider Config (`file_provider_paths.xml`)**: Configured AndroidX `FileProvider` with authority `${applicationId}.provider` and paths covering `external-path`, `external-files-path`, `files-path`, and cache directories to safely share recordings via content URIs without file exposure exceptions.
+  2. **Share Audio Intent**: Implemented `onShareFile` using `FileProvider.getUriForFile` and `Intent.ACTION_SEND` with `FLAG_GRANT_READ_URI_PERMISSION`, presented through `Intent.createChooser`.
+  3. **Note Renaming and Deletion**: Wired `onRenameFile` to `viewModel.renameRecording` and `onDeleteFile` to `viewModel.deleteAudioFile` with immediate UI feedback via system Toasts.
+
+## ADR-028: Tablet Dynamic Note Selection & Empty-Audio AI Processing Resilience
+- **Status**: Accepted
+- **Context**: 
+  1. In the tablet layout, selecting or switching between different newly recorded notes appeared not to update the right detail pane. Both notes showed identical summary cards and key points.
+  2. Clicking "Process with AI" or "Retry" on short or silent notes failed immediately and left the recording permanently in ERROR state.
+- **Decision**:
+  1. **Decoupled Fallback Mock Text**: `TabletExecutiveDetailWorkspace` previously fell back to static mock text ("The speaker discusses the product strategy...") whenever `recording?.summary` was null or empty. Because newly created notes had no summary yet, selecting any unprocessed note displayed the exact same mock text, making the right panel look frozen. We removed static fallback copy for real user notes and introduced clear, dedicated status cards:
+     - In-flight: Animated circular progress indicator with live stage text ("Transcribing audio locally..." or "Analyzing with AI...").
+     - Error: "Processing Incomplete" card showing the error detail and an immediate "Retry AI Processing" button.
+     - Pending / Unprocessed: Clean "Ready for AI Insights" card with a prominent "Process Note with AI" CTA.
+     - Summarized: Displays the authentic summary, WIIFM, bullet points, next steps, ideas, and decisions.
+  2. **Empty / Silent Audio Handling in Worker**: `AiProcessingWorker` previously threw an uncaught `IllegalStateException: Transcript is empty` when `LocalTranscriber` returned blank text on silent or quiet microphone recordings, permanently setting `aiStatus = RecordingAiStatus.ERROR`. We now detect `transcript.isNullOrBlank()` and gracefully set a polite transcript ("No audible speech detected in this recording.") with an explanatory summary, marking the note as `READY` without failure.
+  3. **Offline Fallback on Network / API Errors**: In the event of online LLM network or quota failures during insight generation, `AiProcessingWorker` now automatically falls back to `aiProcessor.generateFallbackInsights(transcript)`, ensuring the user always receives structured key points and next steps derived directly from the on-device transcription rather than being stuck in ERROR.
+
+## ADR-029: Tablet Portrait Insights Capsule Switcher & Gemini 2.5 Flash Migration
+- **Status**: Accepted
+- **Context**: On tablets in portrait orientation (`Configuration.ORIENTATION_PORTRAIT`), rendering 3 parallel columns for Next Steps, Ideas, and Decisions squeezed each column to unreadable widths. Users needed a 3-option switcher on top to switch and view each category's content with full mobile parity. Clicking origin note links from inside an insight needed to stay within the 2-panel tablet interface. Additionally, cloud AI requests frequently failed with `503 UNAVAILABLE: No capacity available for model gemini-3.8-flash on the server`.
+- **Decision**:
+  1. **Orientation-Aware Insights (`TabletWorkspaceScreen.kt`)**: In `TabletInsights3ColumnWorkspace`, check `isPortrait`. In portrait mode, render the single-row `SingleRowInsightsCapsule` on top with options `Next Steps`, `Ideas`, and `Decisions`. Render the selected tab's full-width content below it with unconstrained internal scrolling `LazyColumn`. In landscape mode, preserve the 3 parallel columns.
+  2. **Mobile Feature Parity & Theming (`ActionItemsScreen.kt`)**: Exposed `SingleRowInsightsCapsule`, `NextStepsTab`, `IdeasStreamTab`, and `DecisionsTimelineTab` as `internal`. Added `LocalIsCosmicDark.current` theme awareness to `SingleRowInsightsCapsule` and `CapsuleTabItem` for proper contrast and color-coded indicator dots (Blue for Next Steps, Amber for Ideas, Green for Decisions).
+  3. **In-Workspace Tablet Navigation (`TabletWorkspaceScreen.kt`, `Navigation.kt`)**: Tapping an origin note chip from any insight item resolves the corresponding note in `recordingsByPath`, updates `selectedFilePath`, and switches `currentTab` to `RootTab.NOTES`, immediately displaying the note in the executive detail pane without opening the phone `DetailScreen`.
+  4. **Gemini 2.5 Flash Migration (`AIProcessor.kt`, `AppPreferences.kt`, `SettingsScreen.kt`, `BYOKOnboardingScreen.kt`)**: Replaced `gemini-3.8-flash` with the stable, high-throughput `gemini-2.5-flash` model across all cloud inference methods and preset menus, completely eliminating 503 capacity errors and dropping cloud summarization latency to ~1.2 seconds.
+
+## ADR-030: Unified Dialog Architecture & Cross-App Modal Consistency
+- **Status**: Accepted
+- **Context**: Note deletion dialogs varied across the app: the tablet workspace used basic rectangular Material3 `AlertDialog`s with flat text buttons, phone `DetailScreen` had no confirmation dialog prior to deletion, `ActionItemsScreen` used default `AlertDialog` for archiving tasks, and `FeedScreen` contained hundreds of lines of duplicated custom dialog code. Users requested standardizing note deletion on the signature `SaveRecordingDialog` aesthetic (26dp curvature, dual-circle gradient icon badge, and pill action buttons) and extracting the design into reusable, parameter-driven dialogs across all screens.
+- **Decision**:
+  1. **Centralized Dialog Framework (`SrutamDialogs.kt`)**:
+     - `DialogBadgeType`: `PRIMARY` (Blue), `DESTRUCTIVE` (Crimson), `WARNING` (Amber), `INFO` (Slate), and `SUCCESS` (Emerald) defining cohesive badge gradient pairs and glow shadows.
+     - `SrutamDialogIconBadge`: Dual-circle badge (56dp outer radial aura + 44dp inner gradient circle) with adaptive light/dark border styling.
+     - `SrutamDialogConfirmButton` & `SrutamDialogDismissButton`: 42dp pill buttons with gradient fills, tactile scale feedback, and disabled state handling.
+     - `SrutamCustomDialog` & `SrutamStandardDialog`: Root modal containers with 26dp rounded corners, `CosmicVoidCard` / frosted white surface, hairline gradient border, scrim, and slots for title, subtitle, custom content, and actions.
+  2. **Domain Dialog Implementations**:
+     - `DeleteConfirmationDialog` & `MultiDeleteConfirmationDialog`: Red destructive badge with trash icon, explicit note title confirmation, and prominent red gradient pill action.
+     - `RenameDialog`: Blue primary badge with edit pencil, integrated text field, clear button, and validation preventing empty names.
+     - `SaveRecordingDialog`: Blue primary badge with mic/save icon, audio duration metrics, and save action.
+     - `AudioInfoDialog`: Slate info badge displaying file metadata (path, duration, size, sample rate, date).
+     - `ArchiveTasksDialog`: Warning amber badge confirming task archiving.
+  3. **Universal Screen Adoption**:
+     - `TabletWorkspaceScreen.kt`: Replaced raw Material3 dialogs for delete and rename with `DeleteConfirmationDialog` and `RenameDialog`.
+     - `DetailScreen.kt`: Added `DeleteConfirmationDialog` to the top bar delete action and updated rename dialog to `RenameDialog`.
+     - `FeedScreen.kt`: Replaced 729 lines of local dialog code with imports from `SrutamDialogs.kt`.
+     - `ActionItemsScreen.kt`: Replaced raw `AlertDialog` with `ArchiveTasksDialog`.
+     - `Navigation.kt`: Standardized `SaveRecordingDialog` import.
+  4. **Verification**: Validated compilation, unit tests, and live interactive rendering on Android tablet emulator in both Light and Cosmic Void Dark modes.
+
+## ADR-031: Tablet Portrait AI Screen Polish & Mobile-Parity Suggested Questions
+- **Status**: Accepted
+- **Context**: In tablet portrait orientation, the AI screen (`TabletCopilot3PanelWorkspace`) divided the workspace into an awkward 3-panel / 2-column layout with a static sidebar mislabeled "Recent Questions". On standard mobile screens (`GlobalCopilotScreen`), suggested questions appear inside the chat view as a single horizontal scrolling row (`LazyRow`) with interactive chips. Furthermore, tablet AI queries were disconnected, and the bottom floating record button collided with the query input bar in portrait mode.
+- **Decision**:
+  1. **Responsive Orientation Layout (`TabletWorkspaceScreen.kt`)**: Check `isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT || configuration.screenWidthDp < configuration.screenHeightDp`. In portrait mode, remove the redundant left "Recent Questions" column and suppress the right "Sources" column, giving the active chat area full width. In landscape mode on large tablets, preserve the right "Sources" column.
+  2. **Mobile-Parity Suggested Questions (`TabletWorkspaceScreen.kt`)**: Placed "Suggested Questions" directly inside the chat feed's `LazyColumn` as a horizontal `LazyRow` of chips (`💡 <question>`) matching `GlobalCopilotScreen`. Tapping any chip immediately invokes `onSendMessage(query)`.
+  3. **Rich Message Cards & In-Workspace Citations**: Render user message pills on the right and AI response cards on the left with the "Srutam AI" header, clean typography, and cited notes pills. Tapping a cited note pill immediately switches to `RootTab.NOTES`, selects the note, and displays its details in the tablet workspace.
+  4. **Inset Handling & Bottom Floating Shutter Collision Guard**: Added `.windowInsetsPadding(WindowInsets.navigationBars)` and responsive bottom padding (96dp in portrait idle, 12dp when IME virtual keyboard is open) so the query input bar clears the floating record button with clean spacing.
+  5. **Direct ViewModel Binding (`Navigation.kt`)**: Passed `viewModel = viewModel` to `TabletWorkspaceLayout` in `Navigation.kt`, enabling internal handling of copilot queries via `viewModel.queryAllVoiceNotes` with offline fallback guards.
+  6. **Verification**: Clean `./gradlew assembleDebug` build, all unit tests passed (`./gradlew testDebugUnitTest`), and verified interactively on Android tablet emulator (`emulator-5554`, 2560x1600) with tap tests and screenshots.
+
+## ADR-032: Floating Dock Reactive Auto-Update & Tablet Sidebar Appearance Animation
+- **Status**: Accepted
+- **Context**: When recording and saving a voice note using the on-screen floating dock (`FloatingButtonService`), the toast "Voice note saved" appeared, but in tablet layout portrait orientation, the left unified sidebar (`TabletUnifiedSidebar`) list of voice notes did not update. The user had to restart or switch screens to see the new note. Additionally, when new notes arrived, they appeared abruptly without entrance animation or visual feedback.
+- **Root Cause**:
+  1. `FloatingButtonService` sends `ACTION_STOP_RECORDING` directly to `RecordingForegroundService`, which writes the `.m4a` file and inserts the Room DB row via `triggerAutoAiForFile()`.
+  2. However, `AudioFilesViewModel.loadAudioFiles()` (which queries disk via `AudioFileReader.getAudioFiles()`) was only called in `Navigation.kt` when `SaveRecordingDialog` was dismissed (dialog was bypassed by floating dock saves).
+  3. `AudioFilesViewModel` observed Room recordings in `observeRecordings()`, but did not reload the underlying `_audioFiles` list when Room row count differed from disk audio file count.
+  4. `TabletUnifiedSidebar`'s `LazyColumn` items lacked entrance transition animations (`animateItem`) and visual indicators for recently saved notes.
+- **Decision**:
+  1. **Triple-Redundancy Event Pipeline**:
+     - `RecordingForegroundService`: Added companion `_recordingSavedEvents = MutableSharedFlow<File>(extraBufferCapacity = 1)` and public `recordingSavedEvents: SharedFlow<File>`. Emits saved file immediately upon `stopRecording()`.
+     - `AudioFilesViewModel`: Subscribes to `RecordingForegroundService.recordingSavedEvents` in `init` and triggers `loadAudioFiles()`. Additionally in `observeRecordings()`, reloads audio files if `recordings.isNotEmpty() && recordings.size != _audioFiles.value.size`.
+     - `Navigation.kt`: Tracks `wasRecording` in the service polling loop; upon detecting recording transition from `true` to `false`, triggers `viewModel.loadAudioFiles()`.
+  2. **Smooth Appearance Animation (`TabletWorkspaceScreen.kt`)**:
+     - In `TabletUnifiedSidebar`'s `LazyColumn`, applied `Modifier.animateItem(fadeInSpec = tween(durationMillis = 400), placementSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow))` to item surfaces.
+     - Also applied `animateItem` to `TabletNotesFeed`'s `TabletCompactAudioCard` items for feed views.
+  3. **Visual Feedback for Fresh Captures**:
+     - Added `isRecentlySaved = (System.currentTimeMillis() - audio.timestamp) < 15_000L`.
+     - When `isRecentlySaved && !isSelected`, renders an animated pulsing border (`CosmicGlowBlue` / `CobaltBlue` with oscillating alpha) and a subtle `"NEW"` pill badge next to the note title.
+  4. **Auto-Selection of Newly Saved Notes**:
+     - In `TabletWorkspaceLayout`, added `LaunchedEffect(audioFiles)` to auto-select the new top note (`audioFiles.first().filePath`) whenever `audioFiles.size` increases, immediately loading the new note in the detail panel.
+  5. **Verification**: Compiled with `./gradlew assembleDebug`, passed unit tests (`./gradlew testDebugUnitTest`), installed on `emulator-5554` (2560x1600 portrait), recorded two notes via the floating dock, verified immediate list refresh, appearance animation, "NEW" badge, and auto-selection in the right detail panel.
+
+## ADR-033: Hold-to-Record Tablet Parity, Elevated Toast Positioning & Dynamic Waveform Scaling
+- **Status**: Accepted
+- **Context**: 
+  1. Tablet layout previously lacked the hold-to-record gesture option present on mobile. The shutter button only supported a simple single click, without hands-free tap-to-lock, hold-to-record, slide-up-to-lock, or slide-left-to-cancel gestures.
+  2. System toasts and delete notifications were anchored to the bottom center, directly overlapping and obscuring the 56dp record button and bottom dock.
+  3. Audio player waveform visualizers across the app were hardcoded to fixed lists of 28 to 36 bars, leaving vast empty horizontal stretches or compressing awkwardly on wide screens like tablets and foldables.
+- **Decision**:
+  1. **Tablet Hold-to-Record Parity (`TabletWorkspaceScreen.kt`)**: Replaced the static `Surface(onClick = ...)` in `TabletFloatingRecordShutter` with full `awaitEachGesture` pointer input handling matching `StudioBottomBar`. Supports quick tap (<350ms) to lock hands-free, press and hold (>=350ms) to record with animated floating lock pill indicator and radiant sonic halo, slide up to lock, slide left to cancel, and releasing to stop and open the save dialog immediately.
+## ADR-034: Batch AI Processing, Auto-AI Settings, Tablet Top Bar AI Action & Waveform Polish
+- **Status**: Accepted
+- **Context**: 
+  1. Offline voice notes or recordings without transcription/summarization required users to manually open and trigger AI processing one by one. There was no one-click way to process all pending recordings from the feed header.
+  2. Users lacked a persistent toggle in settings to enable/disable automated background AI processing upon recording completion.
+  3. The tablet feed top bar lacked a batch process button, while the mobile feed header had an unprocessed count indicator but no prominent batch trigger.
+  4. In `TabletWorkspaceScreen.kt`, the `TabletExecutiveSummaryView` displayed 3 redundant preview cards below the main executive summary, which cluttered the UI and duplicated the purpose of `TabletFullInsightsView`.
+  5. `TabletFullInsightsView` was not fully responsive across tablet orientations and lacked equal-height column distribution.
+  6. Waveform canvases (`MiniWaveformCanvas`, `DetailWaveformCanvas`) were static and did not convey dynamic playback feedback.
+- **Decision**:
+  1. **Batch AI Processing Pipeline (`AudioFilesViewModel.kt`)**: Enhanced `processPendingOfflineRecordings()` to query both offline pending voice notes and recordings where `transcript.isNullOrBlank() || summary.isNullOrBlank()`. Enqueues `AiProcessingWorker` tasks sequentially or in parallel with live status tracking.
+  2. **Top Bar "Process All" Action (`FeedScreen.kt`, `TabletWorkspaceScreen.kt`)**: Added a prominent "Process All" action pill to both the mobile and tablet feed top bars when pending unprocessed voice notes exist, complete with animated spin progress during processing.
+  3. **Auto-AI Settings Preference (`SettingsScreen.kt`, `AppPreferences.kt`)**: Added `isAutoAiEnabled` boolean preference in `AppPreferences.kt` exposed as an interactive toggle in `SettingsScreen.kt`.
+  4. **Executive Summary Deduplication (`TabletWorkspaceScreen.kt`)**: Removed the 3 redundant duplicate cards below the executive summary in `TabletExecutiveSummaryView`, directing full insight inspection to the dedicated `TabletFullInsightsView`.
+  5. **Responsive 3-Column Insights Grid (`TabletWorkspaceScreen.kt`)**: Upgraded `TabletFullInsightsView` with an adaptive 3-column layout (Action Items, Key Ideas, Core Decisions) that gracefully adapts to screen width with equal column weighting.
+  6. **Dynamic Waveform Canvases (`TabletWorkspaceScreen.kt`)**: Added animated phase wave motion to `MiniWaveformCanvas` during active playback, and enhanced `DetailWaveformCanvas` with vertical gradient coloring and a distinct playhead indicator dot.
+  7. **Verification**: Kotlin compilation succeeded (`compileDebugKotlin`), and unit tests passed cleanly (`testDebugUnitTest`).
+
+## ADR-035: Tablet Landscape Insights Layout Unification & AI Multi-Line Input Polish
+- **Status**: Accepted
+- **Context**: 
+  1. In landscape orientation on wide tablet displays (>=600dp / 2560x1600), the Insights screen previously rendered 3 parallel columns side by side. This caused cramped horizontal layouts, awkward scrolling, and visual fragmentation. The user requested a single-column, tabbed switcher identical to the approved reference design, constrained to `widthIn(max = 760.dp)` and start-aligned with breathing room on the right.
+  2. In the AI Screen (`TabletCopilot3PanelWorkspace` and `GlobalCopilotScreen`), the header title was named "Srutam AI Copilot" rather than the clean brand name "Srutam AI". The query input bar was locked to a single line, causing longer questions to scroll horizontally rather than expanding vertically, and the send button shifted or misaligned when multi-line content was entered.
+  3. The floating record shutter button shadow on tablets previously produced rectangular clipping artifacts due to surface elevation rendering.
+- **Decision**:
+  1. **Unified Single-Column Tabbed Switcher (`TabletWorkspaceScreen.kt`)**: Unified `TabletInsights3ColumnWorkspace` across both portrait and landscape modes to render a start-aligned container with `Modifier.widthIn(max = 760.dp)`. Displays the executive header ("Insights", subtitle, and "✦ AI-Extracted" badge), 3-option capsule switcher (`Next Steps`, `Ideas`, `Decisions`), `ActionProgressCard`, and tab content (`NextStepsTab`, `IdeasStreamTab`, `DecisionsTimelineTab`) with flush 0dp horizontal padding.
+  2. **Brand Title Polish ("Srutam AI")**: Renamed the copilot header across both `TabletCopilot3PanelWorkspace` and `GlobalCopilotScreen` to "Srutam AI".
+  3. **Multi-Line Query Input Expansion**: Updated `TabletCopilot3PanelWorkspace` and `GlobalCopilotScreen` query input rows to anchor `Alignment.Bottom`. Configured `BasicTextField` with `singleLine = false`, `minLines = 1`, `maxLines = 5`, `lineHeight = 18.sp`, and bounded container height (`heightIn(min = 20.dp, max = 110.dp)`), allowing text to expand upwards smoothly as users type while keeping the circular send button anchored at the bottom baseline.
+  4. **Circular Ambient Glow Shadow on Record Shutter**: Replaced clipped `Surface(shadowElevation = ...)` on `TabletFloatingRecordShutter` with `.shadow(elevation = shadowElevation, shape = CircleShape, clip = false, spotColor = Color(0xFFEF4444).copy(alpha = 0.45f), ambientColor = Color(0xFFEF4444).copy(alpha = 0.25f))` with spring-animated elevation across idle, pressed, and holding states.
+  5. **Verification**: Full test suite passing (`testDebugUnitTest`), Kotlin compilation clean (`compileDebugKotlin`), and verified live on tablet emulator (`emulator-5554`, 2560x1600) with interactive screenshots confirming pixel-perfect design parity.

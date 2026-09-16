@@ -139,6 +139,24 @@ class AiProcessingWorker(
                 }
             }
 
+            if (transcript.isNullOrBlank()) {
+                Log.w(TAG, "Transcription produced empty text for note $recordingId (audio may be silent)")
+                val silentRecording = recording.copy(
+                    isProcessing = false,
+                    aiStatus = RecordingAiStatus.READY,
+                    transcript = "No audible speech detected in this recording.",
+                    summary = "No speech was detected in this audio recording. Try speaking closer to the microphone or in a quieter environment.",
+                    wiifm = "Record clear voice notes to automatically extract summaries, key points, and action items.",
+                    keyPoints = "[\"No speech detected in audio file\"]",
+                    actionItems = "[]",
+                    processingError = null
+                )
+                recordingDao.updateRecording(silentRecording)
+                completedCount++
+                lastCompletedRecording = silentRecording
+                continue
+            }
+
             // Stage 2: AI Summary and Insights (Requires internet)
             val isFallbackSummary = recording.summary?.startsWith("This recording contains approximately") == true
             if (!recording.summary.isNullOrBlank() && recording.aiStatus == RecordingAiStatus.READY && !isFallbackSummary) {
@@ -206,24 +224,50 @@ class AiProcessingWorker(
                     Log.d(TAG, "AI insights generated successfully for note $recordingId")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to generate AI insights for note $recordingId", e)
-                    // If network dropped mid-request, treat as pending offline rather than hard error
-                    if (!NetworkUtils.isInternetAvailable(applicationContext)) {
-                        recordingDao.updateRecording(
-                            recording.copy(
-                                isProcessing = false,
-                                aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
-                                processingError = null
-                            )
+                    try {
+                        val fallback = aiProcessor.generateFallbackInsights(transcript)
+                        val updatedName = if (recording.name.isBlank() ||
+                            recording.name == "Voice Note" ||
+                            recording.name.startsWith("Voice note", ignoreCase = true)
+                        ) {
+                            fallback.title?.takeIf { it.isNotBlank() } ?: recording.name
+                        } else {
+                            recording.name
+                        }
+                        val fallbackRecording = recording.copy(
+                            name = updatedName,
+                            summary = fallback.summary,
+                            keyPoints = gson.toJson(fallback.keyPoints),
+                            actionItems = gson.toJson(fallback.actionItems),
+                            wiifm = fallback.wiifm,
+                            isProcessing = false,
+                            aiStatus = RecordingAiStatus.READY,
+                            processingError = null
                         )
-                        offlinePendingCount++
-                    } else {
-                        recordingDao.updateRecording(
-                            recording.copy(
-                                isProcessing = false,
-                                aiStatus = RecordingAiStatus.ERROR,
-                                processingError = e.message ?: "Failed to generate summary"
+                        recordingDao.updateRecording(fallbackRecording)
+                        completedCount++
+                        lastCompletedRecording = fallbackRecording
+                        Log.d(TAG, "Fallback offline insights saved for note $recordingId")
+                    } catch (fallbackEx: Exception) {
+                        Log.e(TAG, "Fallback insights generation failed", fallbackEx)
+                        if (!NetworkUtils.isInternetAvailable(applicationContext)) {
+                            recordingDao.updateRecording(
+                                recording.copy(
+                                    isProcessing = false,
+                                    aiStatus = RecordingAiStatus.SUMMARY_PENDING_OFFLINE,
+                                    processingError = null
+                                )
                             )
-                        )
+                            offlinePendingCount++
+                        } else {
+                            recordingDao.updateRecording(
+                                recording.copy(
+                                    isProcessing = false,
+                                    aiStatus = RecordingAiStatus.ERROR,
+                                    processingError = e.message ?: "Failed to generate summary"
+                                )
+                            )
+                        }
                     }
                 }
             } else {

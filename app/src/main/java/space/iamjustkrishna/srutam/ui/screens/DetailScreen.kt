@@ -1,6 +1,11 @@
 package space.iamjustkrishna.srutam.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import kotlin.math.sin
+import kotlin.math.cos
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
@@ -13,6 +18,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.ui.components.*
 
 
 
@@ -230,6 +236,24 @@ fun DetailScreenContent(
         !it.isProcessing && !it.transcript.isNullOrBlank()
     } == true
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog && recording != null) {
+        val displayName = RecordingNameFormatter.displayName(
+            fileName = recording.audioFilePath,
+            timestamp = recording.timestamp,
+            savedName = recording.name
+        )
+        DeleteConfirmationDialog(
+            recordingName = displayName,
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
+    }
+
     Scaffold(
         containerColor = CeramicWhite,
         floatingActionButton = {
@@ -283,7 +307,7 @@ fun DetailScreenContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFF64748B))
                     }
                 },
@@ -1365,14 +1389,11 @@ private fun DetailWaveformScrubber(
     onSeekFraction: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val barHeights = remember {
-        listOf(
-            6, 12, 18, 10, 24, 16, 8, 14, 22, 12, 6, 18, 26, 14,
-            10, 20, 14, 8, 16, 22, 12, 8, 18, 24, 10, 14, 8, 6
-        )
-    }
+    val isDark = LocalIsCosmicDark.current
+    val activeColor = if (isDark) CosmicGlowBlue else CobaltBlue
+    val inactiveColor = if (isDark) Color(0xFF334155) else Color(0xFFE5E5EA)
 
-    Row(
+    Canvas(
         modifier = modifier
             .height(40.dp)
             .pointerInput(Unit) {
@@ -1393,22 +1414,26 @@ private fun DetailWaveformScrubber(
                         onSeekFraction(fraction)
                     }
                 }
-            },
-        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
-        verticalAlignment = Alignment.CenterVertically
+            }
     ) {
-        barHeights.forEachIndexed { index, heightDp ->
-            val barFraction = index.toFloat() / (barHeights.size - 1).coerceAtLeast(1)
-            val isPlayed = progress >= barFraction
+        val barWidth = 2.dp.toPx()
+        val targetSpacing = 1.2.dp.toPx()
+        val step = barWidth + targetSpacing
+        val count = (size.width / step).toInt().coerceAtLeast(28)
+        val spacing = if (count > 1) (size.width - (count * barWidth)) / (count - 1) else targetSpacing
+        val centerY = size.height / 2
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(heightDp.dp)
-                    .background(
-                        color = if (isPlayed) CobaltBlue else Color(0xFFE5E5EA),
-                        shape = CircleShape
-                    )
+        for (i in 0 until count) {
+            val factor = 0.22f + 0.78f * ((sin(i * 0.38f) * cos(i * 0.18f) + 1f) / 2f)
+            val barHeight = (size.height * factor).coerceAtLeast(6.dp.toPx())
+            val x = i * (barWidth + spacing)
+            val barFraction = i.toFloat() / (count - 1).coerceAtLeast(1)
+            val isPlayed = progress >= barFraction
+            drawRoundRect(
+                color = if (isPlayed) activeColor else inactiveColor,
+                topLeft = Offset(x, centerY - barHeight / 2),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
             )
         }
     }

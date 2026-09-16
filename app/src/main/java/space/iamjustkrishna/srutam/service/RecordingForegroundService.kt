@@ -32,6 +32,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
@@ -269,6 +272,7 @@ class RecordingForegroundService : Service() {
                 } else {
                     Log.d(TAG, "Recording stopped: ${file.absolutePath}, duration: $duration ms")
                     saveRecordingToDatabase(file, duration)
+                    _recordingSavedEvents.tryEmit(file)
                     if (!deferAutoAi && AppPreferences.isAutoAiEnabled(applicationContext)) {
                         triggerAutoAiForFile(file, duration)
                     }
@@ -518,6 +522,9 @@ class RecordingForegroundService : Service() {
         const val ACTION_STOP_RECORDING = "space.iamjustkrishna.srutam.STOP_RECORDING"
         const val ACTION_DELETE_RECORDING = "space.iamjustkrishna.srutam.DELETE_RECORDING"
         const val EXTRA_DEFER_AUTO_AI = "space.iamjustkrishna.srutam.DEFER_AUTO_AI"
+
+        private val _recordingSavedEvents = MutableSharedFlow<File>(extraBufferCapacity = 1)
+        val recordingSavedEvents: SharedFlow<File> = _recordingSavedEvents.asSharedFlow()
 
         @Volatile
         var isRecording = false

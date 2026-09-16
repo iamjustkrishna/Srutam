@@ -14,6 +14,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.repository.RecordingRepository
 import space.iamjustkrishna.srutam.service.AiProcessingWorker
+import space.iamjustkrishna.srutam.service.RecordingForegroundService
 import space.iamjustkrishna.srutam.ui.screens.formatDate
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
@@ -91,6 +92,12 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
         observeRecordings()
         loadAudioFiles()
+
+        viewModelScope.launch {
+            RecordingForegroundService.recordingSavedEvents.collect {
+                loadAudioFiles()
+            }
+        }
     }
 
     val audioPlayer = space.iamjustkrishna.srutam.player.AudioPlayer(application)
@@ -113,6 +120,9 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
             repository.allRecordings.collectLatest { recordings ->
                 _recordingsByPath.value = recordings.associateBy { it.audioFilePath }
                 computeThemeClusters(recordings)
+                if (recordings.isNotEmpty() && recordings.size != _audioFiles.value.size) {
+                    loadAudioFiles()
+                }
             }
         }
         syncExistingRecordingsToInsights()
@@ -185,33 +195,44 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                     return@launch
                 }
 
-                val renamed = currentFile.renameTo(newFile)
-                if (!renamed) {
-                    _processingError.value = "Failed to rename: could not rename file"
-                    return@launch
+                val renamed = try {
+                    if (!newFile.exists()) currentFile.renameTo(newFile) else false
+                } catch (e: Exception) {
+                    false
                 }
 
-                // Update DB record if present
+                val targetFile = if (renamed) newFile else currentFile
+                val targetPath = targetFile.absolutePath
+                val targetName = targetFile.name
+
+                // Update DB record if present, or create one with custom user name
                 val recording = repository.getRecordingByPath(audioFile.filePath)
                 if (recording != null) {
                     repository.updateRecording(
                         recording.copy(
                             name = trimmedName,
-                            audioFilePath = newFile.absolutePath
+                            audioFilePath = targetPath
                         )
                     )
                 } else {
-                    Log.w(TAG, "Recording not found in database: ${audioFile.filePath}")
+                    repository.insertRecording(
+                        Recording(
+                            audioFilePath = targetPath,
+                            name = trimmedName,
+                            duration = audioFile.duration,
+                            timestamp = audioFile.timestamp
+                        )
+                    )
                 }
 
                 // Optimistic UI update for immediate feedback
                 _audioFiles.value = _audioFiles.value.map { file ->
                     if (file.filePath == audioFile.filePath) {
                         file.copy(
-                            filePath = newFile.absolutePath,
-                            fileName = newFile.name,
-                            timestamp = newFile.lastModified(),
-                            sizeBytes = newFile.length()
+                            filePath = targetPath,
+                            fileName = targetName,
+                            timestamp = targetFile.lastModified().takeIf { it > 0 } ?: file.timestamp,
+                            sizeBytes = targetFile.length().takeIf { it > 0 } ?: file.sizeBytes
                         )
                     } else {
                         file

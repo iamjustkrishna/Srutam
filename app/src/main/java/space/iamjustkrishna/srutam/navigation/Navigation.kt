@@ -2,18 +2,36 @@ package space.iamjustkrishna.srutam.navigation
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
+import androidx.core.content.FileProvider
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +54,7 @@ import space.iamjustkrishna.srutam.ui.screens.ChatScreen
 import space.iamjustkrishna.srutam.ui.screens.DetailScreen
 import space.iamjustkrishna.srutam.ui.screens.FeedScreen
 import space.iamjustkrishna.srutam.ui.screens.GlobalCopilotScreen
-import space.iamjustkrishna.srutam.ui.screens.SaveRecordingDialog
+import space.iamjustkrishna.srutam.ui.components.SaveRecordingDialog
 import space.iamjustkrishna.srutam.ui.screens.SettingsScreen
 import space.iamjustkrishna.srutam.ui.screens.TabletWorkspaceLayout
 import androidx.activity.compose.BackHandler
@@ -160,182 +178,310 @@ private fun RootScreen(
     var isServiceRecording by remember { mutableStateOf(false) }
     var isServicePaused by remember { mutableStateOf(false) }
     var recordingElapsedMs by remember { mutableStateOf(0L) }
+    val isDark = LocalIsCosmicDark.current
     var showSaveDialog by remember { mutableStateOf(false) }
     var pendingSavedFileName by remember { mutableStateOf<String?>(null) }
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    val showAboveToast: (String) -> Unit = { msg ->
+        toastMessage = msg
+    }
+
+    LaunchedEffect(toastMessage) {
+        if (toastMessage != null) {
+            delay(2200)
+            toastMessage = null
+        }
+    }
 
     // Observe background service recording status
     LaunchedEffect(Unit) {
+        var wasRecording = false
         while (true) {
-            isServiceRecording = RecordingForegroundService.isRecording
+            val currentRecording = RecordingForegroundService.isRecording
+            if (wasRecording && !currentRecording) {
+                // Recording just stopped in background service (e.g. via floating dock)
+                viewModel.loadAudioFiles()
+            }
+            wasRecording = currentRecording
+            isServiceRecording = currentRecording
             isServicePaused = RecordingForegroundService.isPaused
             recordingElapsedMs = RecordingForegroundService.elapsedDurationMs
             delay(100)
         }
     }
 
-    if (isTablet) {
-        // Tablet: Side navigation rail + multi-panel workspace
-        val audioFiles by viewModel.audioFiles.collectAsState()
-        val recordingsByPath by viewModel.recordingsByPath.collectAsState()
-        val playbackState by viewModel.audioPlayer.playbackState.collectAsState()
-        val activeActions by viewModel.activeActions.collectAsState()
-        val allIdeas by viewModel.allIdeas.collectAsState()
-        val allDecisions by viewModel.allDecisions.collectAsState()
-        val themeClusters by viewModel.themeClusters.collectAsState()
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isTablet) {
+            // Tablet: Side navigation rail + multi-panel workspace
+            val audioFiles by viewModel.audioFiles.collectAsState()
+            val recordingsByPath by viewModel.recordingsByPath.collectAsState()
+            val playbackState by viewModel.audioPlayer.playbackState.collectAsState()
+            val activeActions by viewModel.activeActions.collectAsState()
+            val allIdeas by viewModel.allIdeas.collectAsState()
+            val allDecisions by viewModel.allDecisions.collectAsState()
+            val themeClusters by viewModel.themeClusters.collectAsState()
 
-        TabletWorkspaceLayout(
-            currentTab = currentTab,
-            onTabSelected = { currentTab = it },
-            onSettingsClick = { navController.navigate(Screen.Settings.route) },
-            audioFiles = audioFiles,
-            recordingsByPath = recordingsByPath,
-            playbackState = playbackState,
-            activeActions = activeActions,
-            allIdeas = allIdeas,
-            allDecisions = allDecisions,
-            themeClusters = themeClusters,
-            onPlayFile = { viewModel.playAudio(it) },
-            onPlayPause = { viewModel.audioPlayer.togglePlayPause() },
-            onSeek = { viewModel.audioPlayer.seekTo(it) },
-            onRecordingClick = { recordingId ->
-                navController.navigate(Screen.Detail.createRoute(recordingId))
-            },
-            onActionToggle = { viewModel.toggleActionComplete(it) },
-            onNewNoteClick = {
-                sendRecordingAction(context, RecordingForegroundService.ACTION_START_RECORDING)
-            },
-            onSendCopilotQuery = { /* TODO: Wire copilot query */ }
-        )
-    } else {
-        // Phone: Bottom dock + tab-switched content
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            when (currentTab) {
-                RootTab.NOTES -> {
-                    FeedScreen(
-                        onRecordingClick = { recordingId ->
-                            navController.navigate(Screen.Detail.createRoute(recordingId))
-                        },
-                        onSettingsClick = {
-                            navController.navigate(Screen.Settings.route)
-                        },
-                        viewModel = viewModel
-                    )
-                }
-                RootTab.ACTIONS -> {
-                    ActionItemsScreen(
-                        onRecordingClick = { recordingId ->
-                            navController.navigate(Screen.Detail.createRoute(recordingId))
-                        },
-                        onSettingsClick = {
-                            navController.navigate(Screen.Settings.route)
-                        },
-                        viewModel = viewModel
-                    )
-                }
-                RootTab.AI -> {
-                    GlobalCopilotScreen(
-                        viewModel = viewModel,
-                        focusedRecordingId = focusedRecordingId,
-                        onClearFocusedRecording = { focusedRecordingId = null },
-                        onRecordingClick = { recordingId ->
-                            navController.navigate(Screen.Detail.createRoute(recordingId))
-                        },
-                        onSettingsClick = {
-                            navController.navigate(Screen.Settings.route)
-                        }
-                    )
-                }
-            }
-
-            val isKeyboardOpen = WindowInsets.isImeVisible
-
-            // Floating Glassmorphic Bottom Bar with In-Place Morphing Recording Bar
-            AnimatedVisibility(
-                visible = !isKeyboardOpen,
-                enter = fadeIn(animationSpec = tween(200)),
-                exit = fadeOut(animationSpec = tween(150)),
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                StudioBottomBar(
-                    currentTab = currentTab,
-                    onTabSelected = { currentTab = it },
-                    isRecording = isServiceRecording,
-                    isPaused = isServicePaused,
-                    recordingElapsedMs = recordingElapsedMs,
-                    onStartRecording = {
-                        sendRecordingAction(context, RecordingForegroundService.ACTION_START_RECORDING)
-                    },
-                    onPauseToggle = {
-                        if (isServicePaused) {
-                            sendRecordingAction(context, RecordingForegroundService.ACTION_RESUME_RECORDING)
-                            android.widget.Toast.makeText(context, "Recording resumed", android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            sendRecordingAction(context, RecordingForegroundService.ACTION_PAUSE_RECORDING)
-                            android.widget.Toast.makeText(context, "Recording paused", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onFinishRecording = {
-                        sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
-                        val newest = AudioFileReader.getRecordingsDirectory()
-                            .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
-                            ?.maxByOrNull { f -> f.lastModified() }
-                        pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
-                        showSaveDialog = true
-                    },
-                    onCancelRecording = {
-                        sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
-                        android.widget.Toast.makeText(context, "Recording discarded", android.widget.Toast.LENGTH_SHORT).show()
+            TabletWorkspaceLayout(
+                currentTab = currentTab,
+                onTabSelected = { currentTab = it },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                audioFiles = audioFiles,
+                recordingsByPath = recordingsByPath,
+                playbackState = playbackState,
+                activeActions = activeActions,
+                allIdeas = allIdeas,
+                allDecisions = allDecisions,
+                themeClusters = themeClusters,
+                viewModel = viewModel,
+                isRecording = isServiceRecording,
+                isPaused = isServicePaused,
+                recordingElapsedMs = recordingElapsedMs,
+                onPlayFile = { viewModel.playAudio(it) },
+                onPlayPause = { viewModel.audioPlayer.togglePlayPause() },
+                onSeek = { viewModel.audioPlayer.seekTo(it) },
+                onSpeedChange = { viewModel.audioPlayer.setPlaybackSpeed(it) },
+                onRecordingClick = { /* Managed internally in TabletWorkspaceLayout to retain tablet 2-panel layout */ },
+                onActionToggle = { viewModel.toggleActionComplete(it) },
+                onStartRecording = {
+                    sendRecordingAction(context, RecordingForegroundService.ACTION_START_RECORDING)
+                    showAboveToast("Recording started")
+                },
+                onPauseToggle = {
+                    if (isServicePaused) {
+                        sendRecordingAction(context, RecordingForegroundService.ACTION_RESUME_RECORDING)
+                        showAboveToast("Recording resumed")
+                    } else {
+                        sendRecordingAction(context, RecordingForegroundService.ACTION_PAUSE_RECORDING)
+                        showAboveToast("Recording paused")
                     }
-                )
-            }
-
-            if (showSaveDialog) {
-                SaveRecordingDialog(
-                    defaultName = pendingSavedFileName ?: "recording_${System.currentTimeMillis()}",
-                    onSave = { chosenName ->
-                        showSaveDialog = false
-                        val dir = AudioFileReader.getRecordingsDirectory()
-                        val newest = dir.listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
-                            ?.maxByOrNull { f -> f.lastModified() }
-                        var savedFile = newest
-                        if (newest != null && newest.exists() && chosenName.isNotBlank() && chosenName != newest.nameWithoutExtension) {
-                            val targetFile = File(dir, "$chosenName.m4a")
-                            if (!targetFile.exists()) {
-                                if (newest.renameTo(targetFile)) {
-                                    savedFile = targetFile
-                                }
-                            }
+                },
+                onFinishRecording = {
+                    sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
+                    val newest = AudioFileReader.getRecordingsDirectory()
+                        .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
+                        ?.maxByOrNull { f -> f.lastModified() }
+                    pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
+                    showSaveDialog = true
+                },
+                onCancelRecording = {
+                    sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
+                    showAboveToast("Recording discarded")
+                },
+                onSendCopilotQuery = { /* TODO: Wire copilot query */ },
+                onReprocess = {
+                    val filePath = viewModel.audioPlayer.playbackState.value.currentFilePath
+                        ?: viewModel.audioFiles.value.firstOrNull()?.filePath
+                    val rec = filePath?.let { viewModel.recordingsByPath.value[it] }
+                    if (rec != null) {
+                        viewModel.retryAiProcessing(rec)
+                    } else {
+                        val audioFile = filePath?.let { path ->
+                            viewModel.audioFiles.value.firstOrNull { it.filePath == path }
                         }
-                        android.widget.Toast.makeText(context, "Voice note saved", android.widget.Toast.LENGTH_SHORT).show()
-                        viewModel.loadAudioFiles()
-
-                        if (savedFile != null && savedFile.exists() && AppPreferences.isAutoAiEnabled(context)) {
-                            val audioFileInfo = AudioFileInfo(
-                                filePath = savedFile.absolutePath,
-                                fileName = savedFile.name,
-                                duration = 0L,
-                                timestamp = savedFile.lastModified(),
-                                sizeBytes = savedFile.length()
+                        if (audioFile != null) {
+                            viewModel.processRecordingForAI(audioFile)
+                        }
+                    }
+                },
+                onDeleteFile = { audioFile ->
+                    viewModel.deleteAudioFile(audioFile)
+                    showAboveToast("Note deleted")
+                },
+                onRenameFile = { audioFile, newName ->
+                    viewModel.renameRecording(audioFile, newName)
+                    showAboveToast("Note renamed")
+                },
+                onShareFile = { audioFile ->
+                    try {
+                        val file = File(audioFile.filePath)
+                        if (file.exists()) {
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.provider",
+                                file
                             )
-                            viewModel.processRecordingForAI(audioFileInfo)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "audio/*"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Voice Note"))
+                        } else {
+                            showAboveToast("File not found")
                         }
-                    },
-                    onDiscard = {
-                        showSaveDialog = false
-                        val dir = AudioFileReader.getRecordingsDirectory()
-                        val newest = dir.listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
-                            ?.maxByOrNull { f -> f.lastModified() }
-                        if (newest != null && newest.exists()) {
-                            AudioStorage.deleteAudioFile(context, newest.absolutePath)
-                        }
-                        android.widget.Toast.makeText(context, "Recording discarded", android.widget.Toast.LENGTH_SHORT).show()
-                        viewModel.loadAudioFiles()
+                    } catch (e: Exception) {
+                        showAboveToast("Unable to share audio: ${e.message}")
                     }
+                },
+                onProcessAI = { audioFile ->
+                    val rec = viewModel.recordingsByPath.value[audioFile.filePath]
+                    if (rec != null) {
+                        viewModel.retryAiProcessing(rec)
+                    } else {
+                        viewModel.processRecordingForAI(audioFile)
+                    }
+                    showAboveToast("Processing voice note with AI...")
+                }
+            )
+        } else {
+            // Phone: Bottom dock + tab-switched content
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (currentTab) {
+                    RootTab.NOTES -> {
+                        FeedScreen(
+                            onRecordingClick = { recordingId ->
+                                navController.navigate(Screen.Detail.createRoute(recordingId))
+                            },
+                            onSettingsClick = {
+                                navController.navigate(Screen.Settings.route)
+                            },
+                            viewModel = viewModel
+                        )
+                    }
+                    RootTab.ACTIONS -> {
+                        ActionItemsScreen(
+                            onRecordingClick = { recordingId ->
+                                navController.navigate(Screen.Detail.createRoute(recordingId))
+                            },
+                            onSettingsClick = {
+                                navController.navigate(Screen.Settings.route)
+                            },
+                            viewModel = viewModel
+                        )
+                    }
+                    RootTab.AI -> {
+                        GlobalCopilotScreen(
+                            viewModel = viewModel,
+                            focusedRecordingId = focusedRecordingId,
+                            onClearFocusedRecording = { focusedRecordingId = null },
+                            onRecordingClick = { recordingId ->
+                                navController.navigate(Screen.Detail.createRoute(recordingId))
+                            },
+                            onSettingsClick = {
+                                navController.navigate(Screen.Settings.route)
+                            }
+                        )
+                    }
+                }
+
+                val isKeyboardOpen = WindowInsets.isImeVisible
+
+                // Floating Glassmorphic Bottom Bar with In-Place Morphing Recording Bar
+                AnimatedVisibility(
+                    visible = !isKeyboardOpen,
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(150)),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    StudioBottomBar(
+                        currentTab = currentTab,
+                        onTabSelected = { currentTab = it },
+                        isRecording = isServiceRecording,
+                        isPaused = isServicePaused,
+                        recordingElapsedMs = recordingElapsedMs,
+                        onStartRecording = {
+                            sendRecordingAction(context, RecordingForegroundService.ACTION_START_RECORDING)
+                            showAboveToast("Recording started")
+                        },
+                        onPauseToggle = {
+                            if (isServicePaused) {
+                                sendRecordingAction(context, RecordingForegroundService.ACTION_RESUME_RECORDING)
+                                showAboveToast("Recording resumed")
+                            } else {
+                                sendRecordingAction(context, RecordingForegroundService.ACTION_PAUSE_RECORDING)
+                                showAboveToast("Recording paused")
+                            }
+                        },
+                        onFinishRecording = {
+                            sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
+                            val newest = AudioFileReader.getRecordingsDirectory()
+                                .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
+                                ?.maxByOrNull { f -> f.lastModified() }
+                            pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
+                            showSaveDialog = true
+                        },
+                        onCancelRecording = {
+                            sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
+                            showAboveToast("Recording discarded")
+                        }
+                    )
+                }
+            }
+        }
+
+        // Elevated In-App Toast Pill positioned cleanly above the bottom record button / dock
+        AnimatedVisibility(
+            visible = toastMessage != null,
+            enter = fadeIn(animationSpec = tween(150)) + slideInVertically(animationSpec = tween(200)) { it / 2 },
+            exit = fadeOut(animationSpec = tween(150)) + slideOutVertically(animationSpec = tween(200)) { it / 2 },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = if (isTablet) 148.dp else 140.dp)
+                .zIndex(99f)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isDark) CosmicVoidCard else Color(0xFF1E293B),
+                border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFF334155)),
+                shadowElevation = 6.dp
+            ) {
+                Text(
+                    text = toastMessage.orEmpty(),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp)
                 )
             }
         }
+    }
+
+    if (showSaveDialog) {
+        SaveRecordingDialog(
+            defaultName = pendingSavedFileName ?: "recording_${System.currentTimeMillis()}",
+            onSave = { chosenName ->
+                showSaveDialog = false
+                val dir = AudioFileReader.getRecordingsDirectory()
+                val newest = dir.listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
+                    ?.maxByOrNull { f -> f.lastModified() }
+                var savedFile = newest
+                if (newest != null && newest.exists() && chosenName.isNotBlank() && chosenName != newest.nameWithoutExtension) {
+                    val targetFile = File(dir, "$chosenName.m4a")
+                    if (!targetFile.exists()) {
+                        if (newest.renameTo(targetFile)) {
+                            savedFile = targetFile
+                        }
+                    }
+                }
+                showAboveToast("Voice note saved")
+                viewModel.loadAudioFiles()
+
+                if (savedFile != null && savedFile.exists() && AppPreferences.isAutoAiEnabled(context)) {
+                    val audioFileInfo = AudioFileInfo(
+                        filePath = savedFile.absolutePath,
+                        fileName = savedFile.name,
+                        duration = 0L,
+                        timestamp = savedFile.lastModified(),
+                        sizeBytes = savedFile.length()
+                    )
+                    viewModel.processRecordingForAI(audioFileInfo)
+                }
+            },
+            onDiscard = {
+                showSaveDialog = false
+                val dir = AudioFileReader.getRecordingsDirectory()
+                val newest = dir.listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
+                    ?.maxByOrNull { f -> f.lastModified() }
+                if (newest != null && newest.exists()) {
+                    AudioStorage.deleteAudioFile(context, newest.absolutePath)
+                }
+                showAboveToast("Recording discarded")
+                viewModel.loadAudioFiles()
+            }
+        )
     }
 }
 

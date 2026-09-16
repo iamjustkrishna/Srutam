@@ -616,10 +616,11 @@ fun BYOKOnboardingScreen(
                                     "whisper-large-v3-turbo"
                                 )
                                 AppPreferences.PROVIDER_GEMINI -> listOf(
-                                    "gemini-3.8-flash",
-                                    "gemini-3-pro"
+                                    "gemini-2.5-flash",
+                                    "gemini-2.5-flash-lite",
+                                    "gemini-2.5-pro"
                                 )
-                                else -> listOf("gemini-3.8-flash", "gemini-3-pro")
+                                else -> listOf("gemini-2.5-flash", "gemini-2.5-pro")
                             }
 
                             Row(

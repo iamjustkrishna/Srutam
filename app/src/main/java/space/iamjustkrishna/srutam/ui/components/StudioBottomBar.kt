@@ -277,7 +277,7 @@ fun StudioBottomBar(
                         slideOutVertically(animationSpec = tween(150)) { it / 2 },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = (-78).dp)
+                    .offset(y = (-115).dp)
             ) {
                 SlideToLockIndicator(dragYOffset = dragYOffset)
             }
@@ -669,7 +669,7 @@ private fun StudioTabItem(
  * Shows animated lock icon and upward chevron, tracking the thumb drag.
  */
 @Composable
-private fun SlideToLockIndicator(
+internal fun SlideToLockIndicator(
     dragYOffset: Float,
     modifier: Modifier = Modifier
 ) {
