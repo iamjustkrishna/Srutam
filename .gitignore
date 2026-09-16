@@ -140,3 +140,7 @@ sherpa-onnx-master-src/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+
+mcp-server/
+supabase/

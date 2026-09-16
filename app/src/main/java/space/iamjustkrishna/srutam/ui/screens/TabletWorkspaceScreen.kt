@@ -13,6 +13,17 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.lazy.LazyItemScope
 import space.iamjustkrishna.srutam.ui.components.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -333,7 +344,8 @@ fun TabletWorkspaceLayout(
         Modifier.background(Color.White)
     }
 
-    val sidebarWidth = if (screenWidthDp < 768) 240.dp else 280.dp
+    val isMobileLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && configuration.screenHeightDp < 500
+    val sidebarWidth = if (isMobileLandscape) 250.dp else if (screenWidthDp < 768) 240.dp else 280.dp
 
     Box(modifier = modifier.fillMaxSize().then(bgModifier)) {
         if (isDark) {
@@ -512,6 +524,26 @@ fun TabletUnifiedSidebar(
     onNewNoteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val isMobileLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && configuration.screenHeightDp < 500
+
+    if (isMobileLandscape) {
+        MobileLandscapeDampedSidebar(
+            currentTab = currentTab,
+            onTabSelected = onTabSelected,
+            onSettingsClick = onSettingsClick,
+            audioFiles = audioFiles,
+            recordingsByPath = recordingsByPath,
+            selectedFilePath = selectedFilePath,
+            onSelectFile = onSelectFile,
+            onProcessAI = onProcessAI,
+            onProcessAll = onProcessAll,
+            onNewNoteClick = onNewNoteClick,
+            modifier = modifier
+        )
+        return
+    }
+
     val isDark = LocalIsCosmicDark.current
     val sidebarBg = if (isDark) CosmicVoidCard else Color(0xFFFCFDFF)
     val textPrimary = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
@@ -652,172 +684,600 @@ fun TabletUnifiedSidebar(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(audioFiles, key = { it.filePath }) { audio ->
-                val recording = recordingsByPath[audio.filePath]
-                val isSelected = audio.filePath == selectedFilePath
-                val title = recording?.name?.takeIf { it.isNotBlank() } ?: audio.fileName.removeSuffix(".m4a")
-                val dateText = formatHumanRelativeDate(audio.timestamp)
-                val isRecentlySaved = remember(audio.timestamp) {
-                    (System.currentTimeMillis() - audio.timestamp) < 15_000L
-                }
+                TabletUnifiedSidebarNoteItem(
+                    audio = audio,
+                    recording = recordingsByPath[audio.filePath],
+                    isSelected = audio.filePath == selectedFilePath,
+                    isDark = isDark,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onSelectFile = onSelectFile,
+                    onProcessAI = onProcessAI,
+                    isCompact = false
+                )
+            }
+        }
+    }
+}
 
-                val itemBg = if (isSelected) {
-                    if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.45f) else Color(0xFFEBF3FE)
-                } else {
-                    Color.Transparent
-                }
+/**
+ * Specialized sidebar layout for mobile phones in landscape orientation.
+ * Features a damped collapsible motion where scrolling the recent notes list
+ * slides the recent section up over the top navigation area with a smooth spring damp effect,
+ * giving maximum vertical space for notes. Scrolling back to top smoothly reveals navigation.
+ */
+@Composable
+private fun MobileLandscapeDampedSidebar(
+    currentTab: RootTab,
+    onTabSelected: (RootTab) -> Unit,
+    onSettingsClick: () -> Unit,
+    audioFiles: List<AudioFileInfo>,
+    recordingsByPath: Map<String, Recording>,
+    selectedFilePath: String?,
+    onSelectFile: (AudioFileInfo) -> Unit,
+    onProcessAI: (AudioFileInfo) -> Unit = {},
+    onProcessAll: () -> Unit = {},
+    onNewNoteClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsCosmicDark.current
+    val sidebarBg = if (isDark) CosmicVoidCard else Color(0xFFFCFDFF)
+    val textPrimary = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+    val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
+    val context = LocalContext.current
+    val autoAiState by AppPreferences.autoAiEnabledFlow.collectAsState()
+    val isAutoAi = autoAiState ?: remember(context) { AppPreferences.isAutoAiEnabled(context) }
+    val pendingCount = remember(audioFiles, recordingsByPath) {
+        audioFiles.count { audio ->
+            if (audio.filePath == "srutam://welcome") false
+            else {
+                val rec = recordingsByPath[audio.filePath]
+                rec == null || rec.summary.isNullOrBlank() || rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE || rec.summary?.startsWith("This recording contains approximately") == true
+            }
+        }
+    }
 
-                val borderModifier = if (isRecentlySaved && !isSelected) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "recent_pulse")
-                    val alpha by infiniteTransition.animateFloat(
-                        initialValue = 0.35f,
-                        targetValue = 0.9f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(800, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pulse_alpha"
+    val density = LocalDensity.current
+    val baseTopOffsetDp = 186.dp
+    val minTopOffsetDp = 8.dp
+    val maxShiftDp = baseTopOffsetDp - minTopOffsetDp
+    val maxShiftPx = with(density) { maxShiftDp.toPx() }
+
+    val shiftAnimatable = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
+    // Nested scroll connection for damped upward/downward sheet translation
+    val nestedScrollConnection = remember(maxShiftPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val deltaY = available.y
+                // When dragging up (finger moves up, deltaY < 0), slide Recent sheet up over nav
+                if (deltaY < 0f && shiftAnimatable.value < maxShiftPx) {
+                    val dampFactor = 0.75f
+                    val needed = maxShiftPx - shiftAnimatable.value
+                    val toShift = (-deltaY * dampFactor).coerceAtMost(needed)
+                    coroutineScope.launch {
+                        shiftAnimatable.snapTo(shiftAnimatable.value + toShift)
+                    }
+                    val consumedY = -toShift / dampFactor
+                    return Offset(0f, consumedY)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val deltaY = available.y
+                // When dragging down (finger moves down, deltaY > 0) after notes list reaches top
+                if (deltaY > 0f && shiftAnimatable.value > 0f) {
+                    val dampFactor = 0.75f
+                    val toShift = (deltaY * dampFactor).coerceAtMost(shiftAnimatable.value)
+                    coroutineScope.launch {
+                        shiftAnimatable.snapTo(shiftAnimatable.value - toShift)
+                    }
+                    val consumedY = toShift / dampFactor
+                    return Offset(0f, consumedY)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (available.y < -300f && shiftAnimatable.value < maxShiftPx) {
+                    shiftAnimatable.animateTo(
+                        targetValue = maxShiftPx,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
                     )
-                    Modifier.border(
-                        width = 1.dp,
-                        color = (if (isDark) CosmicGlowBlue else CobaltBlue).copy(alpha = alpha),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                } else {
-                    Modifier
+                    return Velocity(0f, available.y * 0.5f)
                 }
+                return Velocity.Zero
+            }
 
-                Surface(
-                    onClick = { onSelectFile(audio) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = itemBg,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateItem(
-                            fadeInSpec = tween(durationMillis = 400),
-                            placementSpec = spring(
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (available.y > 300f && shiftAnimatable.value > 0f) {
+                    shiftAnimatable.animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
+                    return Velocity(0f, available.y)
+                }
+                // Settle if in between
+                if (shiftAnimatable.value > 0f && shiftAnimatable.value < maxShiftPx) {
+                    val target = if (shiftAnimatable.value > maxShiftPx * 0.45f) maxShiftPx else 0f
+                    shiftAnimatable.animateTo(
+                        targetValue = target,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    val currentShiftPx = shiftAnimatable.value
+    val progress = (currentShiftPx / maxShiftPx).coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .background(sidebarBg)
+            .clipToBounds()
+            .nestedScroll(nestedScrollConnection)
+    ) {
+        // Layer 1: Top Navigation Header (Srutam + 4 Nav Items)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, start = 12.dp, end = 12.dp)
+                .graphicsLayer {
+                    this.alpha = (1f - progress * 0.55f).coerceIn(0.1f, 1f)
+                    this.translationY = -progress * with(density) { 24.dp.toPx() }
+                }
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta ->
+                        if (delta < 0f && shiftAnimatable.value < maxShiftPx) {
+                            val toShift = (-delta * 0.75f).coerceAtMost(maxShiftPx - shiftAnimatable.value)
+                            coroutineScope.launch { shiftAnimatable.snapTo(shiftAnimatable.value + toShift) }
+                        }
+                    },
+                    onDragStopped = { velocity ->
+                        val target = if (velocity < -300f || shiftAnimatable.value > maxShiftPx * 0.45f) maxShiftPx else 0f
+                        shiftAnimatable.animateTo(
+                            targetValue = target,
+                            animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioLowBouncy,
                                 stiffness = Spring.StiffnessMediumLow
                             )
                         )
-                        .then(borderModifier)
+                    }
+                )
+        ) {
+            Text(
+                text = "Srutam",
+                fontFamily = FontFamily.Serif,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                TabletSidebarNavItem(
+                    icon = Icons.Default.Description,
+                    label = "Notes",
+                    isSelected = currentTab == RootTab.NOTES,
+                    onClick = { onTabSelected(RootTab.NOTES) },
+                    compact = true
+                )
+                TabletSidebarNavItem(
+                    icon = Icons.Default.AutoAwesome,
+                    label = "Insights",
+                    isSelected = currentTab == RootTab.ACTIONS,
+                    onClick = { onTabSelected(RootTab.ACTIONS) },
+                    compact = true
+                )
+                TabletSidebarNavItem(
+                    icon = Icons.Default.SmartToy,
+                    label = "AI",
+                    isSelected = currentTab == RootTab.AI,
+                    onClick = { onTabSelected(RootTab.AI) },
+                    compact = true
+                )
+                TabletSidebarNavItem(
+                    icon = Icons.Default.Settings,
+                    label = "Settings",
+                    isSelected = false,
+                    onClick = onSettingsClick,
+                    compact = true
+                )
+            }
+        }
+
+        // Layer 2: Recent Notes Section (Damped Overlapping Sheet)
+        val currentTopDp = (baseTopOffsetDp - (maxShiftDp * progress)).coerceAtLeast(minTopOffsetDp)
+        val sheetShape = RoundedCornerShape(
+            topStart = 14.dp * progress,
+            topEnd = 14.dp * progress
+        )
+        val elevationDp = 8.dp * progress
+
+        Surface(
+            shape = sheetShape,
+            color = sidebarBg,
+            shadowElevation = elevationDp,
+            border = if (progress > 0.05f) {
+                BorderStroke(
+                    1.dp,
+                    (if (isDark) CosmicVoidCardBorder else Color(0xFFE2E8F0)).copy(alpha = progress)
+                )
+            } else null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = currentTopDp)
+                .fillMaxHeight()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 10.dp)
+            ) {
+                // Drag Handle and Recent Header Bar
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                val dampFactor = 0.75f
+                                val newShift = (shiftAnimatable.value - delta * dampFactor).coerceIn(0f, maxShiftPx)
+                                coroutineScope.launch {
+                                    shiftAnimatable.snapTo(newShift)
+                                }
+                            },
+                            onDragStopped = { velocity ->
+                                val target = when {
+                                    velocity < -300f -> maxShiftPx
+                                    velocity > 300f -> 0f
+                                    shiftAnimatable.value > maxShiftPx * 0.45f -> maxShiftPx
+                                    else -> 0f
+                                }
+                                shiftAnimatable.animateTo(
+                                    targetValue = target,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                            }
+                        )
+                        .padding(top = 4.dp, bottom = 4.dp)
                 ) {
-                    Row(
+                    // Pull Handle Indicator
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(bottom = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = title,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = if (isSelected) {
-                                        if (isDark) CosmicGlowBlue else CobaltBlue
-                                    } else {
-                                        textPrimary
-                                    },
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                if (isRecentlySaved) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background((if (isDark) CosmicGlowBlue else CobaltBlue).copy(alpha = 0.2f))
-                                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(
-                                            text = "NEW",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isDark) CosmicGlowBlue else CobaltBlue
+                                .size(width = 32.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(textSecondary.copy(alpha = 0.25f + progress * 0.25f))
+                        )
+                    }
+
+                    // "Recent" Header Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        val target = if (shiftAnimatable.value > maxShiftPx * 0.5f) 0f else maxShiftPx
+                                        shiftAnimatable.animateTo(
+                                            targetValue = target,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
                                         )
                                     }
                                 }
-                            }
-                            Spacer(modifier = Modifier.height(3.dp))
+                                .padding(vertical = 2.dp)
+                        ) {
                             Text(
-                                text = dateText,
-                                fontSize = 11.5.sp,
+                                text = "Recent",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = textSecondary
+                            )
+                            Icon(
+                                imageVector = if (progress > 0.5f) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                contentDescription = if (progress > 0.5f) "Collapse notes list" else "Expand notes list",
+                                tint = textSecondary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
 
-                        // Right side: only icon to be clicked, perfectly aligned vertically centered
-                        if (audio.filePath != "srutam://welcome") {
-                            when {
-                                recording?.isProcessing == true ||
-                                recording?.aiStatus == RecordingAiStatus.TRANSCRIBING ||
-                                recording?.aiStatus == RecordingAiStatus.SUMMARY_PROCESSING -> {
-                                    Box(
-                                        modifier = Modifier.size(32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp,
-                                            color = if (isDark) CosmicGlowBlue else CobaltBlue
-                                        )
+                        if (!isAutoAi) {
+                            val isEnabled = pendingCount > 0
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = when {
+                                    !isEnabled -> if (isDark) Color(0xFF1E293B).copy(alpha = 0.35f) else Color(0xFFF1F5F9).copy(alpha = 0.6f)
+                                    isDark -> CosmicGlowBlue.copy(alpha = 0.2f)
+                                    else -> CobaltBlue.copy(alpha = 0.12f)
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    when {
+                                        !isEnabled -> if (isDark) Color(0xFF334155).copy(alpha = 0.3f) else Color(0xFFE2E8F0).copy(alpha = 0.5f)
+                                        isDark -> CosmicGlowBlue.copy(alpha = 0.5f)
+                                        else -> CobaltBlue.copy(alpha = 0.35f)
                                     }
-                                }
-                                recording?.aiStatus == RecordingAiStatus.ERROR -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .clickable { onProcessAI(audio) },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Retry AI",
-                                            tint = Color(0xFFDC2626),
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                ),
+                                modifier = Modifier
+                                    .alpha(if (isEnabled) 1.0f else 0.45f)
+                                    .clickable(enabled = isEnabled) {
+                                        onProcessAll()
                                     }
-                                }
-                                recording == null || recording.summary.isNullOrBlank() -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .clickable { onProcessAI(audio) },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AutoAwesome,
-                                            contentDescription = "Process with AI",
-                                            tint = if (isDark) CosmicGlowBlue else CobaltBlue,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                                else -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .clickable { onProcessAI(audio) },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CheckCircle,
-                                            contentDescription = "Summarized (tap to reprocess)",
-                                            tint = if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = when {
+                                            !isEnabled -> textSecondary.copy(alpha = 0.5f)
+                                            isDark -> CosmicGlowBlue
+                                            else -> CobaltBlue
+                                        },
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                    Text(
+                                        text = if (pendingCount > 0) "Process All ($pendingCount)" else "Process All",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = when {
+                                            !isEnabled -> textSecondary.copy(alpha = 0.5f)
+                                            isDark -> CosmicGlowBlue
+                                            else -> CobaltBlue
+                                        }
+                                    )
                                 }
                             }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                // Recent Notes List
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    items(audioFiles, key = { it.filePath }) { audio ->
+                        TabletUnifiedSidebarNoteItem(
+                            audio = audio,
+                            recording = recordingsByPath[audio.filePath],
+                            isSelected = audio.filePath == selectedFilePath,
+                            isDark = isDark,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onSelectFile = onSelectFile,
+                            onProcessAI = onProcessAI,
+                            isCompact = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LazyItemScope.TabletUnifiedSidebarNoteItem(
+    audio: AudioFileInfo,
+    recording: Recording?,
+    isSelected: Boolean,
+    isDark: Boolean,
+    textPrimary: Color,
+    textSecondary: Color,
+    onSelectFile: (AudioFileInfo) -> Unit,
+    onProcessAI: (AudioFileInfo) -> Unit,
+    isCompact: Boolean = false
+) {
+    val title = recording?.name?.takeIf { it.isNotBlank() } ?: audio.fileName.removeSuffix(".m4a")
+    val dateText = formatHumanRelativeDate(audio.timestamp)
+    val isRecentlySaved = remember(audio.timestamp) {
+        (System.currentTimeMillis() - audio.timestamp) < 15_000L
+    }
+
+    val itemBg = if (isSelected) {
+        if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.45f) else Color(0xFFEBF3FE)
+    } else {
+        Color.Transparent
+    }
+
+    val borderModifier = if (isRecentlySaved && !isSelected) {
+        val infiniteTransition = rememberInfiniteTransition(label = "recent_pulse")
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 0.9f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse_alpha"
+        )
+        Modifier.border(
+            width = 1.dp,
+            color = (if (isDark) CosmicGlowBlue else CobaltBlue).copy(alpha = alpha),
+            shape = RoundedCornerShape(if (isCompact) 10.dp else 12.dp)
+        )
+    } else {
+        Modifier
+    }
+
+    Surface(
+        onClick = { onSelectFile(audio) },
+        shape = RoundedCornerShape(if (isCompact) 10.dp else 12.dp),
+        color = itemBg,
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateItem(
+                fadeInSpec = tween(durationMillis = 400),
+                placementSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            .then(borderModifier)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = if (isCompact) 10.dp else 12.dp,
+                    vertical = if (isCompact) 7.dp else 10.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        fontSize = if (isCompact) 12.5.sp else 13.5.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isSelected) {
+                            if (isDark) CosmicGlowBlue else CobaltBlue
+                        } else {
+                            textPrimary
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isRecentlySaved) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background((if (isDark) CosmicGlowBlue else CobaltBlue).copy(alpha = 0.2f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "NEW",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) CosmicGlowBlue else CobaltBlue
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = dateText,
+                    fontSize = if (isCompact) 11.sp else 11.5.sp,
+                    color = textSecondary
+                )
+            }
+
+            // Right side: only icon to be clicked, perfectly aligned vertically centered
+            if (audio.filePath != "srutam://welcome") {
+                val iconBoxSize = if (isCompact) 28.dp else 32.dp
+                val iconSize = if (isCompact) 16.dp else 18.dp
+                when {
+                    recording?.isProcessing == true ||
+                    recording?.aiStatus == RecordingAiStatus.TRANSCRIBING ||
+                    recording?.aiStatus == RecordingAiStatus.SUMMARY_PROCESSING -> {
+                        Box(
+                            modifier = Modifier.size(iconBoxSize),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(if (isCompact) 14.dp else 16.dp),
+                                strokeWidth = 2.dp,
+                                color = if (isDark) CosmicGlowBlue else CobaltBlue
+                            )
+                        }
+                    }
+                    recording?.aiStatus == RecordingAiStatus.ERROR -> {
+                        Box(
+                            modifier = Modifier
+                                .size(iconBoxSize)
+                                .clip(CircleShape)
+                                .clickable { onProcessAI(audio) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Retry AI",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(iconSize)
+                            )
+                        }
+                    }
+                    recording == null || recording.summary.isNullOrBlank() -> {
+                        Box(
+                            modifier = Modifier
+                                .size(iconBoxSize)
+                                .clip(CircleShape)
+                                .clickable { onProcessAI(audio) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Process with AI",
+                                tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                                modifier = Modifier.size(iconSize)
+                            )
+                        }
+                    }
+                    else -> {
+                        Box(
+                            modifier = Modifier
+                                .size(iconBoxSize)
+                                .clip(CircleShape)
+                                .clickable { onProcessAI(audio) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Summarized (tap to reprocess)",
+                                tint = if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
+                                modifier = Modifier.size(if (isCompact) 15.dp else 16.dp)
+                            )
                         }
                     }
                 }
@@ -831,7 +1291,8 @@ private fun TabletSidebarNavItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    compact: Boolean = false
 ) {
     val isDark = LocalIsCosmicDark.current
     val pillBg = if (isSelected) {
@@ -847,28 +1308,28 @@ private fun TabletSidebarNavItem(
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(if (compact) 10.dp else 12.dp),
         color = pillBg,
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(if (compact) 34.dp else 44.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = if (compact) 10.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = contentColor,
-                modifier = Modifier.size(19.dp)
+                modifier = Modifier.size(if (compact) 17.dp else 19.dp)
             )
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(if (compact) 9.dp else 14.dp))
             Text(
                 text = label,
-                fontSize = 14.sp,
+                fontSize = if (compact) 12.5.sp else 14.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 color = contentColor
             )

@@ -2,6 +2,15 @@
 
 ## Active Focus
 - Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- [x] **Mobile Landscape Damped Sidebar with Spring Resistance & Dynamic Note Expansion (`TabletWorkspaceScreen.kt`)**:
+  - Solved cramped vertical scrolling issue on standard phones rotated to landscape orientation (e.g. 1080x2400 @ 420dpi, height ~411dp) where the static top navigation area occupied ~220-250dp, leaving barely ~50dp for the notes list (displaying only 1 note).
+  - Built `MobileLandscapeDampedSidebar` with a custom `NestedScrollConnection` providing damped upward scroll resistance (`dampFactor = 0.75f`) and spring physics (`Spring.DampingRatioLowBouncy`, `Spring.StiffnessMediumLow`).
+  - Scrolling up inside the notes list or dragging up on the Recent header smoothly slides the Recent section up over the top navigation area by up to 178dp, expanding vertical runway for notes from ~186dp to ~360dp (displaying ~8 notes simultaneously).
+  - Designed dynamic surface transitions: the Recent card gains elevation (up to 8dp), top rounded corners (14dp), a subtle border, and a drag handle pill during expansion, while the background navigation section undergoes subtle upward parallax (`-progress * 24.dp`) and soft fading (`alpha = 1f - progress * 0.55f`).
+  - Scrolling down to note 0 and continuing down pulls the Recent sheet back to its resting position. Added one-tap header click toggle and direct vertical dragging on the handle/header for effortless expansion and collapse.
+  - Extracted `TabletUnifiedSidebarNoteItem` supporting compact density (7dp padding, 12.5sp typography, 28dp icon container), allowing 2 notes to be visible even at rest before expanding. Scaled sidebar nav buttons down to 34dp on mobile landscape.
+  - Scoped behavior strictly to mobile landscape (`orientation == ORIENTATION_LANDSCAPE && screenHeightDp < 500`), preserving the fixed sidebar on larger tablets (height >= 500dp).
+  - Verified live on `Srutam_Phone` emulator (`emulator-5554`) in landscape mode across resting, sliding, expanded, and collapsed states, with full unit test suite passing (`testDebugUnitTest`).
 - [x] **Screen Orientation State Preservation via rememberSaveable (`Navigation.kt`, `TabletWorkspaceScreen.kt`, `ActionItemsScreen.kt`)**:
   - Solved screen orientation regression where rotating the device between portrait and landscape caused the active screen to bounce back to the initial Notes tab, losing the user's place on Insights or AI screens.
   - Replaced volatile `remember` with persistent `rememberSaveable` on `currentTab` and `focusedRecordingId` in `RootScreen` (`Navigation.kt`), saving tab state across Android Activity recreation and configuration changes into the saved instance state Bundle.
