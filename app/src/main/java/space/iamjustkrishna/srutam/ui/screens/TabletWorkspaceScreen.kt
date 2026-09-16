@@ -5226,11 +5226,9 @@ fun TabletCopilot3PanelWorkspace(
 
             // Query Input Bar
             val isKeyboardOpen = WindowInsets.isImeVisible
-            val bottomPad = if (isPortrait) {
-                if (isKeyboardOpen) 12.dp else 96.dp
-            } else {
-                if (isKeyboardOpen) 12.dp else 24.dp
-            }
+            val hasSourcesSidebar = isLargeTablet && !isPortrait
+            val bottomPad = if (isKeyboardOpen) 12.dp else 24.dp
+            val endPad = if (!hasSourcesSidebar && !isKeyboardOpen) 84.dp else 20.dp
 
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -5239,8 +5237,7 @@ fun TabletCopilot3PanelWorkspace(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = bottomPad)
+                    .padding(start = 20.dp, end = endPad, bottom = bottomPad)
             ) {
                 Row(
                     modifier = Modifier

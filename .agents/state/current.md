@@ -2,6 +2,13 @@
 
 ## Active Focus
 - Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- [x] **Tablet Portrait AI Screen Input Bar & Record Button Side-by-Side Alignment (`TabletWorkspaceScreen.kt`)**:
+  - Solved layout issue in tablet portrait orientation (`isPortrait == true`) where moving the floating record shutter to the right caused the query chat text field to float awkwardly 96dp above the bottom, stacked vertically above the shutter button.
+  - Replaced the hardcoded `96.dp` portrait bottom padding with dynamic baseline calculation `val bottomPad = if (isKeyboardOpen) 12.dp else 24.dp`.
+  - Added right margin reservation `val endPad = if (!hasSourcesSidebar && !isKeyboardOpen) 84.dp else 20.dp` allowing the query input bar to sit directly next to the 56dp record button on the left side on an identical horizontal baseline.
+  - Ensured full width expansion (`endPad = 20.dp`, `bottomPad = 12.dp`) when virtual IME keyboard opens, docking the input bar cleanly above the keyboard while the record button is hidden.
+  - Created and booted `Srutam_Phone` AVD (Google Pixel 8, API 36) alongside existing tablet AVD for standard phone verification.
+  - Verified live on Android tablet emulator (`emulator-5554`, 2560x1600 portrait) with UI snapshots (`tab_ai_portrait_fixed.png`, `tab_ai_portrait_keyboard.png`).
 - [x] **Universal User Activity Analytics Engine & Tablet Landscape Activity Sidebar (`UserActivityAnalytics.kt`, `AudioFilesViewModel.kt`, `TabletWorkspaceScreen.kt`, `UserActivityAnalyticsTest.kt`)**:
   - Implemented universal on-device analytics engine (`UserActivityAnalytics.kt`) that computes rolling 7-day voice note history, AI-extracted note counts, completed action items, captured ideas, and daily note volume from existing Room `Recording` and `InsightEntity` tables without requiring database migrations.
   - Exposed reactive `activityMetrics: StateFlow<UserActivityMetrics>` in `AudioFilesViewModel.kt` combining `repository.allRecordings` and `insightDao.getAllInsightsFlow()`, tracking user activities universally across all devices.
