@@ -85,21 +85,7 @@ export class SrutamClient {
   }
 
   async listRecentNotes(limit: number = 10): Promise<NoteRecord[]> {
-    const userId = await this.authenticate();
-
-    const { data, error } = await this.client
-      .from('notes')
-      .select('id, user_id, title, summary, key_points, wiifm, duration_ms, timestamp, is_private, ai_status')
-      .eq('user_id', userId)
-      .eq('is_private', false)
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      throw new Error(`Failed to list recent notes: ${error.message}`);
-    }
-
-    return (data as NoteRecord[]) || [];
+    return this.searchNotes('', limit);
   }
 
   async getNoteDetail(noteId: string): Promise<{
@@ -109,54 +95,30 @@ export class SrutamClient {
   }> {
     const userId = await this.authenticate();
 
-    const { data: note, error: noteError } = await this.client
-      .from('notes')
-      .select('*')
-      .eq('id', noteId)
-      .eq('user_id', userId)
-      .eq('is_private', false)
-      .single();
+    const { data, error } = await this.client.rpc('mcp_get_note_detail', {
+      p_user_id: userId,
+      p_note_id: noteId,
+    });
 
-    if (noteError || !note) {
-      throw new Error(`Note not found or private: ${noteError?.message || 'Not found'}`);
+    if (error || !data || !data.note) {
+      throw new Error(`Note not found or private: ${error?.message || 'Not found'}`);
     }
 
-    const { data: actionItems } = await this.client
-      .from('action_items')
-      .select('*')
-      .eq('note_id', noteId)
-      .order('created_at', { ascending: true });
-
-    const { data: agentLogs } = await this.client
-      .from('agent_logs')
-      .select('*')
-      .eq('note_id', noteId)
-      .order('created_at', { ascending: true });
-
     return {
-      note: note as NoteRecord,
-      actionItems: (actionItems as ActionItemRecord[]) || [],
-      agentLogs: (agentLogs as AgentLogRecord[]) || [],
+      note: data.note as NoteRecord,
+      actionItems: (data.actionItems as ActionItemRecord[]) || [],
+      agentLogs: (data.agentLogs as AgentLogRecord[]) || [],
     };
   }
 
   async listActionItems(status: 'all' | 'pending' | 'completed' = 'pending', limit: number = 20): Promise<ActionItemRecord[]> {
     const userId = await this.authenticate();
 
-    let query = this.client
-      .from('action_items')
-      .select('id, note_id, description, is_completed, completed_by, completed_at, created_at')
-      .eq('user_id', userId);
-
-    if (status === 'pending') {
-      query = query.eq('is_completed', false);
-    } else if (status === 'completed') {
-      query = query.eq('is_completed', true);
-    }
-
-    const { data, error } = await query
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    const { data, error } = await this.client.rpc('mcp_list_action_items', {
+      p_user_id: userId,
+      p_status: status,
+      p_limit: limit,
+    });
 
     if (error) {
       throw new Error(`Failed to list action items: ${error.message}`);
@@ -172,17 +134,12 @@ export class SrutamClient {
   ): Promise<ActionItemRecord> {
     const userId = await this.authenticate();
 
-    const { data, error } = await this.client
-      .from('action_items')
-      .update({
-        is_completed: completed,
-        completed_by: completed ? `agent:${agentName}` : null,
-        completed_at: completed ? new Date().toISOString() : null,
-      })
-      .eq('id', actionItemId)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const { data, error } = await this.client.rpc('mcp_update_action_item', {
+      p_user_id: userId,
+      p_item_id: actionItemId,
+      p_completed: completed,
+      p_agent_name: agentName,
+    });
 
     if (error || !data) {
       throw new Error(`Failed to update action item: ${error?.message || 'Not found'}`);
@@ -198,16 +155,12 @@ export class SrutamClient {
   ): Promise<AgentLogRecord> {
     const userId = await this.authenticate();
 
-    const { data, error } = await this.client
-      .from('agent_logs')
-      .insert({
-        note_id: noteId,
-        user_id: userId,
-        agent_name: agentName,
-        message: message,
-      })
-      .select()
-      .single();
+    const { data, error } = await this.client.rpc('mcp_append_agent_log', {
+      p_user_id: userId,
+      p_note_id: noteId,
+      p_agent_name: agentName,
+      p_message: message,
+    });
 
     if (error || !data) {
       throw new Error(`Failed to append agent log: ${error?.message || 'Insert failed'}`);
