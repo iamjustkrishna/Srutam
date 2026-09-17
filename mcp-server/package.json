@@ -3,7 +3,9 @@
   "version": "1.0.1",
   "description": "Model Context Protocol (MCP) server for Srutam - fetch voice notes, ideas, and action items inside AI coding agents",
   "main": "dist/index.js",
-  "bin": "./dist/index.js",
+  "bin": {
+    "srutam-mcp": "dist/index.js"
+  },
   "files": [
     "dist",
     "README.md"
