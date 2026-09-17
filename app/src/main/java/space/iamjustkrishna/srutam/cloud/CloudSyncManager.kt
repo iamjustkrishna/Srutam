@@ -21,23 +21,30 @@ object CloudSyncManager {
     /**
      * Triggers a cloud sync job if the user is signed in.
      */
-    fun enqueueSync(context: Context) {
+    fun enqueueSync(context: Context, forceAll: Boolean = false) {
         if (!AppPreferences.isCloudSignedIn(context)) return
 
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+        CoroutineScope(Dispatchers.IO).launch {
+            if (forceAll) {
+                val database = AppDatabase.getDatabase(context)
+                database.recordingDao().markAllUnsyncedForSync()
+            }
 
-        val syncRequest = OneTimeWorkRequestBuilder<CloudSyncWorker>()
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
-            .build()
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            syncRequest
-        )
+            val syncRequest = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                syncRequest
+            )
+        }
     }
 
     /**

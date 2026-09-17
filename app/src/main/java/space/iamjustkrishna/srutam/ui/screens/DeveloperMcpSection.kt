@@ -127,8 +127,8 @@ fun DeveloperMcpSection(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilledTonalButton(
                                 onClick = {
-                                    CloudSyncManager.enqueueSync(context)
-                                    Toast.makeText(context, "Syncing notes to cloud...", Toast.LENGTH_SHORT).show()
+                                    CloudSyncManager.enqueueSync(context, forceAll = true)
+                                    Toast.makeText(context, "Syncing all notes to cloud...", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
@@ -470,7 +470,7 @@ fun DeveloperMcpSection(
                             userEmail = emailInput.trim()
                             showEmailLoginDialog = false
                             Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
-                            CloudSyncManager.enqueueSync(context)
+                            CloudSyncManager.enqueueSync(context, forceAll = true)
                         } else {
                             Toast.makeText(context, "Sign in failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                         }

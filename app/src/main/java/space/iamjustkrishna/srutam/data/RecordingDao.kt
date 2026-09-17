@@ -40,7 +40,7 @@ interface RecordingDao {
     @Query("SELECT COUNT(*) FROM recordings")
     suspend fun getRecordingCount(): Int
 
-    @Query("SELECT * FROM recordings WHERE syncStatus = 'PENDING'")
+    @Query("SELECT * FROM recordings WHERE syncStatus != 'SYNCED' AND aiStatus = 'READY'")
     suspend fun getPendingSyncRecordings(): List<Recording>
 
     @Query("UPDATE recordings SET syncStatus = :status, cloudId = :cloudId, lastSyncedAt = :syncedAt WHERE id = :id")
@@ -51,4 +51,7 @@ interface RecordingDao {
 
     @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE id = :id")
     suspend fun markForSync(id: Long)
+
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus != 'SYNCED' AND aiStatus = 'READY'")
+    suspend fun markAllUnsyncedForSync()
 }
