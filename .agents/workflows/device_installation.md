@@ -49,8 +49,7 @@ powershell
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices
 If not running, launch it in the background:
 
-powershell
-Start-Process -FilePath "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd <AVD_NAME>"
+cmd.exe /c start "" "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd <AVD_NAME>
 Wait until the device is online and booted:
 
 powershell

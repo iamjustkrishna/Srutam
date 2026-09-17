@@ -121,6 +121,11 @@ class SupabaseAuthManager(private val context: Context) {
             client.newCall(request).execute().use { response ->
                 val responseString = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
+                    if (responseString.contains("Email not confirmed", ignoreCase = true)) {
+                        return@withContext Result.failure(
+                            Exception("Email not confirmed. Please check your inbox or confirm your email in Supabase Authentication settings.")
+                        )
+                    }
                     // Try auto sign-up if user doesn't exist
                     return@withContext signUpWithEmailPassword(email, password)
                 }
@@ -166,16 +171,23 @@ class SupabaseAuthManager(private val context: Context) {
                 }
 
                 val json = JsonParser.parseString(responseString).asJsonObject
+                if (!json.has("access_token")) {
+                    return@withContext Result.failure(
+                        Exception("Email confirmation is required. Please check your inbox or disable 'Confirm email' in Supabase Authentication settings.")
+                    )
+                }
+
                 val userObj = json.get("user")?.asJsonObject ?: json
                 val userId = userObj.get("id").asString
-                val accessToken = if (json.has("access_token")) json.get("access_token").asString else anonKey
+                val accessToken = json.get("access_token").asString
+                val refreshToken = if (json.has("refresh_token")) json.get("refresh_token").asString else null
 
                 AppPreferences.saveCloudSession(
                     context = context,
                     userId = userId,
                     email = email,
                     accessToken = accessToken,
-                    refreshToken = null
+                    refreshToken = refreshToken
                 )
 
                 Result.success(userId)
