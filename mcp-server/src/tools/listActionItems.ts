@@ -2,8 +2,18 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const listActionItemsSchema = {
-  status: z.enum(['all', 'pending', 'completed']).optional().default('pending').describe('Filter tasks by status (default: "pending")'),
-  limit: z.number().optional().default(20).describe('Maximum number of action items to retrieve (default: 20)'),
+  status: z
+    .enum(['all', 'pending', 'completed'])
+    .optional()
+    .default('pending')
+    .describe('Filter tasks by status (default: "pending")'),
+  limit: z
+    .number()
+    .min(1)
+    .max(50)
+    .optional()
+    .default(20)
+    .describe('Maximum number of action items to retrieve (default: 20, max: 50)'),
 };
 
 export async function handleListActionItems(
@@ -11,7 +21,8 @@ export async function handleListActionItems(
   args: { status?: 'all' | 'pending' | 'completed'; limit?: number }
 ) {
   const status = args.status || 'pending';
-  const items = await client.listActionItems(status, args.limit || 20);
+  const boundedLimit = Math.max(1, Math.min(args.limit || 20, 50));
+  const items = await client.listActionItems(status, boundedLimit);
 
   if (items.length === 0) {
     return {

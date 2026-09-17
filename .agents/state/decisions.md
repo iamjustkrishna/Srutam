@@ -405,3 +405,19 @@
   4. **Interactive Navigation & Tooltips**: Tapping "View all" or Notes tile routes to Notes workspace; tapping Action items routes to Next Steps; tapping Ideas routes to Ideas tab; tapping bars displays an animated dismissible tooltip with note counts.
   5. **Typography & Theme Polish**: Standardized tile titles to 2-line centered layout with `minLines = 2` to prevent awkward truncation and guarantee uniform subtitle baselines. Provided full theme adaptivity across Light and Cosmic Void Dark modes.
   6. **Verification**: Clean unit test execution (`testDebugUnitTest`), Kotlin compilation clean (`compileDebugKotlin`), debug APK installed and verified live on tablet emulator (`emulator-5554`, 2560x1600 landscape and portrait) with screenshot evidence.
+
+## ADR-037: Srutam v2.3.0 & srutam-mcp v1.1.0 Cloud Sync, Rate Limiting & CLI Dashboard
+- **Status**: Accepted
+- **Context**: 
+  1. As external AI agents connect to Srutam Cloud via `srutam-mcp`, server load must be protected from high-frequency queries, runaway agent loops, and multiple developers.
+  2. Developers typing `srutam-mcp` directly into a shell previously saw a hang or an unhelpful error because it defaulted to stdio transport intended for IDEs.
+  3. Users needed visual confirmation on their mobile device that notes are synced with the cloud, with immediate manual sync and an Auto-Sync toggle.
+  4. Security required bounding active Personal Access Tokens to 3 per user to prevent forgotten sprawl.
+- **Decision**:
+  1. **Multi-Developer Resilience (`mcp-server/src/cache.ts`)**: Built in-memory TTL caching (60s auth cache, 30s query cache) and token-bucket rate limiting (60 req/min with burst allowance) per API key.
+  2. **Interactive TTY Terminal Dashboard (`mcp-server/src/index.ts`)**: When `process.stdin.isTTY` is true, display a rich ASCII dashboard, active key preview, cloud health status, note count, tool catalog, and CLI command guide. When spawned over stdio by IDEs, start the JSON-RPC stdio transport silently without printing anything to stdout.
+  3. **Strict 3-Key Quota**: Enforced in Supabase database trigger (`enforce_api_key_limit`) and Android UI (`DeveloperMcpSection.kt`) with dynamic `${apiKeys.size}/3` badge and disabled button states.
+  4. **Home Screen Cloud Sync Indicator (`FeedScreen.kt`)**: Added a squircle action button in `SrutamTopAppBar` displaying an emerald green cloud when synced, spinning animation during sync, and 1-tap manual sync trigger.
+  5. **Auto-Sync to Cloud (`AppPreferences.kt`, `CloudSyncManager.kt`)**: Added toggle in developer settings wired to auto-upload on recording and AI completion.
+  6. **Branded 6-Digit In-App OTP & Dark Email**: Added custom dark-mode OTP template (`supabase/email-templates/verify-otp-dark.html`) eliminating third-party backend traces.
+  7. **Verification**: Passed all 97 unit tests (`testDebugUnitTest`), compiled debug APK (`assembleDebug`), verified live on emulator (`emulator-5554`) with interactive screenshots.

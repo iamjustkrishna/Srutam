@@ -2,15 +2,26 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const searchNotesSchema = {
-  query: z.string().describe('Search query, keywords, or topics to search for across your voice notes'),
-  limit: z.number().optional().default(5).describe('Maximum number of matching notes to return (default: 5)'),
+  query: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe('Search query, keywords, or topics to search for across your voice notes'),
+  limit: z
+    .number()
+    .min(1)
+    .max(25)
+    .optional()
+    .default(5)
+    .describe('Maximum number of matching notes to return (default: 5, max: 25)'),
 };
 
 export async function handleSearchNotes(
   client: SrutamClient,
   args: { query: string; limit?: number }
 ) {
-  const results = await client.searchNotes(args.query, args.limit || 5);
+  const boundedLimit = Math.max(1, Math.min(args.limit || 5, 25));
+  const results = await client.searchNotes(args.query, boundedLimit);
 
   if (results.length === 0) {
     return {

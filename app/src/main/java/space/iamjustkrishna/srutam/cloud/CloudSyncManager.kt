@@ -19,10 +19,22 @@ object CloudSyncManager {
     private const val WORK_NAME = "srutam_cloud_sync_worker"
 
     /**
+     * Flow observing WorkInfo for the cloud sync worker.
+     */
+    fun getSyncWorkInfoFlow(context: Context): kotlinx.coroutines.flow.Flow<List<androidx.work.WorkInfo>> {
+        return try {
+            WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(WORK_NAME)
+        } catch (e: Throwable) {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }
+
+    /**
      * Triggers a cloud sync job if the user is signed in.
      */
     fun enqueueSync(context: Context, forceAll: Boolean = false) {
         if (!AppPreferences.isCloudSignedIn(context)) return
+        if (!forceAll && !AppPreferences.isAutoCloudSyncEnabled(context)) return
 
         CoroutineScope(Dispatchers.IO).launch {
             if (forceAll) {

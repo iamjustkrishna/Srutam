@@ -62,7 +62,13 @@ fun DeveloperMcpSection(
     var showEmailLoginDialog by remember { mutableStateOf(false) }
     var emailInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
+    var otpInput by remember { mutableStateOf("") }
+    var otpSent by remember { mutableStateOf(false) }
+    var authMode by remember { mutableStateOf("OTP") } // "OTP" or "PASSWORD"
     var isAuthLoading by remember { mutableStateOf(false) }
+    var isAutoSyncEnabled by remember {
+        mutableStateOf(AppPreferences.isAutoCloudSyncEnabled(context))
+    }
 
     fun refreshKeys() {
         if (isSignedIn) {
@@ -192,11 +198,9 @@ fun DeveloperMcpSection(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // API Keys sub-header
+                    // Auto-Sync Toggle Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -204,15 +208,68 @@ fun DeveloperMcpSection(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = "MCP Agent Keys",
+                                text = "Auto-Sync to Cloud",
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
-                                text = "Keys for Cursor, Antigravity, and Claude",
+                                text = "Upload new notes and insights automatically",
                                 fontSize = 11.sp,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = isAutoSyncEnabled,
+                            onCheckedChange = { enabled ->
+                                isAutoSyncEnabled = enabled
+                                AppPreferences.setAutoCloudSyncEnabled(context, enabled)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = CobaltBlue
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // API Keys sub-header with 3-key limit enforcement
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "MCP Agent Keys",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) TextOnDarkPrimary else TextPrimary
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (apiKeys.size >= 3) Color(0xFFEF4444).copy(alpha = 0.15f) else (if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0))
+                                ) {
+                                    Text(
+                                        text = "${apiKeys.size}/3",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for Cursor, Antigravity, and Claude",
+                                fontSize = 11.sp,
+                                color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) TextOnDarkSecondary else TextSecondary),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -220,11 +277,20 @@ fun DeveloperMcpSection(
 
                         Button(
                             onClick = {
-                                keyNameInput = "Cursor IDE"
-                                showGenerateKeyDialog = true
+                                if (apiKeys.size >= 3) {
+                                    Toast.makeText(context, "Maximum 3 keys allowed. Please revoke an old key first.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    keyNameInput = "Cursor IDE"
+                                    showGenerateKeyDialog = true
+                                }
                             },
+                            enabled = apiKeys.size < 3,
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CobaltBlue,
+                                disabledContainerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),
+                                disabledContentColor = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
+                            ),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
@@ -492,19 +558,78 @@ fun DeveloperMcpSection(
         }
     }
 
-    // Modal: Cloud Sign-In
+    // Modal: Cloud Sign-In (Supports 6-digit email OTP and Password)
     if (showEmailLoginDialog) {
+        val isOtpMode = authMode == "OTP"
         SrutamStandardDialog(
-            onDismissRequest = { showEmailLoginDialog = false },
-            title = "Sign In to Srutam Cloud",
-            subtitle = "Enable cloud sync and API keys for AI coding agents",
+            onDismissRequest = {
+                showEmailLoginDialog = false
+                otpSent = false
+                otpInput = ""
+            },
+            title = if (isOtpMode) (if (otpSent) "Verify 6-Digit Code" else "Sign In with Email OTP") else "Sign In with Password",
+            subtitle = if (isOtpMode) {
+                if (otpSent) "Check your email for the verification code" else "We will send a 6-digit confirmation code"
+            } else "Enable cloud sync and API keys for AI coding agents",
             icon = Icons.Default.CloudSync,
             badgeType = DialogBadgeType.PRIMARY,
-            confirmText = if (isAuthLoading) "Connecting..." else "Sign In",
+            confirmText = when {
+                isAuthLoading -> "Processing..."
+                isOtpMode && !otpSent -> "Send Code"
+                isOtpMode && otpSent -> "Verify & Connect"
+                else -> "Sign In"
+            },
             dismissText = "Cancel",
             confirmEnabled = !isAuthLoading,
             onConfirm = {
-                if (emailInput.isNotBlank() && passwordInput.isNotBlank()) {
+                if (emailInput.isBlank()) {
+                    Toast.makeText(context, "Please enter your email address", Toast.LENGTH_SHORT).show()
+                    return@SrutamStandardDialog
+                }
+
+                if (isOtpMode) {
+                    if (!otpSent) {
+                        // Send OTP
+                        scope.launch {
+                            isAuthLoading = true
+                            val res = authManager.sendOtp(emailInput.trim())
+                            isAuthLoading = false
+                            if (res.isSuccess) {
+                                otpSent = true
+                                Toast.makeText(context, "Verification code sent to ${emailInput.trim()}", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        // Verify OTP
+                        if (otpInput.isBlank()) {
+                            Toast.makeText(context, "Please enter the 6-digit code", Toast.LENGTH_SHORT).show()
+                            return@SrutamStandardDialog
+                        }
+                        scope.launch {
+                            isAuthLoading = true
+                            val res = authManager.verifyOtp(emailInput.trim(), otpInput.trim())
+                            isAuthLoading = false
+                            if (res.isSuccess) {
+                                isSignedIn = true
+                                userEmail = emailInput.trim()
+                                showEmailLoginDialog = false
+                                otpSent = false
+                                otpInput = ""
+                                Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
+                                CloudSyncManager.enqueueSync(context, forceAll = true)
+                            } else {
+                                Toast.makeText(context, "Verification failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                } else {
+                    // Password Mode
+                    if (passwordInput.isBlank()) {
+                        Toast.makeText(context, "Please enter your password", Toast.LENGTH_SHORT).show()
+                        return@SrutamStandardDialog
+                    }
                     scope.launch {
                         isAuthLoading = true
                         val res = authManager.signInWithEmailPassword(emailInput.trim(), passwordInput.trim())
@@ -519,30 +644,65 @@ fun DeveloperMcpSection(
                             Toast.makeText(context, "Sign in failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                         }
                     }
-                } else {
-                    Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
                 }
             },
             content = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = { Text("Email Address") },
-                        placeholder = { Text("developer@example.com") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (!otpSent || !isOtpMode) {
+                        OutlinedTextField(
+                            value = emailInput,
+                            onValueChange = { emailInput = it },
+                            label = { Text("Email Address") },
+                            placeholder = { Text("developer@example.com") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = passwordInput,
-                        onValueChange = { passwordInput = it },
-                        label = { Text("Password") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (isOtpMode && otpSent) {
+                        Text(
+                            text = "Code sent to ${emailInput.trim()}",
+                            fontSize = 12.sp,
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary
+                        )
+                        OutlinedTextField(
+                            value = otpInput,
+                            onValueChange = { if (it.length <= 6) otpInput = it },
+                            label = { Text("6-Digit Code") },
+                            placeholder = { Text("123456") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (!isOtpMode) {
+                        OutlinedTextField(
+                            value = passwordInput,
+                            onValueChange = { passwordInput = it },
+                            label = { Text("Password") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Mode switcher button
+                    TextButton(
+                        onClick = {
+                            authMode = if (isOtpMode) "PASSWORD" else "OTP"
+                            otpSent = false
+                            otpInput = ""
+                        },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = if (isOtpMode) "Or sign in with password" else "Or sign in with 6-digit email OTP",
+                            fontSize = 12.sp,
+                            color = CobaltBlue
+                        )
+                    }
                 }
             }
         )

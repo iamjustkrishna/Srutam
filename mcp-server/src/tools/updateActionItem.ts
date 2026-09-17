@@ -2,9 +2,14 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const updateActionItemSchema = {
-  action_item_id: z.string().describe('The UUID of the action item to update'),
+  action_item_id: z.string().min(1).max(64).describe('The UUID of the action item to update'),
   completed: z.boolean().describe('Whether the action item is marked completed (true) or open (false)'),
-  agent_name: z.string().optional().default('AI Agent').describe('Name of the agent or IDE performing the update (e.g., "Cursor", "Antigravity")'),
+  agent_name: z
+    .string()
+    .max(100)
+    .optional()
+    .default('AI Agent')
+    .describe('Name of the agent or IDE performing the update (e.g., "Cursor", "Antigravity")'),
 };
 
 export async function handleUpdateActionItem(

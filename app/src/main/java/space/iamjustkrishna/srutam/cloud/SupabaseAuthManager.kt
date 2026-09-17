@@ -243,6 +243,79 @@ class SupabaseAuthManager(private val context: Context) {
     }
 
     /**
+     * Sends a 6-digit OTP code to the user's email address.
+     */
+    suspend fun sendOtp(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val body = JsonObject().apply {
+                addProperty("email", email)
+                addProperty("create_user", true)
+            }
+
+            val request = Request.Builder()
+                .url("$baseUrl/auth/v1/otp")
+                .addHeader("apikey", anonKey)
+                .post(body.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val err = response.body?.string() ?: "HTTP ${response.code}"
+                    return@withContext Result.failure(Exception("Failed to send verification code: $err"))
+                }
+                Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Verifies the 6-digit email OTP and establishes the cloud session.
+     */
+    suspend fun verifyOtp(email: String, token: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val body = JsonObject().apply {
+                addProperty("type", "email")
+                addProperty("email", email)
+                addProperty("token", token.trim())
+            }
+
+            val request = Request.Builder()
+                .url("$baseUrl/auth/v1/verify")
+                .addHeader("apikey", anonKey)
+                .post(body.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseString = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("Invalid verification code: $responseString"))
+                }
+
+                val json = JsonParser.parseString(responseString).asJsonObject
+                val accessToken = json.get("access_token").asString
+                val refreshToken = if (json.has("refresh_token")) json.get("refresh_token").asString else null
+                val userObj = json.get("user")?.asJsonObject ?: json
+                val userId = userObj.get("id").asString
+                val userEmail = if (userObj.has("email") && !userObj.get("email").isJsonNull) userObj.get("email").asString else email
+
+                AppPreferences.saveCloudSession(
+                    context = context,
+                    userId = userId,
+                    email = userEmail,
+                    accessToken = accessToken,
+                    refreshToken = refreshToken
+                )
+
+                Result.success(userId)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Signs out and clears local session tokens.
      */
     fun signOut() {

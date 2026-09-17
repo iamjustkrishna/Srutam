@@ -273,5 +273,19 @@ Voiceover: "no cloud subscriptions. no privacy leaks. srutam 2.0. link in bio."
 - **Carousel Slide 2**: `screenshots/screen-matrix/phone-standard/05_detail_insights.png` (The new Note Details Insights tab with interactive checkboxes).
 - **Carousel Slide 3**: `screenshots/screen-matrix/phone-standard/06_insights_hub.png` (The dedicated Insights hub with tailored light gradient capsule).
 - **Carousel Slide 4**: `screenshots/screen-matrix/phone-standard/07_copilot_chat.png` (Global BM25 offline copilot querying all notes).
+---
 
+### [Milestone 10: First NPM Package Published - srutam-mcp]
+- **Date**: 2026-09-17
+- **Trigger**: First NPM package published to npm registry (`srutam-mcp`)
 
+#### 1. X / Twitter Post (Stealth / Teaser - Under 280 chars)
+```text
+just published my first ever package to npm 📦
+
+still running a few end-to-end tests before dropping the link, but seeing `npm publish` succeed for the first time hits different.
+
+building something that lets AI coding agents query your spoken thoughts and notes. 
+
+more soon.
+```

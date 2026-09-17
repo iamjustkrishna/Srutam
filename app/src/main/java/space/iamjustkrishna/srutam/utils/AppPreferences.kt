@@ -291,9 +291,22 @@ object AppPreferences {
     private const val KEY_CLOUD_ACCESS_TOKEN = "cloud_access_token"
     private const val KEY_CLOUD_REFRESH_TOKEN = "cloud_refresh_token"
     private const val KEY_CLOUD_LAST_SYNC_TIME = "cloud_last_sync_time"
+    private const val KEY_CLOUD_AUTO_SYNC_ENABLED = "cloud_auto_sync_enabled"
 
     private val _cloudAuthStateFlow = MutableStateFlow(false)
     val cloudAuthStateFlow: StateFlow<Boolean> = _cloudAuthStateFlow.asStateFlow()
+
+    fun isAutoCloudSyncEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_CLOUD_AUTO_SYNC_ENABLED, true)
+    }
+
+    fun setAutoCloudSyncEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_CLOUD_AUTO_SYNC_ENABLED, enabled)
+            .apply()
+    }
 
     fun isCloudSignedIn(context: Context): Boolean {
         val token = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

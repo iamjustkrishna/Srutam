@@ -2,14 +2,21 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const listRecentNotesSchema = {
-  limit: z.number().optional().default(10).describe('Maximum number of recent voice notes to retrieve (default: 10)'),
+  limit: z
+    .number()
+    .min(1)
+    .max(25)
+    .optional()
+    .default(10)
+    .describe('Maximum number of recent voice notes to retrieve (default: 10, max: 25)'),
 };
 
 export async function handleListRecentNotes(
   client: SrutamClient,
   args: { limit?: number }
 ) {
-  const notes = await client.listRecentNotes(args.limit || 10);
+  const boundedLimit = Math.max(1, Math.min(args.limit || 10, 25));
+  const notes = await client.listRecentNotes(boundedLimit);
 
   if (notes.length === 0) {
     return {

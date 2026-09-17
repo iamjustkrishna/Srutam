@@ -2,9 +2,18 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const appendAgentLogSchema = {
-  note_id: z.string().describe('The UUID of the note to append the log/comment to'),
-  message: z.string().describe('Audit message or implementation note left by the agent (e.g., "Created database migrations and API endpoints in commit 8a4c12")'),
-  agent_name: z.string().optional().default('AI Agent').describe('Name of the agent or IDE leaving the log (e.g. "Cursor", "Antigravity")'),
+  note_id: z.string().min(1).max(64).describe('The UUID of the note to append the log/comment to'),
+  message: z
+    .string()
+    .min(1)
+    .max(4000)
+    .describe('Audit message or implementation note left by the agent (e.g., "Created database migrations and API endpoints in commit 8a4c12")'),
+  agent_name: z
+    .string()
+    .max(100)
+    .optional()
+    .default('AI Agent')
+    .describe('Name of the agent or IDE leaving the log (e.g. "Cursor", "Antigravity")'),
 };
 
 export async function handleAppendAgentLog(

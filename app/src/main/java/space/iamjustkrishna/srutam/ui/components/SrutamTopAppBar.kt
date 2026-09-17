@@ -27,6 +27,7 @@ fun SquircleActionButton(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconModifier: Modifier = Modifier,
     tint: Color? = null
 ) {
     val isDark = LocalIsCosmicDark.current
@@ -44,7 +45,7 @@ fun SquircleActionButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = resolvedTint,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp).then(iconModifier)
             )
         }
     }

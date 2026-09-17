@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
 
 export const getNoteDetailSchema = {
-  note_id: z.string().describe('The UUID of the note to fetch details for'),
+  note_id: z.string().min(1).max(64).describe('The UUID of the note to fetch details for'),
 };
 
 export async function handleGetNoteDetail(

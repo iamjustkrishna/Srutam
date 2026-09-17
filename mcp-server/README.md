@@ -1,93 +1,121 @@
-# @srutam/mcp-server
+# srutam-mcp
 
 Official **Model Context Protocol (MCP)** server for [Srutam](https://srutam.space) — Pure Voice, Crystallized Thought.
 
-Capture fleeting ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly fetch, search, and implement them directly inside your favorite AI coding agents (Cursor, Antigravity IDE, Claude Desktop, Windsurf, Cline).
+Capture ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly search, read, and execute them directly inside your favorite AI coding agents (**Cursor**, **Antigravity**, **Claude Desktop**, **Windsurf**, **Cline**).
 
 ---
 
-## ⚡ Quick Setup
+## ⚡ Quick Start (30 Seconds)
 
-### 1. Generate an API Key in Srutam
-1. Open the **Srutam** Android app.
-2. Go to **Settings** $\rightarrow$ **Developer & MCP Brain**.
-3. Tap **Generate API Key** (e.g., `srtm_live_9a8f4c...`).
-4. Copy the key.
+Run the interactive setup wizard in your terminal:
 
-### 2. Configure Your AI Agent / IDE
-
-#### A. Antigravity IDE
-Add the following to your project's `.gemini/antigravity-ide/mcp_config.json` (or workspace MCP settings):
-```json
-{
-  "mcpServers": {
-    "srutam": {
-      "command": "npx",
-      "args": ["-y", "@srutam/mcp-server"],
-      "env": {
-        "SRUTAM_API_KEY": "srtm_live_your_key_here"
-      }
-    }
-  }
-}
+```bash
+npx -y srutam-mcp init
 ```
 
-#### B. Cursor IDE
-Add to `~/.cursor/mcp.json`:
-```json
-{
-  "mcpServers": {
-    "srutam": {
-      "command": "npx",
-      "args": ["-y", "@srutam/mcp-server"],
-      "env": {
-        "SRUTAM_API_KEY": "srtm_live_your_key_here"
-      }
-    }
-  }
-}
-```
+The wizard will:
+1. Prompt for your Srutam API key (obtained from Srutam Mobile App $\rightarrow$ **Settings** $\rightarrow$ **Developer & MCP**).
+2. Validate the key against Srutam Cloud.
+3. Automatically configure **Cursor**, **Antigravity**, or **Claude Desktop** on your machine.
 
-#### C. Claude Desktop
-Add to `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "srutam": {
-      "command": "npx",
-      "args": ["-y", "@srutam/mcp-server"],
-      "env": {
-        "SRUTAM_API_KEY": "srtm_live_your_key_here"
-      }
-    }
-  }
-}
+---
+
+## 💻 CLI Commands
+
+You can run `srutam-mcp` directly in your terminal for status checks and maintenance:
+
+```bash
+# Interactive dashboard (shows active key, synced notes count, and health)
+npx srutam-mcp
+
+# Test cloud connectivity
+npx srutam-mcp status
+
+# Reconfigure or link a new IDE
+npx srutam-mcp init
+
+# Disconnect and clear saved credentials
+npx srutam-mcp logout
+
+# View command line options
+npx srutam-mcp --help
 ```
 
 ---
 
-## 🛠 Exposed MCP Tools
+## 🛠 Manual Configuration
+
+If you prefer to configure manually, add `srutam-mcp` to your IDE's MCP config:
+
+### A. Cursor IDE (`~/.cursor/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "srutam": {
+      "command": "npx",
+      "args": ["-y", "srutam-mcp"],
+      "env": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+### B. Antigravity IDE (`mcp_config.json`)
+```json
+{
+  "mcpServers": {
+    "srutam": {
+      "command": "npx",
+      "args": ["-y", "srutam-mcp"],
+      "env": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+### C. Claude Desktop (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "srutam": {
+      "command": "npx",
+      "args": ["-y", "srutam-mcp"],
+      "env": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 🧰 Exposed MCP Tools
 
 | Tool | Description |
 | :--- | :--- |
 | `search_notes` | Semantic and keyword search across your voice notes, summaries, and transcripts. |
 | `list_recent_notes` | Retrieves chronological recent voice notes with executive summaries and key points. |
-| `get_note_detail` | Retrieves full verbatim transcript, structured summary, WIIFM, and action items. |
+| `get_note_detail` | Retrieves full verbatim transcript, structured summary, WIIFM, and action items for a note. |
 | `list_action_items` | Lists all actionable tasks and next steps, filtered by `pending` or `completed`. |
 | `update_action_item` | Marks tasks as completed and records agent attribution. Syncs back to your phone. |
 | `append_agent_work_log` | Attaches implementation notes or git commits directly onto a voice memo. |
 
 ---
 
-## 💻 Local Development
+## 🛡 Performance & Concurrency
 
-```bash
-# Install dependencies
-npm install
+- **In-Memory TTL Caching**: Key authentication is cached for 60 seconds and read queries for 30 seconds to minimize database roundtrips.
+- **Rate Limiting**: Protected with an in-process token-bucket rate limiter (60 requests/minute per key) to guard against runaway agent loops.
+- **Strict Bounding**: Parameter boundaries ensure compact payloads (`limit` capped at 25 for notes, 50 for tasks).
 
-# Build TypeScript to dist/
-npm run build
+---
 
-# Run locally via stdio
-node dist/index.js
-```
+## 📄 License
+
+MIT © [Krishna](https://github.com/iamjustkrishna)

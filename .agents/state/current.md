@@ -1,7 +1,15 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam Cloud Sync & Model Context Protocol (MCP) Developer Brain.
+- Milestone: Srutam v2.3.0 (versionCode 8) and srutam-mcp v1.1.0 Production Release.
+- [x] **Srutam v2.3.0 & srutam-mcp v1.1.0 Release (`mcp-server/`, `supabase/`, `app/`)**:
+  - Hardened `srutam-mcp` (v1.1.0) with multi-developer resilience: 60s in-memory auth cache, 30s read query cache, and 60 req/min token-bucket rate limiter per API key.
+  - Interactive CLI Terminal Dashboard: running `srutam-mcp` in terminal now presents a live status dashboard, cloud connectivity check, note count, and tool index. Added `srutam-mcp status` and `srutam-mcp help` CLI commands.
+  - Strict 3-Key Limit: enforced max 3 active keys per user in Supabase trigger (`enforce_api_key_limit`) and Android UI (`DeveloperMcpSection.kt`), displaying a `${apiKeys.size}/3` badge and disabling "+ New Key" when 3 active keys exist.
+  - TopAppBar Cloud Sync Indicator: integrated a cloud sync action button in `FeedScreen.kt` `SrutamTopAppBar` displaying an emerald green icon when synced, a spinning sync icon during background sync, and 1-tap manual sync triggering.
+  - Auto-Sync to Cloud: added user toggle in Settings (`AppPreferences.isAutoCloudSyncEnabled`), automatically uploading newly recorded and AI-processed notes to Supabase.
+  - Branded Email & In-App OTP: added 6-digit OTP authentication modal in Android app and dark-mode custom email template (`supabase/email-templates/verify-otp-dark.html`) eliminating all third-party branding.
+  - Verified live on Android emulator (`emulator-5554`) and built debug APK (`assembleDebug`) with 0 errors.
 - [x] **Supabase Cloud Sync & Local MCP Agent Server (`supabase/`, `mcp-server/`, `app/`)**:
   - Implemented end-to-end cloud sync with Supabase and Model Context Protocol (MCP) server so users can capture voice memos on mobile and have structured insights, transcripts, and action items accessible directly in AI coding environments (Cursor, Antigravity, Claude Desktop).
   - Database & Backend Schema (`supabase/migrations/20260916_01_srutam_cloud_mcp.sql`):
