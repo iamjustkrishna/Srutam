@@ -198,6 +198,51 @@ class SupabaseAuthManager(private val context: Context) {
     }
 
     /**
+     * Refreshes an expired JWT session using the stored refresh_token.
+     */
+    suspend fun refreshSession(): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val currentRefreshToken = AppPreferences.getCloudRefreshToken(context)
+                ?: return@withContext Result.failure(IllegalStateException("No refresh token available"))
+
+            val body = JsonObject().apply {
+                addProperty("refresh_token", currentRefreshToken)
+            }
+
+            val request = Request.Builder()
+                .url("$baseUrl/auth/v1/token?grant_type=refresh_token")
+                .addHeader("apikey", anonKey)
+                .post(body.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseString = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("Session refresh failed: $responseString"))
+                }
+
+                val json = JsonParser.parseString(responseString).asJsonObject
+                val newAccessToken = json.get("access_token").asString
+                val newRefreshToken = if (json.has("refresh_token")) json.get("refresh_token").asString else currentRefreshToken
+                val userId = AppPreferences.getCloudUserId(context) ?: json.get("user")?.asJsonObject?.get("id")?.asString ?: ""
+                val email = AppPreferences.getCloudUserEmail(context)
+
+                AppPreferences.saveCloudSession(
+                    context = context,
+                    userId = userId,
+                    email = email,
+                    accessToken = newAccessToken,
+                    refreshToken = newRefreshToken
+                )
+
+                Result.success(newAccessToken)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Signs out and clears local session tokens.
      */
     fun signOut() {

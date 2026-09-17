@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -94,6 +96,7 @@ fun DeveloperMcpSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Top Row: Status Indicator and Sign Out button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -101,57 +104,95 @@ fun DeveloperMcpSection(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(10.dp)
+                                    .size(8.dp)
                                     .clip(CircleShape)
                                     .background(CosmicAuroraGreen)
                             )
-                            Column {
-                                Text(
-                                    text = "Srutam Cloud Active",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) TextOnDarkPrimary else TextPrimary
-                                )
-                                Text(
-                                    text = userEmail ?: "Signed in",
-                                    fontSize = 12.sp,
-                                    color = if (isDark) TextOnDarkSecondary else TextSecondary
-                                )
-                            }
+                            Text(
+                                text = "Srutam Cloud Active",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) TextOnDarkPrimary else TextPrimary
+                            )
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(
-                                onClick = {
-                                    CloudSyncManager.enqueueSync(context, forceAll = true)
-                                    Toast.makeText(context, "Syncing all notes to cloud...", Toast.LENGTH_SHORT).show()
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Icon(Icons.Default.Sync, contentDescription = "Sync", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Sync", fontSize = 12.sp)
-                            }
-
-                            TextButton(
-                                onClick = {
-                                    authManager.signOut()
-                                    isSignedIn = false
-                                    userEmail = null
-                                    apiKeys = emptyList()
-                                }
-                            ) {
-                                Text("Sign Out", fontSize = 12.sp, color = Color(0xFFEF4444))
-                            }
+                        OutlinedButton(
+                            onClick = {
+                                authManager.signOut()
+                                isSignedIn = false
+                                userEmail = null
+                                apiKeys = emptyList()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.45f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = "Sign Out",
+                                modifier = Modifier.size(13.dp),
+                                tint = Color(0xFFEF4444)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Sign Out",
+                                fontSize = 11.sp,
+                                color = Color(0xFFEF4444),
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Second Row: Email & Sync Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isDark) TextOnDarkSecondary else TextSecondary
+                            )
+                            Text(
+                                text = userEmail ?: "Signed in",
+                                fontSize = 12.sp,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                CloudSyncManager.enqueueSync(context, forceAll = true)
+                                Toast.makeText(context, "Syncing all notes to cloud...", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Icon(Icons.Default.Sync, contentDescription = "Sync", modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Sync", fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
                     HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -161,17 +202,19 @@ fun DeveloperMcpSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = "MCP Agent Keys",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
-                                text = "Keys for Cursor, Antigravity, and Claude Desktop",
+                                text = "Keys for Cursor, Antigravity, and Claude",
                                 fontSize = 11.sp,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -180,13 +223,14 @@ fun DeveloperMcpSection(
                                 keyNameInput = "Cursor IDE"
                                 showGenerateKeyDialog = true
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("New Key", fontSize = 12.sp)
+                            Text("New Key", fontSize = 11.sp)
                         }
                     }
 
@@ -279,7 +323,7 @@ fun DeveloperMcpSection(
                                           "mcpServers": {
                                             "srutam": {
                                               "command": "npx",
-                                              "args": ["-y", "@srutam/mcp-server"],
+                                              "args": ["-y", "srutam-mcp"],
                                               "env": {
                                                 "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                               }
@@ -297,7 +341,7 @@ fun DeveloperMcpSection(
                                 }
                             }
                             Text(
-                                text = "Add @srutam/mcp-server to your Cursor or Antigravity mcp_config.json to query your voice memos from your coding agent.",
+                                text = "Run 'srutam-mcp init' in terminal or add srutam-mcp to your Cursor / Antigravity config to query voice memos.",
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8)
                             )

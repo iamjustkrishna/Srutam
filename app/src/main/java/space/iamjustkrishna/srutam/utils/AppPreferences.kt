@@ -318,6 +318,11 @@ object AppPreferences {
             .getString(KEY_CLOUD_ACCESS_TOKEN, null)
     }
 
+    fun getCloudRefreshToken(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CLOUD_REFRESH_TOKEN, null)
+    }
+
     fun saveCloudSession(
         context: Context,
         userId: String,

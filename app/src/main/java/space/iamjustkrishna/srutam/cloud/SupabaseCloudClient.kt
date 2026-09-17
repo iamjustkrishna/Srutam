@@ -232,11 +232,23 @@ class SupabaseCloudClient(private val context: Context) {
                 .addHeader("Prefer", "return=representation")
                 .post(body.toString().toRequestBody(jsonMediaType))
 
-            getAuthHeaders(requestBuilder)
+            var response = client.newCall(requestBuilder.build()).execute()
+            if (!response.isSuccessful && (response.code == 401 || response.code == 403)) {
+                response.close()
+                val refreshRes = SupabaseAuthManager(context).refreshSession()
+                if (refreshRes.isSuccess) {
+                    val retryBuilder = Request.Builder()
+                        .url("$baseUrl/rest/v1/api_keys")
+                        .addHeader("Prefer", "return=representation")
+                        .post(body.toString().toRequestBody(jsonMediaType))
+                    getAuthHeaders(retryBuilder)
+                    response = client.newCall(retryBuilder.build()).execute()
+                }
+            }
 
-            client.newCall(requestBuilder.build()).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val err = response.body?.string() ?: "HTTP ${response.code}"
+            response.use { res ->
+                if (!res.isSuccessful) {
+                    val err = res.body?.string() ?: "HTTP ${res.code}"
                     return@withContext Result.failure(Exception("Failed to generate API Key: $err"))
                 }
                 Result.success(Pair(plainKey, keyPrefix))
@@ -257,13 +269,26 @@ class SupabaseCloudClient(private val context: Context) {
 
             getAuthHeaders(requestBuilder)
 
-            client.newCall(requestBuilder.build()).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val err = response.body?.string() ?: "HTTP ${response.code}"
+            var response = client.newCall(requestBuilder.build()).execute()
+            if (!response.isSuccessful && (response.code == 401 || response.code == 403)) {
+                response.close()
+                val refreshRes = SupabaseAuthManager(context).refreshSession()
+                if (refreshRes.isSuccess) {
+                    val retryBuilder = Request.Builder()
+                        .url("$baseUrl/rest/v1/api_keys?select=id,name,key_prefix,created_at,last_used_at&revoked_at=is.null&order=created_at.desc")
+                        .get()
+                    getAuthHeaders(retryBuilder)
+                    response = client.newCall(retryBuilder.build()).execute()
+                }
+            }
+
+            response.use { res ->
+                if (!res.isSuccessful) {
+                    val err = res.body?.string() ?: "HTTP ${res.code}"
                     return@withContext Result.failure(Exception("Failed to fetch API keys: $err"))
                 }
 
-                val responseBody = response.body?.string() ?: "[]"
+                val responseBody = res.body?.string() ?: "[]"
                 val jsonArray = JsonParser.parseString(responseBody).asJsonArray
                 val list = mutableListOf<ApiKeyItem>()
 
