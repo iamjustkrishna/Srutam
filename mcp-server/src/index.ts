@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.js';
 import { SrutamClient } from './supabase.js';
+import { runWizard, runLogout } from './cli/wizard.js';
 
 import { searchNotesSchema, handleSearchNotes } from './tools/searchNotes.js';
 import { listRecentNotesSchema, handleListRecentNotes } from './tools/listRecentNotes.js';
@@ -12,13 +13,59 @@ import { listActionItemsSchema, handleListActionItems } from './tools/listAction
 import { updateActionItemSchema, handleUpdateActionItem } from './tools/updateActionItem.js';
 import { appendAgentLogSchema, handleAppendAgentLog } from './tools/appendAgentLog.js';
 
-async function main() {
+function printHelp(): void {
+  console.log(`
+Srutam MCP Server - Model Context Protocol for Srutam Voice Notes
+
+Usage:
+  srutam-mcp [command] [options]
+
+Commands:
+  init, setup    Interactive setup wizard to link mobile key and configure IDE
+  logout, reset  Clear saved API credentials
+  [none]         Start the stdio MCP server (used by Cursor, Antigravity, Claude)
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version number
+
+Environment Variables:
+  SRUTAM_API_KEY      Your Personal Access Token (starts with srtm_live_)
+  SUPABASE_URL        (Optional) Override Supabase URL
+  SUPABASE_ANON_KEY   (Optional) Override Supabase Anon Key
+
+Quick Start:
+  npx -y srutam-mcp init
+`);
+}
+
+async function startServer(): Promise<void> {
   const config = loadConfig();
+
+  if (!config) {
+    if (process.stdin.isTTY) {
+      console.log('\n=======================================================');
+      console.log('             Srutam MCP - Setup Needed');
+      console.log('=======================================================');
+      console.log('\nNo Srutam API key found.');
+      console.log('Run the interactive setup wizard to get started in 30 seconds:\n');
+      console.log('    npx -y srutam-mcp init\n');
+      console.log('Or pass your key via environment variable:');
+      console.log('    SRUTAM_API_KEY="srtm_live_..." srutam-mcp\n');
+      process.exit(1);
+    } else {
+      console.error(
+        'Missing SRUTAM_API_KEY. Configure the server using "npx srutam-mcp init" or provide SRUTAM_API_KEY environment variable.'
+      );
+      process.exit(1);
+    }
+  }
+
   const client = new SrutamClient(config);
 
   const server = new McpServer({
-    name: 'srutam-mcp-server',
-    version: '1.0.0',
+    name: 'srutam-mcp',
+    version: '1.0.1',
   });
 
   // Tool 1: search_notes
@@ -72,6 +119,33 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Srutam MCP server running on stdio');
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const command = args[0]?.toLowerCase();
+
+  if (command === 'init' || command === 'setup' || command === '--setup') {
+    await runWizard();
+    return;
+  }
+
+  if (command === 'logout' || command === 'reset') {
+    runLogout();
+    return;
+  }
+
+  if (command === '--help' || command === '-h' || command === 'help') {
+    printHelp();
+    return;
+  }
+
+  if (command === '--version' || command === '-v') {
+    console.log('srutam-mcp v1.0.1');
+    return;
+  }
+
+  await startServer();
 }
 
 main().catch((err) => {
