@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
+        cleanUpStaleRecordingNotification()
 
         setContent {
             val themeModeStr by AppPreferences.themeModeFlow.collectAsState(
@@ -66,6 +67,18 @@ class MainActivity : ComponentActivity() {
             SrutamTheme(themeMode = themeMode) {
                 SrutamApp(initialRecordingId = openRecordingId)
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        cleanUpStaleRecordingNotification()
+    }
+
+    private fun cleanUpStaleRecordingNotification() {
+        if (space.iamjustkrishna.srutam.service.RecordingCoordinator.isIdle) {
+            getSystemService(android.app.NotificationManager::class.java)
+                ?.cancel(space.iamjustkrishna.srutam.service.RecordingForegroundService.NOTIFICATION_ID)
         }
     }
 

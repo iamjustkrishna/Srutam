@@ -138,8 +138,13 @@ class RecordingForegroundService : Service() {
 
     private fun cleanUpStaleNotification() {
         Log.d(TAG, "Cleaning up stale/orphaned recording notification")
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
         notificationManager?.cancel(NOTIFICATION_ID)
-        stopForeground(STOP_FOREGROUND_REMOVE)
         RecordingCoordinator.notifyRecordingEnded()
         stopSelf()
     }
@@ -328,8 +333,13 @@ class RecordingForegroundService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping recording", e)
         } finally {
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                stopForeground(true)
+            }
             notificationManager?.cancel(NOTIFICATION_ID)
-            stopForeground(STOP_FOREGROUND_REMOVE)
             RecordingCoordinator.notifyRecordingEnded()
             stopSelf()
         }
@@ -478,7 +488,6 @@ class RecordingForegroundService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOnlyAlertOnce(true)
@@ -546,8 +555,13 @@ class RecordingForegroundService : Service() {
         lastResumeTimeMs = 0L
         elapsedDurationMs = 0L
 
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
         notificationManager?.cancel(NOTIFICATION_ID)
-        stopForeground(STOP_FOREGROUND_REMOVE)
         RecordingCoordinator.notifyRecordingEnded()
     }
 
@@ -562,7 +576,7 @@ class RecordingForegroundService : Service() {
     companion object {
         private const val TAG = "RecordingService"
         private const val CHANNEL_ID = "recording_channel"
-        private const val NOTIFICATION_ID = 1001
+        const val NOTIFICATION_ID = 1001
 
         const val ACTION_START_RECORDING = "space.iamjustkrishna.srutam.START_RECORDING"
         const val ACTION_PAUSE_RECORDING = "space.iamjustkrishna.srutam.PAUSE_RECORDING"

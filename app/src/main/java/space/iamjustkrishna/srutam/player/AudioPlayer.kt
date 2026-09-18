@@ -96,9 +96,7 @@ class AudioPlayer(private val context: Context) {
                     Log.d(TAG, "Seek completed at: ${mp.currentPosition}ms")
                 }
                 setOnCompletionListener {
-                    pause()
-                    seekTo(0)
-                    Log.d(TAG, "Playback completed")
+                    handlePlaybackComplete()
                 }
                 setOnErrorListener { mp, what, extra ->
                     Log.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
@@ -122,10 +120,35 @@ class AudioPlayer(private val context: Context) {
         }
     }
 
+    private fun handlePlaybackComplete() {
+        stopProgressUpdates()
+        isSeeking = false
+        _playbackState.value = _playbackState.value.copy(
+            isPlaying = false,
+            currentPosition = 0
+        )
+        try {
+            mediaPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.pause()
+                }
+                player.seekTo(0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error handling playback completion", e)
+        }
+        Log.d(TAG, "Playback completed and reset to start")
+    }
+
     fun play() {
         try {
             mediaPlayer?.let { player ->
                 if (!player.isPlaying) {
+                    val totalDuration = player.duration.takeIf { it > 0 } ?: _playbackState.value.duration
+                    if (totalDuration > 0 && player.currentPosition >= totalDuration - 200) {
+                        player.seekTo(0)
+                        _playbackState.value = _playbackState.value.copy(currentPosition = 0)
+                    }
                     player.start()
                     _playbackState.value = _playbackState.value.copy(isPlaying = true)
                     startProgressUpdates()
@@ -217,12 +240,30 @@ class AudioPlayer(private val context: Context) {
                 try {
                     if (!isSeeking) {
                         val currentPos = mediaPlayer?.currentPosition ?: 0
+                        val dur = mediaPlayer?.duration ?: _playbackState.value.duration
                         _playbackState.value = _playbackState.value.copy(currentPosition = currentPos)
+
+                        // If within 100ms of end of audio, trigger completion
+                        if (dur > 0 && currentPos >= dur - 100) {
+                            handlePlaybackComplete()
+                            return@launch
+                        }
                     }
-                    delay(100) // Update every 100ms
+                    delay(50)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error updating progress", e)
                     break
+                }
+            }
+
+            // Fallback: if loop ended while isPlaying was still true, ensure clean reset
+            if (isActive && _playbackState.value.isPlaying && !isSeeking) {
+                val currentPos = mediaPlayer?.currentPosition ?: 0
+                val dur = mediaPlayer?.duration ?: _playbackState.value.duration
+                if (dur > 0 && currentPos >= dur - 300) {
+                    handlePlaybackComplete()
+                } else if (mediaPlayer?.isPlaying == false) {
+                    _playbackState.value = _playbackState.value.copy(isPlaying = false)
                 }
             }
         }

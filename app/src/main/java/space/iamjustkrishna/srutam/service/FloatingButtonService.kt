@@ -458,6 +458,7 @@ class FloatingButtonService : Service() {
 
     private fun stopRecording() {
         RecordingCoordinator.requestStop(this)
+        getSystemService(NotificationManager::class.java)?.cancel(RecordingForegroundService.NOTIFICATION_ID)
         showElevatedToast("Voice note saved")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -466,6 +467,7 @@ class FloatingButtonService : Service() {
 
     private fun cancelRecording() {
         RecordingCoordinator.requestCancel(this)
+        getSystemService(NotificationManager::class.java)?.cancel(RecordingForegroundService.NOTIFICATION_ID)
         showElevatedToast("Recording discarded")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -536,7 +538,7 @@ class FloatingButtonService : Service() {
 
     companion object {
         private const val TAG = "FloatingButtonService"
-        private const val NOTIFICATION_ID = 1001
+        private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "srutam_floating_dock_channel"
         const val ACTION_STOP_DOCK = "space.iamjustkrishna.srutam.action.STOP_FLOATING_DOCK"
     }
