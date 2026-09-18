@@ -10,7 +10,7 @@
   - Routed all recording entry points (`FloatingButtonService`, `Navigation`, `FeedScreen`, `QuickRecordingTileService`, `VolumeButtonTriggerService`) through `RecordingCoordinator`.
   - Added unit test suite in `RecordingCoordinatorTest.kt` verifying lifecycle transitions, mutex rejection of concurrent start attempts, and thread safety.
   - Bumped version to `2.2.1` (`versionCode = 8`) in `app/build.gradle.kts`.
-  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`) and debug APK assembled cleanly (`assembleDebug`).
+  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`), debug APK assembled cleanly (`assembleDebug`), and installed/launched live on physical device `RMX2151` (`versionCode = 8`, `versionName = 2.2.1`).
 - [x] **Mobile Landscape Damped Sidebar with Spring Resistance & Dynamic Note Expansion (`TabletWorkspaceScreen.kt`)**:
   - Solved cramped vertical scrolling issue on standard phones rotated to landscape orientation (e.g. 1080x2400 @ 420dpi, height ~411dp) where the static top navigation area occupied ~220-250dp, leaving barely ~50dp for the notes list (displaying only 1 note).
   - Built `MobileLandscapeDampedSidebar` with a custom `NestedScrollConnection` providing damped upward scroll resistance (`dampFactor = 0.75f`) and spring physics (`Spring.DampingRatioLowBouncy`, `Spring.StiffnessMediumLow`).
