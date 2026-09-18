@@ -420,3 +420,23 @@
   4. **Reactive StateFlow Migration**: Replaced ad-hoc polling loops (`while(isActive) delay(...)`) in `FloatingButtonService`, `Navigation`, and `FeedScreen` with direct reactive collection of `RecordingCoordinator.state`.
   5. **Automated Unit Testing (`RecordingCoordinatorTest.kt`)**: Implemented Robolectric unit test suite verifying state lifecycle, mutual exclusivity, concurrent thread competition, and rejection of invalid state transitions.
   6. **Version Bump**: Bumped to version `2.2.1` (`versionCode = 8`) in `app/build.gradle.kts`.
+
+## ADR-040: Foreground Notification ID Collision Fix & Audio Playback Completion Icon Reset
+- **Status**: Accepted
+- **Context**:
+  1. **Stuck Recording Notification After Stop & Save**: Despite the single-instance coordinator, testing on physical devices (Realme UI / ColorOS) revealed that after stopping and saving recording via the floating dock, the recording notification with its ticking chronometer remained stuck in the notification shade.
+     - Root Cause 1: `FloatingButtonService` and `RecordingForegroundService` both used identical `NOTIFICATION_ID = 1001`. When `RecordingForegroundService` started, it posted onto ID 1001. When recording stopped and `RecordingForegroundService` terminated, Android refused to dismiss notification 1001 because `FloatingButtonService` was still alive as a foreground service registered with notification ID 1001.
+     - Root Cause 2: `RecordingForegroundService` had `.setOngoing(true)` which set `FLAG_ONGOING_EVENT (0x02)`. On ColorOS / Realme UI, `stopForeground(STOP_FOREGROUND_REMOVE)` only stripped `FLAG_FOREGROUND_SERVICE (0x40)`, leaving `FLAG_ONGOING_EVENT` and keeping the notification pinned.
+     - Root Cause 3: `notificationManager.cancel(1001)` was called before `stopForeground()`. AOSP `NotificationManagerService` rejects cancellations while `FLAG_FOREGROUND_SERVICE` is active.
+  2. **Play/Pause Icon Not Resetting on Notes Screen**: When playing an audio note card on the Notes screen (`FeedScreen.kt`), when playback reached the end of the track, the play/pause icon remained stuck in the "Pause" state rather than reverting to "Play".
+     - Root Cause: In `AudioPlayer.kt`, `setOnCompletionListener` called `pause()` and `seekTo(0)`, but on certain Android AAC decoders (M4A files recorded via `MediaRecorder`), native `OnCompletionListener` events can be delayed or dropped by the media pipeline before the audio sink reaches the exact stream duration. When the `while (mediaPlayer.isPlaying)` coroutine loop exited, `isPlaying` was never updated to `false` in `_playbackState`.
+- **Decision**:
+  1. **Notification ID Isolation**: Changed `FloatingButtonService.NOTIFICATION_ID` to `1002`, completely isolating it from `RecordingForegroundService.NOTIFICATION_ID` (`1001`).
+  2. **Removed `.setOngoing(true)` & Teardown Order**: Removed `.setOngoing(true)` from `createNotification()`. Re-ordered teardown in `stopRecording()`, `cleanUpStaleNotification()`, and `onDestroy()` to execute `stopForeground(STOP_FOREGROUND_REMOVE)` (and `stopForeground(true)` for compat) *before* `notificationManager.cancel(1001)`.
+  3. **Self-Healing Cancellation**: Added proactive sweeps in `MainActivity.onCreate()` and `onResume()`, and in `FloatingButtonService.stopRecording()` and `cancelRecording()`, clearing notification 1001 whenever `RecordingCoordinator.isIdle`.
+  4. **Robust Audio Playback Completion (`AudioPlayer.kt`)**:
+     - Built `handlePlaybackComplete()` that cancels progress updates, sets `isPlaying = false`, resets `currentPosition = 0`, and seeks `mediaPlayer` to 0.
+     - Wired `setOnCompletionListener` to `handlePlaybackComplete()`.
+     - In `startProgressUpdates()`, added automated end-of-track fallback detection: when position is within 100ms of duration or when `mediaPlayer.isPlaying` becomes false while `_playbackState.value.isPlaying` is still true, `handlePlaybackComplete()` is invoked immediately, ensuring the play/pause icon on `FeedScreen.kt` always resets cleanly to `Icons.Default.PlayArrow`.
+     - In `play()`, if current position is at or near duration, auto-seeks to 0 before starting.
+  5. **Verification**: Full unit test suite passed (`testDebugUnitTest`), debug APK compiled (`assembleDebug`), installed via adb to physical device `RMX2151` (`192.168.31.163:39509`), and confirmed zero lingering notifications in `dumpsys notification`.

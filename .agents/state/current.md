@@ -2,6 +2,13 @@
 
 ## Active Focus
 - Milestone: Srutam v2.2.1 Single-Instance Recording & Ghost Notification Fix (`fix/single-instance-recording` -> `main`).
+- [x] **Foreground Notification ID Collision Fix & Audio Playback Completion Icon Reset (`FloatingButtonService.kt`, `RecordingForegroundService.kt`, `MainActivity.kt`, `AudioPlayer.kt`)**:
+  - Solved stuck ongoing notification after stopping/saving via floating dock: discovered that `FloatingButtonService` and `RecordingForegroundService` both shared `NOTIFICATION_ID = 1001`. When recording stopped, Android kept the notification pinned because `FloatingButtonService` was still running with foreground notification ID 1001. Changed `FloatingButtonService.NOTIFICATION_ID` to `1002`, isolating their notification lifecycles completely.
+  - Removed `.setOngoing(true)` from `RecordingForegroundService.createNotification()` to avoid persistent `FLAG_ONGOING_EVENT` remaining on ColorOS/Realme UI after `stopForeground`.
+  - Re-ordered teardown so `stopForeground(STOP_FOREGROUND_REMOVE)` executes before `notificationManager.cancel(1001)` (AOSP rejects cancellations while `FLAG_FOREGROUND_SERVICE` is active).
+  - Added self-healing sweeps in `MainActivity.onCreate()`, `onResume()`, and `FloatingButtonService` on stop/cancel.
+  - Solved note playback end icon not resetting to Play on Notes screen: implemented `handlePlaybackComplete()` in `AudioPlayer.kt` with automated fallback detection in `startProgressUpdates()` ensuring `isPlaying = false`, `currentPosition = 0`, and the play/pause icon on `FeedScreen.kt` resets immediately to `Icons.Default.PlayArrow`.
+  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`), debug APK assembled cleanly (`assembleDebug`), and installed live on physical device `RMX2151`.
 - [x] **Single-Instance Recording Coordinator & Ghost Notification Fix (`RecordingCoordinator.kt`, `RecordingForegroundService.kt`, `FloatingButtonService.kt`)**:
   - Solved ghost/zombie recording notification bug where saving via floating dock stopped audio capture but left an ongoing notification with ticking chronometer and unresponsive "Pause"/"Save" buttons in the status bar.
   - Implemented centralized `RecordingCoordinator` singleton state machine (`Idle`, `Starting`, `Recording`, `Paused`, `Stopping`) with synchronized atomic mutex, guaranteeing that strictly one recording session can ever exist in the app at any given time.
