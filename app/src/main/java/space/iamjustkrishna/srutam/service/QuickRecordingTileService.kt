@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.service
+package space.iamjustkrishna.srutam.service
 
 import android.content.Intent
 import android.os.Build
@@ -19,54 +19,25 @@ class QuickRecordingTileService : TileService() {
         super.onClick()
         Log.d(TAG, "Quick Settings Tile clicked")
 
-        if (RecordingForegroundService.isRecording) {
-            stopRecording()
+        if (RecordingCoordinator.isRecording || RecordingForegroundService.isRecording) {
+            RecordingCoordinator.requestStop(this)
         } else {
-            startRecording()
+            RecordingCoordinator.requestStart(this)
         }
 
         updateTileState()
     }
 
-    private fun startRecording() {
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = RecordingForegroundService.ACTION_START_RECORDING
-        }
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-                Log.d(TAG, "Started recording via Quick Settings")
-            } else {
-                startService(intent)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting recording service", e)
-        }
-    }
-
-    private fun stopRecording() {
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = RecordingForegroundService.ACTION_STOP_RECORDING
-        }
-
-        try {
-            startService(intent)
-            Log.d(TAG, "Stopped recording via Quick Settings")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping recording service", e)
-        }
-    }
-
     private fun updateTileState() {
+        val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
         qsTile?.apply {
-            state = if (RecordingForegroundService.isRecording) {
+            state = if (isRec) {
                 Tile.STATE_ACTIVE
             } else {
                 Tile.STATE_INACTIVE
             }
 
-            label = if (RecordingForegroundService.isRecording) {
+            label = if (isRec) {
                 "Recording..."
             } else {
                 "Voice Record"
@@ -75,6 +46,8 @@ class QuickRecordingTileService : TileService() {
             updateTile()
         }
     }
+
+
 
     companion object {
         private const val TAG = "QuickRecordingTile"

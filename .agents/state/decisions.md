@@ -405,3 +405,18 @@
   4. **Interactive Navigation & Tooltips**: Tapping "View all" or Notes tile routes to Notes workspace; tapping Action items routes to Next Steps; tapping Ideas routes to Ideas tab; tapping bars displays an animated dismissible tooltip with note counts.
   5. **Typography & Theme Polish**: Standardized tile titles to 2-line centered layout with `minLines = 2` to prevent awkward truncation and guarantee uniform subtitle baselines. Provided full theme adaptivity across Light and Cosmic Void Dark modes.
   6. **Verification**: Clean unit test execution (`testDebugUnitTest`), Kotlin compilation clean (`compileDebugKotlin`), debug APK installed and verified live on tablet emulator (`emulator-5554`, 2560x1600 landscape and portrait) with screenshot evidence.
+
+## ADR-039: Single-Instance Recording Session Coordinator & Ghost Notification Dismissal Invariant
+- **Status**: Accepted
+- **Context**:
+  1. Users reported a critical bug where stopping and saving a recording from the on-screen floating dock (`FloatingButtonService`) left a zombie ongoing notification in the notification shade.
+  2. The zombie notification continued ticking seconds forward due to `setUsesChronometer(true)` executed locally by Android SystemUI, creating the false appearance that a second active recording was in flight.
+  3. Action buttons on the notification ("Pause", "Save") failed silently because `isRecording` was already `false` and Android background execution limits restricted service launch from the background.
+  4. Multiple components across the app (`FloatingButtonService`, `FeedScreen`, `TabletWorkspaceScreen`, `QuickRecordingTileService`, `VolumeButtonTriggerService`, `PersistentRecordingNotificationService`) could independently launch recording intents without concurrency protection or an atomic mutex.
+- **Decision**:
+  1. **Centralized Singleton Coordinator (`RecordingCoordinator.kt`)**: Built an authoritative session state machine (`Idle`, `Starting`, `Recording`, `Paused`, `Stopping`) backed by a synchronized mutex. Strictly only one session can ever run at once; any competing start request while non-idle is immediately rejected and logged.
+  2. **Notification Dismissal Invariant (`RecordingForegroundService.kt`)**: Added explicit `notificationManager.cancel(1001)` in `stopRecording()` (`finally` block), `onDestroy()`, and all error/exception handlers, overcoming Android's ongoing notification retention quirks.
+  3. **Zombie Notification Self-Healing**: In `onStartCommand()`, if `ACTION_PAUSE_RECORDING`, `ACTION_RESUME_RECORDING`, `ACTION_STOP_RECORDING`, or `ACTION_DELETE_RECORDING` arrives while `!isRecording`, the service immediately cancels the notification, calls `stopForeground(STOP_FOREGROUND_REMOVE)`, and terminates via `stopSelf()`.
+  4. **Reactive StateFlow Migration**: Replaced ad-hoc polling loops (`while(isActive) delay(...)`) in `FloatingButtonService`, `Navigation`, and `FeedScreen` with direct reactive collection of `RecordingCoordinator.state`.
+  5. **Automated Unit Testing (`RecordingCoordinatorTest.kt`)**: Implemented Robolectric unit test suite verifying state lifecycle, mutual exclusivity, concurrent thread competition, and rejection of invalid state transitions.
+  6. **Version Bump**: Bumped to version `2.2.1` (`versionCode = 8`) in `app/build.gradle.kts`.

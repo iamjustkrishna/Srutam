@@ -46,8 +46,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
+import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import space.iamjustkrishna.srutam.ui.components.RootTab
 import space.iamjustkrishna.srutam.ui.components.StudioBottomBar
 import space.iamjustkrishna.srutam.ui.screens.ActionItemsScreen
@@ -194,18 +196,23 @@ private fun RootScreen(
         }
     }
 
-    // Observe background service recording status
+    // Observe background service recording status via RecordingCoordinator
     LaunchedEffect(Unit) {
         var wasRecording = false
-        while (true) {
-            val currentRecording = RecordingForegroundService.isRecording
-            if (wasRecording && !currentRecording) {
-                // Recording just stopped in background service (e.g. via floating dock)
-                viewModel.loadAudioFiles()
+        launch {
+            RecordingCoordinator.state.collect { state ->
+                val currentRecording = state is RecordingCoordinator.RecordingSessionState.Recording ||
+                        state is RecordingCoordinator.RecordingSessionState.Paused
+                if (wasRecording && !currentRecording) {
+                    // Recording just stopped in background service (e.g. via floating dock)
+                    viewModel.loadAudioFiles()
+                }
+                wasRecording = currentRecording
+                isServiceRecording = currentRecording
+                isServicePaused = state is RecordingCoordinator.RecordingSessionState.Paused
             }
-            wasRecording = currentRecording
-            isServiceRecording = currentRecording
-            isServicePaused = RecordingForegroundService.isPaused
+        }
+        while (true) {
             recordingElapsedMs = RecordingForegroundService.elapsedDurationMs
             delay(100)
         }
@@ -487,14 +494,33 @@ private fun RootScreen(
 }
 
 private fun sendRecordingAction(context: Context, action: String, deferAutoAi: Boolean = false) {
-    val intent = Intent(context, RecordingForegroundService::class.java).apply {
-        this.action = action
-        putExtra(RecordingForegroundService.EXTRA_DEFER_AUTO_AI, deferAutoAi)
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-    } else {
-        context.startService(intent)
+    when (action) {
+        RecordingForegroundService.ACTION_START_RECORDING -> {
+            RecordingCoordinator.requestStart(context)
+        }
+        RecordingForegroundService.ACTION_PAUSE_RECORDING -> {
+            RecordingCoordinator.requestPause(context)
+        }
+        RecordingForegroundService.ACTION_RESUME_RECORDING -> {
+            RecordingCoordinator.requestResume(context)
+        }
+        RecordingForegroundService.ACTION_STOP_RECORDING -> {
+            RecordingCoordinator.requestStop(context, deferAutoAi)
+        }
+        RecordingForegroundService.ACTION_DELETE_RECORDING -> {
+            RecordingCoordinator.requestCancel(context)
+        }
+        else -> {
+            val intent = Intent(context, RecordingForegroundService::class.java).apply {
+                this.action = action
+                putExtra(RecordingForegroundService.EXTRA_DEFER_AUTO_AI, deferAutoAi)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
     }
 }
 

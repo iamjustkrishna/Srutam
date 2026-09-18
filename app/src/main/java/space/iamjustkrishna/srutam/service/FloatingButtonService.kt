@@ -336,8 +336,8 @@ class FloatingButtonService : Service() {
         val collapsedBtn = floatingView?.findViewById<ImageView>(R.id.floating_record_button)
         val pauseResumeBtn = floatingView?.findViewById<ImageView>(R.id.btn_dock_pause_resume)
 
-        val isRec = RecordingForegroundService.isRecording
-        val isPaused = RecordingForegroundService.isPaused
+        val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
+        val isPaused = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
 
         // Mirror layout direction for right docked orientation so actions flow naturally from edge
         val layoutDir = if (isDockedLeft) View.LAYOUT_DIRECTION_LTR else View.LAYOUT_DIRECTION_RTL
@@ -434,13 +434,10 @@ class FloatingButtonService : Service() {
             return
         }
 
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = RecordingForegroundService.ACTION_START_RECORDING
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        val started = RecordingCoordinator.requestStart(this)
+        if (!started) {
+            showElevatedToast("Recording already in progress")
+            return
         }
         isExpanded = true
         adjustPositionForExpandedState()
@@ -448,24 +445,19 @@ class FloatingButtonService : Service() {
     }
 
     private fun togglePauseResume() {
-        val isPaused = RecordingForegroundService.isPaused
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = if (isPaused) {
-                RecordingForegroundService.ACTION_RESUME_RECORDING
-            } else {
-                RecordingForegroundService.ACTION_PAUSE_RECORDING
-            }
+        val isPaused = RecordingCoordinator.isPaused
+        if (isPaused) {
+            RecordingCoordinator.requestResume(this)
+            showElevatedToast("Recording resumed")
+        } else {
+            RecordingCoordinator.requestPause(this)
+            showElevatedToast("Recording paused")
         }
-        startService(intent)
-        showElevatedToast(if (isPaused) "Recording resumed" else "Recording paused")
         renderCurrentState()
     }
 
     private fun stopRecording() {
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = RecordingForegroundService.ACTION_STOP_RECORDING
-        }
-        startService(intent)
+        RecordingCoordinator.requestStop(this)
         showElevatedToast("Voice note saved")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -473,10 +465,7 @@ class FloatingButtonService : Service() {
     }
 
     private fun cancelRecording() {
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = RecordingForegroundService.ACTION_DELETE_RECORDING
-        }
-        startService(intent)
+        RecordingCoordinator.requestCancel(this)
         showElevatedToast("Recording discarded")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -498,19 +487,23 @@ class FloatingButtonService : Service() {
     }
 
     private fun startStateWatcher() {
+        // Collect reactive state transitions from RecordingCoordinator
         serviceScope.launch {
-            var lastRecState = false
-            var lastPauseState = false
-
-            while (isActive) {
-                val isRec = RecordingForegroundService.isRecording
-                val isPaused = RecordingForegroundService.isPaused
-
-                if (isRec != lastRecState || isPaused != lastPauseState) {
-                    lastRecState = isRec
-                    lastPauseState = isPaused
+            RecordingCoordinator.state.collect { state ->
+                renderCurrentState()
+                if (state is RecordingCoordinator.RecordingSessionState.Idle && isExpanded) {
+                    isExpanded = false
+                    adjustPositionForExpandedState()
                     renderCurrentState()
                 }
+            }
+        }
+
+        // Live timer updater when recording
+        serviceScope.launch {
+            while (isActive) {
+                val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
+                val isPaused = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
 
                 if (isRec && isExpanded) {
                     val durationMs = RecordingForegroundService.elapsedDurationMs

@@ -102,6 +102,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
+import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.utils.NetworkUtils
@@ -907,33 +908,42 @@ fun SettingsDialog(
 }
 
 private fun startRecording(context: Context) {
-    sendRecordingAction(context, RecordingForegroundService.ACTION_START_RECORDING)
+    RecordingCoordinator.requestStart(context)
 }
 
 private fun pauseRecording(context: Context) {
-    sendRecordingAction(context, RecordingForegroundService.ACTION_PAUSE_RECORDING)
+    RecordingCoordinator.requestPause(context)
 }
 
 private fun resumeRecording(context: Context) {
-    sendRecordingAction(context, RecordingForegroundService.ACTION_RESUME_RECORDING)
+    RecordingCoordinator.requestResume(context)
 }
 
 private fun stopRecording(context: Context) {
-    sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING)
+    RecordingCoordinator.requestStop(context)
 }
 
 private fun deleteRecordingInProgress(context: Context) {
-    sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
+    RecordingCoordinator.requestCancel(context)
 }
 
 private fun sendRecordingAction(context: Context, action: String) {
-    val intent = Intent(context, RecordingForegroundService::class.java).apply {
-        this.action = action
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-    } else {
-        context.startService(intent)
+    when (action) {
+        RecordingForegroundService.ACTION_START_RECORDING -> RecordingCoordinator.requestStart(context)
+        RecordingForegroundService.ACTION_PAUSE_RECORDING -> RecordingCoordinator.requestPause(context)
+        RecordingForegroundService.ACTION_RESUME_RECORDING -> RecordingCoordinator.requestResume(context)
+        RecordingForegroundService.ACTION_STOP_RECORDING -> RecordingCoordinator.requestStop(context)
+        RecordingForegroundService.ACTION_DELETE_RECORDING -> RecordingCoordinator.requestCancel(context)
+        else -> {
+            val intent = Intent(context, RecordingForegroundService::class.java).apply {
+                this.action = action
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
     }
 }
 

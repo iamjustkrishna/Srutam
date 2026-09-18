@@ -99,19 +99,49 @@ class RecordingForegroundService : Service() {
         Log.d(TAG, "onStartCommand called with action: ${intent?.action}")
         when (intent?.action) {
             ACTION_START_RECORDING -> startRecording()
-            ACTION_PAUSE_RECORDING -> pauseRecording()
-            ACTION_RESUME_RECORDING -> resumeRecording()
-            ACTION_STOP_RECORDING -> {
-                val deferAutoAi = intent?.getBooleanExtra(EXTRA_DEFER_AUTO_AI, false) ?: false
-                stopRecording(deleteAfterStop = false, deferAutoAi = deferAutoAi)
+            ACTION_PAUSE_RECORDING -> {
+                if (!isRecording) {
+                    cleanUpStaleNotification()
+                } else {
+                    pauseRecording()
+                }
             }
-            ACTION_DELETE_RECORDING -> stopRecording(deleteAfterStop = true)
+            ACTION_RESUME_RECORDING -> {
+                if (!isRecording) {
+                    cleanUpStaleNotification()
+                } else {
+                    resumeRecording()
+                }
+            }
+            ACTION_STOP_RECORDING -> {
+                if (!isRecording) {
+                    cleanUpStaleNotification()
+                } else {
+                    val deferAutoAi = intent?.getBooleanExtra(EXTRA_DEFER_AUTO_AI, false) ?: false
+                    stopRecording(deleteAfterStop = false, deferAutoAi = deferAutoAi)
+                }
+            }
+            ACTION_DELETE_RECORDING -> {
+                if (!isRecording) {
+                    cleanUpStaleNotification()
+                } else {
+                    stopRecording(deleteAfterStop = true)
+                }
+            }
             else -> {
                 Log.w(TAG, "Unknown action: ${intent?.action}")
-                stopSelf()
+                cleanUpStaleNotification()
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun cleanUpStaleNotification() {
+        Log.d(TAG, "Cleaning up stale/orphaned recording notification")
+        notificationManager?.cancel(NOTIFICATION_ID)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        RecordingCoordinator.notifyRecordingEnded()
+        stopSelf()
     }
 
     private fun startRecording() {
@@ -170,15 +200,19 @@ class RecordingForegroundService : Service() {
                     start()
                     Log.d(TAG, "Recording started: ${currentRecordingFile?.absolutePath}")
 
+                    RecordingCoordinator.notifyRecordingStarted(
+                        lastResumeTimeMs,
+                        currentRecordingFile?.absolutePath ?: ""
+                    )
                     startDurationUpdates()
                 } catch (e: IOException) {
                     Log.e(TAG, "Failed to start recording", e)
-                    stopSelf()
+                    cleanUpStaleNotification()
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
-            stopSelf()
+            cleanUpStaleNotification()
         }
     }
 
@@ -213,6 +247,10 @@ class RecordingForegroundService : Service() {
             accumulatedDurationMs = currentRecordedDurationMs()
             elapsedDurationMs = accumulatedDurationMs
             isPaused = true
+            RecordingCoordinator.notifyRecordingPaused(
+                elapsedDurationMs,
+                currentRecordingFile?.absolutePath ?: ""
+            )
             updateNotification(elapsedDurationMs)
             Log.d(TAG, "Recording paused")
         } catch (e: Exception) {
@@ -229,6 +267,10 @@ class RecordingForegroundService : Service() {
             mediaRecorder?.resume()
             lastResumeTimeMs = System.currentTimeMillis()
             isPaused = false
+            RecordingCoordinator.notifyRecordingResumed(
+                lastResumeTimeMs,
+                currentRecordingFile?.absolutePath ?: ""
+            )
             updateNotification(currentRecordedDurationMs())
             Log.d(TAG, "Recording resumed")
         } catch (e: Exception) {
@@ -239,7 +281,7 @@ class RecordingForegroundService : Service() {
     private fun stopRecording(deleteAfterStop: Boolean = false, deferAutoAi: Boolean = false) {
         if (!isRecording) {
             Log.w(TAG, "Not recording")
-            stopSelf()
+            cleanUpStaleNotification()
             return
         }
 
@@ -286,7 +328,9 @@ class RecordingForegroundService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping recording", e)
         } finally {
+            notificationManager?.cancel(NOTIFICATION_ID)
             stopForeground(STOP_FOREGROUND_REMOVE)
+            RecordingCoordinator.notifyRecordingEnded()
             stopSelf()
         }
     }
@@ -501,6 +545,10 @@ class RecordingForegroundService : Service() {
         accumulatedDurationMs = 0L
         lastResumeTimeMs = 0L
         elapsedDurationMs = 0L
+
+        notificationManager?.cancel(NOTIFICATION_ID)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        RecordingCoordinator.notifyRecordingEnded()
     }
 
     private fun currentRecordedDurationMs(): Long {

@@ -1,7 +1,16 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam 2.0.0 Core Polish, Compact Filters, Edge-Embedded Logo Dock, Offline AI Resilience, and BYOK Model Customization.
+- Milestone: Srutam v2.2.1 Single-Instance Recording & Ghost Notification Fix (`fix/single-instance-recording` -> `main`).
+- [x] **Single-Instance Recording Coordinator & Ghost Notification Fix (`RecordingCoordinator.kt`, `RecordingForegroundService.kt`, `FloatingButtonService.kt`)**:
+  - Solved ghost/zombie recording notification bug where saving via floating dock stopped audio capture but left an ongoing notification with ticking chronometer and unresponsive "Pause"/"Save" buttons in the status bar.
+  - Implemented centralized `RecordingCoordinator` singleton state machine (`Idle`, `Starting`, `Recording`, `Paused`, `Stopping`) with synchronized atomic mutex, guaranteeing that strictly one recording session can ever exist in the app at any given time.
+  - Hardened `RecordingForegroundService` lifecycle with unconditional `notificationManager.cancel(1001)` in `stopRecording()` (`finally`), `onDestroy()`, and all error handlers. Added self-healing: if action intents arrive while not recording, the service immediately sweeps the stale notification and exits.
+  - Replaced polling loops (`while(isActive) delay(...)`) across `FloatingButtonService.kt`, `Navigation.kt`, and `FeedScreen.kt` with direct reactive collection of `RecordingCoordinator.state`.
+  - Routed all recording entry points (`FloatingButtonService`, `Navigation`, `FeedScreen`, `QuickRecordingTileService`, `VolumeButtonTriggerService`) through `RecordingCoordinator`.
+  - Added unit test suite in `RecordingCoordinatorTest.kt` verifying lifecycle transitions, mutex rejection of concurrent start attempts, and thread safety.
+  - Bumped version to `2.2.1` (`versionCode = 8`) in `app/build.gradle.kts`.
+  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`) and debug APK assembled cleanly (`assembleDebug`).
 - [x] **Mobile Landscape Damped Sidebar with Spring Resistance & Dynamic Note Expansion (`TabletWorkspaceScreen.kt`)**:
   - Solved cramped vertical scrolling issue on standard phones rotated to landscape orientation (e.g. 1080x2400 @ 420dpi, height ~411dp) where the static top navigation area occupied ~220-250dp, leaving barely ~50dp for the notes list (displaying only 1 note).
   - Built `MobileLandscapeDampedSidebar` with a custom `NestedScrollConnection` providing damped upward scroll resistance (`dampFactor = 0.75f`) and spring physics (`Spring.DampingRatioLowBouncy`, `Spring.StiffnessMediumLow`).
