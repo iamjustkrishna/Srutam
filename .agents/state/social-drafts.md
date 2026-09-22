@@ -274,4 +274,36 @@ Voiceover: "no cloud subscriptions. no privacy leaks. srutam 2.0. link in bio."
 - **Carousel Slide 3**: `screenshots/screen-matrix/phone-standard/06_insights_hub.png` (The dedicated Insights hub with tailored light gradient capsule).
 - **Carousel Slide 4**: `screenshots/screen-matrix/phone-standard/07_copilot_chat.png` (Global BM25 offline copilot querying all notes).
 
+---
+
+### [Milestone 8: Srutam v2.3.0 MCP Developer Brain & Mobile-to-IDE Voice Bridge]
+- **Date**: 2026-09-22
+- **Trigger**: Model Context Protocol (MCP) launch readiness, v2.3.0 pre-release, and qualitative feedback check-in.
+
+#### 1. X / Twitter Teaser Post (< 280 chars)
+```text
+hate typing long bug descriptions when i am walking or away from desk.
+
+built a mobile voice bridge into Cursor IDE via Model Context Protocol.
+
+1. talk into Srutam on android
+2. sit at desk, open Cursor
+3. @srutam what did i record?
+
+agent pulls my action items & starts coding.
+
+beta drops soon 🗿
+```
+
+#### 2. 1-Week Friend Feedback Template ("The Mom Test" Script)
+```text
+Hey! Quick favor: be 100% brutally honest (you won't hurt my feelings at all, I need the real truth as a builder):
+
+Have you opened Srutam at all this past week, or has it just been sitting there on your home screen?
+
+If you haven't used it, what's your actual daily go-to when you need to remember something? (Voice note to yourself on WhatsApp? Google Keep? Just trying to remember in your head?)
+
+Was there a specific bug/annoyance, or did you just not have a reason to record?
+```
+
 
