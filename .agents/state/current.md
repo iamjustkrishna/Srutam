@@ -11,6 +11,7 @@
   - Added post-first-recording celebratory card (`PostFirstRecordingNudgeCard`) in `FeedScreen.kt`.
   - Added screen matrix previews and headless Roborazzi test verification (`BaseScreenMatrixTest.kt`) generating pixel-perfect snapshots across phone, foldable, and tablet form factors.
   - Full test suite passed (`testDebugUnitTest`), Kotlin compiled cleanly (`compileDebugKotlin`), and debug APK assembled (`assembleDebug`).
+  - Installed live onto physical Realme phone (`RMX2151`, `192.168.31.163:43029`), launched Activity, and verified onboarding flow in the foreground.
 - [x] **Srutam Cloud 3-Tier AI Multi-Key Failover & Rate Limiting (`SrutamCloudRouter.kt`, `GeminiLlmClient.kt`, `GroqLlmClient.kt`, `AIProcessor.kt`, `build.gradle.kts`)**:
   - Benchmarked live API endpoints: verified `GEMINI_API_KEY` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), `GEMINI_API_KEY2` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), and `GROQ_API_KEY` (30 RPM, 1,000 RPD on `qwen/qwen3.8-27b` with 0.25s average latency).
   - Combined free tier capacity: 50 requests/minute (10 + 10 + 30) and 4,000 requests/day, backed by on-device Room `AiQueryCache` to ensure 0-cost repeat queries.
