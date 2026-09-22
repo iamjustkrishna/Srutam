@@ -1,8 +1,8 @@
 # srutam-mcp
 
-Official **Model Context Protocol (MCP)** server for [Srutam](https://srutam.space) — Pure Voice, Crystallized Thought.
+Official **Model Context Protocol (MCP)** server for [Srutam](https://srutam.space): Pure Voice, Crystallized Thought.
 
-Capture ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly search, read, and execute them directly inside your favorite AI coding agents (**Cursor**, **Antigravity**, **Claude Desktop**, **Windsurf**, **Cline**).
+Capture ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly search, read, and execute them directly inside your favorite AI coding agents (**OpenCode**, **Cursor**, **Windsurf**, **Zed**, **Claude Desktop**, **Antigravity**, **Cline**).
 
 ---
 
@@ -17,7 +17,7 @@ npx -y srutam-mcp init
 The wizard will:
 1. Prompt for your Srutam API key (obtained from Srutam Mobile App $\rightarrow$ **Settings** $\rightarrow$ **Developer & MCP**).
 2. Validate the key against Srutam Cloud.
-3. Automatically configure **Cursor**, **Antigravity**, or **Claude Desktop** on your machine.
+3. Automatically configure **OpenCode**, **Cursor**, **Windsurf**, **Zed**, **Claude Desktop**, or **Antigravity** on your machine.
 
 ---
 
@@ -63,7 +63,24 @@ If you prefer to configure manually, add `srutam-mcp` to your IDE's MCP config:
 }
 ```
 
-### B. Antigravity IDE (`mcp_config.json`)
+### B. OpenCode (`opencode.json` or `~/.config/opencode/opencode.json`)
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "srutam": {
+      "type": "local",
+      "command": ["npx", "-y", "srutam-mcp"],
+      "environment": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+### C. Windsurf by Codeium (`mcp_config.json`)
 ```json
 {
   "mcpServers": {
@@ -78,7 +95,24 @@ If you prefer to configure manually, add `srutam-mcp` to your IDE's MCP config:
 }
 ```
 
-### C. Claude Desktop (`claude_desktop_config.json`)
+### D. Zed Editor (`settings.json`)
+```json
+{
+  "context_servers": {
+    "srutam": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "srutam-mcp"],
+        "env": {
+          "SRUTAM_API_KEY": "srtm_live_your_key_here"
+        }
+      }
+    }
+  }
+}
+```
+
+### E. Claude Desktop (`claude_desktop_config.json`)
 ```json
 {
   "mcpServers": {
@@ -89,6 +123,56 @@ If you prefer to configure manually, add `srutam-mcp` to your IDE's MCP config:
         "SRUTAM_API_KEY": "srtm_live_your_key_here"
       }
     }
+  }
+}
+```
+
+### F. Antigravity IDE (`mcp_config.json`)
+```json
+{
+  "mcpServers": {
+    "srutam": {
+      "command": "npx",
+      "args": ["-y", "srutam-mcp"],
+      "env": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+### G. Cline & Roo Code (VS Code `cline_mcp_settings.json`)
+```json
+{
+  "mcpServers": {
+    "srutam": {
+      "command": "npx",
+      "args": ["-y", "srutam-mcp"],
+      "env": {
+        "SRUTAM_API_KEY": "srtm_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+### H. Continue.dev (`~/.continue/config.json`)
+```json
+{
+  "experimental": {
+    "modelContextProtocolServers": [
+      {
+        "transport": {
+          "type": "stdio",
+          "command": "npx",
+          "args": ["-y", "srutam-mcp"],
+          "env": {
+            "SRUTAM_API_KEY": "srtm_live_your_key_here"
+          }
+        }
+      }
+    ]
   }
 }
 ```

@@ -13,7 +13,7 @@ import { listActionItemsSchema, handleListActionItems } from './tools/listAction
 import { updateActionItemSchema, handleUpdateActionItem } from './tools/updateActionItem.js';
 import { appendAgentLogSchema, handleAppendAgentLog } from './tools/appendAgentLog.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 function printHelp(): void {
   console.log(`
@@ -23,11 +23,11 @@ Usage:
   srutam-mcp [command] [options]
 
 Commands:
-  init, setup    Interactive setup wizard to link mobile key and configure IDE
+  init, setup    Interactive setup wizard (OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity, Cline)
   status         Test cloud connection and view synced note count
   logout, reset  Clear saved API credentials
   [none]         In terminal: Show interactive status dashboard
-                 In IDE: Run stdio MCP server for Cursor, Antigravity, Claude
+                 In IDE: Run stdio MCP server for OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity
 
 Options:
   -h, --help     Show this help message
@@ -120,8 +120,8 @@ async function showInteractiveDashboard(): Promise<void> {
   console.log('  srutam-mcp help         View complete command line reference');
 
   console.log('\nIDE Integration:');
-  console.log('  This server runs over stdio when invoked by Cursor or Antigravity.');
-  console.log('  Config entry in mcp_config.json:');
+  console.log('  Runs over stdio when invoked by OpenCode, Cursor, Windsurf, Claude, Zed, or Antigravity.');
+  console.log('  Standard config entry in mcp.json / mcp_config.json:');
   console.log('  {\n    "mcpServers": {\n      "srutam": {\n        "command": "srutam-mcp"\n      }\n    }\n  }\n');
 }
 

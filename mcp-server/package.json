@@ -1,7 +1,7 @@
 {
   "name": "srutam-mcp",
-  "version": "1.1.0",
-  "description": "Model Context Protocol (MCP) server for Srutam - fetch voice notes, ideas, and action items inside AI coding agents",
+  "version": "1.2.0",
+  "description": "Model Context Protocol (MCP) server for Srutam - fetch voice notes, ideas, and action items inside AI coding agents (OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity)",
   "main": "dist/index.js",
   "bin": {
     "srutam-mcp": "dist/index.js"
@@ -23,7 +23,12 @@
     "srutam",
     "voice-notes",
     "ai-agent",
+    "opencode",
     "cursor",
+    "windsurf",
+    "zed",
+    "cline",
+    "claude",
     "antigravity"
   ],
   "author": "Krishna (@iamjustkrishna)",
