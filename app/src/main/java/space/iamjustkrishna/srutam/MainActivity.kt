@@ -27,6 +27,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import space.iamjustkrishna.srutam.navigation.SrutamNavigation
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.ui.screens.BYOKOnboardingScreen
+import space.iamjustkrishna.srutam.ui.screens.CaptureSetupScreen
 import space.iamjustkrishna.srutam.ui.screens.PermissionsOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -37,6 +38,7 @@ enum class AppStage {
     SPLASH,
     PERMISSIONS,
     BYOK_SETUP,
+    CAPTURE_SETUP,
     MAIN
 }
 
@@ -184,6 +186,18 @@ fun SrutamApp(initialRecordingId: Long? = null) {
             AppStage.BYOK_SETUP -> {
                 BYOKOnboardingScreen(
                     onComplete = {
+                        appStage = AppStage.CAPTURE_SETUP
+                    }
+                )
+            }
+            AppStage.CAPTURE_SETUP -> {
+                CaptureSetupScreen(
+                    onComplete = {
+                        AppPreferences.setHasCompletedCaptureSetup(context, true)
+                        appStage = AppStage.MAIN
+                    },
+                    onSkip = {
+                        AppPreferences.setHasCompletedCaptureSetup(context, true)
                         appStage = AppStage.MAIN
                     }
                 )

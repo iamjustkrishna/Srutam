@@ -16,8 +16,12 @@ import android.app.Activity
 import android.os.Build
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.service.FloatingButtonService
+import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.ui.components.*
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -152,6 +156,49 @@ fun FeedScreen(
     var deleteToastCount by remember { mutableStateOf(0) }
     var pendingScopedDeleteFiles by remember { mutableStateOf<List<AudioFileInfo>>(emptyList()) }
     val scope = rememberCoroutineScope()
+
+    var isFloatingDockEnabled by remember {
+        mutableStateOf(AppPreferences.isFloatingDockEnabled(context))
+    }
+    var hasCompletedCaptureSetup by remember {
+        mutableStateOf(AppPreferences.hasCompletedCaptureSetup(context))
+    }
+    var isByokCompleted by remember {
+        mutableStateOf(AppPreferences.isByokOnboardingCompleted(context))
+    }
+    var captureSkipBannerDismissed by remember {
+        mutableStateOf(AppPreferences.isCaptureSkipBannerDismissed(context))
+    }
+    var captureSkipBannerDismissCount by remember {
+        mutableStateOf(AppPreferences.getCaptureSkipBannerDismissCount(context))
+    }
+    var firstRecordingNudgeShown by remember {
+        mutableStateOf(AppPreferences.isFirstRecordingNudgeShown(context))
+    }
+
+    LaunchedEffect(Unit) {
+        if (hasCompletedCaptureSetup && !isFloatingDockEnabled && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
+            AppPreferences.incrementCaptureSkipBannerDismissCount(context)
+            captureSkipBannerDismissCount = AppPreferences.getCaptureSkipBannerDismissCount(context)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isFloatingDockEnabled = AppPreferences.isFloatingDockEnabled(context)
+                hasCompletedCaptureSetup = AppPreferences.hasCompletedCaptureSetup(context)
+                isByokCompleted = AppPreferences.isByokOnboardingCompleted(context)
+                captureSkipBannerDismissed = AppPreferences.isCaptureSkipBannerDismissed(context)
+                captureSkipBannerDismissCount = AppPreferences.getCaptureSkipBannerDismissCount(context)
+                firstRecordingNudgeShown = AppPreferences.isFirstRecordingNudgeShown(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(isOnline) {
         if (isOnline && AppPreferences.isAutoAiEnabled(context)) {
@@ -392,6 +439,49 @@ fun FeedScreen(
             viewModel.renameRecording(audioFile, newName)
         },
         onDeleteFile = { deleteFiles(listOf(it)) },
+        isFloatingDockEnabled = isFloatingDockEnabled,
+        hasCompletedCaptureSetup = hasCompletedCaptureSetup,
+        isByokCompleted = isByokCompleted,
+        captureSkipBannerDismissed = captureSkipBannerDismissed,
+        captureSkipBannerDismissCount = captureSkipBannerDismissCount,
+        firstRecordingNudgeShown = firstRecordingNudgeShown,
+        onEnableFloatingDock = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                try {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    val fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                    context.startActivity(fallbackIntent)
+                }
+            } else {
+                isFloatingDockEnabled = true
+                hasCompletedCaptureSetup = true
+                AppPreferences.setFloatingDockEnabled(context, true)
+                AppPreferences.setHasCompletedCaptureSetup(context, true)
+                val serviceIntent = Intent(context, FloatingButtonService::class.java)
+                try {
+                    ContextCompat.startForegroundService(context, serviceIntent)
+                } catch (e: Exception) {
+                    // Ignore background restriction
+                }
+            }
+        },
+        onDismissUpgradeCard = {
+            hasCompletedCaptureSetup = true
+            AppPreferences.setHasCompletedCaptureSetup(context, true)
+        },
+        onDismissSkipBanner = {
+            captureSkipBannerDismissed = true
+            AppPreferences.setCaptureSkipBannerDismissed(context, true)
+        },
+        onDismissFirstRecordingNudge = {
+            firstRecordingNudgeShown = true
+            AppPreferences.setFirstRecordingNudgeShown(context, true)
+        },
         viewModel = viewModel
     )
 }
@@ -419,6 +509,16 @@ fun FeedScreenContent(
     onProcessAI: (AudioFileInfo) -> Unit = {},
     onRenameFile: (AudioFileInfo, String) -> Unit = { _, _ -> },
     onDeleteFile: (AudioFileInfo) -> Unit = {},
+    isFloatingDockEnabled: Boolean = false,
+    hasCompletedCaptureSetup: Boolean = true,
+    isByokCompleted: Boolean = true,
+    captureSkipBannerDismissed: Boolean = true,
+    captureSkipBannerDismissCount: Int = 3,
+    firstRecordingNudgeShown: Boolean = true,
+    onEnableFloatingDock: () -> Unit = {},
+    onDismissUpgradeCard: () -> Unit = {},
+    onDismissSkipBanner: () -> Unit = {},
+    onDismissFirstRecordingNudge: () -> Unit = {},
     viewModel: AudioFilesViewModel? = null,
     modifier: Modifier = Modifier
 ) {
@@ -709,6 +809,27 @@ fun FeedScreenContent(
                     )
                 }
             }
+
+            // Ambient Capture Activation & Nudge Cards
+            if (!isFloatingDockEnabled && !hasCompletedCaptureSetup && isByokCompleted) {
+                ExistingUserCaptureUpgradeCard(
+                    onEnable = onEnableFloatingDock,
+                    onDismiss = onDismissUpgradeCard,
+                    isDark = isDark
+                )
+            } else if (!isFloatingDockEnabled && hasCompletedCaptureSetup && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
+                SkipReengagementBanner(
+                    onEnable = onEnableFloatingDock,
+                    onDismiss = onDismissSkipBanner,
+                    isDark = isDark
+                )
+            } else if (isFloatingDockEnabled && audioFiles.isNotEmpty() && !firstRecordingNudgeShown) {
+                PostFirstRecordingNudgeCard(
+                    onDismiss = onDismissFirstRecordingNudge,
+                    isDark = isDark
+                )
+            }
+
             Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                 if (isLoading && audioFiles.isEmpty()) {
                     Box(
@@ -770,6 +891,281 @@ fun FeedScreenContent(
                 }
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun ExistingUserCaptureUpgradeCard(
+    onEnable: () -> Unit,
+    onDismiss: () -> Unit,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) CosmicVoidCard else CeramicWhite
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) CobaltBorder.copy(alpha = 0.5f) else CobaltBorder.copy(alpha = 0.35f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = CobaltContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.PictureInPicture,
+                                contentDescription = null,
+                                tint = CobaltBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Surface(
+                        color = CobaltBlue.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "NEW",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CobaltBlue,
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = if (isDark) TextOnDarkSecondary else TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Instant Voice Capture from Any App",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) TextOnDarkPrimary else TextPrimary
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Turn on the on-screen floating dock so you never forget to capture a thought, meeting, or idea.",
+                fontSize = 13.sp,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                lineHeight = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "Later",
+                        color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
+                Button(
+                    onClick = onEnable,
+                    colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Enable Dock",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkipReengagementBanner(
+    onEnable: () -> Unit,
+    onDismiss: () -> Unit,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isDark) CobaltContainer.copy(alpha = 0.35f) else CobaltContainer.copy(alpha = 0.6f),
+        border = BorderStroke(1.dp, CobaltBorder.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PictureInPicture,
+                    contentDescription = null,
+                    tint = CobaltBlue,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Quick capture makes recording effortless",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDark) TextOnDarkPrimary else TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                TextButton(
+                    onClick = onEnable,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Enable",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CobaltBlue
+                    )
+                }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = if (isDark) TextOnDarkSecondary else TextSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PostFirstRecordingNudgeCard(
+    onDismiss: () -> Unit,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = if (isDark) Color(0xFF06281E) else Color(0xFFE6F7F0),
+        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    color = Color(0xFF10B981).copy(alpha = 0.2f),
+                    shape = CircleShape,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF10B981),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = "Floating Dock is Ready",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFF34D399) else Color(0xFF047857)
+                    )
+                    Text(
+                        text = "It appears on screen when you leave the app for 1-tap capture.",
+                        fontSize = 11.sp,
+                        color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+
+            Surface(
+                color = Color(0xFF10B981),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.clickable { onDismiss() }
+            ) {
+                Text(
+                    text = "Got it",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
         }
     }
 }

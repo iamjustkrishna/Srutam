@@ -19,6 +19,10 @@ object AppPreferences {
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
+    private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
+    private const val KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT = "capture_skip_banner_dismiss_count"
+    private const val KEY_CAPTURE_SKIP_BANNER_DISMISSED = "capture_skip_banner_dismissed"
+    private const val KEY_FIRST_RECORDING_NUDGE_SHOWN = "first_recording_nudge_shown"
     private const val KEY_THEME_MODE = "theme_mode"
 
     // Theme Modes
@@ -160,6 +164,55 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
+            .apply()
+    }
+
+    fun hasCompletedCaptureSetup(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_HAS_COMPLETED_CAPTURE_SETUP, false)
+    }
+
+    fun setHasCompletedCaptureSetup(context: Context, completed: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_HAS_COMPLETED_CAPTURE_SETUP, completed)
+            .apply()
+    }
+
+    fun getCaptureSkipBannerDismissCount(context: Context): Int {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT, 0)
+    }
+
+    fun incrementCaptureSkipBannerDismissCount(context: Context) {
+        val current = getCaptureSkipBannerDismissCount(context)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT, current + 1)
+            .apply()
+    }
+
+    fun isCaptureSkipBannerDismissed(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_CAPTURE_SKIP_BANNER_DISMISSED, false)
+    }
+
+    fun setCaptureSkipBannerDismissed(context: Context, dismissed: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_CAPTURE_SKIP_BANNER_DISMISSED, dismissed)
+            .apply()
+    }
+
+    fun isFirstRecordingNudgeShown(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_FIRST_RECORDING_NUDGE_SHOWN, false)
+    }
+
+    fun setFirstRecordingNudgeShown(context: Context, shown: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_FIRST_RECORDING_NUDGE_SHOWN, shown)
             .apply()
     }
 
