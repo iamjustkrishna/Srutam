@@ -1,7 +1,12 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam v2.3.0 (versionCode 9) and srutam-mcp v1.1.0 Production Release.
+- Milestone: Srutam v2.3.0 (versionCode 9) and srutam-mcp v1.2.0 Production Release.
+- [x] **Multi-Client MCP Expansion (OpenCode, Windsurf, Zed, Claude Desktop, Cursor, Cline, Continue.dev)**:
+  - Upgraded `srutam-mcp` to version `1.2.0` with dedicated OS path resolvers and injectors for OpenCode, Windsurf, Zed Editor, Claude Desktop, Antigravity, Cursor, and Cline/Roo Code.
+  - Interactive CLI Setup Wizard (`srutam-mcp init`): added interactive client selection supporting OpenCode (`opencode.json`), Windsurf (`mcp_config.json`), Zed (`settings.json` under `context_servers`), and standard clients.
+  - Mobile App UI (`DeveloperMcpSection.kt`): added interactive client switcher chips row (`[OpenCode] [Cursor] [Windsurf] [Zed] [Claude]`), dynamic context-aware config path hints, live syntax snippet viewer, and 1-tap clipboard copy.
+  - Updated documentation (`mcp-server/README.md`) with copy-paste configs for all major AI coding editors.
 - [x] **Google One Tap (Android Credential Manager) & Dynamic Versioning (`DeveloperMcpSection.kt`, `SupabaseAuthManager.kt`, `SettingsScreen.kt`)**:
   - Replaced manual email/password and OTP dialogs with native Android 1-tap Google account bottomsheet via Credential Manager (`signInWithGoogle`).
   - Unified sign-in and sign-up with instant Google ID token exchange against Supabase (`/auth/v1/token?grant_type=id_token`).

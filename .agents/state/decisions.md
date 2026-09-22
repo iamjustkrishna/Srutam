@@ -421,3 +421,17 @@
   5. **Auto-Sync to Cloud (`AppPreferences.kt`, `CloudSyncManager.kt`)**: Added toggle in developer settings wired to auto-upload on recording and AI completion.
   6. **Branded 6-Digit In-App OTP & Dark Email**: Added custom dark-mode OTP template (`supabase/email-templates/verify-otp-dark.html`) eliminating third-party backend traces.
   7. **Verification**: Passed all 97 unit tests (`testDebugUnitTest`), compiled debug APK (`assembleDebug`), verified live on emulator (`emulator-5554`) with interactive screenshots.
+
+## ADR-038: Multi-Client MCP Expansion & Google One Tap Native Authentication
+- **Status**: Accepted
+- **Context**:
+  1. Developers use a diverse set of modern AI coding assistants including OpenCode, Windsurf, Zed Editor, Claude Desktop, Antigravity, Cursor, and Cline. Each editor requires distinct MCP configuration schemas (e.g. OpenCode uses a top-level `mcp` dictionary with `command` arrays; Zed uses `context_servers` with nested objects; others use standard `mcpServers`).
+  2. Users requested 1-tap setup both via the CLI interactive setup wizard (`srutam-mcp init`) and inside the mobile app Settings (`DeveloperMcpSection.kt`).
+  3. Manual email and OTP links caused friction during login on mobile. Users wanted seamless sign-in with accounts already present on their phones.
+  4. App version strings in Settings were previously hardcoded and needed to dynamically derive from Gradle build properties.
+- **Decision**:
+  1. **Multi-Client MCP Server (`srutam-mcp v1.2.0`)**: Added OS path resolvers and dedicated JSON injectors for OpenCode (`opencode.json`), Windsurf (`mcp_config.json`), Zed (`settings.json`), Claude Desktop, Antigravity, Cursor, and Cline. Bumped version to `1.2.0` and tested dry-run packaging.
+  2. **Mobile App Client Switcher (`DeveloperMcpSection.kt`)**: Added interactive client tabs (`[OpenCode] [Cursor] [Windsurf] [Zed] [Claude]`), target path indicators, and dynamic syntax-highlighted code views with 1-tap clipboard copy pre-formatted for each IDE.
+  3. **Google One Tap Native Auth (`SupabaseAuthManager.kt`)**: Replaced email/password and OTP flows with Android Credential Manager `GetSignInWithGoogleOption`, directly exchanging Google ID tokens with Supabase.
+  4. **Dynamic Build Versioning (`SettingsScreen.kt`)**: Replaced hardcoded text with `Srutam v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})`, displaying `Srutam v2.3.0 (Build 9)`.
+  5. **Verification**: Clean Kotlin compilation (`compileDebugKotlin`), successful debug APK build (`assembleDebug`), and full packaging verification (`npm pack --dry-run`).
