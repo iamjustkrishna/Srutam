@@ -17,6 +17,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
 class SupabaseAuthManager(private val context: Context) {
@@ -37,7 +38,7 @@ class SupabaseAuthManager(private val context: Context) {
     }
 
     /**
-     * Triggers the native Android Google One Tap account chooser bottomsheet via CredentialManager,
+     * Triggers the native Android Google account chooser bottomsheet via CredentialManager,
      * extracts the Google ID Token, and authenticates with Supabase.
      */
     suspend fun signInWithGoogle(activityContext: Context): Result<String> {
@@ -48,14 +49,11 @@ class SupabaseAuthManager(private val context: Context) {
 
         val credentialManager = CredentialManager.create(activityContext)
 
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(serverClientId)
-            .setAutoSelectEnabled(true)
+        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId)
             .build()
 
         val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
+            .addCredentialOption(signInWithGoogleOption)
             .build()
 
         return try {
