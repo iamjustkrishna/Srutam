@@ -421,7 +421,7 @@ class AIProcessor(private val context: Context) {
             response.text ?: "I couldn't generate an answer. Please try again."
         } catch (e: Exception) {
             Log.e(TAG, "Error querying recording", e)
-            "Error: ${e.message ?: "Unable to process query"}"
+            "Something went wrong while answering your question. Please try again in a moment."
         }
     }
 
@@ -460,7 +460,7 @@ class AIProcessor(private val context: Context) {
             response.text ?: "I couldn't generate an answer across your voice notes. Please try again."
         } catch (e: Exception) {
             Log.e(TAG, "Error querying all recordings", e)
-            "Error: ${e.message ?: "Unable to process query across your voice notes"}"
+            "Something went wrong while searching your voice notes. Please try again in a moment."
         }
     }
 

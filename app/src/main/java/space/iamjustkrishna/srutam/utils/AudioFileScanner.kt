@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.utils
+package space.iamjustkrishna.srutam.utils
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
@@ -138,7 +138,7 @@ object AudioFileScanner {
                         recording.copy(
                             isProcessing = false,
                             aiStatus = RecordingAiStatus.ERROR,
-                            processingError = e.message ?: "Unknown error"
+                            processingError = "Transcription could not be completed. Please try again."
                         )
                     )
                 }

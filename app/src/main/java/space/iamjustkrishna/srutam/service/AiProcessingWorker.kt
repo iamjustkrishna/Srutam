@@ -132,7 +132,7 @@ class AiProcessingWorker(
                         recording.copy(
                             isProcessing = false,
                             aiStatus = RecordingAiStatus.ERROR,
-                            processingError = e.message ?: "Transcription failed"
+                            processingError = "Transcription could not be completed. Please try again."
                         )
                     )
                     continue
@@ -264,7 +264,7 @@ class AiProcessingWorker(
                                 recording.copy(
                                     isProcessing = false,
                                     aiStatus = RecordingAiStatus.ERROR,
-                                    processingError = e.message ?: "Failed to generate summary"
+                                    processingError = "Could not generate insights. Please try again."
                                 )
                             )
                         }

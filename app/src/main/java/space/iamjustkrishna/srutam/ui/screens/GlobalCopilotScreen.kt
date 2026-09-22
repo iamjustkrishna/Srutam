@@ -131,7 +131,7 @@ fun GlobalCopilotScreen(
                 )
             } catch (e: Exception) {
                 messages = messages + GlobalChatMessage(
-                    text = "Sorry, I couldn't complete your request: ${e.message}",
+                    text = "Something went wrong. Please try again in a moment.",
                     isUser = false
                 )
             } finally {

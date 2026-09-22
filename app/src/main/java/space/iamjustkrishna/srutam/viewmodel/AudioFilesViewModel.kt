@@ -250,7 +250,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error renaming recording", e)
-                _processingError.value = "Failed to rename: ${e.message}"
+                _processingError.value = "Failed to rename file. Please try again."
             }
         }
     }
@@ -294,7 +294,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error initiating AI processing", e)
-                _processingError.value = "Failed to start AI processing: ${e.message}"
+                _processingError.value = "Failed to start AI processing. Please try again."
             }
         }
     }
@@ -348,7 +348,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error retrying AI processing", e)
-                _processingError.value = "Failed to retry: ${e.message}"
+                _processingError.value = "Failed to retry processing. Please try again."
             }
         }
     }
@@ -428,7 +428,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing pending offline recordings", e)
-                _processingError.value = "Failed to process pending notes: ${e.message}"
+                _processingError.value = "Failed to process pending notes. Please try again."
                 withContext(Dispatchers.Main) {
                     onComplete?.invoke(0)
                 }
@@ -477,7 +477,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing batch AI", e)
-                _processingError.value = "Failed to start batch AI: ${e.message}"
+                _processingError.value = "Failed to start batch processing. Please try again."
             }
         }
     }

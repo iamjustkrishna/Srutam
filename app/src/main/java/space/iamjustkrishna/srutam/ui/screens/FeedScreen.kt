@@ -2253,7 +2253,7 @@ fun AudioPreviewModal(
                 error = "Audio file not found"
             }
         } catch (e: Exception) {
-            error = "Failed to load: ${e.message}"
+            error = "Unable to load audio"
         }
     }
     
