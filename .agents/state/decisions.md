@@ -465,3 +465,30 @@
   5. **Verification**:
      - Unit test suite expanded in `SrutamCloudRouterTest.kt` verifying all failover transitions, cooldowns, and fallbacks.
      - Compiled debug APK and installed live onto physical device (`RMX2151`).
+
+## ADR-042: Intuitive Capture Onboarding & Habit-Formation Activation Architecture
+- **Status**: Accepted
+- **Context**: 
+  - Real user feedback highlighted an activation / habit-formation gap: users appreciated the concept of Srutam but failed to form the habit of using it because they had to remember to open the app (*"I tried it... but it didn't come intuitively. I had to remember to use it."*).
+  - While Srutam has a floating dock and quick capture features, they were buried deep in Settings where new users never discovered them.
+- **Decision**:
+  1. **New First-Launch Stage (`AppStage.CAPTURE_SETUP`)**:
+     - Inserted `AppStage.CAPTURE_SETUP` directly between `BYOK_SETUP` and `MAIN` in `MainActivity.kt`.
+     - Fresh installs seamlessly transition: `SPLASH -> PERMISSIONS -> BYOK_SETUP -> CAPTURE_SETUP -> MAIN`.
+  2. **Dedicated Activation Screen (`CaptureSetupScreen.kt`)**:
+     - Built a standalone Compose screen highlighting ambient capture with:
+       - Pure Compose hero illustration (`FloatingDockHeroIllustration`) featuring a phone wireframe, glowing pulsing floating dock, and animated soundwave ripples emanating from the dock bubble. Zero external Lottie dependencies, fully theme-aware across Light and Cosmic Void Dark.
+       - Clear value proposition: *"Capture thoughts instantly — A discreet floating button stays on your screen edge. Capture ideas from any app without ever breaking your flow."*
+       - 3 benefit cards: One-Tap from Any App, Discreet & Snappable, 100% Private & Intentional.
+       - Primary CTA "Enable Floating Dock" triggering `Settings.ACTION_MANAGE_OVERLAY_PERMISSION`.
+       - Automatic overlay permission detection upon returning to the app via `LifecycleEventObserver` on `ON_RESUME`, transitioning the CTA into a celebratory green checkmark *"Floating Dock Enabled! ✓"* with haptic feedback, auto-starting `FloatingButtonService`, and auto-advancing to `MAIN` after a 1.5s delay.
+       - Subtle "Skip for now" link at the bottom.
+  3. **Non-Disruptive Upgrade Strategy for Existing Users**:
+     - Existing users who already completed onboarding are not subjected to the full-screen setup. Instead, `FeedScreen.kt` displays a dismissable card (`ExistingUserCaptureUpgradeCard`) at the top of the feed introducing the floating dock with inline enable and dismiss actions.
+  4. **Skip Re-Engagement Banner & Post-First-Recording Celebration**:
+     - Users who skip the onboarding step receive a subtle re-engagement banner (`SkipReengagementBanner`) at the top of the feed for their next 3 app opens, which automatically stops nagging after 3 opens or permanent dismissal.
+     - Users who enable the dock receive a one-time celebratory card (`PostFirstRecordingNudgeCard`) after their first recording clarifying that the dock will appear whenever they leave the app.
+  5. **Screen Matrix Previews & Headless Testing**:
+     - Added `MatrixCaptureSetupPreview` and `MatrixCaptureSetupCosmicDarkPreview` in `ScreenMatrixPreviews.kt`.
+     - Added `capture_02d_capture_setup` and `capture_02e_capture_setup_cosmic_dark` to `BaseScreenMatrixTest.kt` and recorded headless screenshots on JVM with Roborazzi across phone, foldable, and tablet form factors.
+  6. **Branch**: Isolated on `feature/intuitive-capture-onboarding` branched from `main`.

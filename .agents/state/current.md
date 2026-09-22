@@ -1,7 +1,16 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam Cloud 3-Tier Multi-Key Failover & Resilient Rate Limiting (`main`).
+- Milestone: Intuitive Ambient Capture Onboarding & Habit Formation (`feature/intuitive-capture-onboarding`).
+- [x] **Intuitive Capture Activation Onboarding & Habit Formation Flow (`CaptureSetupScreen.kt`, `MainActivity.kt`, `FeedScreen.kt`, `AppPreferences.kt`, `ScreenMatrixPreviews.kt`)**:
+  - Implemented dedicated `CaptureSetupScreen.kt` featuring pure Compose hero animation (`FloatingDockHeroIllustration`) with phone wireframe, pulsing floating dock, and soundwave ripples (zero Lottie dependency, fully theme-aware across Light and Cosmic Dark).
+  - Wired `AppStage.CAPTURE_SETUP` directly between `BYOK_SETUP` and `MAIN` in `MainActivity.kt` for fresh installs.
+  - Implemented auto-detection of overlay permission upon `ON_RESUME` returning from system settings: transitions CTA into celebratory green checkmark *"Floating Dock Enabled! ✓"*, fires haptic feedback, auto-starts `FloatingButtonService`, and auto-advances to `MAIN` after 1.5s delay.
+  - Implemented non-disruptive existing user upgrade card (`ExistingUserCaptureUpgradeCard`) in `FeedScreen.kt` for users upgrading from v2.2.x.
+  - Added skip re-engagement banner (`SkipReengagementBanner`) in `FeedScreen.kt` shown for at most 3 app opens with permanent dismissal.
+  - Added post-first-recording celebratory card (`PostFirstRecordingNudgeCard`) in `FeedScreen.kt`.
+  - Added screen matrix previews and headless Roborazzi test verification (`BaseScreenMatrixTest.kt`) generating pixel-perfect snapshots across phone, foldable, and tablet form factors.
+  - Full test suite passed (`testDebugUnitTest`), Kotlin compiled cleanly (`compileDebugKotlin`), and debug APK assembled (`assembleDebug`).
 - [x] **Srutam Cloud 3-Tier AI Multi-Key Failover & Rate Limiting (`SrutamCloudRouter.kt`, `GeminiLlmClient.kt`, `GroqLlmClient.kt`, `AIProcessor.kt`, `build.gradle.kts`)**:
   - Benchmarked live API endpoints: verified `GEMINI_API_KEY` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), `GEMINI_API_KEY2` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), and `GROQ_API_KEY` (30 RPM, 1,000 RPD on `qwen/qwen3.8-27b` with 0.25s average latency).
   - Combined free tier capacity: 50 requests/minute (10 + 10 + 30) and 4,000 requests/day, backed by on-device Room `AiQueryCache` to ensure 0-cost repeat queries.
