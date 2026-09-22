@@ -12,6 +12,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import space.iamjustkrishna.srutam.BuildConfig
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import java.util.concurrent.TimeUnit
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
 class SupabaseAuthManager(private val context: Context) {
 
@@ -28,6 +34,54 @@ class SupabaseAuthManager(private val context: Context) {
 
     private val anonKey: String by lazy {
         BuildConfig.SUPABASE_ANON_KEY
+    }
+
+    /**
+     * Triggers the native Android Google One Tap account chooser bottomsheet via CredentialManager,
+     * extracts the Google ID Token, and authenticates with Supabase.
+     */
+    suspend fun signInWithGoogle(activityContext: Context): Result<String> {
+        val serverClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
+        if (serverClientId.isBlank()) {
+            return Result.failure(IllegalStateException("GOOGLE_WEB_CLIENT_ID is not configured in local.properties"))
+        }
+
+        val credentialManager = CredentialManager.create(activityContext)
+
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(serverClientId)
+            .setAutoSelectEnabled(true)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        return try {
+            val response = credentialManager.getCredential(
+                context = activityContext,
+                request = request
+            )
+            val credential = response.credential
+            when (credential) {
+                is CustomCredential -> {
+                    if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        signInWithGoogleIdToken(googleIdTokenCredential.idToken)
+                    } else {
+                        Result.failure(Exception("Unsupported credential type: ${credential.type}"))
+                    }
+                }
+                else -> {
+                    Result.failure(Exception("Unexpected credential type returned"))
+                }
+            }
+        } catch (e: GetCredentialCancellationException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     /**

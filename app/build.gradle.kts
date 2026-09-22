@@ -31,7 +31,7 @@ android {
         applicationId = "space.iamjustkrishna.srutam"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
+        versionCode = 9
         versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -42,8 +42,10 @@ android {
 
         val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: "https://bnahuqxvpbtzaupyumeo.supabase.co"
         val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuYWh1cXh2cGJ0emF1cHl1bWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODM3NDQsImV4cCI6MjEwNTE1OTc0NH0.2GNtlaNyVSYy77FSYQ2mReZuzxbl4XSlZGQ-SJ-p7Ag"
+        val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         ndk {
             abiFilters.add("arm64-v8a")
@@ -165,6 +167,7 @@ dependencies {
     // Credential Manager for 1-Tap Google Sign-In
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     testImplementation(libs.junit)
     testImplementation(libs.roborazzi)

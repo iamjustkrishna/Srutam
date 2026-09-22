@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.cloud.ApiKeyItem
 import space.iamjustkrishna.srutam.cloud.CloudSyncManager
@@ -59,12 +60,6 @@ fun DeveloperMcpSection(
     var keyNameInput by remember { mutableStateOf("Cursor IDE") }
     var generatedKeyResult by remember { mutableStateOf<Pair<String, String>?>(null) } // (plainKey, prefix)
 
-    var showEmailLoginDialog by remember { mutableStateOf(false) }
-    var emailInput by remember { mutableStateOf("") }
-    var passwordInput by remember { mutableStateOf("") }
-    var otpInput by remember { mutableStateOf("") }
-    var otpSent by remember { mutableStateOf(false) }
-    var authMode by remember { mutableStateOf("OTP") } // "OTP" or "PASSWORD"
     var isAuthLoading by remember { mutableStateOf(false) }
     var isAutoSyncEnabled by remember {
         mutableStateOf(AppPreferences.isAutoCloudSyncEnabled(context))
@@ -469,15 +464,44 @@ fun DeveloperMcpSection(
 
                     Button(
                         onClick = {
-                            showEmailLoginDialog = true
+                            if (!isAuthLoading) {
+                                scope.launch {
+                                    isAuthLoading = true
+                                    val res = authManager.signInWithGoogle(context)
+                                    isAuthLoading = false
+                                    if (res.isSuccess) {
+                                        isSignedIn = true
+                                        userEmail = AppPreferences.getCloudUserEmail(context)
+                                        Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
+                                        CloudSyncManager.enqueueSync(context, forceAll = true)
+                                        refreshKeys()
+                                    } else {
+                                        val err = res.exceptionOrNull()
+                                        if (err !is GetCredentialCancellationException) {
+                                            Toast.makeText(context, "Sign-in error: ${err?.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                            }
                         },
+                        enabled = !isAuthLoading,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue)
                     ) {
-                        Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Connect Cloud & MCP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        if (isAuthLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Connecting...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        } else {
+                            Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Connect Cloud & MCP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                     }
                 }
             }
@@ -556,155 +580,5 @@ fun DeveloperMcpSection(
                 }
             )
         }
-    }
-
-    // Modal: Cloud Sign-In (Supports 6-digit email OTP and Password)
-    if (showEmailLoginDialog) {
-        val isOtpMode = authMode == "OTP"
-        SrutamStandardDialog(
-            onDismissRequest = {
-                showEmailLoginDialog = false
-                otpSent = false
-                otpInput = ""
-            },
-            title = if (isOtpMode) (if (otpSent) "Verify 6-Digit Code" else "Sign In with Email OTP") else "Sign In with Password",
-            subtitle = if (isOtpMode) {
-                if (otpSent) "Check your email for the verification code" else "We will send a 6-digit confirmation code"
-            } else "Enable cloud sync and API keys for AI coding agents",
-            icon = Icons.Default.CloudSync,
-            badgeType = DialogBadgeType.PRIMARY,
-            confirmText = when {
-                isAuthLoading -> "Processing..."
-                isOtpMode && !otpSent -> "Send Code"
-                isOtpMode && otpSent -> "Verify & Connect"
-                else -> "Sign In"
-            },
-            dismissText = "Cancel",
-            confirmEnabled = !isAuthLoading,
-            onConfirm = {
-                if (emailInput.isBlank()) {
-                    Toast.makeText(context, "Please enter your email address", Toast.LENGTH_SHORT).show()
-                    return@SrutamStandardDialog
-                }
-
-                if (isOtpMode) {
-                    if (!otpSent) {
-                        // Send OTP
-                        scope.launch {
-                            isAuthLoading = true
-                            val res = authManager.sendOtp(emailInput.trim())
-                            isAuthLoading = false
-                            if (res.isSuccess) {
-                                otpSent = true
-                                Toast.makeText(context, "Verification code sent to ${emailInput.trim()}", Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    } else {
-                        // Verify OTP
-                        if (otpInput.isBlank()) {
-                            Toast.makeText(context, "Please enter the 6-digit code", Toast.LENGTH_SHORT).show()
-                            return@SrutamStandardDialog
-                        }
-                        scope.launch {
-                            isAuthLoading = true
-                            val res = authManager.verifyOtp(emailInput.trim(), otpInput.trim())
-                            isAuthLoading = false
-                            if (res.isSuccess) {
-                                isSignedIn = true
-                                userEmail = emailInput.trim()
-                                showEmailLoginDialog = false
-                                otpSent = false
-                                otpInput = ""
-                                Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
-                                CloudSyncManager.enqueueSync(context, forceAll = true)
-                            } else {
-                                Toast.makeText(context, "Verification failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                } else {
-                    // Password Mode
-                    if (passwordInput.isBlank()) {
-                        Toast.makeText(context, "Please enter your password", Toast.LENGTH_SHORT).show()
-                        return@SrutamStandardDialog
-                    }
-                    scope.launch {
-                        isAuthLoading = true
-                        val res = authManager.signInWithEmailPassword(emailInput.trim(), passwordInput.trim())
-                        isAuthLoading = false
-                        if (res.isSuccess) {
-                            isSignedIn = true
-                            userEmail = emailInput.trim()
-                            showEmailLoginDialog = false
-                            Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
-                            CloudSyncManager.enqueueSync(context, forceAll = true)
-                        } else {
-                            Toast.makeText(context, "Sign in failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            },
-            content = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (!otpSent || !isOtpMode) {
-                        OutlinedTextField(
-                            value = emailInput,
-                            onValueChange = { emailInput = it },
-                            label = { Text("Email Address") },
-                            placeholder = { Text("developer@example.com") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (isOtpMode && otpSent) {
-                        Text(
-                            text = "Code sent to ${emailInput.trim()}",
-                            fontSize = 12.sp,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
-                        OutlinedTextField(
-                            value = otpInput,
-                            onValueChange = { if (it.length <= 6) otpInput = it },
-                            label = { Text("6-Digit Code") },
-                            placeholder = { Text("123456") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (!isOtpMode) {
-                        OutlinedTextField(
-                            value = passwordInput,
-                            onValueChange = { passwordInput = it },
-                            label = { Text("Password") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Mode switcher button
-                    TextButton(
-                        onClick = {
-                            authMode = if (isOtpMode) "PASSWORD" else "OTP"
-                            otpSent = false
-                            otpInput = ""
-                        },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            text = if (isOtpMode) "Or sign in with password" else "Or sign in with 6-digit email OTP",
-                            fontSize = 12.sp,
-                            color = CobaltBlue
-                        )
-                    }
-                }
-            }
-        )
     }
 }
