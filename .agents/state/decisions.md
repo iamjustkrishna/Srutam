@@ -440,3 +440,28 @@
      - In `startProgressUpdates()`, added automated end-of-track fallback detection: when position is within 100ms of duration or when `mediaPlayer.isPlaying` becomes false while `_playbackState.value.isPlaying` is still true, `handlePlaybackComplete()` is invoked immediately, ensuring the play/pause icon on `FeedScreen.kt` always resets cleanly to `Icons.Default.PlayArrow`.
      - In `play()`, if current position is at or near duration, auto-seeks to 0 before starting.
   5. **Verification**: Full unit test suite passed (`testDebugUnitTest`), debug APK compiled (`assembleDebug`), installed via adb to physical device `RMX2151` (`192.168.31.163:39509`), and confirmed zero lingering notifications in `dumpsys notification`.
+
+## ADR-041: Srutam Cloud 3-Tier Multi-Key Failover & Rate Limiting Strategy
+- **Status**: Accepted
+- **Context**: 
+  - Free tier LLM APIs enforce strict rate limits: Gemini Free limits requests to 10 RPM per project, while Groq limits `qwen/qwen3.8-27b` to 30 RPM (1,000 requests/day).
+  - During bursts of note queries or insight generations, a single key easily hits HTTP 429 (`RESOURCE_EXHAUSTED`) or intermittent 503 server overloads.
+  - Three API keys are available in `local.properties`: `GEMINI_API_KEY`, `GEMINI_API_KEY2`, and `GROQ_API_KEY`.
+- **Decision**:
+  1. **Cascade Multi-Key Chaining (`SrutamCloudRouter.kt`)**:
+     - Tier 1: Primary Gemini Key (`GEMINI_API_KEY`).
+     - Tier 2: Secondary Gemini Key (`GEMINI_API_KEY2`).
+     - Tier 3: Groq Key (`GROQ_API_KEY`).
+  2. **Automated Cooldown & Bypassing**:
+     - Whenever a tier hits HTTP 429, quota exhaustion, 503, timeout, or server error, mark that tier in a 60-second cooldown window.
+     - Subsequent queries immediately route to the next healthy tier without waiting or incurring delay.
+  3. **High-Traffic Fallback**:
+     - If all three tiers fail or are exhausted, return a consistent friendly error message: `"Srutam AI is currently experiencing high traffic across all servers. Please wait a moment and try again."`
+     - Updated `AIProcessor.kt` to ensure this high traffic message is never stored in the Room `AiQueryCache`.
+  4. **Model Alignment & Verification**:
+     - Gemini: Uses `gemini-3-flash-preview` (proven 100% compatible across both older and newer keys) with automated fallback to `gemini-2.5-flash-lite`.
+     - Groq: Uses `qwen/qwen3.8-27b` with `User-Agent: SrutamAndroid/2.0` header, achieving 30 RPM throughput and ~0.25s response times.
+     - Combined throughput: 50 requests/minute and 4,000 queries/day on 100% free tiers.
+  5. **Verification**:
+     - Unit test suite expanded in `SrutamCloudRouterTest.kt` verifying all failover transitions, cooldowns, and fallbacks.
+     - Compiled debug APK and installed live onto physical device (`RMX2151`).

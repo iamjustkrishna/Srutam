@@ -69,9 +69,9 @@ object AppPreferences {
         return when (provider) {
             PROVIDER_OPENAI -> "gpt-5.6-sol"
             PROVIDER_ANTHROPIC -> "claude-sonnet-4.6"
-            PROVIDER_GEMINI -> "gemini-2.5-flash"
+            PROVIDER_GEMINI -> "gemini-2.5-flash-lite"
             PROVIDER_GROQ -> "qwen3.6-27b"
-            else -> "gemini-2.5-flash"
+            else -> "gemini-2.5-flash-lite"
         }
     }
 

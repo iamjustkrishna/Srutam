@@ -138,7 +138,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             try {
-                val answer = aiProcessor.queryRecording(transcript, question)
+                val answer = aiProcessor.queryRecording(transcript, question, recordingId = _recording.value?.id)
                 addChatMessage(ChatMessage(text = answer, isUser = false))
             } catch (e: Exception) {
                 addChatMessage(

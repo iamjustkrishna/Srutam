@@ -31,14 +31,18 @@ android {
         applicationId = "space.iamjustkrishna.srutam"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "2.2.1"
+        versionCode = 9
+        versionName = "2.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Add API key to BuildConfig
+        // Add API keys to BuildConfig
         val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val geminiApiKey2 = localProperties.getProperty("GEMINI_API_KEY2") ?: ""
+        val groqApiKey = localProperties.getProperty("GROQ_API_KEY") ?: ""
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "GEMINI_API_KEY2", "\"$geminiApiKey2\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
 
         ndk {
             abiFilters.add("arm64-v8a")
@@ -149,6 +153,9 @@ dependencies {
 
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // OkHttp for Cloud LLM REST APIs (Groq, OpenAI, Anthropic)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // WorkManager for background AI processing and constraints
     implementation("androidx.work:work-runtime-ktx:2.10.0")

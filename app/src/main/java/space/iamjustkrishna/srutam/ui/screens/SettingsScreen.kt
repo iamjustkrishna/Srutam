@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.res.painterResource
 import space.iamjustkrishna.srutam.R
+import space.iamjustkrishna.srutam.BuildConfig
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -817,7 +818,7 @@ fun SettingsScreen(
                             color = if (isDark) TextOnDarkPrimary else TextPrimary
                         )
                         Text(
-                            text = "Srutam v2.0.0 (Build 4)",
+                            text = "Srutam v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isDark) TextOnDarkSecondary else TextSecondary
                         )

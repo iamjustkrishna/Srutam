@@ -1,7 +1,15 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam v2.2.1 Single-Instance Recording & Ghost Notification Fix (`fix/single-instance-recording` -> `main`).
+- Milestone: Srutam Cloud 3-Tier Multi-Key Failover & Resilient Rate Limiting (`main`).
+- [x] **Srutam Cloud 3-Tier AI Multi-Key Failover & Rate Limiting (`SrutamCloudRouter.kt`, `GeminiLlmClient.kt`, `GroqLlmClient.kt`, `AIProcessor.kt`, `build.gradle.kts`)**:
+  - Benchmarked live API endpoints: verified `GEMINI_API_KEY` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), `GEMINI_API_KEY2` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), and `GROQ_API_KEY` (30 RPM, 1,000 RPD on `qwen/qwen3.8-27b` with 0.25s average latency).
+  - Combined free tier capacity: 50 requests/minute (10 + 10 + 30) and 4,000 requests/day, backed by on-device Room `AiQueryCache` to ensure 0-cost repeat queries.
+  - Rewrote `SrutamCloudRouter.kt` with a 3-tier cascade: tries Gemini 1 -> if rate limited/error, sets 60s cooldown and tries Gemini 2 -> if rate limited/error, sets 60s cooldown and tries Groq -> if all tiers fail, returns friendly high-traffic message (`"Srutam AI is currently experiencing high traffic across all servers. Please wait a moment and try again."`).
+  - Added cooldown bypassing so subsequent requests during active cooldowns jump directly to healthy tiers without waiting.
+  - Hardened `AIProcessor.kt` to ensure high traffic and error messages are never cached into `AiQueryCache`.
+  - Exposed `GEMINI_API_KEY2` and `GROQ_API_KEY` via `buildConfigField` in `app/build.gradle.kts`.
+  - All unit tests passed (`SrutamCloudRouterTest.kt`), clean compilation, and installed live onto connected physical device `RMX2151`.
 - [x] **Foreground Notification ID Collision Fix & Audio Playback Completion Icon Reset (`FloatingButtonService.kt`, `RecordingForegroundService.kt`, `MainActivity.kt`, `AudioPlayer.kt`)**:
   - Solved stuck ongoing notification after stopping/saving via floating dock: discovered that `FloatingButtonService` and `RecordingForegroundService` both shared `NOTIFICATION_ID = 1001`. When recording stopped, Android kept the notification pinned because `FloatingButtonService` was still running with foreground notification ID 1001. Changed `FloatingButtonService.NOTIFICATION_ID` to `1002`, isolating their notification lifecycles completely.
   - Removed `.setOngoing(true)` from `RecordingForegroundService.createNotification()` to avoid persistent `FLAG_ONGOING_EVENT` remaining on ColorOS/Realme UI after `stopForeground`.

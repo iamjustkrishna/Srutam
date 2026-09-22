@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import space.iamjustkrishna.srutam.SrutamApplication
 import space.iamjustkrishna.srutam.ai.AIProcessor
 import space.iamjustkrishna.srutam.ai.BM25SearchEngine
+import space.iamjustkrishna.srutam.ai.AiCacheUtils
+import space.iamjustkrishna.srutam.data.AiQueryCache
 import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.InsightKind
 import space.iamjustkrishna.srutam.data.InsightStatus
@@ -63,6 +65,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     private val database = (application as space.iamjustkrishna.srutam.SrutamApplication).database
     private val insightDao = database.insightDao()
     private val reminderDao = database.reminderDao()
+    private val aiQueryCacheDao = database.aiQueryCacheDao()
     private val repository: RecordingRepository = RecordingRepository(application.applicationContext, database.recordingDao())
 
     val activityMetrics: StateFlow<UserActivityMetrics> = combine(
@@ -565,7 +568,43 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
         val citedNotes = searchResults.map { Pair(it.document.id, it.document.title) }
 
+        // Context-aware caching using top snippet fingerprint
+        val normalizedQ = AiCacheUtils.normalizeQuery(question)
+        val snippetFingerprint = searchResults.map { "${it.document.id}:${it.document.text.hashCode()}" }
+            .sorted()
+            .joinToString(",")
+        val cacheKey = AiCacheUtils.sha256("global:$normalizedQ:$snippetFingerprint")
+
+        val cached = try {
+            aiQueryCacheDao.get(cacheKey)
+        } catch (e: Exception) {
+            null
+        }
+
+        if (cached != null) {
+            Log.d("AudioFilesViewModel", "Global Copilot cache HIT for: $question")
+            aiQueryCacheDao.updateAccessTime(cacheKey)
+            return@withContext Pair(cached.answer, citedNotes)
+        }
+
         val answer = aiProcessor.queryAllRecordings(snippets, question)
+
+        try {
+            aiQueryCacheDao.insert(
+                AiQueryCache(
+                    cacheKey = cacheKey,
+                    queryType = "GLOBAL",
+                    normalizedQuery = normalizedQ,
+                    contextFingerprint = snippetFingerprint,
+                    answer = answer,
+                    citedNotesJson = gson.toJson(citedNotes)
+                )
+            )
+            aiQueryCacheDao.pruneOldEntries(500)
+        } catch (e: Exception) {
+            Log.w("AudioFilesViewModel", "Failed to cache global query answer: ${e.message}")
+        }
+
         Pair(answer, citedNotes)
     }
 
@@ -583,7 +622,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val noteTitle = rec.name.ifBlank { "Voice Note" }
-        val answer = aiProcessor.queryRecording(rec.transcript, question)
+        val answer = aiProcessor.queryRecording(rec.transcript, question, recordingId = rec.id)
         Pair(answer, listOf(Pair(rec.id, noteTitle)))
     }
 
