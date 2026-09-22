@@ -1,7 +1,12 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Srutam v2.3.0 (versionCode 8) and srutam-mcp v1.1.0 Production Release.
+- Milestone: Srutam v2.3.0 (versionCode 9) and srutam-mcp v1.1.0 Production Release.
+- [x] **Google One Tap (Android Credential Manager) & Dynamic Versioning (`DeveloperMcpSection.kt`, `SupabaseAuthManager.kt`, `SettingsScreen.kt`)**:
+  - Replaced manual email/password and OTP dialogs with native Android 1-tap Google account bottomsheet via Credential Manager (`signInWithGoogle`).
+  - Unified sign-in and sign-up with instant Google ID token exchange against Supabase (`/auth/v1/token?grant_type=id_token`).
+  - Dynamic App Version: updated `SettingsScreen.kt` About card to derive version string from `BuildConfig.VERSION_NAME` and `BuildConfig.VERSION_CODE` (`Srutam v2.3.0 (Build 9)`).
+  - Verified live on physical device (`Realme RMX2151`).
 - [x] **Srutam v2.3.0 & srutam-mcp v1.1.0 Release (`mcp-server/`, `supabase/`, `app/`)**:
   - Hardened `srutam-mcp` (v1.1.0) with multi-developer resilience: 60s in-memory auth cache, 30s read query cache, and 60 req/min token-bucket rate limiter per API key.
   - Interactive CLI Terminal Dashboard: running `srutam-mcp` in terminal now presents a live status dashboard, cloud connectivity check, note count, and tool index. Added `srutam-mcp status` and `srutam-mcp help` CLI commands.
