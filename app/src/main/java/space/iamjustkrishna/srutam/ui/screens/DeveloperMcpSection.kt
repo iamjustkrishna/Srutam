@@ -7,7 +7,9 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,6 +66,7 @@ fun DeveloperMcpSection(
     var isAutoSyncEnabled by remember {
         mutableStateOf(AppPreferences.isAutoCloudSyncEnabled(context))
     }
+    var selectedMcpClient by remember { mutableStateOf("OpenCode") }
 
     fun refreshKeys() {
         if (isSignedIn) {
@@ -262,7 +265,7 @@ fun DeveloperMcpSection(
                                 }
                             }
                             Text(
-                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for Cursor, Antigravity, and Claude",
+                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for OpenCode, Cursor, Windsurf, Zed & Claude",
                                 fontSize = 11.sp,
                                 color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) TextOnDarkSecondary else TextSecondary),
                                 maxLines = 1,
@@ -359,7 +362,7 @@ fun DeveloperMcpSection(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Setup Guide Card
+                    // Setup Guide Card with Client Selector
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isDark) Color(0xFF070B18) else Color(0xFF1E293B),
@@ -379,30 +382,178 @@ fun DeveloperMcpSection(
                                 )
                                 IconButton(
                                     onClick = {
-                                        val sampleJson = """
-                                        {
-                                          "mcpServers": {
-                                            "srutam": {
-                                              "command": "npx",
-                                              "args": ["-y", "srutam-mcp"],
-                                              "env": {
-                                                "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                        val sampleJson = when (selectedMcpClient) {
+                                            "OpenCode" -> """
+                                            {
+                                              "${'$'}schema": "https://opencode.ai/config.json",
+                                              "mcp": {
+                                                "srutam": {
+                                                  "type": "local",
+                                                  "command": ["npx", "-y", "srutam-mcp"],
+                                                  "environment": {
+                                                    "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                                  },
+                                                  "enabled": true
+                                                }
                                               }
                                             }
-                                          }
+                                            """.trimIndent()
+                                            "Zed" -> """
+                                            {
+                                              "context_servers": {
+                                                "srutam": {
+                                                  "command": {
+                                                    "path": "npx",
+                                                    "args": ["-y", "srutam-mcp"],
+                                                    "env": {
+                                                      "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                            """.trimIndent()
+                                            else -> """
+                                            {
+                                              "mcpServers": {
+                                                "srutam": {
+                                                  "command": "npx",
+                                                  "args": ["-y", "srutam-mcp"],
+                                                  "env": {
+                                                    "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                                  }
+                                                }
+                                              }
+                                            }
+                                            """.trimIndent()
                                         }
-                                        """.trimIndent()
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("MCP Config", sampleJson))
-                                        Toast.makeText(context, "Config copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("$selectedMcpClient MCP Config", sampleJson))
+                                        Toast.makeText(context, "$selectedMcpClient config copied to clipboard", Toast.LENGTH_SHORT).show()
                                     },
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy Config", tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Client Switcher Chips Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf("OpenCode", "Cursor", "Windsurf", "Zed", "Claude").forEach { client ->
+                                    val isSelected = selectedMcpClient == client
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) CobaltBlue else (if (isDark) Color(0xFF131B2E) else Color(0xFF334155)),
+                                        modifier = Modifier.clickable { selectedMcpClient = client }
+                                    ) {
+                                        Text(
+                                            text = client,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val configPathHint = when (selectedMcpClient) {
+                                "OpenCode" -> "opencode.json (project root or ~/.config/opencode/)"
+                                "Cursor" -> ".cursor/mcp.json or Settings > Features > MCP"
+                                "Windsurf" -> "~/.codeium/windsurf/mcp_config.json"
+                                "Zed" -> "settings.json (under context_servers)"
+                                "Claude" -> "claude_desktop_config.json"
+                                else -> "mcp_config.json"
+                            }
+
                             Text(
-                                text = "Run 'srutam-mcp init' in terminal or add srutam-mcp to your Cursor / Antigravity config to query voice memos.",
+                                text = "Path: $configPathHint",
+                                fontSize = 10.5.sp,
+                                color = Color(0xFF94A3B8),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val snippetDisplay = when (selectedMcpClient) {
+                                "OpenCode" -> """
+                                {
+                                  "${'$'}schema": "https://opencode.ai/config.json",
+                                  "mcp": {
+                                    "srutam": {
+                                      "type": "local",
+                                      "command": ["npx", "-y", "srutam-mcp"],
+                                      "environment": {
+                                        "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                      },
+                                      "enabled": true
+                                    }
+                                  }
+                                }
+                                """.trimIndent()
+                                "Zed" -> """
+                                {
+                                  "context_servers": {
+                                    "srutam": {
+                                      "command": {
+                                        "path": "npx",
+                                        "args": ["-y", "srutam-mcp"],
+                                        "env": {
+                                          "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                                """.trimIndent()
+                                else -> """
+                                {
+                                  "mcpServers": {
+                                    "srutam": {
+                                      "command": "npx",
+                                      "args": ["-y", "srutam-mcp"],
+                                      "env": {
+                                        "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
+                                      }
+                                    }
+                                  }
+                                }
+                                """.trimIndent()
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = snippetDisplay,
+                                    fontSize = 10.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF38BDF8),
+                                    lineHeight = 15.sp,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .horizontalScroll(rememberScrollState())
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = "Run 'srutam-mcp init' in terminal for auto configuration wizard.",
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8)
                             )
@@ -444,7 +595,7 @@ fun DeveloperMcpSection(
                                 color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
-                                text = "Connect Cursor, Antigravity & Claude Desktop",
+                                text = "Connect OpenCode, Cursor, Windsurf, Zed & Claude",
                                 fontSize = 12.sp,
                                 color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
@@ -535,7 +686,7 @@ fun DeveloperMcpSection(
                         value = keyNameInput,
                         onValueChange = { keyNameInput = it },
                         label = { Text("Key Label") },
-                        placeholder = { Text("e.g. Work Cursor, Antigravity") },
+                        placeholder = { Text("e.g. OpenCode, Cursor, Windsurf") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
