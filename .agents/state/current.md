@@ -2,6 +2,9 @@
 
 ## Active Focus
 - Milestone: Intuitive Ambient Capture Onboarding & Habit Formation (`feature/intuitive-capture-onboarding`).
+- [x] **Version Bump to 2.2.3 (Build 10) for Play Store Release (`build.gradle.kts`)**:
+  - Bumped `versionCode = 10` and `versionName = "2.2.3"`.
+  - Verified clean release bundle compilation (`bundleRelease`), R8 minification, and signing generating production `app-release.aab` (79.5 MB).
 - [x] **BYOK Card Visual Padding & Height Alignment (`BYOKOnboardingScreen.kt`)**:
   - Resolved visual asymmetry between "Srutam Cloud" and "Bring Your Own Key" cards on the "Choose Your AI Engine" screen.
   - Aligned both card headers with `verticalAlignment = Alignment.CenterVertically` and balanced padding `padding(horizontal = 16.dp, vertical = 14.dp)`, vertically centering the 44dp leading icon, text column, and 48dp radio button.
