@@ -395,18 +395,6 @@ fun BYOKOnboardingScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) Color.White else TextPrimary
                                 )
-                                Surface(
-                                    color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFEFF6FF),
-                                    shape = CircleShape
-                                ) {
-                                    Text(
-                                        text = "BYOK",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isDark) Color(0xFF93C5FD) else CobaltBlue,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    )
-                                }
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
