@@ -265,8 +265,8 @@ fun BYOKOnboardingScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalAlignment = Alignment.Top,
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
@@ -360,11 +360,11 @@ fun BYOKOnboardingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
@@ -412,7 +412,7 @@ fun BYOKOnboardingScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Connect your Gemini, OpenAI, Claude, or Groq key for unlimited requests and model control.",
+                                text = "Use your own Gemini, OpenAI, Claude, or Groq API key.",
                                 fontSize = 13.sp,
                                 color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 lineHeight = 18.sp
@@ -440,7 +440,7 @@ fun BYOKOnboardingScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 16.dp)
+                                .padding(top = 14.dp)
                         ) {
                             HorizontalDivider(
                                 color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.7f),
