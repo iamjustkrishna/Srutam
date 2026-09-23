@@ -2,6 +2,12 @@
 
 ## Active Focus
 - Milestone: Intuitive Ambient Capture Onboarding & Habit Formation (`feature/intuitive-capture-onboarding`).
+- [x] **BYOK Card Visual Padding & Height Alignment (`BYOKOnboardingScreen.kt`)**:
+  - Resolved visual asymmetry between "Srutam Cloud" and "Bring Your Own Key" cards on the "Choose Your AI Engine" screen.
+  - Aligned both card headers with `verticalAlignment = Alignment.CenterVertically` and balanced padding `padding(horizontal = 16.dp, vertical = 14.dp)`, vertically centering the 44dp leading icon, text column, and 48dp radio button.
+  - Streamlined BYOK card subtitle to 2 lines (`"Use your own Gemini, OpenAI, Claude, or Groq API key."`) matching the exact 2-line cadence and pixel-identical height of the Srutam Cloud card.
+  - Re-recorded Roborazzi screenshot matrix tests (`02b_byok_onboarding.png`, `02c_byok_expanded.png`), verifying pixel-perfect visual balance in collapsed and expanded states.
+  - Clean Kotlin compilation and successfully installed update on physical test device over ADB.
 - [x] **Intuitive Capture Activation Onboarding & Habit Formation Flow (`CaptureSetupScreen.kt`, `MainActivity.kt`, `FeedScreen.kt`, `AppPreferences.kt`, `ScreenMatrixPreviews.kt`)**:
   - Implemented dedicated `CaptureSetupScreen.kt` featuring pure Compose hero animation (`FloatingDockHeroIllustration`) with phone wireframe, pulsing floating dock, and soundwave ripples (zero Lottie dependency, fully theme-aware across Light and Cosmic Dark).
   - Wired `AppStage.CAPTURE_SETUP` directly between `BYOK_SETUP` and `MAIN` in `MainActivity.kt` for fresh installs.
