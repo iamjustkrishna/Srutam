@@ -1,7 +1,17 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone: Intuitive Ambient Capture Onboarding & Habit Formation (`feature/intuitive-capture-onboarding`).
+- Milestone: Action Item & Reminder Lifecycle Management (`feature/action-item-lifecycle`).
+- [x] **Action Item & Reminder Lifecycle Architecture (`InsightLifecycleManager.kt`, `BootRescheduleReceiver.kt`, `InsightDao.kt`, `ReminderDao.kt`, `AudioFilesViewModel.kt`, `ActionItemsScreen.kt`, `AndroidManifest.xml`)**:
+  - Implemented automatic time-based lifecycle management to keep the Action Items and Insights screen clean, uncluttered, and proactive.
+  - **Auto-Archive Stale Actions**: Completed action items older than 3 days are automatically moved from `COMPLETED` to `ARCHIVED` on app startup (`autoArchiveStaleCompleted`), keeping the active and completed lists tidy while preserving them in Room DB.
+  - **DB Purge Policy**: Hard-deletes archived action items older than 30 days and completed/dismissed reminders older than 60 days to prevent unbounded database growth.
+  - **Reminder Auto-Dismiss & Overdue Management**: Overdue active reminders whose scheduled time has passed (+ 1 hour grace period) are automatically updated to `DISMISSED` so they stop lingering indefinitely above the insights capsule.
+  - **Past Reminders Collapsible History**: Added `PastRemindersSection` on `ActionItemsScreen.kt` below the Upcoming section, giving users a neat collapsible view of their past reminders (Done/Missed) with clear status pills and strike-through text.
+  - **Alarm Cancellation on Complete/Dismiss**: Updating a reminder's status to `COMPLETED` or `DISMISSED` now immediately cancels its pending `AlarmManager` alarms via `ReminderScheduler.cancelReminder()`.
+  - **Device Reboot Resilience**: Added `BootRescheduleReceiver` listening to `android.intent.action.BOOT_COMPLETED` with permission `RECEIVE_BOOT_COMPLETED` and `USE_EXACT_ALARM`, restoring all future active reminders after device reboot.
+  - **Build & Verification**: 100% unit tests passed (`testDebugUnitTest`), debug APK compiled and installed live onto connected physical test device (`RMX2151`), and `MainActivity` launched.
+
 - [x] **Version Bump to 2.2.4 (Build 11) for Play Store Release (`build.gradle.kts`)**:
   - Bumped `versionCode = 11` and `versionName = "2.2.4"`.
   - Verified clean release bundle compilation (`bundleRelease`), R8 minification, and signing generating production `app-release.aab` (79.5 MB).
