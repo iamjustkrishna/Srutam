@@ -55,4 +55,12 @@ interface InsightDao {
 
     @Query("SELECT COUNT(*) FROM insight_items")
     suspend fun getInsightCount(): Int
+
+    /** Auto-archive completed actions older than [cutoffMs]. Called on app startup. */
+    @Query("UPDATE insight_items SET status = 'ARCHIVED', archivedAt = :now WHERE kind = 'ACTION' AND status = 'COMPLETED' AND completedAt IS NOT NULL AND completedAt < :cutoffMs")
+    suspend fun autoArchiveStaleCompleted(cutoffMs: Long, now: Long = System.currentTimeMillis())
+
+    /** Hard-delete archived items older than [cutoffMs] to prevent infinite DB growth. */
+    @Query("DELETE FROM insight_items WHERE kind = 'ACTION' AND status = 'ARCHIVED' AND archivedAt IS NOT NULL AND archivedAt < :cutoffMs")
+    suspend fun purgeOldArchived(cutoffMs: Long)
 }

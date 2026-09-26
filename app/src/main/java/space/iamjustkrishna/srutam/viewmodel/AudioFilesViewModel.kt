@@ -93,6 +93,9 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     val archivedActionsCount: StateFlow<Int> = insightDao.getArchivedActionsCountFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    val pastReminders: StateFlow<List<space.iamjustkrishna.srutam.data.ReminderEntity>> = reminderDao.getPastRemindersFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _themeClusters = MutableStateFlow<List<ThemeCluster>>(emptyList())
     val themeClusters: StateFlow<List<ThemeCluster>> = _themeClusters.asStateFlow()
 
@@ -636,7 +639,17 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun updateReminderStatus(id: String, status: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Cancel the scheduled alarm if completing or dismissing
+            if (status == space.iamjustkrishna.srutam.data.ReminderStatus.COMPLETED ||
+                status == space.iamjustkrishna.srutam.data.ReminderStatus.DISMISSED) {
+                val reminder = reminderDao.getReminderById(id)
+                if (reminder != null) {
+                    space.iamjustkrishna.srutam.service.ReminderScheduler.cancelReminder(
+                        getApplication(), reminder
+                    )
+                }
+            }
             reminderDao.updateReminderStatus(id, status)
         }
     }

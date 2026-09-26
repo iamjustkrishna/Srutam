@@ -79,6 +79,7 @@ fun ActionItemsScreen(
     val themeClusters by viewModel.themeClusters.collectAsState()
     val archivedActionsCount by viewModel.archivedActionsCount.collectAsState()
     val upcomingReminders by viewModel.upcomingReminders.collectAsState()
+    val pastReminders by viewModel.pastReminders.collectAsState()
 
     ActionItemsContent(
         activeActions = activeActions,
@@ -87,6 +88,7 @@ fun ActionItemsScreen(
         themeClusters = themeClusters,
         archivedActionsCount = archivedActionsCount,
         upcomingReminders = upcomingReminders,
+        pastReminders = pastReminders,
         onRecordingClick = onRecordingClick,
         onSettingsClick = onSettingsClick,
         onActionToggle = { viewModel.toggleActionComplete(it) },
@@ -106,6 +108,7 @@ fun ActionItemsContent(
     themeClusters: List<ThemeCluster> = emptyList(),
     archivedActionsCount: Int = 0,
     upcomingReminders: List<ReminderEntity> = emptyList(),
+    pastReminders: List<ReminderEntity> = emptyList(),
     initialTab: InsightsTab = InsightsTab.NEXT_STEPS,
     onRecordingClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -168,6 +171,13 @@ fun ActionItemsContent(
                     reminders = upcomingReminders,
                     onReminderClick = onRecordingClick,
                     onReminderComplete = onReminderComplete
+                )
+            }
+
+            if (pastReminders.isNotEmpty()) {
+                PastRemindersSection(
+                    reminders = pastReminders,
+                    onReminderClick = onRecordingClick
                 )
             }
 
@@ -1491,3 +1501,142 @@ private fun ReminderCard(
     }
 }
 
+
+@Composable
+fun PastRemindersSection(
+    reminders: List<ReminderEntity>,
+    onReminderClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsCosmicDark.current
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (isDark) Color(0xFF131B2E) else SlateSurface,
+            border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { isExpanded = !isExpanded }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = if (isDark) TextOnDarkSecondary else TextSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Past Reminders (${reminders.size})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) TextOnDarkSecondary else TextSecondary
+                    )
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (isDark) TextOnDarkSecondary else TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                reminders.forEach { reminder ->
+                    PastReminderCard(
+                        reminder = reminder,
+                        isDark = isDark,
+                        onClick = { onReminderClick(reminder.recordingId) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PastReminderCard(
+    reminder: ReminderEntity,
+    isDark: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val statusColor = when (reminder.status) {
+        ReminderStatus.COMPLETED -> if (isDark) CosmicAuroraGreen else EmeraldSuccess
+        else -> if (isDark) TextOnDarkSecondary else TextMuted
+    }
+    val statusLabel = when (reminder.status) {
+        ReminderStatus.COMPLETED -> "Done"
+        ReminderStatus.DISMISSED -> "Missed"
+        else -> reminder.status
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isDark) CosmicVoidCard.copy(alpha = 0.6f) else CeramicWhite.copy(alpha = 0.7f),
+        border = BorderStroke(
+            1.dp,
+            if (isDark) CosmicVoidCardBorder.copy(alpha = 0.5f) else SlateBorder.copy(alpha = 0.5f)
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = reminder.title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                    textDecoration = if (reminder.status == ReminderStatus.COMPLETED)
+                        TextDecoration.LineThrough else TextDecoration.None,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formatHumanRelativeDate(reminder.eventTimeMs),
+                    fontSize = 11.sp,
+                    color = if (isDark) TextOnDarkSecondary.copy(alpha = 0.6f) else TextMuted
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = statusColor.copy(alpha = if (isDark) 0.2f else 0.12f)
+            ) {
+                Text(
+                    text = statusLabel,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+}

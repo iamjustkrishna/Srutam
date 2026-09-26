@@ -31,4 +31,20 @@ interface ReminderDao {
 
     @Query("DELETE FROM reminders WHERE recordingId = :recordingId")
     suspend fun deleteRemindersByRecordingId(recordingId: Long)
+
+    /** Recent completed/dismissed reminders for history view. */
+    @Query("SELECT * FROM reminders WHERE status IN ('COMPLETED', 'DISMISSED') ORDER BY eventTimeMs DESC LIMIT 20")
+    fun getPastRemindersFlow(): Flow<List<ReminderEntity>>
+
+    /** Auto-dismiss overdue ACTIVE reminders whose event time has passed + grace period. */
+    @Query("UPDATE reminders SET status = 'DISMISSED' WHERE status = 'ACTIVE' AND eventTimeMs < :cutoffMs")
+    suspend fun autoDismissOverdue(cutoffMs: Long)
+
+    /** Get all ACTIVE reminders (non-flow, for rescheduling on boot). */
+    @Query("SELECT * FROM reminders WHERE status = 'ACTIVE' AND eventTimeMs > :nowMs")
+    suspend fun getFutureActiveReminders(nowMs: Long): List<ReminderEntity>
+
+    /** Hard-delete dismissed/completed reminders older than [cutoffMs]. */
+    @Query("DELETE FROM reminders WHERE status IN ('COMPLETED', 'DISMISSED') AND eventTimeMs < :cutoffMs")
+    suspend fun purgeOldReminders(cutoffMs: Long)
 }
