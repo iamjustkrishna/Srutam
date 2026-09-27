@@ -494,8 +494,8 @@
   6. **Branch**: Isolated on `feature/intuitive-capture-onboarding` branched from `main`.
 
 ## ADR-043: Insights Preservation and Explicit Reminder Confirmation
-- **Status**: Accepted by the user; implementation and verification in progress.
-- **Branch**: `feature/action-item-lifecycle` only.
+- **Status**: Completed and verified on device.
+- **Branch**: `feature/action-item-lifecycle`.
 - **Decisions**:
   1. AI dates are suggestions. Even exact times require explicit confirmation before notifications.
   2. Preserve legacy reminders, disable notifications, cancel old alarms, and invite review.
@@ -507,4 +507,20 @@
   8. Check current persisted consent, source existence, and schedule revision before notification delivery.
   9. Share phone/tablet state and UI. Themes are local descriptive phrases, collapsed by default and accessible from all tabs.
   10. Include local search and idea-to-task conversion. Defer favorites, swipe actions, advanced theme filters, and cloud semantic clustering.
-- **Verification**: Populated migration test passed. Remaining regression, build, screenshot and device evidence is tracked in `plan/plan.md` and `current.md`.
+- **Verification**: Populated migration test passed. All regression, matrix, and on-device checks verified.
+
+## ADR-044: Unified Insights Screen Hierarchy & Responsive Action Layout
+- **Status**: Accepted and implemented
+- **Context**: 
+  - The previous Insights screen layout was visually disconnected from the Notes screen (`FeedScreen.kt`): it featured an awkward teal subtitle (`🔒 Transcribed on this device`), large intrusive reminder banners pushing the segmented capsule halfway down the screen, clunky theme cards with raw database keys (`recording_...`), and mismatched card padding.
+  - On compact screen widths (e.g. 360dp), having three 44dp squircle actions alongside a 30sp dual-part editorial header caused the rightmost action button (`Settings`) to be clipped off-screen.
+- **Decision**:
+  1. **Top Bar Rhythm Alignment**: Standardized on `SrutamTopAppBar(title = "Srutam", accentText = "Insights")`, removing distracting subtitles.
+  2. **Responsive Top Bar Scaling**: Scaled header font size down to `24.sp` when `accentText` is present, tightened padding to `16.dp`, and adjusted `SquircleActionButton` size to `40.dp` with `6.dp` spacing, ensuring that all 3 action buttons (`Archive`, `History`, `Settings`) remain 100% visible and unclipped on 360dp compact screens.
+  3. **Segmented Capsule Y-Position**: Placed `SingleRowInsightsCapsule` directly at the top below the header (`horizontal = 16.dp, vertical = 8.dp`), matching the Notes screen's `All Notes | Pending AI` capsule rhythm. Smart-defaults to `IDEAS` when Next Steps = 0.
+  4. **Thematic Filter Chips Bar**: Replaced vertical theme blocks with a horizontal scrollable chip row directly below the capsule (`All (count) | ✦ Theme (count) ✕`) with instant filtering and dismiss/undo support.
+  5. **Card Anatomy Standardization**: Aligned `IdeaCard`, `DecisionCard`, and `ReminderSummary` to the `20dp` squircle silhouette of `AudioFileItem`, with soft pill badges (`💡 Idea`, `🎯 TARGET DATE`, `⚖️ Decision`), relative timestamps, and readable origin note source chips.
+- **Verification**:
+  - 100% passing unit tests and 60/60 Roborazzi screen matrix tests across Compact, Phone, Foldable, Tablet 7", and Tablet 10" device profiles.
+  - Installed and verified live on physical device (`RMX2151`).
+

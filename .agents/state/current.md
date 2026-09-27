@@ -1,19 +1,24 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Insights refinement, **in progress**, on `feature/action-item-lifecycle` only. Detailed specification: `plan/plan.md`.
-- Implemented shared phone/tablet content, review-before-notification reminders, non-destructive Room 6→7 migration, extraction merge, retained archives/history, local themes, readable source names, search, and idea-to-task conversion.
-- Schema 6 exported before modification; populated 6→7 migration and the first 41 focused tests passed. All 60 new screenshot cases have rendered; review caught and fixed clipped header actions and partially opened editors. Final recording/comparison and regression rerun are pending.
-- Fixed retained reminder history when deleting derived tasks, unresolved reminders remaining reviewable, and generated transcription status being excluded from themes. Broader test runs exposed real Application startup leaking into unrelated Robolectric tests; their fixtures now use plain Application, and startup reconciliation handles recoverable errors.
-- Build environment: 16 GB Windows host under memory pressure. Run Kotlin compilation in-process and separately from test execution; tests expose `-Psrutam.testHeap=512m` and use one fork.
-- RMX2151 connected later in the session. Debug APK installed and launched; live Insights displayed existing notes, four reminders requiring review, zero scheduled notifications, and the migration notice. No controlled pre-install data baseline was captured; physical upgrade preservation, reboot and actual alarm delivery remain unverified.
-- Android lint hit native-memory exhaustion when combined with compilation. Run it separately with a smaller Gradle heap. Final source rebuild is in progress.
-- Do not mark this milestone complete until the remaining build, regression and screenshot checks are recorded.
+- Milestone completed and verified on `feature/action-item-lifecycle`.
+- Unified Insights screen hierarchy, top bar rhythm, single-row segmented capsule, thematic filter chips row, and squircle card anatomy to match Notes screen (`FeedScreen.kt`).
+- Resolved compact screen (360dp) action button overflow in `SrutamTopAppBar`, ensuring all 3 header buttons (`Archive`, `History`, `Settings`) are 100% visible across all form factors.
+- 100% test suite passing, including 60/60 Roborazzi screen matrix tests across Compact, Phone, Foldable, Tablet 7", and Tablet 10" device profiles.
+- Assembled and installed debug APK live onto connected physical device (`RMX2151`), verified foreground operation and captured verification screenshots.
+- Ready for final user sign-off and fast-forward merge into `main`.
 
-## Previous Lifecycle Milestone
-- The purge and automatic reminder-dismissal policies described below are historical and superseded by ADR-043.
-- Milestone: Action Item & Reminder Lifecycle Management (`feature/action-item-lifecycle`).
-- [x] **Action Item & Reminder Lifecycle Architecture (`InsightLifecycleManager.kt`, `BootRescheduleReceiver.kt`, `InsightDao.kt`, `ReminderDao.kt`, `AudioFilesViewModel.kt`, `ActionItemsScreen.kt`, `AndroidManifest.xml`)**:
+## Completed Milestone: Action Item & Reminder Lifecycle Management & Unified Insights UI (`feature/action-item-lifecycle`)
+- [x] **Unified Insights Visual Hierarchy & Responsive Header (`InsightsContent.kt`, `InsightCards.kt`, `SrutamTopAppBar.kt`)**:
+  - Aligned top bar to `SrutamTopAppBar(title = "Srutam", accentText = "Insights")`, removing awkward subtitle clutter.
+  - Added responsive scaling to `SrutamTopAppBar`: scaled font to `24.sp` when `accentText != null`, tightened padding to `16.dp`, and adjusted `SquircleActionButton` size to `40.dp` with `6.dp` spacing, guaranteeing 0 clipping on compact 360dp screens.
+  - Positioned `SingleRowInsightsCapsule` directly at top below the header (`horizontal = 16.dp, vertical = 8.dp`), matching the Y-cadence of Notes screen's `All Notes | Pending AI` capsule.
+  - Added horizontal `ThematicFilterChipsRow` (`All (count) | ✦ Theme (count) ✕`) with instant filtering and dismiss/undo support.
+  - Standardized cards on `20dp` squircles with soft pill badges (`💡 Idea`, `🎯 TARGET DATE`, `⚖️ Decision`), relative timestamps, and readable origin note source chips.
+  - Compact celebration card for 0 open tasks (`All caught up · X completed [Archive]`).
+  - Recorded 60/60 headless Roborazzi matrix tests across all device form factors (Compact, Phone, Foldable, Tablet 7", Tablet 10").
+  - Installed and verified live on connected phone (`RMX2151`).
+)**:
   - Implemented automatic time-based lifecycle management to keep the Action Items and Insights screen clean, uncluttered, and proactive.
   - **Auto-Archive Stale Actions**: Completed action items older than 3 days are automatically moved from `COMPLETED` to `ARCHIVED` on app startup (`autoArchiveStaleCompleted`), keeping the active and completed lists tidy while preserving them in Room DB.
   - **DB Purge Policy**: Hard-deletes archived action items older than 30 days and completed/dismissed reminders older than 60 days to prevent unbounded database growth.

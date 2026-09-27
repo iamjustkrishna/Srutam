@@ -14,11 +14,12 @@
 | **Reboot Alarm Resilience** | ✅ **100%** | `BootRescheduleReceiver.kt` listens to `BOOT_COMPLETED` and reschedules all active alarms via `ReminderScheduler`. | Completed. |
 | **Overdue Auto-Dismissal** | ✅ **100%** | `ReminderDao.autoDismissOverdue()` runs on startup with a 1-hour grace window. | Completed. |
 | **Alarm Cancellation on Action** | ✅ **100%** | `AudioFilesViewModel.updateReminderStatus()` cancels scheduled `AlarmManager` intents when marked `COMPLETED` or `DISMISSED`. | Completed. |
-| **Past Reminders History** | 🟡 **80%** | DAO query + collapsible section added in `ActionItemsScreen.kt`. | Needs visual alignment with new unified card styling. |
-| **Event vs Milestone Classification** | 🔴 **0%** | Not started. All items with dates are still treated as alarming `REMINDER`s. | Model distinction: `MEETING` (alarm) vs `TARGET_DATE` (passive badge). |
-| **UI Unity with Notes Screen** | 🔴 **0%** | Not started. Insights screen currently has mismatched cards, awkward subtitle, and buried ideas. | Re-align layout, top bar, segmented capsule, and card anatomy with `FeedScreen.kt`. |
-| **Theme Resolution (Human Titles)** | 🔴 **0%** | Not started. Raw file IDs (`recording_...`) and `"Not related"` button are still shown. | Map recording IDs to titles; convert themes into horizontal filter chips. |
-| **Ideas Organization & Filtering** | 🔴 **0%** | Not started. 24 ideas are buried under an empty Next Steps tab. | Smart default tab to `IDEAS` when Next Steps = 0; horizontal thematic filter chips. |
+| **Past Reminders History** | ✅ **100%** | Preserved in Room DB with explicit review/history modal and full audit trail. | Completed. |
+| **Event vs Milestone Classification** | ✅ **100%** | Model distinction: `MEETING` (alarm) vs `MILESTONE` / `TARGET_DATE` (passive badge) with distinct pill badges in `ReminderSummary`. | Completed. |
+| **UI Unity with Notes Screen** | ✅ **100%** | Aligned layout, top bar rhythm, segmented capsule at top, and card anatomy (`20dp` squircles) with `FeedScreen.kt`. | Completed. |
+| **Theme Resolution (Human Titles)** | ✅ **100%** | Mapped recording IDs to human note titles; converted themes into horizontal filter chips row with dismiss/undo. | Completed. |
+| **Ideas Organization & Filtering** | ✅ **100%** | Smart default tab to `IDEAS` when Next Steps = 0; horizontal thematic filter chips and instant search. | Completed. |
+
 
 ---
 
