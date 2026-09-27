@@ -27,7 +27,8 @@ fun SquircleActionButton(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    tint: Color? = null
+    tint: Color? = null,
+    size: androidx.compose.ui.unit.Dp = 40.dp
 ) {
     val isDark = LocalIsCosmicDark.current
     val resolvedTint = tint ?: if (isDark) TextOnDarkPrimary else Color(0xFF1E2229)
@@ -37,7 +38,7 @@ fun SquircleActionButton(
         color = if (isDark) CosmicVoidCard else Color.White.copy(alpha = 0.88f),
         border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFD6E0EC).copy(alpha = 0.85f)),
         shadowElevation = if (isDark) 0.dp else 1.dp,
-        modifier = modifier.size(44.dp)
+        modifier = modifier.size(size)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -64,6 +65,8 @@ fun SrutamTopAppBar(
 ) {
     val isDark = LocalIsCosmicDark.current
     val resolvedSubtitleColor = subtitleColor ?: if (isDark) TextOnDarkSecondary else TextSecondary
+    val titleFontSize = if (accentText != null) 24.sp else 30.sp
+    val accentFontSize = if (accentText != null) 24.sp else 30.sp
 
     Surface(
         color = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
@@ -82,35 +85,41 @@ fun SrutamTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 8.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = title,
-                        fontSize = 30.sp,
+                        fontSize = titleFontSize,
                         fontFamily = PlayfairDisplayFontFamily,
                         fontWeight = titleFontWeight,
-                        color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229)
+                        color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229),
+                        maxLines = 1
                     )
                     if (accentText != null) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = accentText,
-                            fontSize = 30.sp,
+                            fontSize = accentFontSize,
                             fontFamily = PlayfairDisplayFontFamily,
                             fontStyle = FontStyle.Italic,
                             fontWeight = accentFontWeight,
-                            color = if (isDark) CosmicGlowBlue else CobaltBlue
+                            color = if (isDark) CosmicGlowBlue else CobaltBlue,
+                            maxLines = 1
                         )
                     }
                 }
+                Spacer(modifier = Modifier.width(6.dp))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     actions()
