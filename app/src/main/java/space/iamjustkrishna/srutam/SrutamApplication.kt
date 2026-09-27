@@ -1,6 +1,8 @@
 package space.iamjustkrishna.srutam
 
 import android.app.Application
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,13 +21,20 @@ class SrutamApplication : Application() {
         instance = this
         AudioFileReader.init(this)
 
-        // Run lifecycle cleanup: auto-archive stale tasks, dismiss overdue reminders, purge old data
+        // Auto-archive completed tasks and reconcile alarms while retaining saved history.
         appScope.launch {
-            InsightLifecycleManager.runStartupCleanup(
-                insightDao = database.insightDao(),
-                reminderDao = database.reminderDao(),
-                context = this@SrutamApplication
-            )
+            try {
+                InsightLifecycleManager.runStartupCleanup(
+                    insightDao = database.insightDao(),
+                    reminderDao = database.reminderDao(),
+                    context = this@SrutamApplication
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // Opening Insights retries reconciliation and displays any persistent error.
+                Log.w("SrutamApplication", "Insights reconciliation will retry when opened", failure)
+            }
         }
     }
 

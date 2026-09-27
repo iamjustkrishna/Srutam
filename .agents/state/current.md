@@ -1,6 +1,17 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
+- Insights refinement, **in progress**, on `feature/action-item-lifecycle` only. Detailed specification: `plan/plan.md`.
+- Implemented shared phone/tablet content, review-before-notification reminders, non-destructive Room 6→7 migration, extraction merge, retained archives/history, local themes, readable source names, search, and idea-to-task conversion.
+- Schema 6 exported before modification; populated 6→7 migration and the first 41 focused tests passed. All 60 new screenshot cases have rendered; review caught and fixed clipped header actions and partially opened editors. Final recording/comparison and regression rerun are pending.
+- Fixed retained reminder history when deleting derived tasks, unresolved reminders remaining reviewable, and generated transcription status being excluded from themes. Broader test runs exposed real Application startup leaking into unrelated Robolectric tests; their fixtures now use plain Application, and startup reconciliation handles recoverable errors.
+- Build environment: 16 GB Windows host under memory pressure. Run Kotlin compilation in-process and separately from test execution; tests expose `-Psrutam.testHeap=512m` and use one fork.
+- RMX2151 connected later in the session. Debug APK installed and launched; live Insights displayed existing notes, four reminders requiring review, zero scheduled notifications, and the migration notice. No controlled pre-install data baseline was captured; physical upgrade preservation, reboot and actual alarm delivery remain unverified.
+- Android lint hit native-memory exhaustion when combined with compilation. Run it separately with a smaller Gradle heap. Final source rebuild is in progress.
+- Do not mark this milestone complete until the remaining build, regression and screenshot checks are recorded.
+
+## Previous Lifecycle Milestone
+- The purge and automatic reminder-dismissal policies described below are historical and superseded by ADR-043.
 - Milestone: Action Item & Reminder Lifecycle Management (`feature/action-item-lifecycle`).
 - [x] **Action Item & Reminder Lifecycle Architecture (`InsightLifecycleManager.kt`, `BootRescheduleReceiver.kt`, `InsightDao.kt`, `ReminderDao.kt`, `AudioFilesViewModel.kt`, `ActionItemsScreen.kt`, `AndroidManifest.xml`)**:
   - Implemented automatic time-based lifecycle management to keep the Action Items and Insights screen clean, uncluttered, and proactive.

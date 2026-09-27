@@ -188,7 +188,10 @@ class AiProcessingWorker(
                         )
                     )
 
-                    val insights = aiProcessor.generateInsights(transcript!!)
+                    val insights = aiProcessor.generateInsights(transcript!!, space.iamjustkrishna.srutam.ai.RecordingTimeContext(
+                        recording.timestamp, recording.recordedZoneId ?: java.time.ZoneId.systemDefault().id,
+                        recording.recordedZoneId == null
+                    ))
                     val updatedName = if (recording.name.isBlank() ||
                         recording.name == "Voice Note" ||
                         recording.name.startsWith("Voice note", ignoreCase = true)
@@ -198,16 +201,11 @@ class AiProcessingWorker(
                         recording.name
                     }
 
-                    saveInsightsToRoom(
-                        insightDao = insightDao,
-                        reminderDao = reminderDao,
-                        recordingId = recording.id,
-                        recordingName = updatedName,
-                        timestamp = recording.timestamp,
-                        insights = insights
-                    )
+                    space.iamjustkrishna.srutam.repository.InsightsRepository.from(applicationContext)
+                        .merge(recording.id, insights)
 
                     val finishedRecording = recording.copy(
+                        insightsImported = true,
                         name = updatedName,
                         summary = insights.summary,
                         keyPoints = gson.toJson(insights.keyPoints),
@@ -410,104 +408,6 @@ class AiProcessingWorker(
 
         notificationManager.createNotificationChannel(progressChannel)
         notificationManager.createNotificationChannel(completionChannel)
-    }
-
-    private suspend fun saveInsightsToRoom(
-        insightDao: InsightDao,
-        reminderDao: ReminderDao,
-        recordingId: Long,
-        recordingName: String,
-        timestamp: Long,
-        insights: AIProcessor.AIInsights
-    ) {
-        try {
-            insightDao.deleteInsightsByRecordingId(recordingId)
-            val entities = mutableListOf<InsightEntity>()
-
-            insights.actionItems.forEachIndexed { idx, rawAction ->
-                val cleanText = rawAction.removePrefix("[ ]").removePrefix("[]").trim()
-                if (cleanText.isNotBlank()) {
-                    entities.add(
-                        InsightEntity(
-                            id = "${recordingId}_action_${idx}_${System.currentTimeMillis()}",
-                            recordingId = recordingId,
-                            recordingName = recordingName,
-                            kind = InsightKind.ACTION,
-                            text = cleanText,
-                            status = InsightStatus.OPEN,
-                            createdAt = timestamp,
-                            sourceOrder = idx
-                        )
-                    )
-                }
-            }
-
-            insights.ideas.forEachIndexed { idx, ideaText ->
-                if (ideaText.isNotBlank()) {
-                    entities.add(
-                        InsightEntity(
-                            id = "${recordingId}_idea_${idx}_${System.currentTimeMillis()}",
-                            recordingId = recordingId,
-                            recordingName = recordingName,
-                            kind = InsightKind.IDEA,
-                            text = ideaText.trim(),
-                            createdAt = timestamp,
-                            sourceOrder = idx
-                        )
-                    )
-                }
-            }
-
-            insights.decisions.forEachIndexed { idx, dec ->
-                if (dec.text.isNotBlank()) {
-                    entities.add(
-                        InsightEntity(
-                            id = "${recordingId}_decision_${idx}_${System.currentTimeMillis()}",
-                            recordingId = recordingId,
-                            recordingName = recordingName,
-                            kind = InsightKind.DECISION,
-                            text = dec.text.trim(),
-                            rationale = dec.rationale?.trim(),
-                            evidence = dec.evidence?.trim(),
-                            createdAt = timestamp,
-                            sourceOrder = idx
-                        )
-                    )
-                }
-            }
-
-            if (entities.isNotEmpty()) {
-                insightDao.insertInsights(entities)
-            }
-
-            // Save and schedule actionable reminders
-            reminderDao.deleteRemindersByRecordingId(recordingId)
-            val reminderEntities = mutableListOf<ReminderEntity>()
-            insights.reminders.forEachIndexed { idx, rem ->
-                if (rem.title.isNotBlank()) {
-                    val entity = ReminderEntity(
-                        id = "${recordingId}_reminder_${idx}_${System.currentTimeMillis()}",
-                        recordingId = recordingId,
-                        recordingName = recordingName,
-                        title = rem.title,
-                        eventTimeMs = rem.eventTimeMs,
-                        originalText = rem.originalText,
-                        person = rem.person,
-                        location = rem.location,
-                        type = rem.type,
-                        status = ReminderStatus.ACTIVE,
-                        createdAt = timestamp
-                    )
-                    reminderEntities.add(entity)
-                    ReminderScheduler.scheduleReminder(applicationContext, entity)
-                }
-            }
-            if (reminderEntities.isNotEmpty()) {
-                reminderDao.insertReminders(reminderEntities)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed saving insights to Room for recording $recordingId", e)
-        }
     }
 
     companion object {

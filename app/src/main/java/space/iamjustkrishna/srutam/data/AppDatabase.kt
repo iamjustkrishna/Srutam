@@ -5,12 +5,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Recording::class, InsightEntity::class, ReminderEntity::class, AiQueryCache::class], version = 6, exportSchema = false)
+@Database(entities = [Recording::class, InsightEntity::class, ReminderEntity::class, AiQueryCache::class, ExtractionSuppression::class], version = 7, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recordingDao(): RecordingDao
     abstract fun insightDao(): InsightDao
     abstract fun reminderDao(): ReminderDao
     abstract fun aiQueryCacheDao(): AiQueryCacheDao
+    abstract fun extractionSuppressionDao(): ExtractionSuppressionDao
 
     companion object {
         @Volatile
@@ -23,7 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "srutam_database"
                 )
-                    .fallbackToDestructiveMigration() // Allow database reset during development
+                    .addMigrations(INSIGHTS_MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance

@@ -492,3 +492,19 @@
      - Added `MatrixCaptureSetupPreview` and `MatrixCaptureSetupCosmicDarkPreview` in `ScreenMatrixPreviews.kt`.
      - Added `capture_02d_capture_setup` and `capture_02e_capture_setup_cosmic_dark` to `BaseScreenMatrixTest.kt` and recorded headless screenshots on JVM with Roborazzi across phone, foldable, and tablet form factors.
   6. **Branch**: Isolated on `feature/intuitive-capture-onboarding` branched from `main`.
+
+## ADR-043: Insights Preservation and Explicit Reminder Confirmation
+- **Status**: Accepted by the user; implementation and verification in progress.
+- **Branch**: `feature/action-item-lifecycle` only.
+- **Decisions**:
+  1. AI dates are suggestions. Even exact times require explicit confirmation before notifications.
+  2. Preserve legacy reminders, disable notifications, cancel old alarms, and invite review.
+  3. Retain archives and reminder history until explicit deletion; keep only three-day completed-task auto-archiving.
+  4. Use a non-destructive Room 6→7 migration with exported schemas. Preserve IDs, task state, and history.
+  5. Centralize insight persistence and reminder lifecycle in `InsightsRepository`; merge extraction results rather than deleting saved content.
+  6. Preserve original ideas when creating linked tasks. Suppress explicitly deleted extracted items from subsequent regeneration.
+  7. Resolve relative dates against recording context. Unknown dates remain unresolved, never defaulting to tomorrow.
+  8. Check current persisted consent, source existence, and schedule revision before notification delivery.
+  9. Share phone/tablet state and UI. Themes are local descriptive phrases, collapsed by default and accessible from all tabs.
+  10. Include local search and idea-to-task conversion. Defer favorites, swipe actions, advanced theme filters, and cloud semantic clustering.
+- **Verification**: Populated migration test passed. Remaining regression, build, screenshot and device evidence is tracked in `plan/plan.md` and `current.md`.

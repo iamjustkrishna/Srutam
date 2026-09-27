@@ -71,6 +71,11 @@ screen_*.png
 !app/src/main/ic_launcher-playstore.png
 !art/**
 
+# Versioned Insights regression baselines
+!app/src/test/screenshots/
+!app/src/test/screenshots/insights/
+!app/src/test/screenshots/insights/**
+
 # ==============================================================================
 # Local ASR Lab, ML Models, Audio & Python Environment
 # ==============================================================================

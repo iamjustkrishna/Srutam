@@ -2,6 +2,7 @@
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "recordings")
 data class Recording(
@@ -18,5 +19,7 @@ data class Recording(
     val wiifm: String? = null, // What's In It For Me
     val aiStatus: String = RecordingAiStatus.NOT_REQUESTED,
     val isProcessing: Boolean = false,
-    val processingError: String? = null
+    val processingError: String? = null,
+    val recordedZoneId: String? = java.time.ZoneId.systemDefault().id,
+    @ColumnInfo(defaultValue = "0") val insightsImported: Boolean = false
 )

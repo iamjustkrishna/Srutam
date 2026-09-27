@@ -9,6 +9,10 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Load API key from local.properties
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -108,6 +112,10 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             all {
+                it.minHeapSize = "64m"
+                it.maxHeapSize = providers.gradleProperty("srutam.testHeap").orElse("768m").get()
+                it.maxParallelForks = 1
+                it.jvmArgs("-XX:+UseSerialGC")
                 it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
                 it.systemProperty("robolectric.graphicsMode", "NATIVE")
             }

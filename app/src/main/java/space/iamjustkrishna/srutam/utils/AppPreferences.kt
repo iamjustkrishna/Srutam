@@ -334,4 +334,11 @@ object AppPreferences {
             .remove(KEY_DISMISSED_THEMES)
             .apply()
     }
+
+    fun restoreTheme(context: Context, themeKey: String) {
+        val updated = getDismissedThemes(context).toMutableSet()
+        updated.remove(themeKey.lowercase().trim())
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putStringSet(KEY_DISMISSED_THEMES, updated).apply()
+    }
 }

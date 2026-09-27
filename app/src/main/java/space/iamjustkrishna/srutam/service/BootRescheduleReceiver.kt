@@ -23,15 +23,7 @@ class BootRescheduleReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val db = AppDatabase.getDatabase(context)
-                val reminderDao = db.reminderDao()
-                val now = System.currentTimeMillis()
-
-                val futureReminders = reminderDao.getFutureActiveReminders(now)
-                futureReminders.forEach { reminder ->
-                    ReminderScheduler.scheduleReminder(context, reminder)
-                }
-                Log.d(TAG, "Re-scheduled ${futureReminders.size} reminders after boot")
+                space.iamjustkrishna.srutam.repository.InsightsRepository.from(context).reconcile()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to re-schedule reminders on boot", e)
             } finally {

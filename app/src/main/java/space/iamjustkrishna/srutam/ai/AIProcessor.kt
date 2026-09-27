@@ -95,7 +95,7 @@ class AIProcessor(private val context: Context) {
         }
     }
 
-    suspend fun generateInsights(transcript: String): AIInsights = withContext(Dispatchers.IO) {
+    suspend fun generateInsights(transcript: String, timeContext: RecordingTimeContext? = null): AIInsights = withContext(Dispatchers.IO) {
         try {
             val normalizedTranscript = transcript.trim()
             if (normalizedTranscript.isBlank()) {
@@ -108,11 +108,11 @@ class AIProcessor(private val context: Context) {
                 normalizedTranscript
             }
 
-            val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis)
+            val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis, timeContext)
             val responseText = getLlmClient().generateText(prompt, INSIGHTS_TIMEOUT_MS)
 
             // Parse JSON response
-            parseAIResponse(responseText)
+            parseAIResponse(responseText, normalizedTranscript, timeContext)
         } catch (e: Exception) {
             Log.e(TAG, "Error generating insights", e)
             throw e
@@ -131,6 +131,7 @@ class AIProcessor(private val context: Context) {
                 - 5 concise bullet points with the most important facts
                 - action items mentioned
                 - unresolved questions or decisions
+                - verbatim quotes for every date/time expression and its event; preserve these exact source quotes
 
                 Keep it factual. Do not invent details.
 
@@ -151,10 +152,13 @@ class AIProcessor(private val context: Context) {
         chunkSummaries.joinToString("\n\n")
     }
 
-    private fun buildStructuredInsightsPrompt(transcript: String): String {
+    private fun buildStructuredInsightsPrompt(transcript: String, timeContext: RecordingTimeContext?): String {
         return """
             Analyze the following transcript and provide structured insights in EXACTLY this format:
 
+            Recording reference instant: ${timeContext?.let { java.time.Instant.ofEpochMilli(it.recordedAtMs).toString() } ?: "unknown"}
+            Recording time zone: ${timeContext?.zoneId ?: "unknown"}
+            Resolve relative dates from the recording reference, never from processing time.
             Transcript:
             $transcript
 
@@ -184,10 +188,12 @@ class AIProcessor(private val context: Context) {
                 {
                   "title": "Concise event or meeting title (e.g. Sync with Alex, Dentist Appointment, Submit Tax Return)",
                   "timeDescription": "Time expression as stated in transcript (e.g. tomorrow at 3pm, next Friday, in 2 hours)",
-                  "estimatedTimeOffsetHours": 24,
+                  "date": "YYYY-MM-DD or null when uncertain",
+                  "time": "HH:mm only if explicitly spoken, otherwise null",
+                  "timeZone": "IANA zone only if explicitly stated, otherwise null",
                   "person": "Name of person or null",
                   "location": "Location or platform or null",
-                  "type": "MEETING, DEADLINE, CALL, or REMINDER"
+                  "type": "MEETING, DEADLINE, CALL, REMINDER, or MILESTONE"
                 }
               ],
               "wiifm": "What's In It For Me: This recording helps you by [specific personal benefit]. You can use this to [concrete application or value]."
@@ -199,7 +205,7 @@ class AIProcessor(private val context: Context) {
             - Action Items: CRITICAL - Only extract actionable tasks or commitments IF EXPLICITLY MENTIONED in the transcript. Most voice notes (e.g. personal thoughts, diary entries, ideas) do NOT contain any tasks. If no clear action items are explicitly mentioned, you MUST return [] for "actionItems". NEVER invent generic to-dos.
             - Ideas: 0-4 distinct proposals, concepts, or thoughts worth remembering. Empty array [] if none.
             - Decisions: Only include explicit conclusions, choices, or agreements made in the transcript. Empty array [] if none.
-            - Reminders: Extract scheduled meetings, events, appointments, or deadlines explicitly mentioned with an estimated future time. Empty array [] if none.
+            - Reminders: Extract only explicitly mentioned events, deadlines or target dates. timeDescription MUST be a verbatim quote from the original transcript. Never invent a time for a date-only mention. Use MILESTONE for projections/strategic goals. All are suggestions requiring confirmation. Empty array [] if none.
             - WIIFM: Must start with "What's In It For Me:", explain personal utility and value.
             - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, decisions, and reminders may be empty [].
         """.trimIndent()
@@ -227,7 +233,7 @@ class AIProcessor(private val context: Context) {
         return chunks.filter { it.isNotBlank() }
     }
 
-    private fun parseAIResponse(responseText: String): AIInsights {
+    internal fun parseAIResponse(responseText: String, originalTranscript: String = "", timeContext: RecordingTimeContext? = null): AIInsights {
         return try {
             // Extract JSON from response (it might be wrapped in markdown code blocks)
             val jsonText = if (responseText.contains("```json")) {
@@ -289,20 +295,22 @@ class AIProcessor(private val context: Context) {
                         val title = item["title"] as? String
                         if (!title.isNullOrBlank()) {
                             val timeDesc = item["timeDescription"] as? String ?: ""
-                            val offsetHours = (item["estimatedTimeOffsetHours"] as? Number)?.toDouble() ?: -1.0
-                            val eventTimeMs = if (offsetHours > 0) {
-                                System.currentTimeMillis() + (offsetHours * 3600 * 1000).toLong()
-                            } else {
-                                parseTimeDescription(timeDesc)
-                            }
+                            val supported = timeDesc.isNotBlank() && originalTranscript.lowercase()
+                                .replace(Regex("\\s+"), " ").contains(timeDesc.lowercase().replace(Regex("\\s+"), " "))
+                            val resolved = if (supported && timeContext != null) ReminderTimeResolver.resolve(
+                                timeDesc, timeContext, item["date"] as? String, item["time"] as? String,
+                                (item["timeZone"] as? String)?.takeIf { it.isNotBlank() && it != "null" }
+                            ) else ResolvedReminderTime(zoneId = timeContext?.zoneId ?: java.time.ZoneId.systemDefault().id)
                             AIReminder(
                                 title = title.trim(),
-                                eventTimeMs = eventTimeMs,
-                                originalText = timeDesc,
+                                eventTimeMs = resolved.eventTimeMs,
+                                originalText = if (supported) timeDesc else "",
+                                timePrecision = resolved.precision, localDate = resolved.localDate,
+                                localTime = resolved.localTime, zoneId = resolved.zoneId,
                                 person = (item["person"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                                 location = (item["location"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                                 type = (item["type"] as? String)?.trim()?.uppercase()?.takeIf {
-                                    it in listOf("MEETING", "DEADLINE", "CALL", "REMINDER")
+                                    it in listOf("MEETING", "DEADLINE", "CALL", "REMINDER", "MILESTONE")
                                 } ?: "REMINDER"
                             )
                         } else null
@@ -324,20 +332,6 @@ class AIProcessor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing AI response", e)
             throw e
-        }
-    }
-
-    private fun parseTimeDescription(timeDesc: String): Long {
-        val lower = timeDesc.lowercase()
-        val now = System.currentTimeMillis()
-        return when {
-            lower.contains("tomorrow") -> now + 24 * 3600 * 1000L
-            lower.contains("day after") -> now + 48 * 3600 * 1000L
-            lower.contains("next week") -> now + 7 * 24 * 3600 * 1000L
-            lower.contains("tonight") || lower.contains("today") -> now + 4 * 3600 * 1000L
-            lower.contains("in an hour") || lower.contains("1 hour") -> now + 3600 * 1000L
-            lower.contains("in 2 hours") || lower.contains("2 hours") -> now + 2 * 3600 * 1000L
-            else -> now + 24 * 3600 * 1000L // Default to tomorrow
         }
     }
 
@@ -371,11 +365,15 @@ class AIProcessor(private val context: Context) {
 
     data class AIReminder(
         val title: String,
-        val eventTimeMs: Long,
+        val eventTimeMs: Long?,
         val originalText: String = "",
         val person: String? = null,
         val location: String? = null,
-        val type: String = "REMINDER" // MEETING, DEADLINE, REMINDER, CALL
+        val type: String = "REMINDER",
+        val timePrecision: String = "UNKNOWN",
+        val localDate: String? = null,
+        val localTime: String? = null,
+        val zoneId: String? = null
     )
 
     data class AIInsights(

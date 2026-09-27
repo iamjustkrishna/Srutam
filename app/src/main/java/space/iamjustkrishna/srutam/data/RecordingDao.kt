@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RecordingDao {
+    @Query("UPDATE recordings SET insightsImported = 1 WHERE id = :id")
+    suspend fun markInsightsImported(id: Long)
+
     @Query("SELECT * FROM recordings ORDER BY timestamp DESC")
     fun getAllRecordings(): Flow<List<Recording>>
 
