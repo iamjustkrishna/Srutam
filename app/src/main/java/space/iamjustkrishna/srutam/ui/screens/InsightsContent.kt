@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
@@ -24,6 +26,8 @@ import androidx.compose.animation.*
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -68,8 +72,10 @@ fun InsightsContent(
     var historyView by rememberSaveable { mutableStateOf<String?>(null) }
     var editingReminder by rememberSaveable { mutableStateOf<String?>(null) }
     var creatingFrom by rememberSaveable { mutableStateOf<String?>(null) }
+    var creatingSession by rememberSaveable { mutableIntStateOf(0) }
     var fromReminder by rememberSaveable { mutableStateOf(false) }
     var viewingTask by rememberSaveable { mutableStateOf<String?>(null) }
+    var viewingIdeaId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteIsReminder by rememberSaveable { mutableStateOf(false) }
     var localSelectedDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
@@ -139,10 +145,18 @@ fun InsightsContent(
     }
 
     LaunchedEffect(createdTaskId) {
-        createdTaskId?.let {
+        createdTaskId?.let { taskId ->
             creatingFrom = null
             if (snack.showSnackbar("Next step created", "View") == SnackbarResult.ActionPerformed) {
-                viewingTask = it
+                val createdTask = state.items.find { it.id == taskId }
+                val parentIdea = createdTask?.sourceInsightId?.let { sId ->
+                    state.ideas.find { it.id == sId } ?: state.items.find { it.id == sId }
+                }
+                if (parentIdea != null && parentIdea.kind == InsightKind.IDEA) {
+                    viewingIdeaId = parentIdea.id
+                } else {
+                    viewingTask = taskId
+                }
             }
             consumeCreatedTask()
         }
@@ -587,15 +601,21 @@ fun InsightsContent(
                                 }
 
                                 items(filtered, key = { it.id }) { insight ->
-                                    val task = if (isIdeas) state.items.firstOrNull { it.sourceInsightId == insight.id } else null
+                                    val steps = if (isIdeas) {
+                                        state.items.filter { it.sourceInsightId == insight.id && it.status != InsightStatus.ARCHIVED }
+                                    } else emptyList()
                                     InsightAccentCard(
                                         insight = insight,
                                         isIdea = isIdeas,
                                         state = state,
                                         open = onRecordingClick,
-                                        hasNextStep = task != null,
+                                        steps = steps,
+                                        hasNextStep = steps.isNotEmpty(),
                                         onNextStep = {
-                                            if (task != null) viewingTask = task.id else {
+                                            if (steps.isNotEmpty()) {
+                                                viewingIdeaId = insight.id
+                                            } else {
+                                                creatingSession++
                                                 creatingFrom = insight.id
                                                 fromReminder = false
                                             }
@@ -869,20 +889,64 @@ fun InsightsContent(
     }
 
     creatingFrom?.let { id ->
-        val text = if (fromReminder) state.reminders.find { it.id == id }?.title else state.items.find { it.id == id }?.text
+        val text = if (fromReminder) {
+            state.reminders.find { it.id == id }?.title
+        } else {
+            val hasExistingSteps = state.items.any { it.sourceInsightId == id && it.status != InsightStatus.ARCHIVED }
+            if (hasExistingSteps) "" else state.items.find { it.id == id }?.text
+        }
         if (text != null) {
-            InsightTaskEditor(
-                sourceId = id,
-                initialText = text,
-                actionError = actionError,
-                onDismiss = { creatingFrom = null },
-                onSave = { task, reminder -> actions.createTask(id, fromReminder, task, reminder) }
+            key(id, creatingSession) {
+                InsightTaskEditor(
+                    sourceId = "${id}_$creatingSession",
+                    initialText = text,
+                    actionError = actionError,
+                    onDismiss = { creatingFrom = null },
+                    onSave = { task, reminder -> actions.createTask(id, fromReminder, task, reminder) }
+                )
+            }
+        }
+    }
+
+    viewingIdeaId?.let { ideaId ->
+        val idea = state.ideas.find { it.id == ideaId } ?: state.items.find { it.id == ideaId }
+        val steps = state.items.filter { it.sourceInsightId == ideaId && it.status != InsightStatus.ARCHIVED }
+        if (idea != null) {
+            IdeaStepsDialog(
+                idea = idea,
+                steps = steps,
+                state = state,
+                onRecordingClick = onRecordingClick,
+                onToggleStep = { stepId -> actions.toggle(stepId) },
+                onDeleteStep = { stepId ->
+                    deleteId = stepId
+                    deleteIsReminder = false
+                },
+                onAddStep = {
+                    val currentIdeaId = ideaId
+                    viewingIdeaId = null
+                    creatingSession++
+                    creatingFrom = currentIdeaId
+                    fromReminder = false
+                },
+                onDismiss = { viewingIdeaId = null }
             )
         }
     }
 
     viewingTask?.let { id ->
         state.items.find { it.id == id }?.let { task ->
+            val parentIdea = task.sourceInsightId?.let { sourceId ->
+                state.ideas.find { it.id == sourceId } ?: state.items.find { it.id == sourceId }
+            }
+            if (parentIdea != null && parentIdea.kind == InsightKind.IDEA) {
+                LaunchedEffect(id) {
+                    viewingTask = null
+                    viewingIdeaId = parentIdea.id
+                }
+                return@let
+            }
+
             val isCompleted = task.status == InsightStatus.COMPLETED
             val isArchived = task.status == InsightStatus.ARCHIVED
             AlertDialog(
@@ -923,36 +987,15 @@ fun InsightsContent(
                             )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = when {
-                                isArchived -> if (dark) CosmicVoidCardBorder else SlateGrouped
-                                isCompleted -> if (dark) CosmicAuroraGreen.copy(alpha = 0.2f) else EmeraldContainer
-                                else -> if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer
-                            },
-                            border = BorderStroke(
-                                1.dp,
-                                when {
-                                    isArchived -> if (dark) CosmicVoidCardBorder else SlateBorder
-                                    isCompleted -> if (dark) CosmicAuroraGreen.copy(alpha = 0.5f) else EmeraldSuccess.copy(alpha = 0.5f)
-                                    else -> if (dark) CosmicGlowBlue.copy(alpha = 0.5f) else CobaltBorder
-                                }
-                            )
+                        IconButton(
+                            onClick = { viewingTask = null },
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            Text(
-                                text = when {
-                                    isArchived -> "Archived"
-                                    isCompleted -> "Completed"
-                                    else -> "Open"
-                                },
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = when {
-                                    isArchived -> if (dark) TextOnDarkSecondary else TextSecondary
-                                    isCompleted -> if (dark) CosmicAuroraGreen else OnEmeraldContainer
-                                    else -> if (dark) CosmicGlowBlue else OnCobaltContainer
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = if (dark) TextOnDarkSecondary else TextMuted,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -987,29 +1030,45 @@ fun InsightsContent(
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            if (task.status == InsightStatus.ARCHIVED) actions.restore(task.id) else actions.toggle(task.id)
-                            viewingTask = null
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = when {
-                                isArchived -> if (dark) CosmicGlowBlue else CobaltBlue
-                                isCompleted -> if (dark) CosmicVoidCardBorder else SlateGrouped
-                                else -> if (dark) CosmicAuroraGreen else EmeraldSuccess
+                    if (!isCompleted || isArchived) {
+                        Button(
+                            onClick = {
+                                if (task.status == InsightStatus.ARCHIVED) actions.restore(task.id) else actions.toggle(task.id)
+                                viewingTask = null
                             },
-                            contentColor = when {
-                                isCompleted -> if (dark) TextOnDarkPrimary else TextPrimary
-                                else -> Color.White
-                            }
-                        )
-                    ) {
-                        Text(
-                            text = if (task.status == InsightStatus.ARCHIVED) "Restore task" else if (task.status == InsightStatus.COMPLETED) "Reopen task" else "Mark as done",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.5.sp
-                        )
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = when {
+                                    isArchived -> if (dark) CosmicGlowBlue else CobaltBlue
+                                    else -> if (dark) CosmicAuroraGreen else EmeraldSuccess
+                                },
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = if (task.status == InsightStatus.ARCHIVED) "Restore task" else "Mark as done",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.5.sp
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                actions.toggle(task.id)
+                                viewingTask = null
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (dark) CosmicVoidCardBorder else SlateGrouped,
+                                contentColor = if (dark) TextOnDarkPrimary else TextPrimary
+                            )
+                        ) {
+                            Text(
+                                text = "Reopen task",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.5.sp
+                            )
+                        }
                     }
                 },
                 dismissButton = {
@@ -1024,4 +1083,293 @@ fun InsightsContent(
             )
         }
     }
+}
+
+@Composable
+private fun IdeaStepsDialog(
+    idea: InsightEntity,
+    steps: List<InsightEntity>,
+    state: InsightsUiState,
+    onRecordingClick: (Long) -> Unit,
+    onToggleStep: (String) -> Unit,
+    onDeleteStep: (String) -> Unit,
+    onAddStep: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dark = LocalIsCosmicDark.current
+    val completedCount = steps.count { it.status == InsightStatus.COMPLETED }
+    val allCompleted = steps.isNotEmpty() && completedCount == steps.size
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = if (dark) CosmicVoidCard else CeramicWhite,
+        modifier = Modifier.padding(vertical = 16.dp),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer,
+                        border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else CobaltBorder),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.TaskAlt,
+                                contentDescription = null,
+                                tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = "Next steps",
+                            fontFamily = PlayfairDisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = if (dark) TextOnDarkPrimary else TextPrimary
+                        )
+                        if (steps.isNotEmpty()) {
+                            Text(
+                                text = "$completedCount of ${steps.size} completed",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (allCompleted) {
+                                    if (dark) CosmicAuroraGreen else EmeraldSuccess
+                                } else {
+                                    if (dark) TextOnDarkSecondary else TextMuted
+                                }
+                            )
+                        }
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = if (dark) TextOnDarkSecondary else TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Idea reference card
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (dark) CosmicVoidCard.copy(alpha = 0.7f) else SlateGrouped.copy(alpha = 0.55f),
+                    border = BorderStroke(1.dp, if (dark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (dark) Color(0xFF4C1D95).copy(alpha = 0.4f) else Color(0xFFEDE9FE)
+                            ) {
+                                Text(
+                                    text = "IDEA",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (dark) CosmicGlowPurple else Color(0xFF7C3AED),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            InsightSourceChip(
+                                id = idea.recordingId,
+                                state = state,
+                                open = onRecordingClick,
+                                compact = true
+                            )
+                        }
+                        Text(
+                            text = idea.text,
+                            fontSize = 13.5.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = if (dark) TextOnDarkPrimary else TextPrimary,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // Steps list (scrollable if many)
+                if (steps.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        steps.forEach { step ->
+                            val isDone = step.status == InsightStatus.COMPLETED
+                            val linkedReminder = state.reminders.find { it.linkedTaskId == step.id }
+                                ?: state.activeReminders.find { it.linkedTaskId == step.id }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (dark) {
+                                    if (isDone) CosmicVoidCard.copy(alpha = 0.35f) else CosmicVoidCard
+                                } else {
+                                    if (isDone) SlateSurface.copy(alpha = 0.5f) else CeramicWhite
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isDone) {
+                                        if (dark) CosmicVoidCardBorder.copy(alpha = 0.5f) else SlateBorder.copy(alpha = 0.5f)
+                                    } else {
+                                        if (dark) CosmicVoidCardBorder else SlateBorder
+                                    }
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 6.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { onToggleStep(step.id) },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                            contentDescription = if (isDone) "Mark not done" else "Mark done",
+                                            tint = if (isDone) {
+                                                if (dark) CosmicAuroraGreen else EmeraldSuccess
+                                            } else {
+                                                if (dark) TextOnDarkSecondary.copy(alpha = 0.6f) else TextMuted
+                                            },
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(vertical = 4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Text(
+                                            text = step.text,
+                                            fontSize = 14.sp,
+                                            lineHeight = 19.sp,
+                                            fontWeight = if (isDone) FontWeight.Normal else FontWeight.Medium,
+                                            textDecoration = if (isDone) TextDecoration.LineThrough else null,
+                                            color = if (isDone) {
+                                                if (dark) TextOnDarkSecondary.copy(alpha = 0.55f) else TextMuted
+                                            } else {
+                                                if (dark) TextOnDarkPrimary else TextPrimary
+                                            }
+                                        )
+
+                                        if (linkedReminder != null) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Alarm,
+                                                    contentDescription = null,
+                                                    tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = reminderDate(linkedReminder),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (dark) CosmicGlowBlue else CobaltBlue
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = { onDeleteStep(step.id) },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Delete step",
+                                            tint = if (dark) TextOnDarkSecondary.copy(alpha = 0.5f) else TextMuted.copy(alpha = 0.7f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // "+ Add another step" button
+                Surface(
+                    onClick = onAddStep,
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (dark) CobaltBlue.copy(alpha = 0.15f) else CobaltContainer.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.35f) else CobaltBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = if (steps.isEmpty()) "Add next step" else "Add another step",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (dark) CosmicGlowBlue else CobaltBlue
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "Close",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp,
+                    color = if (dark) TextOnDarkSecondary else TextSecondary
+                )
+            }
+        }
+    )
 }

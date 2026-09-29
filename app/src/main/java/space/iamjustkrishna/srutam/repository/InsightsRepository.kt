@@ -231,7 +231,14 @@ class InsightsRepository(
             require(text.isNotBlank()) { "Enter a next step." }
             val result = database.withTransaction {
                 val dao = database.insightDao()
-                dao.getDerivedTask(sourceId)?.let { return@withTransaction it.id }
+                if (fromReminder) {
+                    dao.getDerivedTask(sourceId)?.let { return@withTransaction it.id }
+                } else {
+                    val existing = dao.getDerivedTasksForIdea(sourceId)
+                    existing.firstOrNull { it.text.equals(text.trim(), ignoreCase = true) && it.status != InsightStatus.ARCHIVED }?.let {
+                        return@withTransaction it.id
+                    }
+                }
                 val sourceIdea = if (!fromReminder) dao.getById(sourceId) else null
                 val sourceReminder = if (fromReminder) database.reminderDao().getReminderById(sourceId) else null
                 val recordingId = sourceIdea?.recordingId ?: sourceReminder?.recordingId ?: error("Source no longer exists.")

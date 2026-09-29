@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.data.InsightEntity
+import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.viewmodel.InsightsUiState
 
@@ -34,7 +36,8 @@ internal fun InsightAccentCard(
     isIdea: Boolean,
     state: InsightsUiState,
     open: (Long) -> Unit,
-    hasNextStep: Boolean,
+    steps: List<InsightEntity> = emptyList(),
+    hasNextStep: Boolean = steps.isNotEmpty(),
     onNextStep: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -158,11 +161,37 @@ internal fun InsightAccentCard(
                     )
                     if (isIdea) {
                         Spacer(Modifier.width(8.dp))
+                        val hasSteps = steps.isNotEmpty() || hasNextStep
+                        val allDone = steps.isNotEmpty() && steps.all { it.status == InsightStatus.COMPLETED }
+                        val buttonText = when {
+                            !hasSteps -> "Next step"
+                            allDone -> if (steps.size == 1) "1 done" else "${steps.size} done"
+                            steps.size > 1 -> "View steps (${steps.size})"
+                            else -> "View step"
+                        }
+                        val buttonColor = when {
+                            allDone -> if (dark) EmeraldContainer.copy(alpha = 0.25f) else EmeraldContainer
+                            else -> if (dark) CobaltBlue.copy(alpha = 0.22f) else Color(0xFFEFF6FF)
+                        }
+                        val buttonBorder = when {
+                            allDone -> if (dark) CosmicAuroraGreen.copy(alpha = 0.5f) else EmeraldSuccess.copy(alpha = 0.5f)
+                            else -> if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else Color(0xFFBFDBFE)
+                        }
+                        val buttonTint = when {
+                            allDone -> if (dark) CosmicAuroraGreen else OnEmeraldContainer
+                            else -> if (dark) CosmicGlowBlue else CobaltBlue
+                        }
+                        val buttonIcon = when {
+                            !hasSteps -> Icons.Default.Add
+                            allDone -> Icons.Default.Check
+                            else -> Icons.Default.Visibility
+                        }
+
                         Surface(
                             onClick = onNextStep,
                             shape = RoundedCornerShape(8.dp),
-                            color = if (dark) CobaltBlue.copy(alpha = 0.22f) else Color(0xFFEFF6FF),
-                            border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else Color(0xFFBFDBFE))
+                            color = buttonColor,
+                            border = BorderStroke(1.dp, buttonBorder)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -170,16 +199,16 @@ internal fun InsightAccentCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (hasNextStep) Icons.Default.Visibility else Icons.Default.Add,
+                                    imageVector = buttonIcon,
                                     contentDescription = null,
-                                    tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                                    tint = buttonTint,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
-                                    text = if (hasNextStep) "View step" else "Next step",
+                                    text = buttonText,
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (dark) CosmicGlowBlue else CobaltBlue,
+                                    color = buttonTint,
                                     maxLines = 1
                                 )
                             }

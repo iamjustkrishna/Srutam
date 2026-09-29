@@ -11,6 +11,9 @@ interface InsightDao {
     @Query("SELECT * FROM insight_items WHERE sourceInsightId = :id OR sourceReminderId = :id LIMIT 1")
     suspend fun getDerivedTask(id: String): InsightEntity?
 
+    @Query("SELECT * FROM insight_items WHERE sourceInsightId = :id ORDER BY createdAt ASC")
+    suspend fun getDerivedTasksForIdea(id: String): List<InsightEntity>
+
     @Query("SELECT * FROM insight_items ORDER BY createdAt DESC")
     fun getAllInsightsFlow(): Flow<List<InsightEntity>>
 
