@@ -1,10 +1,16 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package space.iamjustkrishna.srutam.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,11 +19,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.*
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import space.iamjustkrishna.srutam.data.*
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
@@ -40,10 +52,13 @@ fun InsightsContent(
     savedMemory: InsightsScreenMemory = InsightsScreenMemory(),
     onSaveMemory: (InsightsScreenMemory) -> Unit = {},
     savedReminderId: String? = null,
-    consumeSavedReminder: () -> Unit = {}
+    consumeSavedReminder: () -> Unit = {},
+    accentFontSize: androidx.compose.ui.unit.TextUnit = 20.sp,
+    externalSelectedDate: LocalDate? = null,
+    onDateSelected: ((LocalDate?) -> Unit)? = null
 ) {
     var selection by rememberSaveable { mutableStateOf(initialTab?.name ?: savedMemory.selection) }
-    var datesExpanded by rememberSaveable { mutableStateOf(savedMemory.datesExpanded) }
+    var remindersExpanded by rememberSaveable { mutableStateOf(savedMemory.datesExpanded) }
     var themesExpanded by rememberSaveable { mutableStateOf(savedMemory.themesExpanded) }
     var completedExpanded by rememberSaveable { mutableStateOf(savedMemory.completedExpanded) }
     var ideaSearch by rememberSaveable { mutableStateOf(savedMemory.ideaSearch) }
@@ -56,7 +71,32 @@ fun InsightsContent(
     var viewingTask by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteIsReminder by rememberSaveable { mutableStateOf(false) }
-    var legacyNoticeDismissed by rememberSaveable { mutableStateOf(false) }
+    var localSelectedDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+    val selectedDate = if (onDateSelected != null) externalSelectedDate else localSelectedDate
+    val updateDate: (LocalDate?) -> Unit = { date ->
+        if (onDateSelected != null) {
+            onDateSelected(date)
+        } else {
+            localSelectedDate = date
+        }
+    }
+
+    val datesWithActivity = remember(state.ideas, state.decisions, state.openTasks, state.completedTasks, state.activeReminders) {
+        val zone = ZoneId.systemDefault()
+        val set = mutableSetOf<LocalDate>()
+        state.ideas.forEach { runCatching { set.add(Instant.ofEpochMilli(it.createdAt).atZone(zone).toLocalDate()) } }
+        state.decisions.forEach { runCatching { set.add(Instant.ofEpochMilli(it.createdAt).atZone(zone).toLocalDate()) } }
+        state.openTasks.forEach { runCatching { set.add(Instant.ofEpochMilli(it.createdAt).atZone(zone).toLocalDate()) } }
+        state.completedTasks.forEach { task ->
+            runCatching { set.add(Instant.ofEpochMilli(task.createdAt).atZone(zone).toLocalDate()) }
+            task.completedAt?.let { runCatching { set.add(Instant.ofEpochMilli(it).atZone(zone).toLocalDate()) } }
+        }
+        state.activeReminders.forEach { reminder ->
+            reminder.localDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.let { set.add(it) }
+                ?: reminder.eventTimeMs?.let { runCatching { set.add(Instant.ofEpochMilli(it).atZone(zone).toLocalDate()) } }
+        }
+        set
+    }
 
     val taskScroll = rememberLazyListState(savedMemory.taskIndex, savedMemory.taskOffset)
     val ideaScroll = rememberLazyListState(savedMemory.ideaIndex, savedMemory.ideaOffset)
@@ -69,7 +109,7 @@ fun InsightsContent(
     LaunchedEffect(Unit) {
         snapshotFlow {
             InsightsScreenMemory(
-                selection, ideaSearch, decisionSearch, datesExpanded, themesExpanded, completedExpanded,
+                selection, ideaSearch, decisionSearch, remindersExpanded, themesExpanded, completedExpanded,
                 taskScroll.firstVisibleItemIndex, taskScroll.firstVisibleItemScrollOffset,
                 ideaScroll.firstVisibleItemIndex, ideaScroll.firstVisibleItemScrollOffset,
                 decisionScroll.firstVisibleItemIndex, decisionScroll.firstVisibleItemScrollOffset
@@ -110,12 +150,67 @@ fun InsightsContent(
     CompositionLocalProvider(LocalContentColor provides if (dark) TextOnDarkPrimary else TextPrimary) {
         Scaffold(
             modifier = modifier,
-            containerColor = Color.Transparent,
-            snackbarHost = { SnackbarHost(snack) },
+            containerColor = if (dark) CosmicVoidBackground else Color(0xFFF4F5F8),
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snack,
+                    modifier = Modifier.padding(bottom = 90.dp, start = 16.dp, end = 16.dp)
+                ) { data ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (dark) CosmicVoidCard else Color(0xFF1E293B),
+                        border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFF334155)),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = if (dark) CosmicAuroraGreen else EmeraldSuccess,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = data.visuals.message,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                )
+                            }
+                            data.visuals.actionLabel?.let { label ->
+                                Surface(
+                                    onClick = { data.performAction() },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (dark) CobaltBlue.copy(alpha = 0.35f) else Color(0xFF334155),
+                                    border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFF475569))
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (dark) CosmicGlowBlue else Color(0xFF93C5FD),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             topBar = {
                 SrutamTopAppBar(
                     title = "Srutam",
                     accentText = "Insights",
+                    accentFontSize = accentFontSize,
                     actions = {
                         SquircleActionButton(
                             icon = Icons.Default.Archive,
@@ -155,31 +250,26 @@ fun InsightsContent(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                // Thematic Filter Chips Row
-                if (state.themes.isNotEmpty()) {
-                    val activeCount = when (selected) {
-                        "IDEAS" -> state.ideas.size
-                        "DECISIONS" -> state.decisions.size
-                        else -> state.openTasks.size
-                    }
-                    ThematicFilterChipsRow(
-                        themes = state.themes,
-                        selectedTheme = selectedThemeKey,
-                        onSelectTheme = { selectedThemeKey = it },
-                        onDismissTheme = { key ->
-                            actions.dismissTheme(key)
-                            scope.launch {
-                                if (snack.showSnackbar("Theme dismissed", "Undo") == SnackbarResult.ActionPerformed) {
-                                    actions.restoreTheme(key)
-                                }
+                // Compact Date Scroller with inline theme chips (Month/Year next to scroller)
+                InsightsDateScroller(
+                    selectedDate = selectedDate,
+                    onDateSelected = updateDate,
+                    datesWithActivity = datesWithActivity,
+                    earliestMonth = state.earliestMonth,
+                    themes = state.themes,
+                    selectedTheme = selectedThemeKey,
+                    onSelectTheme = { selectedThemeKey = it },
+                    onDismissTheme = { key ->
+                        actions.dismissTheme(key)
+                        scope.launch {
+                            if (snack.showSnackbar("Theme dismissed", "Undo") == SnackbarResult.ActionPerformed) {
+                                actions.restoreTheme(key)
                             }
-                        },
-                        totalCount = activeCount,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp)
-                    )
-                }
+                        }
+                    }
+                )
+
+                val remindersToReview = remember(active) { active.filter { it.needsReview } }
 
                 when {
                     state.error != null -> {
@@ -208,62 +298,72 @@ fun InsightsContent(
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Active Reminders & Target Dates Section
-                            if (active.isNotEmpty()) {
-                                item(key = "dates_header") {
-                                    val scheduled = active.count { it.notificationEnabled }
-                                    val review = active.count { it.needsReview }
-                                    val targets = active.size - scheduled - review
-                                    val nearest = active.firstOrNull { it.notificationEnabled && (it.eventTimeMs ?: 0) > state.now }
-                                        ?: active.firstOrNull { !it.needsReview }
-                                    ExpandInsightsRow(
-                                        title = "Dates & reminders",
-                                        detail = "$scheduled scheduled · $review to review · ${targets.coerceAtLeast(0)} targets",
-                                        expanded = datesExpanded,
-                                        onClick = { datesExpanded = !datesExpanded },
-                                        subtitle = nearest?.let { "${it.title} · ${reminderDate(it)}" }
+                            // Dates & Reminders to Review Horizontal Carousel (confined to Next Steps)
+                            if (selected == "NEXT_STEPS" && remindersToReview.isNotEmpty()) {
+                                item(key = "review_carousel") {
+                                    ReminderReviewCarousel(
+                                        remindersToReview = remindersToReview,
+                                        state = state,
+                                        onRecordingClick = onRecordingClick,
+                                        onReview = { reminder -> editingReminder = reminder.id },
+                                        onDismiss = { reminder -> actions.reminderStatus(reminder.id, ReminderStatus.DISMISSED) },
+                                        modifier = Modifier.padding(bottom = 4.dp)
                                     )
                                 }
-                                if (active.any { it.legacyReview } && !legacyNoticeDismissed) {
-                                    item(key = "legacy_notice") {
-                                        InsightSurface {
-                                            Text(
-                                                text = "Review your reminders. Existing notifications are paused until you confirm them.",
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                            TextButton(onClick = { legacyNoticeDismissed = true }) {
-                                                Text("Got it")
-                                            }
-                                        }
-                                    }
+                            }
+                            // Dates & reminders: Compact glance bar with inline horizontal LazyRow expansion
+                            val displayReminders = if (selectedDate != null) {
+                                active.filter { reminder ->
+                                    val rDate = reminder.localDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                                        ?: reminder.eventTimeMs?.let { runCatching { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }.getOrNull() }
+                                    rDate == selectedDate && reminder.notificationEnabled
                                 }
-                                if (datesExpanded) {
-                                    val groups = listOf(
-                                        "Scheduled" to active.filter { it.notificationEnabled },
-                                        "To review" to active.filter { !it.notificationEnabled && it.needsReview },
-                                        "Target dates" to active.filter { !it.notificationEnabled && !it.needsReview }
+                            } else {
+                                active.filter { !it.needsReview }
+                            }
+                            if (displayReminders.isNotEmpty()) {
+                                item(key = "reminders_glance_bar") {
+                                    CompactRemindersGlanceBar(
+                                        reminders = displayReminders,
+                                        expanded = remindersExpanded,
+                                        onClick = { remindersExpanded = !remindersExpanded },
+                                        nowMs = state.now,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("reminders_glance_bar")
                                     )
-                                    groups.forEach { (title, reminders) ->
-                                        if (reminders.isNotEmpty()) {
-                                            item(key = "reminder_group_$title") {
-                                                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                            }
-                                            items(reminders, key = { "reminder_${it.id}" }) { reminder ->
-                                                ReminderSummary(
+                                }
+                                if (remindersExpanded) {
+                                    item(key = "reminders_lazy_row") {
+                                        val rowState = rememberLazyListState()
+                                        val cardWidth = ((LocalConfiguration.current.screenWidthDp - 32) * 0.82f).dp
+                                        val flingBehavior = rememberSnapFlingBehavior(rowState)
+                                        LazyRow(
+                                            state = rowState,
+                                            flingBehavior = flingBehavior,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                                .testTag("reminders_lazy_row")
+                                        ) {
+                                            items(displayReminders, key = { it.id }) { reminder ->
+                                                CompactReminderCard(
                                                     item = reminder,
                                                     state = state,
                                                     open = onRecordingClick,
                                                     onReview = { editingReminder = reminder.id },
                                                     onDone = { actions.reminderStatus(reminder.id, ReminderStatus.COMPLETED) },
                                                     onDismiss = { actions.reminderStatus(reminder.id, ReminderStatus.DISMISSED) },
-                                                    onDisable = { actions.disableReminder(reminder.id) },
-                                                    onConvert = { creatingFrom = reminder.id; fromReminder = true }
+                                                    nowMs = state.now,
+                                                    modifier = Modifier.width(cardWidth)
                                                 )
                                             }
                                         }
                                     }
                                 }
                             }
+
 
                             // Themes Accordion (Preserved for compatibility and deep review)
                             if (state.themes.isNotEmpty()) {
@@ -310,17 +410,52 @@ fun InsightsContent(
 
                             // Content Feed based on selected tab
                             if (selected == "NEXT_STEPS") {
-                                if (state.openTasks.isNotEmpty()) {
+                                val openTasks = if (selectedDate != null) {
+                                    state.openTasks.filter { task ->
+                                        runCatching {
+                                            Instant.ofEpochMilli(task.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+                                        }.getOrNull() == selectedDate
+                                    }
+                                } else {
+                                    state.openTasks
+                                }
+
+                                val completedTasks = if (selectedDate != null) {
+                                    state.completedTasks.filter { task ->
+                                        val zone = ZoneId.systemDefault()
+                                        val createdDate = runCatching {
+                                            Instant.ofEpochMilli(task.createdAt).atZone(zone).toLocalDate()
+                                        }.getOrNull()
+                                        val completedDate = task.completedAt?.let {
+                                            runCatching {
+                                                Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+                                            }.getOrNull()
+                                        }
+                                        createdDate == selectedDate || completedDate == selectedDate
+                                    }
+                                } else {
+                                    state.completedTasks
+                                }
+
+                                if (openTasks.isNotEmpty()) {
                                     item(key = "progress") {
                                         Text(
-                                            text = "${state.openTasks.size} open · ${state.completedTasks.size} completed",
+                                            text = if (selectedDate != null) {
+                                                if (completedTasks.isNotEmpty()) {
+                                                    "${openTasks.size} open · ${completedTasks.size} completed on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}"
+                                                } else {
+                                                    "${openTasks.size} open on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}"
+                                                }
+                                            } else {
+                                                "${openTasks.size} open · ${completedTasks.size} completed"
+                                            },
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.SemiBold,
                                             color = if (dark) TextOnDarkSecondary else TextSecondary,
                                             modifier = Modifier.testTag("action_progress")
                                         )
                                     }
-                                } else if (state.completedTasks.isNotEmpty()) {
+                                } else if (completedTasks.isNotEmpty()) {
                                     item(key = "caught_up") {
                                         InsightSurface {
                                             Row(
@@ -337,7 +472,11 @@ fun InsightsContent(
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
-                                                        text = "All caught up · ${state.completedTasks.size} completed",
+                                                        text = if (selectedDate != null) {
+                                                            "All caught up · ${completedTasks.size} completed on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}"
+                                                        } else {
+                                                            "All caught up · ${completedTasks.size} completed"
+                                                        },
                                                         fontSize = 14.sp,
                                                         fontWeight = FontWeight.SemiBold
                                                     )
@@ -346,6 +485,18 @@ fun InsightsContent(
                                                     Text("Archive", fontWeight = FontWeight.Bold)
                                                 }
                                             }
+                                        }
+                                    }
+                                } else if (selectedDate != null) {
+                                    item(key = "empty_tasks_date") {
+                                        EmptyInsights(
+                                            title = "No next steps on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}",
+                                            text = "Next steps created on this date will appear here."
+                                        )
+                                    }
+                                    item(key = "clear_date_tasks") {
+                                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                            TextButton(onClick = { updateDate(null) }) { Text("Show all dates") }
                                         }
                                     }
                                 } else {
@@ -357,83 +508,73 @@ fun InsightsContent(
                                     }
                                 }
 
-                                items(state.openTasks, key = { it.id }) { task ->
+                                items(openTasks, key = { it.id }) { task ->
                                     InsightTaskCard(task, state, actions, onRecordingClick)
                                 }
 
-                                if (state.completedTasks.isNotEmpty()) {
+                                if (completedTasks.isNotEmpty()) {
                                     item(key = "completed_header") {
                                         ExpandInsightsRow(
                                             title = "Completed",
-                                            detail = "${state.completedTasks.size} tasks",
+                                            detail = "${completedTasks.size} task${if (completedTasks.size == 1) "" else "s"}",
                                             expanded = completedExpanded,
                                             onClick = { completedExpanded = !completedExpanded }
                                         )
-                                        if (completedExpanded && state.openTasks.isNotEmpty()) {
+                                        if (completedExpanded && (openTasks.isNotEmpty() || selectedDate == null)) {
                                             TextButton(onClick = actions.archive) {
                                                 Text("Archive completed")
                                             }
                                         }
                                     }
                                     if (completedExpanded) {
-                                        items(state.completedTasks, key = { it.id }) { task ->
+                                        items(completedTasks, key = { it.id }) { task ->
                                             InsightTaskCard(task, state, actions, onRecordingClick)
                                         }
                                     }
                                 }
                             } else {
                                 val isIdeas = selected == "IDEAS"
-                                val query = if (isIdeas) ideaSearch else decisionSearch
-                                val data = if (isIdeas) state.ideas else state.decisions
+                                val baseData = if (isIdeas) state.ideas else state.decisions
 
-                                // Filter by search and optionally by selected theme
-                                val themeFiltered = if (selectedThemeKey != null) {
-                                    val theme = state.themes.find { it.key == selectedThemeKey }
-                                    if (theme != null) data.filter { it.recordingId in theme.noteIds } else data
-                                } else {
-                                    data
-                                }
-
-                                val filtered = themeFiltered.filter { item ->
-                                    listOf(item.text, item.rationale.orEmpty(), state.sources[item.recordingId]?.label.orEmpty())
-                                        .any { it.contains(query, ignoreCase = true) }
-                                }
-
-                                if (data.isNotEmpty()) {
-                                    item(key = "search_$selected") {
-                                        OutlinedTextField(
-                                            value = query,
-                                            onValueChange = { if (isIdeas) ideaSearch = it else decisionSearch = it },
-                                            label = { Text(if (isIdeas) "Search ideas" else "Search decisions") },
-                                            singleLine = true,
-                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("insights_search"),
-                                            trailingIcon = {
-                                                if (query.isNotEmpty()) {
-                                                    IconButton(onClick = { if (isIdeas) ideaSearch = "" else decisionSearch = "" }) {
-                                                        Icon(Icons.Default.Close, contentDescription = "Clear search")
-                                                    }
-                                                }
-                                            }
-                                        )
-                                        if (query.isNotEmpty()) {
-                                            Text(
-                                                text = "${filtered.size} results",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = if (dark) TextOnDarkSecondary else TextSecondary
-                                            )
-                                        }
+                                // Filter by selected calendar date
+                                val dateFiltered = if (selectedDate != null) {
+                                    baseData.filter { item ->
+                                        runCatching {
+                                            Instant.ofEpochMilli(item.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+                                        }.getOrNull() == selectedDate
                                     }
+                                } else {
+                                    baseData
                                 }
 
-                                if (data.isEmpty()) {
+                                // Filter optionally by selected theme
+                                val filtered = if (selectedThemeKey != null) {
+                                    val theme = state.themes.find { it.key == selectedThemeKey }
+                                    if (theme != null) dateFiltered.filter { it.recordingId in theme.noteIds } else dateFiltered
+                                } else {
+                                    dateFiltered
+                                }
+
+                                if (baseData.isEmpty()) {
                                     item {
                                         EmptyInsights(
                                             title = if (isIdeas) "No ideas yet" else "No decisions yet",
                                             text = "Insights from your notes will appear here."
                                         )
+                                    }
+                                } else if (selectedDate != null && dateFiltered.isEmpty()) {
+                                    item {
+                                        EmptyInsights(
+                                            title = "No ${if (isIdeas) "ideas" else "decisions"} on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}",
+                                            text = "Notes or insights captured on this date will appear here."
+                                        )
+                                    }
+                                    item {
+                                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                            TextButton(onClick = { updateDate(null) }) {
+                                                Text("Show all dates")
+                                            }
+                                        }
                                     }
                                 } else if (filtered.isEmpty()) {
                                     item {
@@ -445,69 +586,20 @@ fun InsightsContent(
                                 }
 
                                 items(filtered, key = { it.id }) { insight ->
-                                    InsightSurface {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            InsightPillBadge(
-                                                text = if (isIdeas) "💡 Idea" else "⚖️ Decision",
-                                                containerColor = if (isIdeas) {
-                                                    if (dark) Color(0xFF4C1D95).copy(alpha = 0.35f) else Color(0xFFEDE9FE)
-                                                } else {
-                                                    if (dark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
-                                                },
-                                                contentColor = if (isIdeas) {
-                                                    if (dark) CosmicGlowPurple else Color(0xFF7C3AED)
-                                                } else {
-                                                    if (dark) TextOnDarkSecondary else Color(0xFF475569)
-                                                }
-                                            )
-                                            Text(
-                                                text = formatHumanRelativeDate(insight.createdAt),
-                                                fontSize = 11.5.sp,
-                                                color = if (dark) TextOnDarkSecondary.copy(alpha = 0.6f) else TextMuted
-                                            )
-                                        }
-
-                                        Text(
-                                            text = insight.text,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (dark) TextOnDarkPrimary else TextPrimary
-                                        )
-
-                                        if (!isIdeas && !insight.rationale.isNullOrBlank()) {
-                                            Text(
-                                                text = insight.rationale,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = if (dark) TextOnDarkSecondary else TextSecondary
-                                            )
-                                        }
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            InsightSourceChip(insight.recordingId, state, onRecordingClick)
-                                            if (isIdeas) {
-                                                val task = state.items.firstOrNull { it.sourceInsightId == insight.id }
-                                                TextButton(
-                                                    onClick = {
-                                                        if (task != null) viewingTask = task.id else {
-                                                            creatingFrom = insight.id
-                                                            fromReminder = false
-                                                        }
-                                                    },
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(if (task != null) "View next step" else "Create next step", fontSize = 12.sp)
-                                                }
+                                    val task = if (isIdeas) state.items.firstOrNull { it.sourceInsightId == insight.id } else null
+                                    InsightAccentCard(
+                                        insight = insight,
+                                        isIdea = isIdeas,
+                                        state = state,
+                                        open = onRecordingClick,
+                                        hasNextStep = task != null,
+                                        onNextStep = {
+                                            if (task != null) viewingTask = task.id else {
+                                                creatingFrom = insight.id
+                                                fromReminder = false
                                             }
                                         }
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -517,50 +609,223 @@ fun InsightsContent(
         }
     }
 
-    // Modal Bottom Sheets and Dialogs
+
     historyView?.let { title ->
         var count by rememberSaveable(title) { mutableIntStateOf(50) }
-        ModalBottomSheet(onDismissRequest = { historyView = null }) {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f, false),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        val maxSheetHeight = (LocalConfiguration.current.screenHeightDp * 0.60f).dp
+        ModalBottomSheet(
+            onDismissRequest = { historyView = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = if (dark) CosmicVoidCard else CeramicWhite,
+            scrimColor = Color.Black.copy(alpha = 0.45f),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 40.dp, height = 4.5.dp)
+                        .background(if (dark) CosmicVoidCardBorder else Color(0xFFD1D1D6), CircleShape)
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxSheetHeight)
+                    .navigationBarsPadding()
             ) {
-                item { Text(title, style = MaterialTheme.typography.headlineSmall) }
-                if (title == "Archive") {
-                    if (state.archivedTasks.isEmpty()) item { Text("No archived next steps.") }
-                    items(state.archivedTasks.take(count), key = { it.id }) { task ->
-                        InsightSurface {
-                            Text(task.text)
-                            InsightSourceChip(task.recordingId, state, onRecordingClick)
-                            FlowRow {
-                                TextButton(onClick = { actions.restore(task.id) }) { Text("Restore") }
-                                TextButton(onClick = { deleteId = task.id; deleteIsReminder = false }) { Text("Delete permanently") }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (title == "Archive") Icons.Default.Archive else Icons.Default.History,
+                            contentDescription = null,
+                            tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if (dark) TextOnDarkPrimary else TextPrimary
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (title == "Reminder history" && state.history.isNotEmpty()) {
+                            TextButton(
+                                onClick = { actions.clearReminderHistory() },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Clear history",
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
-                    }
-                    if (state.archivedTasks.size > count) {
-                        item { TextButton(onClick = { count += 50 }) { Text("Load more") } }
-                    }
-                } else {
-                    if (state.history.isEmpty()) item { Text("No reminder history.") }
-                    items(state.history.take(count), key = { it.id }) { reminder ->
-                        InsightSurface {
-                            Text(reminder.title, fontWeight = FontWeight.SemiBold)
-                            Text("${if (reminder.status == ReminderStatus.ACTIVE) "Past" else reminder.status.lowercase().replaceFirstChar { it.titlecase() }} · ${reminderDate(reminder)}")
-                            InsightSourceChip(reminder.recordingId, state, onRecordingClick)
-                            FlowRow {
-                                TextButton(onClick = { editingReminder = reminder.id }) { Text("Review") }
-                                TextButton(onClick = { deleteId = reminder.id; deleteIsReminder = true }) { Text("Delete permanently") }
-                            }
+                        IconButton(
+                            onClick = { historyView = null },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = if (dark) TextOnDarkSecondary else TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
-                    if (state.history.size > count) {
-                        item { TextButton(onClick = { count += 50 }) { Text("Load more") } }
+                }
+                if (title == "Reminder history") {
+                    Text(
+                        text = "Keeps history of past & completed reminders for the last 3 days.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (dark) TextOnDarkSecondary else TextMuted,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp)
+                    )
+                }
+                HorizontalDivider(
+                    color = if (dark) CosmicVoidCardBorder else SlateBorder,
+                    thickness = 1.dp
+                )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, false),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (title == "Archive") {
+                        if (state.archivedTasks.isEmpty()) item {
+                            Text(
+                                "No archived next steps.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (dark) TextOnDarkSecondary else TextSecondary,
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
+                        }
+                        items(state.archivedTasks.take(count), key = { it.id }) { task ->
+                            InsightSurface {
+                                Text(
+                                    task.text,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (dark) TextOnDarkPrimary else TextPrimary
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    InsightSourceChip(
+                                        id = task.recordingId,
+                                        state = state,
+                                        open = onRecordingClick,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        TextButton(
+                                            onClick = { actions.restore(task.id) },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("Restore", fontSize = 12.sp)
+                                        }
+                                        TextButton(
+                                            onClick = { deleteId = task.id; deleteIsReminder = false },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                "Delete",
+                                                color = MaterialTheme.colorScheme.error,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (state.archivedTasks.size > count) {
+                            item { TextButton(onClick = { count += 50 }) { Text("Load more") } }
+                        }
+                    } else {
+                        if (state.history.isEmpty()) item {
+                            Text(
+                                "No reminder history.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (dark) TextOnDarkSecondary else TextSecondary,
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
+                        }
+                        items(state.history.take(count), key = { it.id }) { reminder ->
+                            InsightSurface {
+                                Text(
+                                    reminder.title,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (dark) TextOnDarkPrimary else TextPrimary
+                                )
+                                Text(
+                                    "${if (reminder.status == ReminderStatus.ACTIVE) "Past" else reminder.status.lowercase().replaceFirstChar { it.titlecase() }} · ${reminderDate(reminder)}",
+                                    fontSize = 12.sp,
+                                    color = if (dark) TextOnDarkSecondary else TextMuted
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    InsightSourceChip(
+                                        id = reminder.recordingId,
+                                        state = state,
+                                        open = onRecordingClick,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    val resolvedAt = reminder.confirmedAt
+                                    val canUndo = reminder.status == ReminderStatus.COMPLETED &&
+                                        resolvedAt != null && state.now - resolvedAt <= 24L * 60 * 60 * 1000
+                                    if (canUndo) {
+                                        TextButton(
+                                            onClick = { actions.undoReminder(reminder.id) },
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Undo,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("Undo done", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { actions.deleteReminder(reminder.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Remove from history",
+                                            tint = if (dark) TextOnDarkSecondary else TextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (state.history.size > count) {
+                            item { TextButton(onClick = { count += 50 }) { Text("Load more") } }
+                        }
                     }
                 }
             }
-            Spacer(Modifier.navigationBarsPadding())
         }
     }
 
@@ -581,13 +846,23 @@ fun InsightsContent(
         )
     }
 
+
     editingReminder?.let { id ->
         state.reminders.find { it.id == id }?.let { item ->
             ReminderEditor(
                 item = item,
                 actionError = actionError,
                 onDismiss = { editingReminder = null },
-                onSave = { updated, allowed -> actions.saveReminder(updated, allowed) }
+                onSave = { updated, allowed -> actions.saveReminder(updated, allowed) },
+                onConvertToTask = {
+                    creatingFrom = item.id
+                    fromReminder = true
+                    editingReminder = null
+                },
+                onMarkDone = {
+                    actions.reminderStatus(item.id, ReminderStatus.COMPLETED)
+                    editingReminder = null
+                }
             )
         }
     }
@@ -607,26 +882,143 @@ fun InsightsContent(
 
     viewingTask?.let { id ->
         state.items.find { it.id == id }?.let { task ->
+            val isCompleted = task.status == InsightStatus.COMPLETED
+            val isArchived = task.status == InsightStatus.ARCHIVED
             AlertDialog(
                 onDismissRequest = { viewingTask = null },
-                title = { Text("Next step") },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = if (dark) CosmicVoidCard else CeramicWhite,
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer,
+                                border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else CobaltBorder),
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.TaskAlt,
+                                        contentDescription = null,
+                                        tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Next step",
+                                fontFamily = PlayfairDisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = if (dark) TextOnDarkPrimary else TextPrimary
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = when {
+                                isArchived -> if (dark) CosmicVoidCardBorder else SlateGrouped
+                                isCompleted -> if (dark) CosmicAuroraGreen.copy(alpha = 0.2f) else EmeraldContainer
+                                else -> if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                when {
+                                    isArchived -> if (dark) CosmicVoidCardBorder else SlateBorder
+                                    isCompleted -> if (dark) CosmicAuroraGreen.copy(alpha = 0.5f) else EmeraldSuccess.copy(alpha = 0.5f)
+                                    else -> if (dark) CosmicGlowBlue.copy(alpha = 0.5f) else CobaltBorder
+                                }
+                            )
+                        ) {
+                            Text(
+                                text = when {
+                                    isArchived -> "Archived"
+                                    isCompleted -> "Completed"
+                                    else -> "Open"
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when {
+                                    isArchived -> if (dark) TextOnDarkSecondary else TextSecondary
+                                    isCompleted -> if (dark) CosmicAuroraGreen else OnEmeraldContainer
+                                    else -> if (dark) CosmicGlowBlue else OnCobaltContainer
+                                },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                },
                 text = {
-                    Column {
-                        Text(task.text)
-                        Text(task.status.lowercase().replaceFirstChar { it.titlecase() })
-                        InsightSourceChip(task.recordingId, state, onRecordingClick)
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text(
+                            text = task.text,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 22.sp,
+                            color = if (dark) TextOnDarkPrimary else TextPrimary
+                        )
+
+                        HorizontalDivider(
+                            color = if (dark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.7f),
+                            thickness = 0.8.dp
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Source Note",
+                                fontSize = 12.sp,
+                                color = if (dark) TextOnDarkSecondary else TextMuted
+                            )
+                            InsightSourceChip(task.recordingId, state, onRecordingClick, compact = false)
+                        }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = {
-                        if (task.status == InsightStatus.ARCHIVED) actions.restore(task.id) else actions.toggle(task.id)
-                        viewingTask = null
-                    }) {
-                        Text(if (task.status == InsightStatus.ARCHIVED) "Restore" else if (task.status == InsightStatus.COMPLETED) "Reopen" else "Mark done")
+                    Button(
+                        onClick = {
+                            if (task.status == InsightStatus.ARCHIVED) actions.restore(task.id) else actions.toggle(task.id)
+                            viewingTask = null
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when {
+                                isArchived -> if (dark) CosmicGlowBlue else CobaltBlue
+                                isCompleted -> if (dark) CosmicVoidCardBorder else SlateGrouped
+                                else -> if (dark) CosmicAuroraGreen else EmeraldSuccess
+                            },
+                            contentColor = when {
+                                isCompleted -> if (dark) TextOnDarkPrimary else TextPrimary
+                                else -> Color.White
+                            }
+                        )
+                    ) {
+                        Text(
+                            text = if (task.status == InsightStatus.ARCHIVED) "Restore task" else if (task.status == InsightStatus.COMPLETED) "Reopen task" else "Mark as done",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp
+                        )
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { viewingTask = null }) { Text("Close") }
+                    TextButton(onClick = { viewingTask = null }) {
+                        Text(
+                            "Close",
+                            color = if (dark) TextOnDarkSecondary else TextSecondary,
+                            fontSize = 13.5.sp
+                        )
+                    }
                 }
             )
         }

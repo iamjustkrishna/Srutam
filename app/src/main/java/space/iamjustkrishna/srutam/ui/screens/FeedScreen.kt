@@ -45,9 +45,14 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -69,7 +74,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -88,8 +95,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -99,6 +108,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.R
@@ -116,10 +126,16 @@ import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 private enum class FabState { IDLE, RECORDING_HELD, RECORDING_LOCKED }
-private enum class FeedFilter(val label: String, val icon: ImageVector) {
+enum class FeedFilter(val label: String, val icon: ImageVector) {
     DEFAULT("Default", Icons.Default.FilterAlt),
     PROCESSED("Processed", Icons.Default.TaskAlt),
     UNPROCESSED("Unprocessed", Icons.Default.HourglassEmpty),
@@ -147,8 +163,7 @@ fun FeedScreen(
     var isRecording by remember { mutableStateOf(false) }
     var isRecordingPaused by remember { mutableStateOf(false) }
     var recordingElapsedMs by remember { mutableStateOf(0L) }
-    var selectedFilter by remember { mutableStateOf(FeedFilter.DEFAULT) }
-    var showFilterMenu by remember { mutableStateOf(false) }
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
     var selectedFilePaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showMultiDeleteDialog by remember { mutableStateOf(false) }
     var removingFilePaths by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -525,7 +540,6 @@ fun FeedScreenContent(
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
-    var selectedFilter by remember { mutableStateOf(FeedFilter.DEFAULT) }
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -541,7 +555,55 @@ fun FeedScreenContent(
 
     val isSelectionMode = selectedFilePaths.isNotEmpty()
 
-    val filteredAudioFiles = remember(audioFiles, recordingsByPath, selectedFilter, searchQuery) {
+    var localFilter by remember { mutableStateOf(FeedFilter.DEFAULT) }
+    var localDate by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+
+    val vmFilter by (viewModel?.selectedFilter ?: remember { MutableStateFlow(FeedFilter.DEFAULT) }).collectAsState()
+    val vmDate by (viewModel?.selectedDate ?: remember { MutableStateFlow<LocalDate?>(null) }).collectAsState()
+
+    val selectedFilter = if (viewModel != null) vmFilter else localFilter
+    val selectedDate = if (viewModel != null) vmDate else localDate
+
+    val onUpdateFilter: (FeedFilter) -> Unit = { filter ->
+        if (viewModel != null) {
+            viewModel.setSelectedFilter(filter)
+        } else {
+            localFilter = filter
+            localDate = null
+        }
+    }
+
+    val onUpdateDate: (LocalDate?) -> Unit = { date ->
+        if (viewModel != null) {
+            viewModel.setSelectedDate(date)
+        } else {
+            localDate = date
+            if (date != null) localFilter = FeedFilter.DEFAULT
+        }
+    }
+
+    var datesExpanded by rememberSaveable { mutableStateOf(false) }
+
+    val datesWithNotes = remember(audioFiles) {
+        val zone = ZoneId.systemDefault()
+        audioFiles.mapNotNull { file ->
+            runCatching {
+                Instant.ofEpochMilli(file.timestamp).atZone(zone).toLocalDate()
+            }.getOrNull()
+        }.toSet()
+    }
+
+    val earliestNoteMonth = remember(audioFiles) {
+        val minTimestamp = audioFiles.minOfOrNull { it.timestamp }
+        if (minTimestamp != null) {
+            val date = Instant.ofEpochMilli(minTimestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+            YearMonth.from(date)
+        } else {
+            YearMonth.now()
+        }
+    }
+
+    val filteredAudioFiles = remember(audioFiles, recordingsByPath, selectedFilter, searchQuery, selectedDate) {
         val baseList = when (selectedFilter) {
             FeedFilter.DEFAULT -> audioFiles
             FeedFilter.PROCESSED -> audioFiles.filter { audioFile ->
@@ -555,11 +617,21 @@ fun FeedScreenContent(
             FeedFilter.LONGEST -> audioFiles.sortedByDescending { it.duration }
             FeedFilter.SHORTEST -> audioFiles.sortedBy { it.duration }
         }
-        if (searchQuery.isBlank()) {
+        val dateFiltered = if (selectedDate != null) {
+            val zone = ZoneId.systemDefault()
+            baseList.filter { file ->
+                runCatching {
+                    Instant.ofEpochMilli(file.timestamp).atZone(zone).toLocalDate()
+                }.getOrNull() == selectedDate
+            }
+        } else {
             baseList
+        }
+        if (searchQuery.isBlank()) {
+            dateFiltered
         } else {
             val q = searchQuery.trim().lowercase()
-            baseList.filter { file ->
+            dateFiltered.filter { file ->
                 val rec = recordingsByPath[file.filePath]
                 val nameMatch = file.fileName.lowercase().contains(q) || (rec?.name?.lowercase()?.contains(q) == true)
                 val transcriptMatch = rec?.transcript?.lowercase()?.contains(q) == true ||
@@ -642,8 +714,8 @@ fun FeedScreenContent(
                             },
                             shape = RoundedCornerShape(20.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF2F2F7),
-                                unfocusedContainerColor = Color(0xFFF2F2F7),
+                                focusedContainerColor = Sem.chip,
+                                unfocusedContainerColor = Sem.chip,
                                 focusedBorderColor = Color.Transparent,
                                 unfocusedBorderColor = Color.Transparent
                             ),
@@ -708,41 +780,60 @@ fun FeedScreenContent(
                     }
                 }
 
-                // Compact Modern Segmented Filter Capsule (32dp height)
+                // Filter row: Segmented Filter Capsule (70% width) + Compact Companion Vertical Date Wheel (30% width)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp)
-                        .height(32.dp)
-                        .background(
-                            color = if (isDark) Color(0xFF0C1225) else Color(0xFFEAEFF5),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (isDark) CosmicVoidCardBorder else Color(0xFFDCE4EE),
-                            RoundedCornerShape(16.dp)
-                        )
-                        .padding(2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                FilterSegmentItem(
-                    title = "All Notes",
-                    count = audioFiles.size,
-                    isSelected = selectedFilter == FeedFilter.DEFAULT,
-                    onClick = { selectedFilter = FeedFilter.DEFAULT },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterSegmentItem(
-                    title = "Pending AI",
-                    count = pendingAiCount,
-                    isSelected = selectedFilter == FeedFilter.UNPROCESSED,
-                    isAiPending = true,
-                    onClick = { selectedFilter = FeedFilter.UNPROCESSED },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp)
+                            .background(
+                                color = if (isDark) Color(0xFF0C1225) else Color(0xFFEAEFF5),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .border(
+                                1.dp,
+                                if (isDark) CosmicVoidCardBorder else Color(0xFFDCE4EE),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterSegmentItem(
+                            title = "All Notes",
+                            count = audioFiles.size,
+                            isSelected = selectedDate == null && selectedFilter == FeedFilter.DEFAULT,
+                            onClick = {
+                                onUpdateFilter(FeedFilter.DEFAULT)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilterSegmentItem(
+                            title = "Pending AI",
+                            count = pendingAiCount,
+                            isSelected = selectedDate == null && selectedFilter == FeedFilter.UNPROCESSED,
+                            isAiPending = true,
+                            onClick = {
+                                onUpdateFilter(FeedFilter.UNPROCESSED)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    CompactVerticalDateWheel(
+                        selectedDate = selectedDate,
+                        onDateSelected = onUpdateDate,
+                        datesWithActivity = datesWithNotes,
+                        earliestMonth = earliestNoteMonth,
+                        modifier = Modifier.width(76.dp)
+                    )
+                }
 
             // Pending AI Batch Banner
             if (selectedFilter == FeedFilter.UNPROCESSED && pendingAiCount > 0) {
@@ -846,6 +937,31 @@ fun FeedScreenContent(
                             query = searchQuery,
                             onClearSearch = { searchQuery = "" }
                         )
+                    } else if (selectedDate != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "No notes on ${selectedDate!!.format(DateTimeFormatter.ofPattern("MMM d"))}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Voice notes recorded on this date will appear here.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            TextButton(onClick = { onUpdateDate(null) }) {
+                                Text("Show all dates", fontWeight = FontWeight.SemiBold, color = CobaltBlue)
+                            }
+                        }
                     } else if (selectedFilter == FeedFilter.UNPROCESSED) {
                         PendingAiEmptyState()
                     } else {
@@ -1427,8 +1543,8 @@ fun NotesEmptyState(modifier: Modifier = Modifier) {
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color(0xFFF1F5F9),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                color = Sem.chip,
+                border = BorderStroke(1.dp, Sem.border),
                 modifier = Modifier.size(72.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -1436,7 +1552,7 @@ fun NotesEmptyState(modifier: Modifier = Modifier) {
                         imageVector = Icons.Default.Mic,
                         contentDescription = null,
                         modifier = Modifier.size(34.dp),
-                        tint = Color(0xFF475569)
+                        tint = Sem.textSecondary
                     )
                 }
             }
@@ -1445,13 +1561,13 @@ fun NotesEmptyState(modifier: Modifier = Modifier) {
                 text = "Capture Your First Note",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = Sem.text
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Tap the record button below to speak your thoughts. We will transcribe and summarize them automatically.",
                 fontSize = 14.sp,
-                color = Color(0xFF64748B),
+                color = Sem.textSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
@@ -1474,8 +1590,8 @@ fun PendingAiEmptyState(modifier: Modifier = Modifier) {
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color(0xFFEFF6FF),
-                border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                color = Sem.accentContainer,
+                border = BorderStroke(1.dp, Sem.accentBorder),
                 modifier = Modifier.size(72.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -1492,13 +1608,13 @@ fun PendingAiEmptyState(modifier: Modifier = Modifier) {
                 text = "All Caught Up",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = Sem.text
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Every voice note has been transcribed and synthesized with AI.",
                 fontSize = 14.sp,
-                color = Color(0xFF64748B),
+                color = Sem.textSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
@@ -1777,7 +1893,7 @@ fun AudioFileCard(
                         isAiProcessed -> {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFE2EEFE)
+                                color = Sem.accentContainer
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1787,14 +1903,14 @@ fun AudioFileCard(
                                     Text(
                                         text = "✦",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF2563EB),
+                                        color = Sem.accent,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         text = "Summarized",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF2563EB)
+                                        color = Sem.accent
                                     )
                                 }
                             }
@@ -1802,7 +1918,7 @@ fun AudioFileCard(
                         recording?.aiStatus == RecordingAiStatus.ERROR -> {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFFEE2E2),
+                                color = Sem.errorContainer,
                                 border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
                                 modifier = Modifier
                                     .shadow(elevation = 2.dp, shape = CircleShape)
@@ -1819,14 +1935,14 @@ fun AudioFileCard(
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = "Retry AI",
-                                        tint = Color(0xFFDC2626),
+                                        tint = Sem.error,
                                         modifier = Modifier.size(12.dp)
                                     )
                                     Text(
                                         text = "Retry AI",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFDC2626)
+                                        color = Sem.error
                                     )
                                 }
                             }
@@ -1834,8 +1950,8 @@ fun AudioFileCard(
                         recording?.transcript?.isNotBlank() == true -> {
                             Surface(
                                 shape = CircleShape,
-                                color = CobaltContainer,
-                                border = BorderStroke(1.dp, CobaltBorder.copy(alpha = 0.4f)),
+                                color = Sem.accentContainer,
+                                border = BorderStroke(1.dp, Sem.accentBorder.copy(alpha = 0.4f)),
                                 modifier = Modifier
                                     .shadow(
                                         elevation = 3.dp,
@@ -1861,7 +1977,7 @@ fun AudioFileCard(
                                         text = "Generate Insights",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = CobaltBlue
+                                        color = Sem.accent
                                     )
                                 }
                             }
@@ -1869,7 +1985,7 @@ fun AudioFileCard(
                         else -> {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFBACFFC),
+                                color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFBACFFC),
                                 modifier = Modifier
                                     .shadow(
                                         elevation = 4.dp,
@@ -1895,7 +2011,7 @@ fun AudioFileCard(
                                         text = "AI Insights",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1E40AF)
+                                        color = if (isDark) CosmicGlowBlue else Color(0xFF1E40AF)
                                     )
                                 }
                             }
@@ -1903,20 +2019,41 @@ fun AudioFileCard(
                     }
                 }
 
-                // Row 2: Human-readable relative date
-                Text(
-                    text = formatHumanRelativeDate(audioFile.timestamp),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
-                )
+                // Row 2: Human-readable relative date & Insight Indicators
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatHumanRelativeDate(audioFile.timestamp),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
+                    )
+                    if (!recording?.actionItems.isNullOrBlank() && recording?.actionItems != "[]") {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isDark) CosmicAuroraGreen.copy(alpha = 0.15f) else EmeraldSuccess.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, if (isDark) CosmicAuroraGreen.copy(alpha = 0.3f) else EmeraldSuccess.copy(alpha = 0.25f))
+                        ) {
+                            Text(
+                                text = "✦ Next steps",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
 
-                // Row 2.5: Summary Preview (Only shown AFTER AI processed, in smaller font size; NO placeholder text!)
+                // Row 2.5: Summary Preview (Content-first 2-line preview)
                 if (isProcessing) {
                     Text(
                         text = "Transcribing audio and extracting insights...",
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.sp,
                         color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB),
                         fontWeight = FontWeight.Normal,
                         maxLines = 1,
@@ -1926,11 +2063,11 @@ fun AudioFileCard(
                 } else if (isAiProcessed && !recording?.summary.isNullOrBlank()) {
                     Text(
                         text = recording!!.summary!!.trim(),
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
                         fontWeight = FontWeight.Normal,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -2029,11 +2166,11 @@ fun AudioFileCard(
                                 expanded = showDropdown,
                                 onDismissRequest = { showDropdown = false },
                                 modifier = Modifier
-                                    .background(Color.White, RoundedCornerShape(20.dp))
-                                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(20.dp))
+                                    .background(Sem.card, RoundedCornerShape(20.dp))
+                                    .border(BorderStroke(1.dp, Sem.border), RoundedCornerShape(20.dp))
                                     .width(180.dp),
                                 shape = RoundedCornerShape(20.dp),
-                                containerColor = Color.White,
+                                containerColor = Sem.card,
                                 shadowElevation = 10.dp
                             ) {
                                 DropdownMenuItem(
@@ -2042,14 +2179,14 @@ fun AudioFileCard(
                                             "Rename",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1E293B)
+                                            color = Sem.text
                                         )
                                     },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Edit,
                                             contentDescription = null,
-                                            tint = Color(0xFF334155),
+                                            tint = Sem.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -2059,21 +2196,21 @@ fun AudioFileCard(
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.8.dp)
+                                HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             "File Info",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1E293B)
+                                            color = Sem.text
                                         )
                                     },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Info,
                                             contentDescription = null,
-                                            tint = Color(0xFF334155),
+                                            tint = Sem.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     },
@@ -2083,7 +2220,7 @@ fun AudioFileCard(
                                     },
                                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.8.dp)
+                                HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
                                 DropdownMenuItem(
                                     text = {
                                         Text(
@@ -2131,9 +2268,9 @@ private fun FilterSegmentItem(
             .fillMaxHeight()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
-        color = if (isSelected) Color.White else Color.Transparent,
+        color = if (isSelected) Sem.selected else Color.Transparent,
         shape = RoundedCornerShape(14.dp),
-        border = if (isSelected) BorderStroke(1.dp, Color(0xFFE2E8F0)) else null,
+        border = if (isSelected) BorderStroke(1.dp, Sem.border) else null,
         shadowElevation = if (isSelected) 1.5.dp else 0.dp
     ) {
         Row(
@@ -2148,13 +2285,15 @@ private fun FilterSegmentItem(
                 fontSize = 11.5.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 letterSpacing = 0.25.sp,
-                color = if (isSelected) Color(0xFF0F172A) else Color(0xFF64748B),
-                maxLines = 1
+                color = if (isSelected) Sem.text else Sem.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             if (isAiPending && count > 0) {
                 Surface(
-                    color = if (isSelected) CobaltContainer else Color(0xFFE0E7FF),
+                    color = if (isSelected) Sem.accentContainer else Sem.accentContainer.copy(alpha = 0.6f),
                     shape = CircleShape
                 ) {
                     Row(
@@ -2172,22 +2311,262 @@ private fun FilterSegmentItem(
                             text = "$count",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = CobaltBlue
+                            color = CobaltBlue,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
             } else {
                 Surface(
-                    color = if (isSelected) Color(0xFFF1F5F9) else Color(0xFFE2E8F0).copy(alpha = 0.7f),
+                    color = if (isSelected) Sem.chip else Sem.border.copy(alpha = 0.7f),
                     shape = CircleShape
                 ) {
                     Text(
                         text = "$count",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isSelected) Color(0xFF334155) else Color(0xFF64748B),
+                        color = if (isSelected) Sem.text else Sem.textSecondary,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CompactVerticalDateWheel(
+    selectedDate: LocalDate?,
+    onDateSelected: (LocalDate?) -> Unit,
+    datesWithActivity: Set<LocalDate>,
+    earliestMonth: YearMonth,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsCosmicDark.current
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val currentMonth = remember { YearMonth.now() }
+    val boundedEarliest = remember(earliestMonth, currentMonth) {
+        if (earliestMonth.isAfter(currentMonth)) currentMonth else earliestMonth
+    }
+    val days = remember(boundedEarliest, currentMonth) {
+        val list = mutableListOf<LocalDate>()
+        var curr = boundedEarliest.atDay(1)
+        val end = currentMonth.atEndOfMonth()
+        while (!curr.isAfter(end)) {
+            list.add(curr)
+            curr = curr.plusDays(1)
+        }
+        if (list.isEmpty()) list.add(LocalDate.now())
+        list
+    }
+    val today = remember { LocalDate.now() }
+    val initialIndex = remember(days, today) {
+        val target = selectedDate ?: today
+        days.indexOfFirst { it == target }.coerceAtLeast(0)
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val flingBehavior = rememberSnapFlingBehavior(listState)
+
+    // Sync wheel position if selectedDate changes externally (e.g. from All Notes reset)
+    LaunchedEffect(selectedDate) {
+        if (selectedDate != null) {
+            val targetIdx = days.indexOfFirst { it == selectedDate }
+            if (targetIdx >= 0 && !listState.isScrollInProgress) {
+                listState.animateScrollToItem(targetIdx)
+            }
+        }
+    }
+
+    val currentVisibleIndex by remember(days) {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val center = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+            val visibleItem = layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                kotlin.math.abs((item.offset + item.size / 2) - center)
+            }
+            visibleItem?.index ?: initialIndex
+        }
+    }
+
+    val currentVisibleDate by remember(days, currentVisibleIndex) {
+        derivedStateOf {
+            days.getOrNull(currentVisibleIndex) ?: (selectedDate ?: today)
+        }
+    }
+
+    var hasUserInteracted by remember { mutableStateOf(false) }
+    val isDragged by listState.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(isDragged) {
+        if (isDragged) hasUserInteracted = true
+    }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress && hasUserInteracted) {
+            currentVisibleDate.let { date ->
+                if (selectedDate != date) {
+                    onDateSelected(date)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+        }
+    }
+
+    val isDateActive = selectedDate != null
+
+    // Clean floating drum - no background, no dividers, just numbers with physics
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        // Month Label - vertically centered with matching metrics
+        Text(
+            text = currentVisibleDate.format(DateTimeFormatter.ofPattern("MMM")),
+            fontSize = 12.sp,
+            fontWeight = if (isDateActive) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (isDateActive) (if (isDark) CosmicGlowBlue else CobaltBlue) else (if (isDark) TextOnDarkSecondary else TextSecondary),
+            letterSpacing = 0.3.sp,
+            style = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (isDateActive) {
+                    onDateSelected(null)
+                } else {
+                    val todayIdx = days.indexOfFirst { it == today }
+                    if (todayIdx >= 0) {
+                        coroutineScope.launch { listState.animateScrollToItem(todayIdx) }
+                    }
+                    onDateSelected(today)
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Drum viewport - transparent, no background, no lines
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .height(48.dp)
+                .clipToBounds(),
+            contentAlignment = Alignment.Center
+        ) {
+            LazyColumn(
+                state = listState,
+                flingBehavior = flingBehavior,
+                contentPadding = PaddingValues(vertical = 15.5.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Fade the neighbours out toward the top and bottom edge without adding height.
+                    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0.0f to Color.Transparent,
+                                0.30f to Color.Black,
+                                0.70f to Color.Black,
+                                1.0f to Color.Transparent
+                            ),
+                            blendMode = androidx.compose.ui.graphics.BlendMode.DstIn
+                        )
+                    }
+            ) {
+                items(days.size, key = { days[it].toString() }) { idx ->
+                    val dayDate = days[idx]
+                    val isCenter = idx == currentVisibleIndex
+                    val hasActivity = dayDate in datesWithActivity
+                    val isTop = idx < currentVisibleIndex
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(17.dp)
+                            .graphicsLayer {
+                                if (isCenter) {
+                                    scaleX = 1f
+                                    scaleY = 1f
+                                    alpha = 1f
+                                    rotationX = 0f
+                                } else {
+                                    scaleX = 0.82f
+                                    scaleY = 0.82f
+                                    alpha = 0.7f
+                                    rotationX = if (isTop) -18f else 18f
+                                }
+                            }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                if (isCenter) {
+                                    if (isDateActive) {
+                                        onDateSelected(null)
+                                    } else {
+                                        onDateSelected(dayDate)
+                                    }
+                                } else {
+                                    coroutineScope.launch {
+                                        listState.animateScrollToItem(idx)
+                                    }
+                                    onDateSelected(dayDate)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "${dayDate.dayOfMonth}",
+                                fontSize = if (isCenter) 13.5.sp else 10.5.sp,
+                                fontWeight = if (isCenter && isDateActive) FontWeight.Bold else if (isCenter) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isCenter) {
+                                    if (isDateActive) {
+                                        if (isDark) CosmicGlowBlue else CobaltBlue
+                                    } else {
+                                        if (isDark) TextOnDarkPrimary else TextPrimary
+                                    }
+                                } else {
+                                    if (isDark) TextOnDarkSecondary else TextMuted
+                                },
+                                style = LocalTextStyle.current.copy(
+                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                    lineHeight = 18.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            )
+                            if (hasActivity && isCenter) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(3.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isDateActive) {
+                                                if (isDark) CosmicGlowBlue else CobaltBlue
+                                            } else {
+                                                (if (isDark) TextOnDarkSecondary else TextMuted).copy(alpha = 0.6f)
+                                            }
+                                        )
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2277,8 +2656,8 @@ private fun SearchEmptyState(
     ) {
         Surface(
             shape = RoundedCornerShape(26.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = Sem.card,
+            border = BorderStroke(1.dp, Sem.border),
             shadowElevation = 4.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -2290,14 +2669,14 @@ private fun SearchEmptyState(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = Color(0xFFF1F5F9),
+                    color = Sem.chip,
                     modifier = Modifier.size(56.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = Sem.textSecondary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -2307,13 +2686,13 @@ private fun SearchEmptyState(
                     text = "No matching recordings",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Sem.text
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "No notes or transcripts matched \"$query\".",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = Sem.textSecondary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(18.dp))

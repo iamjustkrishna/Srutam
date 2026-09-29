@@ -29,9 +29,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.foundation.background
 import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
+import space.iamjustkrishna.srutam.ui.theme.CosmicVoidBackground
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -334,7 +336,9 @@ private fun RootScreen(
         } else {
             // Phone: Bottom dock + tab-switched content
             Box(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(if (isDark) CosmicVoidBackground else Color(0xFFF4F5F8))
             ) {
                 when (currentTab) {
                     RootTab.NOTES -> {
@@ -385,6 +389,7 @@ private fun RootScreen(
                 ) {
                     StudioBottomBar(
                         currentTab = currentTab,
+                        transparent = currentTab == RootTab.AI,
                         onTabSelected = { currentTab = it },
                         isRecording = isServiceRecording,
                         isPaused = isServicePaused,

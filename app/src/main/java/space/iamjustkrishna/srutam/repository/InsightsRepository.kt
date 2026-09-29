@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.iamjustkrishna.srutam.ai.AIProcessor
+import space.iamjustkrishna.srutam.ai.ResolvedReminderTime
 import space.iamjustkrishna.srutam.data.*
 import space.iamjustkrishna.srutam.service.*
 import java.security.MessageDigest
@@ -139,7 +140,7 @@ class InsightsRepository(
         val saved = database.withTransaction {
             val dao = database.reminderDao()
             val old = dao.getReminderById(edited.id) ?: error("This reminder no longer exists.")
-            require(database.recordingDao().getRecordingById(old.recordingId) != null) { "Source note unavailable." }
+            require(sourceExists(old.recordingId)) { "Source note unavailable." }
             require(edited.title.isNotBlank()) { "Enter a title." }
             val enabled = edited.notificationEnabled && notificationsAvailable
             if (enabled) require(edited.timePrecision == "EXACT" && (edited.eventTimeMs ?: 0) > clock.millis()) {
@@ -152,7 +153,8 @@ class InsightsRepository(
                 notificationEnabled = enabled, confirmedAt = if (enabled) clock.millis() else null,
                 needsReview = edited.timePrecision == "UNKNOWN", advanceNotification = enabled && edited.advanceNotification,
                 extractionFingerprint = old.extractionFingerprint ?: fingerprint("REMINDER", "${old.title}\n${old.originalText}"),
-                legacyReview = false, status = ReminderStatus.ACTIVE,
+                legacyReview = false,
+                status = if ((edited.eventTimeMs ?: 0) > clock.millis() || enabled) ReminderStatus.ACTIVE else old.status,
                 scheduleRevision = old.scheduleRevision + 1,
                 scheduleError = if (edited.notificationEnabled && !notificationsAvailable)
                     "Saved without notifications. Enable notification permission, then review again." else null
@@ -169,9 +171,26 @@ class InsightsRepository(
         require(status in listOf(ReminderStatus.COMPLETED, ReminderStatus.DISMISSED))
         database.reminderDao().update(item.copy(
             status = status, notificationEnabled = false, needsReview = false, legacyReview = false,
+            // For resolved reminders confirmedAt records when they were resolved; it bounds the undo window.
+            confirmedAt = clock.millis(),
             scheduleRevision = item.scheduleRevision + 1
         ))
         alarms.cancel(item)
+    }
+
+    /** Reopens a reminder that was marked done or dismissed within the last day, re-arming its alert when still upcoming. */
+    suspend fun undoReminderStatus(id: String) = reminderWrites.withLock {
+        val item = database.reminderDao().getReminderById(id) ?: return@withLock
+        val now = clock.millis()
+        val resolvedAt = item.confirmedAt
+        if ((item.status != ReminderStatus.COMPLETED && item.status != ReminderStatus.DISMISSED) || resolvedAt == null || now - resolvedAt > UNDO_WINDOW_MS) return@withLock
+        val rearm = item.type != ReminderType.MILESTONE && item.timePrecision == "EXACT" && (item.eventTimeMs ?: 0) > now
+        val restored = item.copy(
+            status = ReminderStatus.ACTIVE, notificationEnabled = rearm, needsReview = false,
+            confirmedAt = if (rearm) now else null, scheduleRevision = item.scheduleRevision + 1, scheduleError = null
+        )
+        database.reminderDao().update(restored)
+        if (rearm) database.reminderDao().update(restored.copy(scheduleError = alarms.schedule(restored)))
     }
 
     suspend fun disableReminder(id: String) = reminderWrites.withLock {
@@ -194,6 +213,19 @@ class InsightsRepository(
         }
     }
 
+    suspend fun clearReminderHistory() = reminderWrites.withLock {
+        database.withTransaction {
+            val reminders = database.reminderDao().getAll()
+            val now = clock.millis()
+            reminders.filter { item ->
+                item.status != ReminderStatus.ACTIVE || ((item.eventTimeMs ?: Long.MAX_VALUE) < now && !item.needsReview)
+            }.forEach { item ->
+                database.reminderDao().delete(item)
+                alarms.cancel(item)
+            }
+        }
+    }
+
     suspend fun createTask(sourceId: String, fromReminder: Boolean, text: String, reminder: ReminderEntity? = null): String =
         reminderWrites.withLock {
             require(text.isNotBlank()) { "Enter a next step." }
@@ -203,7 +235,7 @@ class InsightsRepository(
                 val sourceIdea = if (!fromReminder) dao.getById(sourceId) else null
                 val sourceReminder = if (fromReminder) database.reminderDao().getReminderById(sourceId) else null
                 val recordingId = sourceIdea?.recordingId ?: sourceReminder?.recordingId ?: error("Source no longer exists.")
-                require(database.recordingDao().getRecordingById(recordingId) != null) { "Source note unavailable." }
+                require(sourceExists(recordingId)) { "Source note unavailable." }
                 val id = UUID.randomUUID().toString()
                 dao.insertInsight(InsightEntity(
                     id = id, recordingId = recordingId, kind = InsightKind.ACTION, text = text.trim(),
@@ -229,12 +261,73 @@ class InsightsRepository(
             result
         }
 
+    private suspend fun sourceExists(recordingId: Long): Boolean =
+        SourceIds.isChat(recordingId) || database.recordingDao().getRecordingById(recordingId) != null
+
+    /** Creates a reminder or target date that has no source note, e.g. one requested in Srutam AI chat. */
+    suspend fun createChatReminder(
+        title: String, type: String, time: ResolvedReminderTime, notify: Boolean
+    ): ReminderEntity = reminderWrites.withLock {
+        require(title.isNotBlank()) { "Enter a title." }
+        val now = clock.millis()
+        val exactFuture = time.precision == "EXACT" && (time.eventTimeMs ?: 0) > now
+        val enabled = notify && exactFuture && type != ReminderType.MILESTONE
+        val item = ReminderEntity(
+            recordingId = SourceIds.CHAT, recordingName = "Srutam AI", title = title.trim(),
+            eventTimeMs = time.eventTimeMs, originalText = title.trim(), type = type,
+            timePrecision = time.precision, localDate = time.localDate, localTime = time.localTime,
+            zoneId = time.zoneId, zoneInferred = false, notificationEnabled = enabled,
+            confirmedAt = if (enabled) now else null, needsReview = false
+        )
+        database.reminderDao().insertReminders(listOf(item))
+        if (!enabled) return@withLock item
+        item.copy(scheduleError = alarms.schedule(item)).also { database.reminderDao().update(it) }
+    }
+
+    /** Creates a next step, idea or decision with no source note. */
+    suspend fun createChatInsight(kind: String, text: String, rationale: String? = null): String = reminderWrites.withLock {
+        require(text.isNotBlank()) { "Enter some text." }
+        val id = UUID.randomUUID().toString()
+        database.insightDao().insertInsight(InsightEntity(
+            id = id, recordingId = SourceIds.CHAT, recordingName = "Srutam AI", kind = kind,
+            text = text.trim(), rationale = rationale?.trim()?.ifBlank { null }, createdAt = clock.millis(),
+            extractionFingerprint = fingerprint(kind, text)
+        ))
+        id
+    }
+
+    suspend fun editInsightText(id: String, text: String) = reminderWrites.withLock {
+        require(text.isNotBlank()) { "Enter some text." }
+        val dao = database.insightDao()
+        val item = dao.getById(id) ?: return@withLock
+        dao.updateInsight(item.copy(text = text.trim(), extractionFingerprint = fingerprint(item.kind, text)))
+    }
+
+    suspend fun setInsightStatus(id: String, status: String) = reminderWrites.withLock {
+        val dao = database.insightDao()
+        val item = dao.getById(id) ?: return@withLock
+        dao.updateInsight(item.copy(
+            status = status, archivedAt = if (status == InsightStatus.ARCHIVED) clock.millis() else null,
+            completedAt = if (status == InsightStatus.COMPLETED) (item.completedAt ?: clock.millis()) else null
+        ))
+    }
+
+    suspend fun archiveTask(id: String) = reminderWrites.withLock {
+        val dao = database.insightDao()
+        val item = dao.getById(id) ?: return@withLock
+        dao.updateInsight(item.copy(status = InsightStatus.ARCHIVED, archivedAt = clock.millis()))
+    }
+
+    suspend fun getReminder(id: String): ReminderEntity? = database.reminderDao().getReminderById(id)
+    suspend fun getInsight(id: String): InsightEntity? = database.insightDao().getById(id)
+    suspend fun allReminders(): List<ReminderEntity> = database.reminderDao().getAll()
+    suspend fun allInsights(): List<InsightEntity> = database.insightDao().getAllInsightsFlow().first()
+
     suspend fun reconcile() = reminderWrites.withLock {
         database.insightDao().autoArchiveStaleCompleted(clock.millis() - 3 * 24 * 60 * 60 * 1000L, clock.millis())
         for (item in database.reminderDao().getAll()) {
             alarms.cancel(item) // Also cancels old payloads without the new URI identity.
-            val sourceExists = database.recordingDao().getRecordingById(item.recordingId) != null
-            if (sourceExists && ReminderPolicy.canSchedule(item, clock.millis())) {
+            if (sourceExists(item.recordingId) && ReminderPolicy.canSchedule(item, clock.millis())) {
                 database.reminderDao().update(item.copy(scheduleError = alarms.schedule(item)))
             }
         }
@@ -253,6 +346,7 @@ class InsightsRepository(
 
     companion object {
         private val reminderWrites = Mutex()
+        private const val UNDO_WINDOW_MS = 24L * 60 * 60 * 1000
         fun from(context: Context) = InsightsRepository(AppDatabase.getDatabase(context), AndroidReminderAlarms(context.applicationContext))
         fun fingerprint(kind: String, text: String): String {
             val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).trim()

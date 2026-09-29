@@ -445,7 +445,7 @@ fun TabletWorkspaceLayout(
                             }
                         }
                         if (viewModel != null) {
-                            InsightsScreen(onRecordingClick = openSource, onSettingsClick = onSettingsClick)
+                            InsightsScreen(onRecordingClick = openSource, onSettingsClick = onSettingsClick, audioViewModel = viewModel)
                         } else {
                             ActionItemsContent(activeActions, allIdeas, allDecisions, themeClusters,
                                 onRecordingClick = openSource, onSettingsClick = onSettingsClick,
@@ -4674,6 +4674,8 @@ private fun TabletInspectorChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
         color = if (isSelected) accentColor.copy(alpha = if (isDark) 0.3f else 0.15f) else (if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
         border = BorderStroke(1.dp, if (isSelected) accentColor else Color.Transparent),
         modifier = modifier.height(30.dp)

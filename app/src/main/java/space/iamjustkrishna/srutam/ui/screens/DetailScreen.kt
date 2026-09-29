@@ -255,7 +255,7 @@ fun DetailScreenContent(
     }
 
     Scaffold(
-        containerColor = CeramicWhite,
+        containerColor = Sem.scaffold,
         floatingActionButton = {
             if (askQuestionsEnabled) {
                 Surface(
@@ -287,13 +287,14 @@ fun DetailScreenContent(
             }
         },
         topBar = {
+            val hairline = Sem.border.copy(alpha = 0.6f)
             TopAppBar(
                 title = {
                     Text(
                         text = "Note Details",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1C1C1E)
+                        color = Sem.text
                     )
                 },
                 navigationIcon = {
@@ -301,23 +302,23 @@ fun DetailScreenContent(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Back",
-                            tint = Color(0xFF1C1C1E),
+                            tint = Sem.text,
                             modifier = Modifier.size(28.dp)
                         )
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFF64748B))
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Sem.textSecondary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
-                    titleContentColor = TextPrimary
+                    containerColor = Sem.scaffold.copy(alpha = 0.85f),
+                    titleContentColor = Sem.text
                 ),
                 modifier = Modifier.drawBehind {
                     drawLine(
-                        color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                        color = hairline,
                         start = Offset(0f, size.height),
                         end = Offset(size.width, size.height),
                         strokeWidth = 1.dp.toPx()
@@ -468,7 +469,7 @@ fun RecordingDetailsContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF2F2F7), RoundedCornerShape(14.dp))
+                    .background(Sem.chip, RoundedCornerShape(14.dp))
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -479,7 +480,7 @@ fun RecordingDetailsContent(
                             .weight(1f)
                             .height(36.dp)
                             .background(
-                                color = if (isSelected) Color.White else Color.Transparent,
+                                color = if (isSelected) Sem.selected else Color.Transparent,
                                 shape = RoundedCornerShape(10.dp)
                             )
                             .clickable { selectedDetailTabIndex = index },
@@ -489,7 +490,7 @@ fun RecordingDetailsContent(
                             text = title,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color(0xFF1C1C1E) else Color(0xFF8E8E93)
+                            color = if (isSelected) Sem.text else Sem.textMuted
                         )
                     }
                 }
@@ -757,8 +758,8 @@ fun RecordingDetailsContent(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-                        border = BorderStroke(0.5.dp, SlateBorder)
+                        colors = CardDefaults.cardColors(containerColor = Sem.card),
+                        border = BorderStroke(0.5.dp, Sem.border)
                     ) {
                         Box(
                             modifier = Modifier
@@ -768,7 +769,7 @@ fun RecordingDetailsContent(
                         ) {
                             Text(
                                 text = "Transcript is not available yet.",
-                                color = Color(0xFF8E8E93),
+                                color = Sem.textMuted,
                                 fontSize = 14.sp
                             )
                         }
@@ -787,8 +788,8 @@ fun RecordingDetailsContent(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-                        border = BorderStroke(1.dp, SlateBorder)
+                        colors = CardDefaults.cardColors(containerColor = Sem.card),
+                        border = BorderStroke(1.dp, Sem.border)
                     ) {
                         Column(
                             modifier = Modifier
@@ -799,7 +800,7 @@ fun RecordingDetailsContent(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = SlateGrouped,
+                                color = Sem.chip,
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -816,13 +817,13 @@ fun RecordingDetailsContent(
                                 text = "No Insights Extracted Yet",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = Sem.text
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Generate an AI summary to extract Next Steps, Key Ideas, and Decisions for this voice note.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary,
+                                color = Sem.textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -844,7 +845,7 @@ fun RecordingDetailsContent(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = CobaltContainer,
+                                    color = Sem.accentContainer,
                                     modifier = Modifier.size(20.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -861,22 +862,22 @@ fun RecordingDetailsContent(
                                     text = "Next Steps",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = Sem.text
                                 )
                             }
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (allDone) EmeraldContainer else SlateGrouped,
+                                color = if (allDone) Sem.emeraldContainer else Sem.chip,
                                 border = BorderStroke(
                                     0.5.dp,
-                                    if (allDone) EmeraldSuccess.copy(alpha = 0.3f) else SlateBorder
+                                    if (allDone) EmeraldSuccess.copy(alpha = 0.3f) else Sem.border
                                 )
                             ) {
                                 Text(
                                     text = "$completedCount/${actions.size} done",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (allDone) OnEmeraldContainer else TextSecondary,
+                                    color = if (allDone) Sem.onEmerald else Sem.textSecondary,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -902,14 +903,14 @@ fun RecordingDetailsContent(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFFEF3C7),
+                                color = Sem.amberContainer,
                                 modifier = Modifier.size(20.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Lightbulb,
                                         contentDescription = null,
-                                        tint = Color(0xFFD97706),
+                                        tint = Sem.amber,
                                         modifier = Modifier.size(12.dp)
                                     )
                                 }
@@ -919,19 +920,19 @@ fun RecordingDetailsContent(
                                 text = "Key Ideas",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = Sem.text
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFFEF3C7),
-                                border = BorderStroke(0.5.dp, Color(0xFFFDE68A))
+                                color = Sem.amberContainer,
+                                border = BorderStroke(0.5.dp, Sem.amberBorder)
                             ) {
                                 Text(
                                     text = "${ideas.size}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFB45309),
+                                    color = Sem.amberText,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -954,7 +955,7 @@ fun RecordingDetailsContent(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = EmeraldContainer,
+                                color = Sem.emeraldContainer,
                                 modifier = Modifier.size(20.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -971,19 +972,19 @@ fun RecordingDetailsContent(
                                 text = "Decisions",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = Sem.text
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = EmeraldContainer,
-                                border = BorderStroke(0.5.dp, Color(0xFFA7F3D0))
+                                color = Sem.emeraldContainer,
+                                border = BorderStroke(0.5.dp, Sem.emeraldBorder)
                             ) {
                                 Text(
                                     text = "${decisions.size}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = OnEmeraldContainer,
+                                    color = Sem.onEmerald,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -1105,8 +1106,8 @@ fun MetadataCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-        border = BorderStroke(0.5.dp, SlateBorder),
+        colors = CardDefaults.cardColors(containerColor = Sem.card),
+        border = BorderStroke(0.5.dp, Sem.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -1124,7 +1125,7 @@ fun MetadataCard(
                     text = displayName,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = Sem.text,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -1149,23 +1150,23 @@ fun MetadataCard(
                 Text(
                     text = formatDate(recording.timestamp),
                     fontSize = 13.sp,
-                    color = Color(0xFF8E8E93)
+                    color = Sem.textMuted
                 )
                 Text(
                     text = "•",
                     fontSize = 13.sp,
-                    color = Color(0xFFC7C7CC)
+                    color = Sem.textMuted
                 )
                 Icon(
                     imageVector = Icons.Default.Schedule,
                     contentDescription = null,
-                    tint = Color(0xFF8E8E93),
+                    tint = Sem.textMuted,
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
                     text = formatDuration(recording.duration),
                     fontSize = 13.sp,
-                    color = Color(0xFF8E8E93)
+                    color = Sem.textMuted
                 )
             }
         }
@@ -1181,8 +1182,8 @@ fun SectionCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-        border = BorderStroke(0.5.dp, SlateBorder),
+        colors = CardDefaults.cardColors(containerColor = Sem.card),
+        border = BorderStroke(0.5.dp, Sem.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1193,7 +1194,7 @@ fun SectionCard(
                 color = CobaltBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = Sem.border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = content,
@@ -1212,8 +1213,8 @@ fun BulletListCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-        border = BorderStroke(0.5.dp, SlateBorder),
+        colors = CardDefaults.cardColors(containerColor = Sem.card),
+        border = BorderStroke(0.5.dp, Sem.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1224,7 +1225,7 @@ fun BulletListCard(
                 color = CobaltBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = SlateBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = Sem.border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(8.dp))
 
             items.forEach { item ->
@@ -1260,8 +1261,8 @@ fun AudioPlayerCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CeramicWhite),
-        border = BorderStroke(0.5.dp, SlateBorder),
+        colors = CardDefaults.cardColors(containerColor = Sem.card),
+        border = BorderStroke(0.5.dp, Sem.border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -1327,12 +1328,12 @@ fun AudioPlayerCard(
                         text = formatTime(currentPos),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (playbackState.isPlaying) CobaltBlue else TextPrimary
+                        color = if (playbackState.isPlaying) CobaltBlue else Sem.text
                     )
                     Text(
                         text = formatTime(totalDuration),
                         fontSize = 10.sp,
-                        color = Color(0xFF8E8E93)
+                        color = Sem.textMuted
                     )
                 }
             }
@@ -1347,7 +1348,7 @@ fun AudioPlayerCard(
                     text = "Playback Speed",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF8E8E93)
+                    color = Sem.textMuted
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1355,14 +1356,14 @@ fun AudioPlayerCard(
                         val isSelected = (playbackState.speed == speed)
                         Surface(
                             shape = CircleShape,
-                            color = if (isSelected) CobaltBlue else Color(0xFFF2F2F7),
+                            color = if (isSelected) CobaltBlue else Sem.chip,
                             modifier = Modifier.clickable { onSpeedChange(speed) }
                         ) {
                             Text(
                                 text = "${speed}x",
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else Color(0xFF3C3C43),
+                                color = if (isSelected) Color.White else Sem.textSecondary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -1459,8 +1460,8 @@ private fun DetailActionItemCard(
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, if (isCompleted) SlateBorder.copy(alpha = 0.5f) else SlateBorder),
+        color = Sem.card.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, if (isCompleted) Sem.border.copy(alpha = 0.5f) else Sem.border),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -1469,10 +1470,10 @@ private fun DetailActionItemCard(
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = if (isCompleted) EmeraldSuccess else SlateSurface,
+                color = if (isCompleted) EmeraldSuccess else Sem.soft,
                 border = BorderStroke(
                     1.5.dp,
-                    if (isCompleted) EmeraldSuccess else Color(0xFFCBD5E1)
+                    if (isCompleted) EmeraldSuccess else Sem.border
                 ),
                 modifier = Modifier
                     .size(22.dp)
@@ -1502,20 +1503,20 @@ private fun DetailActionItemCard(
                     text = action.text,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isCompleted) TextMuted else TextPrimary,
+                    color = if (isCompleted) Sem.textMuted else Sem.text,
                     textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
                 )
                 if (!action.evidence.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = SlateGrouped,
+                        color = Sem.chip,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "\"${action.evidence}\"",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
+                            color = Sem.textSecondary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
@@ -1532,22 +1533,22 @@ private fun DetailIdeaItemCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+        color = Sem.card.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, Sem.amberBorder),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFEF3C7),
+                    color = Sem.amberContainer,
                     modifier = Modifier.size(24.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Lightbulb,
                             contentDescription = null,
-                            tint = Color(0xFFD97706),
+                            tint = Sem.amber,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -1557,7 +1558,7 @@ private fun DetailIdeaItemCard(
                     text = "IDEA",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFB45309),
+                    color = Sem.amberText,
                     letterSpacing = 0.8.sp
                 )
             }
@@ -1567,20 +1568,20 @@ private fun DetailIdeaItemCard(
                 text = idea.text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = Sem.text
             )
 
             if (!idea.evidence.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFFBEB),
+                    color = Sem.amberSoft,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "\"${idea.evidence}\"",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF92400E),
+                        color = Sem.amberText,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }
@@ -1596,15 +1597,15 @@ private fun DetailDecisionItemCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = CeramicWhite.copy(alpha = 0.95f),
-        border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+        color = Sem.card.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, Sem.emeraldBorder),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = EmeraldContainer,
+                    color = Sem.emeraldContainer,
                     modifier = Modifier.size(24.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -1621,7 +1622,7 @@ private fun DetailDecisionItemCard(
                     text = "DECISION",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = OnEmeraldContainer,
+                    color = Sem.onEmerald,
                     letterSpacing = 0.8.sp
                 )
             }
@@ -1631,7 +1632,7 @@ private fun DetailDecisionItemCard(
                 text = decision.text,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = Sem.text
             )
 
             if (!decision.rationale.isNullOrBlank()) {
@@ -1639,7 +1640,7 @@ private fun DetailDecisionItemCard(
                 Text(
                     text = "Rationale: ${decision.rationale}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = Sem.textSecondary
                 )
             }
 
@@ -1647,13 +1648,13 @@ private fun DetailDecisionItemCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFECFDF5),
+                    color = Sem.emeraldContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "\"${decision.evidence}\"",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF065F46),
+                        color = Sem.onEmerald,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
                 }

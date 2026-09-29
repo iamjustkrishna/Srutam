@@ -16,6 +16,7 @@ object InsightNames {
     }
 
     fun source(id: Long, recordings: Map<Long, Recording>, zone: ZoneId = ZoneId.systemDefault()): InsightSource {
+        if (space.iamjustkrishna.srutam.data.SourceIds.isChat(id)) return InsightSource(id, "Srutam AI", false)
         val recording = recordings[id] ?: return InsightSource(id, "Source note unavailable", false)
         val label = if (isMeaningful(recording.name)) recording.name.trim() else {
             val date = Instant.ofEpochMilli(recording.timestamp).atZone(zone)

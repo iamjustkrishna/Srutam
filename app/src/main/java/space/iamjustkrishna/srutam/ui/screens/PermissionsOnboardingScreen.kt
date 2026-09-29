@@ -70,6 +70,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
+import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -201,9 +202,9 @@ fun PermissionsOnboardingContent(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFF8FAFC),
-                        Color(0xFFF1F5F9)
+                        Sem.card,
+                        Sem.soft,
+                        Sem.chip
                     )
                 )
             )
@@ -221,14 +222,14 @@ fun PermissionsOnboardingContent(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFEFF6FF))
-                    .border(1.dp, Color(0xFFDBEAFE), RoundedCornerShape(20.dp)),
+                    .background(Sem.accentContainer)
+                    .border(1.dp, Sem.accentBorder, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Security,
                     contentDescription = "Security",
-                    tint = Color(0xFF2563EB),
+                    tint = Sem.accent,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -240,7 +241,7 @@ fun PermissionsOnboardingContent(
                 fontFamily = PlayfairDisplayFontFamily,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F172A),
+                color = Sem.text,
                 letterSpacing = 0.3.sp
             )
 
@@ -249,7 +250,7 @@ fun PermissionsOnboardingContent(
             Text(
                 text = "To provide high-accuracy local transcription and AI insights, Srutam needs access to your microphone and audio files.",
                 fontSize = 14.sp,
-                color = Color(0xFF64748B),
+                color = Sem.textSecondary,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -264,8 +265,8 @@ fun PermissionsOnboardingContent(
             ) {
                 PermissionFeatureCard(
                     icon = Icons.Default.Mic,
-                    iconTint = Color(0xFF2563EB),
-                    iconBg = Color(0xFFEFF6FF),
+                    iconTint = Sem.accent,
+                    iconBg = Sem.accentContainer,
                     title = "Microphone Access",
                     subtitle = "Required to capture audio notes and meetings with on-device Whisper transcription.",
                     isGranted = isMicGranted,
@@ -275,7 +276,7 @@ fun PermissionsOnboardingContent(
                 PermissionFeatureCard(
                     icon = Icons.Outlined.Folder,
                     iconTint = Color(0xFF7C3AED),
-                    iconBg = Color(0xFFF5F3FF),
+                    iconBg = Sem.chip,
                     title = "Audio Storage",
                     subtitle = "Required to save M4A audio files and organize them in your local storage.",
                     isGranted = isStorageGranted,
@@ -284,8 +285,8 @@ fun PermissionsOnboardingContent(
 
                 PermissionFeatureCard(
                     icon = Icons.Default.NotificationsActive,
-                    iconTint = Color(0xFF059669),
-                    iconBg = Color(0xFFECFDF5),
+                    iconTint = Sem.onEmerald,
+                    iconBg = Sem.emeraldContainer,
                     title = "Notifications",
                     subtitle = "Recommended for persistent background recording controls and audio processing alerts.",
                     isGranted = isNotificationsGranted,
@@ -300,11 +301,11 @@ fun PermissionsOnboardingContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isPermanentlyDenied) Color(0xFFFEF2F2) else Color(0xFFF0F9FF)
+                    containerColor = if (isPermanentlyDenied) Sem.errorContainer else Sem.accentContainer
                 ),
                 border = BorderStroke(
                     1.dp,
-                    if (isPermanentlyDenied) Color(0xFFFECACA) else Color(0xFFBAE6FD)
+                    if (isPermanentlyDenied) Sem.errorBorder else Sem.accentBorder
                 )
             ) {
                 Row(
@@ -314,7 +315,7 @@ fun PermissionsOnboardingContent(
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = "Info",
-                        tint = if (isPermanentlyDenied) Color(0xFFDC2626) else Color(0xFF2563EB),
+                        tint = if (isPermanentlyDenied) Sem.error else Sem.accent,
                         modifier = Modifier
                             .size(20.dp)
                             .padding(top = 2.dp)
@@ -327,7 +328,7 @@ fun PermissionsOnboardingContent(
                             "Srutam requires microphone and audio storage permissions to record and organize notes. Please grant access to continue."
                         },
                         fontSize = 13.sp,
-                        color = if (isPermanentlyDenied) Color(0xFF991B1B) else Color(0xFF1E40AF),
+                        color = if (isPermanentlyDenied) Sem.onErrorContainer else Sem.accent,
                         lineHeight = 18.sp
                     )
                 }
@@ -342,9 +343,9 @@ fun PermissionsOnboardingContent(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x00FFFFFF),
-                            Color(0xF0FFFFFF),
-                            Color(0xFFFFFFFF)
+                            Sem.card.copy(alpha = 0f),
+                            Sem.card.copy(alpha = 0.94f),
+                            Sem.card
                         )
                     )
                 )
@@ -423,12 +424,12 @@ private fun PermissionFeatureCard(
             .fillMaxWidth()
             .border(
                 1.dp,
-                if (isGranted) Color(0xFFD1FAE5) else Color(0xFFE2E8F0),
+                if (isGranted) Sem.emeraldBorder else Sem.border,
                 RoundedCornerShape(18.dp)
             ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isGranted) Color(0xFFFAFCFA) else Color(0xFFFFFFFF)
+            containerColor = if (isGranted) Sem.emeraldContainer else Sem.card
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -442,13 +443,13 @@ private fun PermissionFeatureCard(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(if (isGranted) Color(0xFFECFDF5) else iconBg),
+                    .background(if (isGranted) Sem.emeraldContainer else iconBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isGranted) Icons.Default.Check else icon,
                     contentDescription = title,
-                    tint = if (isGranted) Color(0xFF059669) else iconTint,
+                    tint = if (isGranted) Sem.onEmerald else iconTint,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -465,7 +466,7 @@ private fun PermissionFeatureCard(
                         text = title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = Sem.text
                     )
 
                     // Status pill
@@ -473,9 +474,9 @@ private fun PermissionFeatureCard(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(
-                                if (isGranted) Color(0xFFECFDF5)
-                                else if (isRequired) Color(0xFFF1F5F9)
-                                else Color(0xFFF8FAFC)
+                                if (isGranted) Sem.emeraldContainer
+                                else if (isRequired) Sem.chip
+                                else Sem.soft
                             )
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
@@ -483,7 +484,7 @@ private fun PermissionFeatureCard(
                             text = if (isGranted) "Granted" else if (isRequired) "Required" else "Recommended",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (isGranted) Color(0xFF059669) else Color(0xFF64748B)
+                            color = if (isGranted) Sem.onEmerald else Sem.textSecondary
                         )
                     }
                 }
@@ -493,7 +494,7 @@ private fun PermissionFeatureCard(
                 Text(
                     text = subtitle,
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = Sem.textSecondary,
                     lineHeight = 18.sp
                 )
             }

@@ -112,8 +112,9 @@ fun ChatScreen(
     }
 
     Scaffold(
-        containerColor = CeramicWhite,
+        containerColor = Sem.scaffold,
         topBar = {
+            val hairline = Sem.border.copy(alpha = 0.6f)
             TopAppBar(
                 title = { Text("Srutam AI", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
                 navigationIcon = {
@@ -141,17 +142,17 @@ fun ChatScreen(
                 actions = {
                     if (chatMessages.isNotEmpty()) {
                         TextButton(onClick = { viewModel.clearChat() }) {
-                            Text("Clear", color = Color(0xFF8E8E93), fontSize = 14.sp)
+                            Text("Clear", color = Sem.textMuted, fontSize = 14.sp)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFF4F5F8).copy(alpha = 0.85f),
-                    titleContentColor = Color(0xFF1C1C1E)
+                    containerColor = Sem.scaffold.copy(alpha = 0.85f),
+                    titleContentColor = Sem.text
                 ),
                 modifier = Modifier.drawBehind {
                     drawLine(
-                        color = Color(0xFFD6E0EC).copy(alpha = 0.6f),
+                        color = hairline,
                         start = Offset(0f, size.height),
                         end = Offset(size.width, size.height),
                         strokeWidth = 1.dp.toPx()
@@ -216,7 +217,7 @@ fun EmptyChatState(
                 .fillMaxWidth()
                 .padding(20.dp),
             shape = RoundedCornerShape(24.dp),
-            color = CeramicWhite,
+            color = Sem.card,
             border = BorderStroke(0.5.dp, SlateBorder),
             tonalElevation = 0.dp
         ) {
@@ -391,7 +392,7 @@ fun ChatInputBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = CeramicWhite,
+        color = Sem.card,
         border = BorderStroke(0.5.dp, SlateBorder),
         tonalElevation = 2.dp,
         shadowElevation = 4.dp

@@ -53,6 +53,9 @@ class MainActivity : ComponentActivity() {
         setTheme(R.style.Theme_Srutam)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
         cleanUpStaleRecordingNotification()

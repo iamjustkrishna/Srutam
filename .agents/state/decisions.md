@@ -524,3 +524,107 @@
   - 100% passing unit tests and 60/60 Roborazzi screen matrix tests across Compact, Phone, Foldable, Tablet 7", and Tablet 10" device profiles.
   - Installed and verified live on physical device (`RMX2151`).
 
+## ADR-045: Editorial Header Accent Font Size & Multi-Screen Landscape Inset Safety
+- **Status**: Accepted and implemented
+- **Context**: 
+  - The dual-part editorial header ("Srutam" + accent text "Insights" or "AI") required visual balance across tabs and different screen geometries (portrait, landscape, tablets).
+  - At 16sp, short accent strings (like "AI") felt diminutive next to the 28sp bold serif brand title. At 22sp, the accent began competing with the primary brand wordmark.
+  - In landscape orientation on phones, top bars and bottom floating docks risked clipping into horizontal camera punch-holes, display notches, or gesture navigation zones.
+- **Decision**:
+  1. **20sp Accent Size**: Established `20.sp` as the standard accent font size across `InsightsContent.kt` and `GlobalCopilotScreen.kt` via `SrutamTopAppBar.kt`. This achieves a harmonious 71% ratio against the 28sp brand title, keeping both words aligned on the exact same baseline (`Modifier.alignByBaseline()` on `Alignment.Bottom`).
+  2. **Safe Drawing Insets**: Enforced `WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)` in `SrutamTopAppBar` and horizontal safe drawing padding in `StudioBottomBar`, guaranteeing zero cutout clipping across landscape orientations and devices.
+  3. **Card Action Alignment**: Standardized `+ Next step` action buttons on idea cards to reside alongside category pills on the bottom row without multi-line wrapping.
+- **Verification**:
+  - Automated screenshot matrix tests (`ComparisonFontMatrixTest.kt`) captured and verified 16sp, 20sp, 22sp, and landscape variations.
+  - `assembleDebug` compiled cleanly (`BUILD SUCCESSFUL`).
+
+## ADR-046: Apple-Style Horizontal Date Scroller & Reminder Review Carousel in Insights
+- **Status**: Accepted and implemented
+- **Context**: 
+  - The static `Search ideas/decisions` text box occupied prominent top real-estate without providing temporal navigation through extracted insights.
+  - Dates & Reminders requiring review stacked vertically, pushing the main insights feed down by over 260dp and creating a cluttered card face with 4 competing buttons (`Review`, `Done`, `Dismiss`, `+ Task`).
+  - Users needed an intuitive, Apple-grade date scroller to browse insights day by day, plus a fluid horizontal review carousel.
+- **Decision**:
+  1. **Apple-Style Date Scroller (`InsightsDateScroller.kt`)**: Pinned directly below the `Ideas · Next Steps · Decisions` capsule. Displays dynamic Month and Year in `PlayfairDisplayFontFamily`, quick-filter pills `"Today"` and `"All"`, an animated expandable search icon toggle, and a horizontal date strip with short day names, date numbers, activity dots, and squircle selection states. Selecting a date filters the active insights feed to that day; tapping `"All"` or re-tapping the date restores the full feed.
+  2. **Review Carousel (`ReminderReviewCarousel.kt`)**: Replaced the vertical reminder stack with a horizontal swipeable carousel embedded as an item inside the feed `LazyColumn`, so it scrolls away naturally as the user navigates their notes. Cards are sized at `(screenWidthDp - 32.dp) * 0.86f` to provide an intuitive 14% peek of the adjacent card.
+  3. **Streamlined Action Hierarchy**: Reduced card face actions to two unambiguous choices: `Review & Schedule` (primary cobalt blue) and `Dismiss` (soft red). Secondary operations (`+ Create Task` and `Mark Done`) were relocated inside the `ReminderEditor` modal bottom sheet.
+  4. **Calendar-Day Feed Integration**: Reviewed reminders with active alarms are automatically presented in the daily feed on their designated calendar date, while remaining fully accessible at any time via the top bar `History` squircle action.
+- **Verification**:
+  - Clean Kotlin compilation and debug APK assembled (`assembleDebug`).
+  - Pushed and installed live onto connected physical device (`RMX2151`).
+  - Live screenshots captured and visually verified across Light and Cosmic Dark themes (`screen_insights_fresh.png`, `screen_search_expanded.png`, `screen_sun27_selected.png`, `screen_review_sheet_open.png`, `screen_insights_dark.png`).
+
+## ADR-047: Antigravity Android Skills Suite & Google Android CLI Integration
+- **Status**: Accepted and implemented
+- **Context**: 
+  - To maintain visual consistency, develop architecture, implement fluid UIs, write robust concurrency/networking code, and manage Gradle dependencies, Antigravity requires authoritative, AI-optimized instructions (Agent Skills).
+  - Generic LLM generation often risks outdated APIs, improper IME padding, recomposition storms, or scattered dependency declarations.
+- **Decision**:
+  1. **Global Skills Ingestion (`~/.gemini/config/skills/`)**: Curated and installed 20 specialized Android skills sourced from official Google Android repositories (`android/skills`) and top community collections (`krutikJain/android-agent-skills`, `awesome-android-agent-skills`):
+     - **Visual Consistency & Design**: `android-material3-design-system`, `android-adaptive-layouts`, `android-edge-to-edge`, `android-compose-accessibility`.
+     - **Architecture & State**: `android-architecture-clean`, `android-viewmodel-state`, `android-data-layer-offline`, `android-di-hilt`.
+     - **UI & Performance**: `android-compose-foundations`, `android-compose-performance`, `android-navigation-compose`, `android-coil-compose`.
+     - **Build & Dependencies**: `android-gradle-build-logic`, `android-agp-upgrade`, `android-r8-analyzer`, `android-gradle-build-performance`.
+     - **Concurrency & Networking**: `android-coroutines-flow`, `android-networking-retrofit`.
+     - **Device AI & Testing**: `appfunctions`, `testing-setup`.
+  2. **Official Google Android CLI (`android.exe`)**: Installed Google's official Android CLI into `%USERPROFILE%\AppData\AndroidCLI`, providing native terminal commands for `android docs search`, `android layout` JSON tree inspection, `android skills add/list`, and emulator controls.
+  3. **Antigravity Dynamic Mounting**: Standardized all skills with valid YAML frontmatter (`name`, `description`), enabling Antigravity's progressive disclosure engine to load the right instructions on demand without context bloat.
+- **Verification**:
+  - All 20 skill directories verified in `C:\Users\krish\.gemini\config\skills/` with valid markdown instructions.
+  - Executed `android --version` and `android skills list`, confirming complete operational status.
+  - Dynamic registration confirmed in Antigravity agent system prompt.
+
+## ADR-048: UI Improvement, Motion & Runtime Efficiency Skills Expansion
+- **Status**: Accepted and implemented
+- **Context**: 
+  - Crafting an Apple-grade, responsive mobile interface with fluid springs and micro-interactions requires deep expertise in modern Jetpack Compose animation APIs (`updateTransition`, physics springs, shared elements, `graphicsLayer` phase deferral).
+  - Maximizing runtime efficiency requires systematic observability: profiling memory allocations and Perfetto traces, generating Baseline Profiles, optimizing WorkManager background battery drain, using asynchronous DataStore, and indexing SQLite queries.
+- **Decision**:
+  1. **UI Improvement & Motion Suite**:
+     - `android-compose-motion-animations`: Spring physics, `AnimatedVisibility`, `SharedTransitionLayout`, gesture drag/fling velocity, tactile haptics, canvas shaders.
+     - `android-mobile-frontend-design`: Mobile-first visual posture, RTL mirroring, overflow/cutoff prevention, adaptive reflow.
+     - `android-compose-state-effects`: `rememberUpdatedState`, `derivedStateOf`, `snapshotFlow`, `produceState`, eliminating effect leaks and duplicate event launches.
+     - `android-ui-states-validation`: Complete state matrix coverage (loading, empty, error, offline, recovery UX).
+     - `navigation-event`: Predictive back gesture handling and back animations.
+     - `styles`: Jetpack Compose Styles API, component themes, and styleable modifiers.
+  2. **Efficiency & Performance Suite**:
+     - `android-profiler`: Native Google Perfetto tracing, heap dumps, CPU allocations, jank investigation.
+     - `android-performance-observability`: Baseline Profiles, Macrobenchmark metrics, startup latency, JankStats frame pacing.
+     - `android-workmanager-notifications`: Battery efficiency, Doze mode & App Standby compliance, idempotent retry policies.
+     - `android-local-persistence-datastore`: Asynchronous, non-blocking DataStore replacing legacy synchronous SharedPreferences.
+     - `android-room-database`: SQLite indexing, query optimization, reactive Flow transactions, non-blocking DB operations.
+     - `play-policy-insights`: Google Play store policy compliance, permission hygiene, privacy declarations.
+- **Verification**:
+  - Total of 30 specialized modern Android skills now active in `~/.gemini/config/skills/`.
+  - All skills verified with valid YAML frontmatter and progressive disclosure metadata.
+
+## ADR-049: Srutam AI Chat With Confirmed Tools, Saved Chats, and Theme-Aware Colours
+- **Context**: The AI screen was light-only, forgot every chat, and could only answer questions. Users want to say "remind me tomorrow at 9" and have it happen.
+- **Decision**:
+  1. **Tools via prompt-level JSON** (`ai/copilot/`): `LlmClient` has no native function calling, so the agent asks the model for one JSON object per step (answer or tool call). Read tools (find notes, list reminders/next steps/insights, summarize range) run at once. Write tools (create/reschedule/complete/dismiss reminder, create/complete/edit/archive next step, add idea/decision, edit insight, promote idea, rename note) return a `ToolProposal` shown as a confirm card. Nothing is written until the user taps Confirm, and every applied change keeps an `UndoInfo`.
+  2. **Chat-created items have no source note**: sentinel `SourceIds.CHAT = 0` is treated as an existing source in `saveReminder`, `createTask`, `reconcile()` and `ReminderAlarmReceiver`, so alarms for chat reminders are scheduled and delivered. Source label is "Srutam AI".
+  3. **Saved chats**: last 3 conversations in `filesDir/copilot_chats.json` (`CopilotChatStore`), no Room migration. The top-bar sparkle button became History.
+  4. **Undo window**: `setReminderStatus` records the resolve time in `confirmedAt`; `undoReminderStatus` reopens a completed or dismissed reminder for 24 hours.
+  5. **Theme-aware colours**: `ui/theme/SemanticColors.kt` (`Sem.card`, `Sem.text`, `Sem.border`, ...) follows `LocalIsCosmicDark`. Applied to the AI screen, Notes filter and cards, note detail, permissions, splash, note chat and recording sheet. New night-mode screenshot matrix: `PhoneStandardDarkMatrixTest`, `CopilotMatrixTest`.
+- **Not done**: tablet AI panel still uses the old query path without tools. Wireless install could not be verified because the phone was disconnected.
+
+## ADR-050: Inline Reminders Expansion, Compact Card Redesign, and Notes Drum Baseline Alignment
+- **Status**: Accepted and implemented
+- **Context**: 
+  - The previous Reminders Overview was presented as a modal `BottomSheet` (`RemindersOverviewBottomSheet`), requiring users to enter and exit modal states just to glance at or manage upcoming dates.
+  - Reminder cards were tall (~160dp) with cluttered 4-button action bars.
+  - On the Notes screen (`FeedScreen.kt`), the month label ("Sep") and date numbers ("29") in the compact vertical date drum exhibited a 5dp vertical misalignment (visual sag) and distracting grey border boxes.
+- **Decision**:
+  1. **Zero Modal BottomSheet**: Completely eliminated `RemindersOverviewBottomSheet` modal, replacing it with an inline expansion directly inside the Insights screen `LazyColumn`.
+  2. **Expandable 44dp Glance Bar**: Tapping `CompactRemindersGlanceBar` toggles smoothly between collapsed glance state (`[🔔] Tomorrow, 9:00 am • Determine... [+1 more] [v]`) and expanded state (`[🔔] Dates & reminders (2) [^]`).
+  3. **Inline Horizontal Snap LazyRow**: Expanded state reveals a horizontal `LazyRow` with snap fling mechanics displaying `CompactReminderCard`s with natural peek-ahead.
+  4. **Compact 3-Row Card Architecture (~92dp height, 260dp width)**:
+     - Row 1: Time badge (e.g. `Tomorrow, 9:00 am` in Cobalt / Stardust Gold) + alert icon + compact source chip (`[🎙 Voice note]`).
+     - Row 2: Bold title in 13.5sp SemiBold text with single-line ellipsis.
+     - Row 3: 28dp pill actions: `Edit`, `Done`, `Dismiss` (no `+ Task` button).
+  5. **State Persistence**: Persisted `datesExpanded` in `InsightsScreenMemory` across tab switches and configuration changes.
+  6. **Notes Drum Vertical Alignment**: Matched font line metrics (`lineHeight = 18.sp`, `includeFontPadding = false`) between the Month label (`"Sep"`) and the Date numbers (`"29"`), increasing item height to `22.dp` with symmetrical `13.dp` vertical padding inside the `48.dp` drum viewport. Removed greyish background boxes and dividers for Dieter Rams typographic clarity.
+- **Verification**:
+  - `InsightsUiTest` and full unit test suite passing 100%.
+  - Verified on physical hardware via ADB across resting, collapsed, expanded, and date-filtered states.
+

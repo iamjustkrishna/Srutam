@@ -442,6 +442,17 @@ class AIProcessor(private val context: Context) {
         }
     }
 
+    /** Sends a fully built prompt to the configured provider. Used by the tool-using AI chat. */
+    suspend fun generateRaw(prompt: String): String = withContext(Dispatchers.IO) {
+        try {
+            getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS).trim()
+                .ifBlank { SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in AI chat request", e)
+            SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE
+        }
+    }
+
     suspend fun queryAllRecordings(contextSnippets: List<String>, question: String): String = withContext(Dispatchers.IO) {
         try {
             val notesContext = contextSnippets.joinToString("\n\n---\n\n")

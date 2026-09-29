@@ -31,7 +31,8 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                     val headsUp = intent.getBooleanExtra(EXTRA_IS_HEADS_UP, false)
                     if (ReminderPolicy.canDeliver(reminder, intent.getIntExtra(EXTRA_REVISION, -1),
                             intent.getLongExtra(EXTRA_TRIGGER, -1), headsUp, System.currentTimeMillis(),
-                            db.recordingDao().getRecordingById(reminder.recordingId) != null) &&
+                            (space.iamjustkrishna.srutam.data.SourceIds.isChat(reminder.recordingId) ||
+                                db.recordingDao().getRecordingById(reminder.recordingId) != null)) &&
                         NotificationManagerCompat.from(context).areNotificationsEnabled()) {
                         notify(context, reminder, headsUp)
                     }

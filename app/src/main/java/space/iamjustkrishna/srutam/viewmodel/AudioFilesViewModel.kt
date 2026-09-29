@@ -8,6 +8,9 @@ import space.iamjustkrishna.srutam.SrutamApplication
 import space.iamjustkrishna.srutam.ai.AIProcessor
 import space.iamjustkrishna.srutam.ai.BM25SearchEngine
 import space.iamjustkrishna.srutam.ai.AiCacheUtils
+import space.iamjustkrishna.srutam.ai.copilot.CopilotService
+import space.iamjustkrishna.srutam.ai.copilot.NoteRef
+import space.iamjustkrishna.srutam.ai.copilot.NotesGateway
 import space.iamjustkrishna.srutam.data.AiQueryCache
 import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.InsightKind
@@ -18,6 +21,8 @@ import space.iamjustkrishna.srutam.repository.RecordingRepository
 import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
 import space.iamjustkrishna.srutam.ui.screens.formatDate
+import space.iamjustkrishna.srutam.ui.screens.FeedFilter
+import java.time.LocalDate
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.utils.AudioFileReader
@@ -61,6 +66,24 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _recordingsByPath = MutableStateFlow<Map<String, Recording>>(emptyMap())
     val recordingsByPath: StateFlow<Map<String, Recording>> = _recordingsByPath.asStateFlow()
+
+    private val _selectedFilter = MutableStateFlow(FeedFilter.DEFAULT)
+    val selectedFilter: StateFlow<FeedFilter> = _selectedFilter.asStateFlow()
+
+    private val _selectedDate = MutableStateFlow<LocalDate?>(null)
+    val selectedDate: StateFlow<LocalDate?> = _selectedDate.asStateFlow()
+
+    fun setSelectedFilter(filter: FeedFilter) {
+        _selectedFilter.value = filter
+        _selectedDate.value = null
+    }
+
+    fun setSelectedDate(date: LocalDate?) {
+        _selectedDate.value = date
+        if (date != null) {
+            _selectedFilter.value = FeedFilter.DEFAULT
+        }
+    }
 
     private val database = (application as space.iamjustkrishna.srutam.SrutamApplication).database
     private val insightDao = database.insightDao()
@@ -609,6 +632,65 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         Pair(answer, citedNotes)
+    }
+
+    private fun indexLibrary(): Map<Long, Recording> {
+        val recs = _recordingsByPath.value.values.toList()
+        bm25Engine.index(recs.map { rec ->
+            BM25SearchEngine.createDocument(
+                id = rec.id, title = rec.name.ifBlank { "Voice Note" },
+                transcript = rec.transcript.orEmpty(), summary = rec.summary.orEmpty(), dateString = formatDate(rec.timestamp)
+            )
+        })
+        return recs.associateBy { it.id }
+    }
+
+    private val copilotNotes = object : NotesGateway {
+        private fun ref(rec: Recording) = NoteRef(
+            rec.id, rec.name.ifBlank { "Voice Note" }, rec.timestamp,
+            rec.summary?.takeIf { it.isNotBlank() } ?: rec.transcript.orEmpty().take(500)
+        )
+
+        override suspend fun search(query: String, limit: Int) = withContext(Dispatchers.IO) {
+            val byId = indexLibrary()
+            bm25Engine.search(query, topK = limit).mapNotNull { byId[it.document.id]?.let(::ref) }
+        }
+
+        override suspend fun inRange(fromMs: Long, toMs: Long, limit: Int) = withContext(Dispatchers.IO) {
+            _recordingsByPath.value.values.filter { it.timestamp in fromMs until toMs }
+                .sortedByDescending { it.timestamp }.take(limit).map(::ref)
+        }
+
+        override suspend fun titleOf(id: Long) = getRecordingById(id)?.name?.ifBlank { "Voice Note" }
+
+        override suspend fun rename(id: Long, newName: String): Boolean = withContext(Dispatchers.IO) {
+            val rec = getRecordingById(id) ?: return@withContext false
+            if (newName.isBlank()) return@withContext false
+            repository.updateRecording(rec.copy(name = newName.trim()))
+            true
+        }
+    }
+
+    /** Chat with tools: saved conversations plus the agent that can propose changes. */
+    val copilot: CopilotService by lazy {
+        CopilotService(getApplication(), copilotNotes, aiProcessor::generateRaw) { question ->
+            withContext(Dispatchers.IO) {
+                val byId = indexLibrary()
+                val results = bm25Engine.search(question, topK = 4)
+                val snippets = results.map { "Note: ${it.document.title} (${it.document.dateString})\nContent:\n${it.document.text.take(1200)}" }
+                val matched = results.filter { byId.containsKey(it.document.id) }
+                // Always include the newest notes so "what did I talk about recently" has something to read.
+                val matchedIds = matched.map { it.document.id }.toSet()
+                val recent = byId.values.filter { it.id !in matchedIds && (!it.summary.isNullOrBlank() || !it.transcript.isNullOrBlank()) }
+                    .sortedByDescending { it.timestamp }.take(5)
+                val recentSnippets = recent.map { rec ->
+                    val body = rec.summary?.takeIf { it.isNotBlank() } ?: rec.transcript.orEmpty().take(600)
+                    "Recent note: ${rec.name.ifBlank { "Voice Note" }} (${formatDate(rec.timestamp)})\nContent:\n$body"
+                }
+                (snippets + recentSnippets) to
+                    (matched.map { it.document.id to it.document.title } + recent.map { it.id to it.name.ifBlank { "Voice Note" } })
+            }
+        }
     }
 
     suspend fun getRecordingById(recordingId: Long): Recording? = withContext(Dispatchers.IO) {

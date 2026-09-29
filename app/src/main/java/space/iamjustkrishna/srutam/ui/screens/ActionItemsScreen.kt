@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.ui.screens
+package space.iamjustkrishna.srutam.ui.screens
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -11,6 +11,9 @@ import space.iamjustkrishna.srutam.utils.InsightSource
 import space.iamjustkrishna.srutam.utils.InsightNames
 import space.iamjustkrishna.srutam.viewmodel.*
 
+import java.time.LocalDate
+import kotlinx.coroutines.flow.MutableStateFlow
+
 enum class InsightsTab(val label: String) { NEXT_STEPS("Next Steps"), IDEAS("Ideas"), DECISIONS("Decisions") }
 
 data class InsightsActions(
@@ -21,23 +24,27 @@ data class InsightsActions(
     val saveReminder: (ReminderEntity, Boolean) -> Unit = { _, _ -> },
     val createTask: (String, Boolean, String, ReminderEntity?) -> Unit = { _, _, _, _ -> },
     val dismissTheme: (String) -> Unit = {}, val restoreTheme: (String) -> Unit = {},
-    val retry: () -> Unit = {}
+    val retry: () -> Unit = {},
+    val clearReminderHistory: () -> Unit = {},
+    val undoReminder: (String) -> Unit = {}
 )
 
 @Composable
 fun ActionItemsScreen(onRecordingClick: (Long) -> Unit, onSettingsClick: () -> Unit,
     viewModel: AudioFilesViewModel, modifier: Modifier = Modifier) {
-    InsightsScreen(onRecordingClick, onSettingsClick, modifier)
+    InsightsScreen(onRecordingClick, onSettingsClick, modifier, audioViewModel = viewModel)
 }
 
 @Composable
 fun InsightsScreen(onRecordingClick: (Long) -> Unit, onSettingsClick: () -> Unit = {},
-    modifier: Modifier = Modifier, model: InsightsViewModel = viewModel()) {
+    modifier: Modifier = Modifier, model: InsightsViewModel = viewModel(),
+    audioViewModel: AudioFilesViewModel? = null) {
     val state by model.state.collectAsState()
     val error by model.actionError.collectAsState()
     val created by model.createdTask.collectAsState()
     val savedReminder by model.savedReminder.collectAsState()
     val memory = remember(model) { model.readScreenMemory() }
+    val selectedDate by (audioViewModel?.selectedDate ?: remember { MutableStateFlow<LocalDate?>(null) }).collectAsState()
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner, model) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) model.onResume() }
@@ -49,9 +56,11 @@ fun InsightsScreen(onRecordingClick: (Long) -> Unit, onSettingsClick: () -> Unit
         consumeCreatedTask = model::consumeCreatedTask,
         savedMemory = memory, onSaveMemory = model::saveScreenMemory,
         savedReminderId = savedReminder, consumeSavedReminder = model::consumeSavedReminder,
+        externalSelectedDate = selectedDate,
+        onDateSelected = { audioViewModel?.setSelectedDate(it) },
         actions = InsightsActions(model::toggleTask, model::archive, model::restore, model::deleteTask,
             model::reminderStatus, model::disableReminder, model::deleteReminder, model::saveReminder,
-            model::createTask, model::dismissTheme, model::restoreTheme, model::retry))
+            model::createTask, model::dismissTheme, model::restoreTheme, model::retry, model::clearReminderHistory, model::undoReminder))
 }
 
 /** Stateless adapter retained for existing previews and tablet preview fixtures. */

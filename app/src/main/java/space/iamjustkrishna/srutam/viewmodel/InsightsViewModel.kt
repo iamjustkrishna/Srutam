@@ -14,7 +14,9 @@ import space.iamjustkrishna.srutam.repository.InsightsRepository
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.InsightNames
 import space.iamjustkrishna.srutam.utils.InsightSource
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 
 data class InsightsUiState(
@@ -24,7 +26,8 @@ data class InsightsUiState(
     val reminders: List<ReminderEntity> = emptyList(),
     val sources: Map<Long, InsightSource> = emptyMap(),
     val themes: List<ThemeCluster> = emptyList(),
-    val now: Long = System.currentTimeMillis()
+    val now: Long = System.currentTimeMillis(),
+    val earliestMonth: YearMonth = YearMonth.now()
 ) {
     val openTasks get() = items.filter { it.kind == InsightKind.ACTION && it.status == InsightStatus.OPEN }
     val completedTasks get() = items.filter { it.kind == InsightKind.ACTION && it.status == InsightStatus.COMPLETED }
@@ -34,7 +37,16 @@ data class InsightsUiState(
     val activeReminders get() = reminders.filterNot { inHistory(it) }.sortedWith(
         compareBy<ReminderEntity> { it.eventTimeMs ?: Long.MAX_VALUE }.thenBy { it.id }
     )
-    val history get() = reminders.filter { inHistory(it) }.sortedByDescending { it.eventTimeMs ?: it.createdAt }
+    private val THREE_DAYS_MS = 3L * 24 * 60 * 60 * 1000
+
+    val history get() = reminders
+        .filter { inHistory(it) }
+        .filter { item ->
+            val resolvedAt = item.confirmedAt.takeIf { item.status == ReminderStatus.COMPLETED } ?: 0L
+            val time = maxOf(item.eventTimeMs ?: item.createdAt, resolvedAt)
+            (now - time) <= THREE_DAYS_MS
+        }
+        .sortedByDescending { it.eventTimeMs ?: it.createdAt }
 
     fun inHistory(item: ReminderEntity): Boolean {
         if (item.status != ReminderStatus.ACTIVE) return true
@@ -72,12 +84,25 @@ class InsightsViewModel(application: Application, private val savedStateHandle: 
     val state = refresh.flatMapLatest {
         combine(repository.insights, repository.reminders, repository.recordings, dismissed, clock) { items, reminders, recordings, hidden, now ->
             val byId = recordings.associateBy { it.id }
+            val earliestMs = listOfNotNull(
+                recordings.minOfOrNull { it.timestamp },
+                items.minOfOrNull { it.createdAt },
+                reminders.minOfOrNull { it.createdAt }
+            ).minOrNull()
+            val earliestMonth = earliestMs?.let {
+                Instant.ofEpochMilli(it)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .let { d -> YearMonth.from(d) }
+            } ?: YearMonth.now()
             InsightsUiState(
                 loaded = true,
                 items = items.sortedWith(compareByDescending<InsightEntity> { it.createdAt }.thenBy { it.id }),
                 reminders = reminders,
-                sources = recordings.associate { it.id to InsightNames.source(it.id, byId) },
-                themes = ThemeClusterEngine.build(recordings, hidden), now = now
+                sources = recordings.associate { it.id to InsightNames.source(it.id, byId) } +
+                    (SourceIds.CHAT to InsightNames.source(SourceIds.CHAT, byId)),
+                themes = ThemeClusterEngine.build(recordings, hidden), now = now,
+                earliestMonth = earliestMonth
             )
         }.catch { e ->
             if (e is CancellationException) throw e
@@ -97,8 +122,10 @@ class InsightsViewModel(application: Application, private val savedStateHandle: 
     fun restore(id: String) = action { repository.restoreTask(id) }
     fun deleteTask(id: String) = action { repository.deleteTask(id) }
     fun reminderStatus(id: String, status: String) = action { repository.setReminderStatus(id, status) }
+    fun undoReminder(id: String) = action { repository.undoReminderStatus(id) }
     fun disableReminder(id: String) = action { repository.disableReminder(id) }
     fun deleteReminder(id: String) = action { repository.deleteReminder(id) }
+    fun clearReminderHistory() = action { repository.clearReminderHistory() }
     fun saveReminder(item: ReminderEntity, notificationsAvailable: Boolean) =
         action { repository.saveReminder(item, notificationsAvailable); _savedReminder.value = item.id }
 

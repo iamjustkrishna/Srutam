@@ -48,9 +48,17 @@ abstract class InsightsMatrixBase(private val profile: String) {
     }
     @Test fun ideasAndSources() { show(InsightsFixtures.state(listOf(InsightsFixtures.idea))); capture("ideas") }
     @Test fun decisionsDark() { show(InsightsFixtures.state(listOf(InsightsFixtures.decision)), dark = true); capture("decisions_dark") }
+    @Test fun glanceBar() {
+        show(InsightsFixtures.state().copy(reminders = listOf(InsightsFixtures.scheduled, InsightsFixtures.legacy)))
+        capture("glance_bar")
+    }
+    @Test fun glanceBarDark() {
+        show(InsightsFixtures.state().copy(reminders = listOf(InsightsFixtures.scheduled, InsightsFixtures.legacy)), dark = true)
+        capture("glance_bar_dark")
+    }
     @Test fun reviewAndExpandedDates() {
         show(InsightsFixtures.state().copy(reminders = listOf(InsightsFixtures.legacy, InsightsFixtures.scheduled)))
-        rule.onNodeWithText("Dates & reminders").performClick()
+        rule.onNodeWithTag("reminders_glance_bar").performClick()
         capture("dates")
     }
     @Test fun themesLargeText() {
@@ -63,10 +71,9 @@ abstract class InsightsMatrixBase(private val profile: String) {
         rule.onNodeWithContentDescription("Open archive").performClick()
         capture("archive")
     }
-    @Test fun searchWithoutResults() {
+    @Test fun dateScrollerCompact() {
         show(InsightsFixtures.state(listOf(InsightsFixtures.idea)))
-        rule.onNodeWithTag("insights_search").performTextInput("unmatched")
-        capture("search_empty")
+        capture("date_scroller_compact")
     }
     @Test fun reminderReview() {
         rule.setContent {

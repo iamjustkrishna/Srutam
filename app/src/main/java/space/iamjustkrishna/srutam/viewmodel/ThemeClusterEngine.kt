@@ -6,7 +6,7 @@ import java.util.Locale
 
 object ThemeClusterEngine {
     private val generatedStatus = Regex(
-        """(?i)\b(?:no audible speech(?: was)? detected|audio successfully transcribed|recording captured \d+ words|ready for full analysis|audio captured offline)\b"""
+        """(?i)\b(?:no audible speech(?: was)? detected|audio successfully transcribed|recording captured \d+ words|ready for full analysis|audio captured offline|try speaking closer(?: to)?(?: the)?(?: microphone)?|low audio volume|transcription failed|speaking closer)\b"""
     )
     private val stop = setOf(
         "the", "and", "this", "that", "with", "from", "have", "were", "they", "will",

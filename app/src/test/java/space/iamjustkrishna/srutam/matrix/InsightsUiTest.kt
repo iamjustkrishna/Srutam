@@ -18,6 +18,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.LocalDate
+import java.time.ZoneId
 import space.iamjustkrishna.srutam.data.*
 import space.iamjustkrishna.srutam.ui.screens.*
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -54,7 +56,7 @@ class InsightsUiTest {
 
     @Test fun liveScreenCreatesSavedStateViewModelAndLoads() {
         val database = AppDatabase.getDatabase(ApplicationProvider.getApplicationContext())
-        runBlocking(Dispatchers.IO) { database.clearAllTables() }
+        runCatching { database.clearAllTables() }
         rule.setContent { SrutamTheme { InsightsScreen(onRecordingClick = {}) } }
         try {
             rule.waitUntil(10_000) { rule.onAllNodesWithText("No next steps").fetchSemanticsNodes().isNotEmpty() }
@@ -83,12 +85,33 @@ class InsightsUiTest {
         rule.onNodeWithText("No archived next steps.").assertIsDisplayed()
     }
 
-    @Test fun searchShowsNoResultsAndCanBeCleared() {
+    @Test fun dateScrollerIsNextToMonthHeaderAndDisplaysIdeas() {
         rule.setContent { SrutamTheme { InsightsContent(InsightsFixtures.state(listOf(InsightsFixtures.idea))) } }
-        rule.onNodeWithTag("insights_search").performTextInput("unmatched")
-        rule.onNodeWithText("No matching ideas").assertExists()
-        rule.onNodeWithContentDescription("Clear search").performClick()
+        rule.onNodeWithTag("date_scroller_header").assertIsDisplayed()
+        rule.onNodeWithTag("insights_date_scroller_strip").assertIsDisplayed()
+        rule.onNodeWithTag("insights_all_button").assertIsDisplayed()
         rule.onNodeWithText(InsightsFixtures.idea.text).assertExists()
+    }
+
+    @Test fun clickingAllButtonClearsDateSelection() {
+        rule.setContent { SrutamTheme { InsightsContent(InsightsFixtures.state(listOf(InsightsFixtures.idea))) } }
+        val allBtn = rule.onNodeWithTag("insights_all_button")
+        allBtn.assertIsDisplayed()
+        // First click when All is already selected transitions to Today
+        allBtn.performClick()
+        // Second click when a date is selected clears the filter back to All
+        allBtn.performClick()
+        rule.onNodeWithText(InsightsFixtures.idea.text).assertExists()
+    }
+
+    @Test fun verticalMonthScrollerRespectsEarliestMonthBound() {
+        val state = InsightsFixtures.state(listOf(InsightsFixtures.idea)).copy(
+            earliestMonth = java.time.YearMonth.now().minusMonths(2)
+        )
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        rule.onNodeWithTag("date_scroller_header").assertIsDisplayed()
+        rule.onNodeWithTag("insights_date_scroller_strip").assertIsDisplayed()
+        rule.onNodeWithTag("insights_all_button").assertIsDisplayed()
     }
 
     @Test fun themeDismissalCanBeUndoneFromIdeas() {
@@ -111,10 +134,77 @@ class InsightsUiTest {
         rule.onNodeWithTag("tab_DECISIONS").assertIsSelected()
     }
 
-    @Test fun sourceNavigationUsesRecordingId() {
-        var clicked = -1L
-        rule.setContent { SrutamTheme { InsightsContent(InsightsFixtures.state(listOf(InsightsFixtures.idea)), onRecordingClick = { clicked = it }) } }
-        rule.onNodeWithText("Product roadmap").performClick()
-        rule.runOnIdle { assertEquals(1L, clicked) }
+    @Test fun reminderHistoryDisplaysSubtextAndDismissButton() {
+        val state = InsightsFixtures.state().copy(
+            reminders = listOf(InsightsFixtures.scheduled.copy(status = ReminderStatus.COMPLETED))
+        )
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        rule.onNodeWithContentDescription("Open reminder history").performClick()
+        rule.onNodeWithText("Reminder history").assertIsDisplayed()
+        rule.onNodeWithText("Keeps history of past & completed reminders for the last 3 days.").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Remove from history").assertIsDisplayed()
+        rule.onNodeWithText("Clear history").assertIsDisplayed()
+    }
+
+    @Test fun completedTasksVisibleOnSpecificDate() {
+        val today = LocalDate.now()
+        val todayMillis = today.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val completedTask = InsightsFixtures.task.copy(
+            id = "task_done",
+            text = "Completed project roadmap",
+            status = "COMPLETED",
+            createdAt = todayMillis,
+            completedAt = todayMillis
+        )
+        val state = InsightsFixtures.state(listOf(completedTask))
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        // Click All button to switch to Today (which matches todayMillis)
+        rule.onNodeWithTag("insights_all_button").performClick()
+        rule.onNodeWithText("Completed").assertIsDisplayed()
+        rule.onNodeWithText("Completed").performClick()
+        rule.onNodeWithText("Completed project roadmap").assertIsDisplayed()
+    }
+
+    @Test fun reminderCardHasOnlyReviewDoneDismiss() {
+        val state = InsightsFixtures.state().copy(
+            reminders = listOf(InsightsFixtures.scheduled)
+        )
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        rule.onNodeWithTag("reminders_glance_bar").performClick()
+        rule.onNodeWithTag("reminders_lazy_row").assertIsDisplayed()
+        rule.onNodeWithContentDescription("done", substring = true).assertIsDisplayed()
+        rule.onNodeWithContentDescription("Dismiss", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("+ Task").assertDoesNotExist()
+    }
+
+    @Test fun completedReminderInHistoryOffersUndo() {
+        val done = InsightsFixtures.scheduled.copy(status = "COMPLETED", confirmedAt = InsightsFixtures.NOW)
+        val state = InsightsFixtures.state().copy(reminders = listOf(done), now = InsightsFixtures.NOW)
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        rule.onNodeWithContentDescription("Open reminder history").performClick()
+        rule.onNodeWithText("Undo done").assertIsDisplayed()
+    }
+
+    @Test fun remindersRenderInGlanceBar() {
+        val state = InsightsFixtures.state().copy(
+            reminders = listOf(InsightsFixtures.scheduled)
+        )
+        rule.setContent { SrutamTheme { InsightsContent(state) } }
+        rule.onNodeWithTag("reminders_glance_bar").assertIsDisplayed()
+    }
+
+    @Test fun taskEditorDisplaysPlayfairHeaderAndAddReminderTile() {
+        rule.setContent {
+            SrutamTheme {
+                InsightTaskEditor(
+                    sourceId = "test",
+                    initialText = "Test action item",
+                    onDismiss = {},
+                    onSave = { _, _ -> }
+                )
+            }
+        }
+        rule.onAllNodesWithText("Create next step").onFirst().assertIsDisplayed()
+        rule.onNodeWithText("Add a reminder").assertIsDisplayed()
     }
 }

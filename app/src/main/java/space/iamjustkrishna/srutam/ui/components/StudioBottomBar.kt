@@ -80,6 +80,8 @@ fun StudioBottomBar(
     onFinishRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     pendingActionCount: Int = 0,
+    /** Removes the backdrop band behind the bar (the capsule keeps its own fill) so content scrolls underneath. */
+    transparent: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -123,21 +125,37 @@ fun StudioBottomBar(
         }
     }
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .then(
+                if (transparent) Modifier else Modifier.background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            (if (isDark) CosmicVoidBackground else Color(0xFFF4F5F8)).copy(alpha = 0.85f),
+                            if (isDark) CosmicVoidBackground else Color(0xFFF4F5F8)
+                        )
+                    )
+                )
+            )
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         // 1. Morphing Capsule on the Left
         Surface(
             modifier = Modifier
                 .weight(1f)
                 .height(56.dp),
             shape = CircleShape,
-            color = if (isDark) CosmicVoidCard else Color(0xFFF8FAFC),
+            color = if (transparent && !isBarActiveRecording) (if (isDark) CosmicVoidCard else Color.White) else if (isDark) CosmicVoidCard else Color(0xFFF8FAFC),
             border = BorderStroke(
                 1.dp,
                 if (isBarActiveRecording) {
@@ -165,6 +183,10 @@ fun StudioBottomBar(
                                     else listOf(Color(0xFFFFF7F7), Color(0xFFFFFFFF), Color(0xFFFFF5F5))
                                 )
                             }
+                        } else if (transparent) {
+                            // Plain fill inside the capsule only; nothing behind it.
+                            val fill = if (isDark) CosmicVoidCard else Color.White
+                            Brush.horizontalGradient(listOf(fill, fill))
                         } else {
                             Brush.horizontalGradient(
                                 if (isDark) listOf(CosmicVoidCard, Color(0xFF0F1528))
@@ -408,6 +430,7 @@ fun StudioBottomBar(
                 }
             }
         }
+    }
     }
 }
 

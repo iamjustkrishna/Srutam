@@ -1,12 +1,67 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Milestone completed and verified on `feature/action-item-lifecycle`.
-- Unified Insights screen hierarchy, top bar rhythm, single-row segmented capsule, thematic filter chips row, and squircle card anatomy to match Notes screen (`FeedScreen.kt`).
-- Resolved compact screen (360dp) action button overflow in `SrutamTopAppBar`, ensuring all 3 header buttons (`Archive`, `History`, `Settings`) are 100% visible across all form factors.
-- 100% test suite passing, including 60/60 Roborazzi screen matrix tests across Compact, Phone, Foldable, Tablet 7", and Tablet 10" device profiles.
-- Assembled and installed debug APK live onto connected physical device (`RMX2151`), verified foreground operation and captured verification screenshots.
-- Ready for final user sign-off and fast-forward merge into `main`.
+- Completed milestone: **Srutam AI tools, saved chats, and dark mode** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SemanticColors.kt`, ADR-049):
+  1. AI screen can propose reminders, next steps, ideas/decisions and note renames as confirm cards, with Undo. Reads (find notes, list reminders) run automatically.
+  2. Top-bar button is now History: last 3 chats are saved and can be reopened or deleted.
+  3. Chat-created reminders use source id 0 and are kept alive by `reconcile()` and the alarm receiver.
+  4. Dark mode fixed on AI, Notes, note detail, permissions, splash, note chat and recording sheet. All 296 unit tests passing cleanly across the test suite (resolved `InsightsPresentationTest` milestone retention and `InsightsRepositoryTest` unresolved reminder reviewability).
+  5. Connected physical test device (`192.168.31.163:38297`) is online and ready for live install/verification. Release readiness assessed for v2.3.0 bump.
+- **Installed & Active: Comprehensive 30-Skill Modern Android Toolkit & Google Android CLI**:
+  - **Visual & UI Polish Suite**: `android-material3-design-system`, `android-adaptive-layouts`, `android-edge-to-edge`, `android-compose-motion-animations`, `android-mobile-frontend-design`, `android-compose-state-effects`, `android-ui-states-validation`, `android-compose-accessibility`, `android-compose-foundations`, `navigation-event`, `styles`, `android-coil-compose`.
+  - **Efficiency & Performance Suite**: `android-profiler`, `android-performance-observability`, `android-compose-performance`, `android-workmanager-notifications`, `android-local-persistence-datastore`, `android-room-database`, `android-r8-analyzer`, `android-gradle-build-performance`, `play-policy-insights`.
+  - **Architecture, Concurrency & Build Suite**: `android-architecture-clean`, `android-viewmodel-state`, `android-data-layer-offline`, `android-di-hilt`, `android-navigation-compose`, `android-gradle-build-logic`, `android-agp-upgrade`, `android-coroutines-flow`, `android-networking-retrofit`, `appfunctions`, `testing-setup`.
+  - **Official Google Android CLI Tooling**: `android.exe` (v1.0.16406183) installed in `%USERPROFILE%\AppData\AndroidCLI` with PATH integration (`docs`, `layout`, `skills`, `emulator`).
+  - All 30 skills are dynamically mounted into Antigravity's progressive disclosure engine and active for pair programming.
+- Completed milestone: **Inline Reminders Expansion & Compact Card Redesign** (`InsightCards.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`):
+  1. **Zero Modal BottomSheet**: Completely eliminated `RemindersOverviewBottomSheet` modal, replacing it with an inline expansion directly inside the Insights screen LazyColumn.
+  2. **Expandable 44dp Glance Bar**: Tapping `CompactRemindersGlanceBar` smoothly toggles between collapsed overview (`[🔔] Tomorrow, 9:00 am • Determine i... [+1 more] [v]`) and expanded state (`[🔔] Dates & reminders (2) [^]`).
+  3. **Inline Horizontal LazyRow**: Expanded state reveals a horizontal `LazyRow` with snap fling behavior displaying `CompactReminderCard`s with natural peek-ahead.
+  4. **Compact 3-Row Card Architecture (~92dp height, 260dp width)**:
+     - Row 1: Time badge (e.g. `Tomorrow, 9:00 am` in Cobalt / Stardust Gold) + alert icon + compact source chip (`[🎙 Voice note]`).
+     - Row 2: Bold title in 13.5sp SemiBold text with single-line ellipsis.
+     - Row 3: 28dp pill actions: `Edit`, `Done`, `Dismiss` (no `+ Task` button).
+  5. **State Persistence**: Synced with `InsightsScreenMemory.datesExpanded` to persist expansion state across tab switches and backstack navigation.
+  6. **Unit Tests & Live Physical Device Verification**: `InsightsUiTest` passed cleanly. APK built and installed live on physical device (`RMX2151` at `192.168.31.163:33673`), verified via live adb screen captures in both collapsed and inline expanded modes.
+- Completed milestone: **Notes Screen Date Wheel Baseline & Vertical Alignment Polish** (`FeedScreen.kt`):
+  1. **Perfect Vertical Centering & Baseline Alignment**: Matched font line metrics (`lineHeight = 18.sp`, `includeFontPadding = false`) between the Month label (`"Sep"`) and the Date numbers (`"29"`), increasing item height to `22.dp` with symmetrical `13.dp` vertical padding inside the `48.dp` drum viewport.
+  2. **Eliminated Visual Sag**: Fixed the previous 15-pixel (5dp) drop where numbers hung lower than the month text. The month and date now share the exact same baseline and optical center line, behaving visually as a single unified unit (`"Sep 29"`).
+  3. **Cleaned Minimalist Drum**: Completely removed greyish box backgrounds, blue/grey dividers, and micro carets. Preserved 3D physics, snap-fling mechanics, activity indicator dots, and subtle gradient edge roll-offs matching the scaffold background.
+  4. **Live Verification on Device**: Verified via adb on physical device (`192.168.31.163:43147`) with pixel-level bounding analysis across both resting and scrolled states (e.g. `"Sep 30"`). Tested resetting with `"All Notes"`.
+- Completed milestone: **Srutam Experience Refinement & Architectural Streamlining** (`InsightsContent.kt`, `InsightCards.kt`, `InsightEditors.kt`, `FeedScreen.kt`, `GlobalCopilotScreen.kt`, `InsightsViewModel.kt`, `InsightsRepository.kt`, `InsightsUiTest.kt`):
+  1. **Next Steps Completed Tasks on Specific Dates**: Fixed completed tasks visibility so they appear under collapsible `"Completed (X done)"` accordion on both specific dates and "ALL". When all tasks for a day are finished, an "All caught up" celebration card is displayed.
+  2. **"Srutam AI" Header Typography**: Enlarged the accent "AI" typography on the Copilot screen top bar from `20.sp` to `24.sp` to match the brand visual prominence of "Insights" and "Notes".
+  3. **Streamlined Scheduled Event Edit BottomSheet**: Removed redundant loop-inducing actions (`+ Create Task`, `Mark Done`, `Cancel`), leaving a single, focused, clean "Confirm / Save changes" action button.
+  4. **Universal 60% BottomSheet Height Boundary**: Applied `Modifier.heightIn(max = screenHeightDp * 0.60f)` across all bottom sheets (`InsightReminderEditor`, `InsightTaskEditor`, Reminder History, Studio Recording Sheet) with internal scrolling to prevent viewport domination.
+  5. **Cleaned Up Dates & Reminders Card Actions**: Removed the redundant `+ Task` button from `ReminderSummary` (now cleanly featuring Review/Edit, Done, Dismiss).
+  6. **Reminder History 3-Day Retention Policy & Pruning**: Enforced automatic 3-day history retention (`now - time <= THREE_DAYS_MS`), added clear explanatory subtext, auto-moved expired reminders to history, added one-tap "✕" item dismissal and a header "Clear history" action.
+  7. **Content-First Notes Feed & Date Scroller**: Added `InsightsDateScroller` above the filter capsule in `FeedScreen.kt`, enabling day-by-day voice note browsing. Expanded note summaries to 2-line previews and added smart "✦ Next steps" badges on cards with active tasks.
+  8. **100% Unit Tests & Build Verification**: All 12 Robolectric native graphics tests in `InsightsUiTest` passed cleanly and `assembleDebug` completed successfully (exit code 0).
+- Completed milestone: **Insights BottomSheets, Task Completion Transition, Floating Toast & Reminders Architecture Overhaul** (`InsightEditors.kt`, `InsightCards.kt`, `InsightsContent.kt`, `InsightsRepository.kt`, `InsightsUiTest.kt`):
+  1. **Playfair Display BottomSheets & Tactile Tiles**: Redesigned `InsightTaskEditor` and `ReminderEditor` with Playfair Display bold headers, squircle icon badges, enclosed "Add a reminder" cards with theme-aware switches, dual icon-infused squircle date/time picker tiles (`"Tomorrow (Sep 29)"`, `"09:00 AM"`), and auto-detected system timezone chips.
+  2. **Tactile Task Completion Transition**: Tapping a task checkbox on Next Steps now immediately displays a green checkmark, strikes through text, turns card border into a subtle green glow, and fires haptic feedback with a 550ms hold before gracefully moving to the Completed section.
+  3. **Floating Pill Toast & Redesigned Next Step Modal**: Replaced raw Material3 snackbar with a 16dp floating cosmic squircle pill featuring an emerald checkmark and bold `"View"` button. Clicking "View" opens a custom 24dp squircle modal with status badges (`🎯 Open`, `✓ Completed`), origin note attribution, and styled actions.
+  4. **Reminders & History Architecture Overhaul**: Replaced the confusing `"Review"` button in Reminder History with `"Reschedule"`, ensured explicit edits mark `needsReview = false` to eliminate ghost review resurrections, and confined review carousels strictly to the Next Steps tab to keep Ideas and Decisions clutter-free.
+  5. **100% Test Passing & Deployment**: All 10 unit tests in `InsightsUiTest` passed cleanly, debug APK assembled, installed, and launched on connected device `192.168.31.163:39103`.
+- Completed milestone: **Next Steps Action-First Streamlined Card Layout (Option A)** (`InsightCards.kt`):
+  1. **Action-First Hierarchy**: Elevated the task text to Row 1 with immediate checkbox interaction and flush baseline alignment.
+  2. **Timestamp Formatting & Zero Line Breaking**: Eliminated awkward 4-line wrapping of timestamps (`Yesterday, 10:13 pm`), displaying cleanly on a single line with `maxLines = 1`, `softWrap = false`, and `TextOverflow.Ellipsis`.
+  3. **Compact Source Chip**: Simplified `InsightSourceChip(compact = true)` to display `[ 🎙 Voice note ]` without redundant 36-character timestamps, cutting chip width by ~60% and giving the relative timestamp ample breathing room.
+  4. **50% Height Reduction**: Decreased outer card height from ~160dp to ~85dp (`padding(horizontal = 14.dp, vertical = 10.dp)` and `14.dp` corners), allowing all 3 tasks to fit simultaneously on screen without vertical scrolling.
+  5. **Verified Live**: Installed on connected physical device (`192.168.31.163:39103`), tested checkbox state toggling (strikethrough text with completed drawer and archive flow), and verified all 3 open cards concurrently.
+- Completed milestone: **Three-Part Modern Insights Date Instrument Row & Bounded Vertical Month Snapping** (`InsightsDateScroller.kt`, `InsightsViewModel.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`).
+- Pushed and installed live onto connected physical device (`192.168.31.163:39103`), verified via adb live screenshots.
+- Key UX accomplishments:
+  1. **Three-Part Modern Instrument Row**: Balanced 44dp row with `[Month & Year (Left)]` $\rightarrow$ `[Horizontal Day Scroller (Center)]` $\rightarrow$ `['All' Button (Right)]`.
+  2. **Identical, Balanced Spacing**: Standardized equal `10dp` spacing between Month Year and Scroller, and between Scroller and All button, with dynamic month width matching the exact text size to eliminate excess dead space.
+  3. **"All" Button Toggle to Today**: Clicking the "All" button when already selected smoothly transitions to selecting "Today", centering the scroller on today and highlighting it. Clicking "All" again returns to "All" mode showing all items.
+  4. **Disabled Top Row Tab Shadows**: Removed `shadowElevation` and ripple indication across `SingleRowInsightsCapsule` (Ideas, Next Steps, Decisions) for crisp, flat, elevation-free modern tabs.
+  5. **Pure Month & Year Typography**: Removed inline "All" text from beneath the month. Styled with Dieter Rams typographic clarity (Playfair Display bold serif for month, tabular sans for year).
+  6. **Bounded Vertical Month Snapping**: Vertical snap-wheel automatically detects the earliest note timestamp (`earliestMonth`) across user recordings, insights, and reminders, scrolling backward from the current month strictly down to the earliest note month.
+  7. **Dedicated Tactile 'All' Squircle Pill**: Shares exact dimensions (`36dp` height, `12dp` corner radius) and color grammar with the active date cube. Solid Cobalt Blue / Cosmic Glow Blue when active (no date filtered), subtle outlined ceramic surface when a date is selected.
+  8. **Edge Gradient Masks & Drag Isolation**: Soft horizontal edge fades on days strip, and `collectIsDraggedAsState()` ensuring programmatic recentering never triggers accidental date selection.
+  9. **100% Test Passing & Visual Snapshots**: Unit test suite passed (`InsightsUiTest`), headless Roborazzi matrix tests passed across light & dark themes, and live device interactions verified.
+
 
 ## Completed Milestone: Action Item & Reminder Lifecycle Management & Unified Insights UI (`feature/action-item-lifecycle`)
 - [x] **Unified Insights Visual Hierarchy & Responsive Header (`InsightsContent.kt`, `InsightCards.kt`, `SrutamTopAppBar.kt`)**:
@@ -372,6 +427,20 @@ All 5 planned tracks are fully implemented, verified via automated unit and scre
   - Referenced In card linking related voice notes with one-tap note switching.
   - Dual theme fidelity: light mode matching the reference design plus Cosmic Void Dark Mode.
   - Verified via Roborazzi native graphics tests across `tablet-7inch` and `tablet-10inch` profiles in both themes.
+
+- [x] **Notes Filter & Date Wheel State Persistence across All Screens (`FeedScreen.kt`, `AudioFilesViewModel.kt`, `ActionItemsScreen.kt`, `InsightsContent.kt`, `TabletWorkspaceScreen.kt`)**:
+  - Reverted date wheel allocation back to standard 30% row width (`Modifier.weight(0.30f)`), with 70% (`Modifier.weight(0.70f)`) for the segmented filter capsule ("All Notes", "Pending AI").
+  - Hoisted `selectedFilter` (`FeedFilter`) and `selectedDate` (`LocalDate?`) into `AudioFilesViewModel` as reactive `StateFlow`s, surviving all screen transitions, detail navigation, settings, and bottom navigation tab switches.
+  - Synchronized `selectedDate` bi-directionally between the Notes screen vertical drum and the Insights screen horizontal date scroller.
+  - Refined `CompactVerticalDateWheel` layout with transparent floating drum, zero grey background artifacts, zero top/bottom divider lines, centered month and day alignment, and smooth snap fling physics.
+  - Verified on physical hardware via ADB across tab transitions, settings back-stack, and date resets.
+
+- [x] **Dates & Reminders Component Redesign (`InsightCards.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`, `InsightsMatrixTest.kt`)**:
+  - Replaced the bulky ~80dp accordion card with a sleek **44dp Compact Glance Bar** (`CompactRemindersGlanceBar`).
+  - Implemented **Time-First Hierarchy**: bold, colored date/time highlight (`Today, 12:30 PM` in Cobalt Blue / Cosmic Glow Blue) followed by a bullet separator, single-line title truncation, squircle badge, and a count pill (`+X more`).
+  - Implemented **Context-Aware Presence**: surfaces date-specific scheduled reminders in date-filtered mode (disappearing completely with zero height when no reminders exist on that day), and the earliest upcoming reminder in All mode.
+  - Added **Reminders Overview Bottom Sheet** (`RemindersOverviewBottomSheet`): tapping the glance bar smoothly opens a modal bottom sheet displaying full reminder cards with quick lifecycle controls (`Edit`, `Done`, `Dismiss`) and audio note links.
+  - Fully tested and verified via Robolectric unit tests (`InsightsUiTest`) and Roborazzi Native Graphics (`PhoneInsightsMatrixTest`) across light and cosmic dark themes.
 
 
 

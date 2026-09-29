@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -58,6 +59,8 @@ fun SrutamTopAppBar(
     subtitle: String? = null,
     subtitleIcon: ImageVector? = null,
     subtitleColor: Color? = null,
+    titleFontSize: TextUnit = 28.sp,
+    accentFontSize: TextUnit = 20.sp,
     titleFontWeight: FontWeight = FontWeight.Bold,
     accentFontWeight: FontWeight = FontWeight.Medium,
     actions: @Composable RowScope.() -> Unit = {},
@@ -65,8 +68,6 @@ fun SrutamTopAppBar(
 ) {
     val isDark = LocalIsCosmicDark.current
     val resolvedSubtitleColor = subtitleColor ?: if (isDark) TextOnDarkSecondary else TextSecondary
-    val titleFontSize = if (accentText != null) 24.sp else 30.sp
-    val accentFontSize = if (accentText != null) 24.sp else 30.sp
 
     Surface(
         color = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
@@ -84,7 +85,7 @@ fun SrutamTopAppBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                 .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
         ) {
             Row(
@@ -94,7 +95,7 @@ fun SrutamTopAppBar(
             ) {
                 Row(
                     modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
                         text = title,
@@ -102,10 +103,11 @@ fun SrutamTopAppBar(
                         fontFamily = PlayfairDisplayFontFamily,
                         fontWeight = titleFontWeight,
                         color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229),
-                        maxLines = 1
+                        maxLines = 1,
+                        modifier = Modifier.alignByBaseline()
                     )
                     if (accentText != null) {
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = accentText,
                             fontSize = accentFontSize,
@@ -113,7 +115,8 @@ fun SrutamTopAppBar(
                             fontStyle = FontStyle.Italic,
                             fontWeight = accentFontWeight,
                             color = if (isDark) CosmicGlowBlue else CobaltBlue,
-                            maxLines = 1
+                            maxLines = 1,
+                            modifier = Modifier.alignByBaseline()
                         )
                     }
                 }
