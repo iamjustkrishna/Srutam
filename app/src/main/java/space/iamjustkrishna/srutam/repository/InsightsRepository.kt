@@ -167,30 +167,52 @@ class InsightsRepository(
     }
 
     suspend fun setReminderStatus(id: String, status: String) = reminderWrites.withLock {
-        val item = database.reminderDao().getReminderById(id) ?: return@withLock
-        require(status in listOf(ReminderStatus.COMPLETED, ReminderStatus.DISMISSED))
-        database.reminderDao().update(item.copy(
-            status = status, notificationEnabled = false, needsReview = false, legacyReview = false,
-            // For resolved reminders confirmedAt records when they were resolved; it bounds the undo window.
-            confirmedAt = clock.millis(),
-            scheduleRevision = item.scheduleRevision + 1
-        ))
-        alarms.cancel(item)
+        database.withTransaction {
+            val item = database.reminderDao().getReminderById(id) ?: return@withTransaction
+            require(status in listOf(ReminderStatus.COMPLETED, ReminderStatus.DISMISSED))
+            database.reminderDao().update(item.copy(
+                status = status, notificationEnabled = false, needsReview = false, legacyReview = false,
+                // For resolved reminders confirmedAt records when they were resolved; it bounds the undo window.
+                confirmedAt = clock.millis(),
+                scheduleRevision = item.scheduleRevision + 1
+            ))
+            if (status == ReminderStatus.COMPLETED && item.linkedTaskId != null) {
+                val task = database.insightDao().getById(item.linkedTaskId)
+                if (task != null && task.status != InsightStatus.COMPLETED) {
+                    database.insightDao().updateInsight(task.copy(
+                        status = InsightStatus.COMPLETED,
+                        completedAt = clock.millis()
+                    ))
+                }
+            }
+            alarms.cancel(item)
+        }
     }
 
     /** Reopens a reminder that was marked done or dismissed within the last day, re-arming its alert when still upcoming. */
     suspend fun undoReminderStatus(id: String) = reminderWrites.withLock {
-        val item = database.reminderDao().getReminderById(id) ?: return@withLock
-        val now = clock.millis()
-        val resolvedAt = item.confirmedAt
-        if ((item.status != ReminderStatus.COMPLETED && item.status != ReminderStatus.DISMISSED) || resolvedAt == null || now - resolvedAt > UNDO_WINDOW_MS) return@withLock
-        val rearm = item.type != ReminderType.MILESTONE && item.timePrecision == "EXACT" && (item.eventTimeMs ?: 0) > now
-        val restored = item.copy(
-            status = ReminderStatus.ACTIVE, notificationEnabled = rearm, needsReview = false,
-            confirmedAt = if (rearm) now else null, scheduleRevision = item.scheduleRevision + 1, scheduleError = null
-        )
-        database.reminderDao().update(restored)
-        if (rearm) database.reminderDao().update(restored.copy(scheduleError = alarms.schedule(restored)))
+        database.withTransaction {
+            val item = database.reminderDao().getReminderById(id) ?: return@withTransaction
+            val now = clock.millis()
+            val resolvedAt = item.confirmedAt
+            if ((item.status != ReminderStatus.COMPLETED && item.status != ReminderStatus.DISMISSED) || resolvedAt == null || now - resolvedAt > UNDO_WINDOW_MS) return@withTransaction
+            val rearm = item.type != ReminderType.MILESTONE && item.timePrecision == "EXACT" && (item.eventTimeMs ?: 0) > now
+            val restored = item.copy(
+                status = ReminderStatus.ACTIVE, notificationEnabled = rearm, needsReview = false,
+                confirmedAt = if (rearm) now else null, scheduleRevision = item.scheduleRevision + 1, scheduleError = null
+            )
+            database.reminderDao().update(restored)
+            if (item.linkedTaskId != null) {
+                val task = database.insightDao().getById(item.linkedTaskId)
+                if (task != null && task.status == InsightStatus.COMPLETED) {
+                    database.insightDao().updateInsight(task.copy(
+                        status = InsightStatus.OPEN,
+                        completedAt = null
+                    ))
+                }
+            }
+            if (rearm) database.reminderDao().update(restored.copy(scheduleError = alarms.schedule(restored)))
+        }
     }
 
     suspend fun disableReminder(id: String) = reminderWrites.withLock {
@@ -336,6 +358,15 @@ class InsightsRepository(
             alarms.cancel(item) // Also cancels old payloads without the new URI identity.
             if (sourceExists(item.recordingId) && ReminderPolicy.canSchedule(item, clock.millis())) {
                 database.reminderDao().update(item.copy(scheduleError = alarms.schedule(item)))
+            }
+            if (item.status == ReminderStatus.COMPLETED && item.linkedTaskId != null) {
+                val task = database.insightDao().getById(item.linkedTaskId)
+                if (task != null && task.status == InsightStatus.OPEN) {
+                    database.insightDao().updateInsight(task.copy(
+                        status = InsightStatus.COMPLETED,
+                        completedAt = item.confirmedAt ?: clock.millis()
+                    ))
+                }
             }
         }
     }

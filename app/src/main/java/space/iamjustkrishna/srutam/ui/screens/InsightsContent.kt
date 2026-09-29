@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -911,6 +913,10 @@ fun InsightsContent(
     viewingIdeaId?.let { ideaId ->
         val idea = state.ideas.find { it.id == ideaId } ?: state.items.find { it.id == ideaId }
         val steps = state.items.filter { it.sourceInsightId == ideaId && it.status != InsightStatus.ARCHIVED }
+            .sortedBy { step ->
+                step.status == InsightStatus.COMPLETED ||
+                    state.reminders.any { it.linkedTaskId == step.id && it.status == ReminderStatus.COMPLETED }
+            }
         if (idea != null) {
             IdeaStepsDialog(
                 idea = idea,
@@ -1097,80 +1103,94 @@ private fun IdeaStepsDialog(
     onDismiss: () -> Unit
 ) {
     val dark = LocalIsCosmicDark.current
-    val completedCount = steps.count { it.status == InsightStatus.COMPLETED }
+    val isStepDone = { step: InsightEntity ->
+        step.status == InsightStatus.COMPLETED ||
+            state.reminders.any { it.linkedTaskId == step.id && it.status == ReminderStatus.COMPLETED }
+    }
+    val completedCount = steps.count { isStepDone(it) }
     val allCompleted = steps.isNotEmpty() && completedCount == steps.size
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
-        containerColor = if (dark) CosmicVoidCard else CeramicWhite,
-        modifier = Modifier.padding(vertical = 16.dp),
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = if (dark) CosmicVoidCard else CeramicWhite,
+            border = BorderStroke(1.dp, if (dark) CosmicVoidCardBorder else SlateBorder),
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // Header with Playfair Display title, counter, and single 'X' close button
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer,
-                        border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else CobaltBorder),
-                        modifier = Modifier.size(36.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.TaskAlt,
-                                contentDescription = null,
-                                tint = if (dark) CosmicGlowBlue else CobaltBlue,
-                                modifier = Modifier.size(19.dp)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (dark) CobaltBlue.copy(alpha = 0.25f) else CobaltContainer,
+                            border = BorderStroke(1.dp, if (dark) CosmicGlowBlue.copy(alpha = 0.4f) else CobaltBorder),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.TaskAlt,
+                                    contentDescription = null,
+                                    tint = if (dark) CosmicGlowBlue else CobaltBlue,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Next steps",
+                                fontFamily = PlayfairDisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = if (dark) TextOnDarkPrimary else TextPrimary
                             )
+                            if (steps.isNotEmpty()) {
+                                Text(
+                                    text = "$completedCount of ${steps.size} completed",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (allCompleted) {
+                                        if (dark) CosmicAuroraGreen else EmeraldSuccess
+                                    } else {
+                                        if (dark) TextOnDarkSecondary else TextMuted
+                                    }
+                                )
+                            }
                         }
                     }
-                    Column {
-                        Text(
-                            text = "Next steps",
-                            fontFamily = PlayfairDisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = if (dark) TextOnDarkPrimary else TextPrimary
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = if (dark) TextOnDarkSecondary else TextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (steps.isNotEmpty()) {
-                            Text(
-                                text = "$completedCount of ${steps.size} completed",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (allCompleted) {
-                                    if (dark) CosmicAuroraGreen else EmeraldSuccess
-                                } else {
-                                    if (dark) TextOnDarkSecondary else TextMuted
-                                }
-                            )
-                        }
                     }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = if (dark) TextOnDarkSecondary else TextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
                 // Idea reference card
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -1228,11 +1248,12 @@ private fun IdeaStepsDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         steps.forEach { step ->
-                            val isDone = step.status == InsightStatus.COMPLETED
                             val linkedReminder = state.reminders.find { it.linkedTaskId == step.id }
                                 ?: state.activeReminders.find { it.linkedTaskId == step.id }
+                            val isDone = isStepDone(step)
 
                             Surface(
+                                onClick = { onToggleStep(step.id) },
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (dark) {
                                     if (isDone) CosmicVoidCard.copy(alpha = 0.35f) else CosmicVoidCard
@@ -1282,9 +1303,9 @@ private fun IdeaStepsDialog(
                                             fontSize = 14.sp,
                                             lineHeight = 19.sp,
                                             fontWeight = if (isDone) FontWeight.Normal else FontWeight.Medium,
-                                            textDecoration = if (isDone) TextDecoration.LineThrough else null,
+                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
                                             color = if (isDone) {
-                                                if (dark) TextOnDarkSecondary.copy(alpha = 0.55f) else TextMuted
+                                                if (dark) TextOnDarkSecondary.copy(alpha = 0.5f) else TextMuted
                                             } else {
                                                 if (dark) TextOnDarkPrimary else TextPrimary
                                             }
@@ -1357,19 +1378,6 @@ private fun IdeaStepsDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(
-                    text = "Close",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.5.sp,
-                    color = if (dark) TextOnDarkSecondary else TextSecondary
-                )
-            }
         }
-    )
+    }
 }

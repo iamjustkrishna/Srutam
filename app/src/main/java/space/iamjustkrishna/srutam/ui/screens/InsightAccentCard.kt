@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.InsightStatus
+import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.viewmodel.InsightsUiState
 
@@ -162,7 +163,11 @@ internal fun InsightAccentCard(
                     if (isIdea) {
                         Spacer(Modifier.width(8.dp))
                         val hasSteps = steps.isNotEmpty() || hasNextStep
-                        val allDone = steps.isNotEmpty() && steps.all { it.status == InsightStatus.COMPLETED }
+                        val isStepDone = { step: InsightEntity ->
+                            step.status == InsightStatus.COMPLETED ||
+                                state.reminders.any { it.linkedTaskId == step.id && it.status == ReminderStatus.COMPLETED }
+                        }
+                        val allDone = steps.isNotEmpty() && steps.all { isStepDone(it) }
                         val buttonText = when {
                             !hasSteps -> "Next step"
                             allDone -> if (steps.size == 1) "1 done" else "${steps.size} done"
