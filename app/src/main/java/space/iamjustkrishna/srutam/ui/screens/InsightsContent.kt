@@ -953,7 +953,8 @@ fun InsightsContent(
                 return@let
             }
 
-            val isCompleted = task.status == InsightStatus.COMPLETED
+            val isCompleted = task.status == InsightStatus.COMPLETED ||
+                state.reminders.any { it.linkedTaskId == task.id && it.status == ReminderStatus.COMPLETED }
             val isArchived = task.status == InsightStatus.ARCHIVED
             AlertDialog(
                 onDismissRequest = { viewingTask = null },
@@ -1011,9 +1012,14 @@ fun InsightsContent(
                         Text(
                             text = task.text,
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = if (isCompleted) FontWeight.Normal else FontWeight.Medium,
                             lineHeight = 22.sp,
-                            color = if (dark) TextOnDarkPrimary else TextPrimary
+                            textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+                            color = if (isCompleted) {
+                                if (dark) TextOnDarkSecondary.copy(alpha = 0.6f) else TextMuted
+                            } else {
+                                if (dark) TextOnDarkPrimary else TextPrimary
+                            }
                         )
 
                         HorizontalDivider(
@@ -1075,15 +1081,6 @@ fun InsightsContent(
                                 fontSize = 13.5.sp
                             )
                         }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewingTask = null }) {
-                        Text(
-                            "Close",
-                            color = if (dark) TextOnDarkSecondary else TextSecondary,
-                            fontSize = 13.5.sp
-                        )
                     }
                 }
             )

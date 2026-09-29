@@ -86,7 +86,8 @@ sealed class Screen(val route: String) {
 @Composable
 fun SrutamNavigation(
     navController: NavHostController = rememberNavController(),
-    initialRecordingId: Long? = null
+    initialRecordingId: Long? = null,
+    initialReminderId: String? = null
 ) {
     LaunchedEffect(initialRecordingId) {
         if (initialRecordingId != null && initialRecordingId > 0L) {
@@ -110,7 +111,8 @@ fun SrutamNavigation(
             val focusRecordingId = backStackEntry.arguments?.getLong("focusRecordingId")?.takeIf { it > 0 }
             RootScreen(
                 navController = navController,
-                initialFocusRecordingId = focusRecordingId
+                initialFocusRecordingId = focusRecordingId,
+                initialReminderId = initialReminderId
             )
         }
 
@@ -160,19 +162,39 @@ fun SrutamNavigation(
 private fun RootScreen(
     navController: NavHostController,
     initialFocusRecordingId: Long? = null,
+    initialReminderId: String? = null,
     viewModel: AudioFilesViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
 
-    var currentTab by rememberSaveable { mutableStateOf(if (initialFocusRecordingId != null && initialFocusRecordingId > 0) RootTab.AI else RootTab.NOTES) }
-    var focusedRecordingId by rememberSaveable { mutableStateOf(initialFocusRecordingId) }
+    var currentTab by rememberSaveable {
+        mutableStateOf(
+            when {
+                !initialReminderId.isNullOrBlank() -> RootTab.ACTIONS
+                initialFocusRecordingId != null && initialFocusRecordingId > 0 -> RootTab.AI
+                else -> RootTab.NOTES
+            }
+        )
+    }
+    var consumedFocusRecordingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var focusedRecordingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var consumedReminderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(initialFocusRecordingId) {
-        if (initialFocusRecordingId != null && initialFocusRecordingId > 0L) {
-            currentTab = RootTab.AI
+        if (initialFocusRecordingId != null && initialFocusRecordingId > 0L && initialFocusRecordingId != consumedFocusRecordingId) {
+            consumedFocusRecordingId = initialFocusRecordingId
             focusedRecordingId = initialFocusRecordingId
+            currentTab = RootTab.AI
+            navController.currentBackStackEntry?.arguments?.putLong("focusRecordingId", -1L)
+        }
+    }
+
+    LaunchedEffect(initialReminderId) {
+        if (!initialReminderId.isNullOrBlank() && initialReminderId != consumedReminderId) {
+            consumedReminderId = initialReminderId
+            currentTab = RootTab.ACTIONS
         }
     }
 
@@ -277,7 +299,7 @@ private fun RootScreen(
                     sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
                     showAboveToast("Recording discarded")
                 },
-                onSendCopilotQuery = { /* TODO: Wire copilot query */ },
+                onSendCopilotQuery = {},
                 onReprocess = {
                     val filePath = viewModel.audioPlayer.playbackState.value.currentFilePath
                         ?: viewModel.audioFiles.value.firstOrNull()?.filePath
@@ -367,7 +389,10 @@ private fun RootScreen(
                         GlobalCopilotScreen(
                             viewModel = viewModel,
                             focusedRecordingId = focusedRecordingId,
-                            onClearFocusedRecording = { focusedRecordingId = null },
+                            onClearFocusedRecording = {
+                                focusedRecordingId = null
+                                navController.currentBackStackEntry?.arguments?.putLong("focusRecordingId", -1L)
+                            },
                             onRecordingClick = { recordingId ->
                                 navController.navigate(Screen.Detail.createRoute(recordingId))
                             },

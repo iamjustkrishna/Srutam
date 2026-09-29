@@ -45,9 +45,11 @@ enum class AppStage {
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_RECORDING_ID = "space.iamjustkrishna.srutam.EXTRA_OPEN_RECORDING_ID"
+        const val EXTRA_OPEN_REMINDER_ID = "extra_open_reminder_id"
     }
 
     private var openRecordingId by mutableStateOf<Long?>(null)
+    private var openReminderId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Srutam)
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
         }
 
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
+        openReminderId = intent?.getStringExtra(EXTRA_OPEN_REMINDER_ID)
         cleanUpStaleRecordingNotification()
 
         setContent {
@@ -70,7 +73,7 @@ class MainActivity : ComponentActivity() {
                 else -> ThemeMode.SYSTEM
             }
             SrutamTheme(themeMode = themeMode) {
-                SrutamApp(initialRecordingId = openRecordingId)
+                SrutamApp(initialRecordingId = openRecordingId, initialReminderId = openReminderId)
             }
         }
     }
@@ -94,12 +97,16 @@ class MainActivity : ComponentActivity() {
         if (id != null) {
             openRecordingId = id
         }
+        val remId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        if (remId != null) {
+            openReminderId = remId
+        }
     }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun SrutamApp(initialRecordingId: Long? = null) {
+fun SrutamApp(initialRecordingId: Long? = null, initialReminderId: String? = null) {
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
 
@@ -206,7 +213,7 @@ fun SrutamApp(initialRecordingId: Long? = null) {
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation(initialRecordingId = initialRecordingId)
+                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId)
             }
         }
     }

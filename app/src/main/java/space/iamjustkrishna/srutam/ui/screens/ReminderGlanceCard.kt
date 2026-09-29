@@ -162,7 +162,7 @@ internal fun CompactReminderCard(
 }
 
 @Composable
-private fun ReminderRoundAction(
+internal fun ReminderRoundAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     onClick: () -> Unit,

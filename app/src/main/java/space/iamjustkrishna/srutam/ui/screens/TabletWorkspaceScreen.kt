@@ -1,6 +1,10 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import android.content.Intent
 import android.content.res.Configuration
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -2963,6 +2967,7 @@ fun TabletNextStepsCard(
     nextSteps: List<InsightEntity>,
     completedActionIds: Map<String, Boolean>,
     onToggleAction: (InsightEntity) -> Unit,
+    onAddNextStep: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
@@ -3066,7 +3071,7 @@ fun TabletNextStepsCard(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable { }
+                    .clickable(enabled = onAddNextStep != null) { onAddNextStep?.invoke() }
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3427,6 +3432,9 @@ fun TabletNotes3PanelWorkspace(
         }
     }
 
+    val context = LocalContext.current
+    var bookmarkVersion by remember { mutableIntStateOf(0) }
+
     Row(modifier = modifier.fillMaxSize()) {
         // Panel 1: Notes List Pane
         TabletNotesListPane(
@@ -3457,6 +3465,34 @@ fun TabletNotes3PanelWorkspace(
             onPlayPause = onPlayPause,
             onSeek = onSeek,
             onOpenFullNote = { selectedRecording?.id?.let(onRecordingClick) },
+            onShare = {
+                selectedAudioFile?.let { audio ->
+                    try {
+                        val file = File(audio.filePath)
+                        if (file.exists()) {
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "audio/*"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Voice Note"))
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Unable to share audio: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onToggleBookmark = {
+                selectedAudioFile?.let { audio ->
+                    val newStatus = AppPreferences.toggleNoteBookmark(context, audio.filePath)
+                    bookmarkVersion++
+                    Toast.makeText(context, if (newStatus) "Note bookmarked" else "Bookmark removed", Toast.LENGTH_SHORT).show()
+                }
+            },
+            isBookmarked = remember(selectedAudioFile, bookmarkVersion) {
+                selectedAudioFile?.let { AppPreferences.isNoteBookmarked(context, it.filePath) } == true
+            },
             modifier = Modifier.weight(if (isLargeTablet) 1.25f else 1.8f)
         )
 
@@ -3842,6 +3878,9 @@ fun TabletNoteDetailPane(
     onPlayPause: () -> Unit,
     onSeek: (Int) -> Unit,
     onOpenFullNote: () -> Unit,
+    onShare: () -> Unit = {},
+    onToggleBookmark: () -> Unit = {},
+    isBookmarked: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
@@ -3931,7 +3970,7 @@ fun TabletNoteDetailPane(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = {}) {
+                IconButton(onClick = onShare) {
                     Icon(
                         imageVector = Icons.Outlined.Share,
                         contentDescription = "Share",
@@ -3939,11 +3978,11 @@ fun TabletNoteDetailPane(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = {}) {
+                IconButton(onClick = onToggleBookmark) {
                     Icon(
-                        imageVector = Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Bookmark",
-                        tint = textSecondary,
+                        imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (isBookmarked) "Remove bookmark" else "Bookmark note",
+                        tint = if (isBookmarked) (if (isDark) CosmicGlowBlue else CobaltBlue) else textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }

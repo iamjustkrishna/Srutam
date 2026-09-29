@@ -1,5 +1,72 @@
 # Current Workspace State: Srutam
 
+- **Completed Milestone: Compose LocalClipboard Migration & Daemon Memory Tuning** (`BYOKOnboardingScreen.kt`, `gradle.properties`):
+  1. **Migrated `LocalClipboardManager` to `LocalClipboard`**:
+     - Resolved deprecation warning in [BYOKOnboardingScreen.kt](file:///c:/Users/krish/AndroidStudioProjects/Srutam/app/src/main/java/space/iamjustkrishna/srutam/ui/screens/BYOKOnboardingScreen.kt). Replaced deprecated `LocalClipboardManager` with modern suspend-capable `LocalClipboard.current`.
+     - Wrapped clipboard reads inside a dedicated `coroutineScope.launch` reading `clipboard.getClipEntry()?.clipData?.getItemAt(0)?.text?.toString()`.
+  2. **Daemon Memory Optimization**:
+     - Tuned `gradle.properties` daemon heap from `-Xmx2048m -XX:MaxMetaspaceSize=512m` to `-Xmx1536m -XX:MaxMetaspaceSize=384m` to prevent native heap allocation and malloc exhaustion during dexing and testing on memory-constrained environments.
+  3. **Empirical Verification & Hardware Deployment**:
+     - `compileDebugKotlin` passed with 0 warnings/errors.
+     - Unit test suite passed with 0 errors.
+     - Installed and verified live on physical device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Google Play Manifest Permissions Compliance for Production Release** (`AndroidManifest.xml`):
+  1. **Removed `USE_EXACT_ALARM` Restriction Hazard**:
+     - Removed `<uses-permission android:name="android.permission.USE_EXACT_ALARM" />`. Kept standard `SCHEDULE_EXACT_ALARM`, ensuring full compliance with Google Play policy which forbids `USE_EXACT_ALARM` for non-clock/calendar apps while maintaining 100% functional reminder delivery.
+  2. **Cleaned Manifest Syntax**:
+     - Removed redundant `<uses-permission android:name="android.permission.BIND_QUICK_SETTINGS_TILE" />`. Kept the required service guard `android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"` on `QuickRecordingTileService`.
+  3. **Removed Deprecated Legacy Storage Opt-Out**:
+     - Removed obsolete `android:requestLegacyExternalStorage="true"` attribute from `<application>`, eliminating automated Play Console scoped storage compliance warnings on `targetSdk 36`.
+  4. **Empirical Verification & Hardware Deployment**:
+     - `compileDebugKotlin` passed with 0 errors.
+     - `testDebugUnitTest` passed all 30 test tasks.
+     - Successfully deployed and installed debug package on physical device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Navigation State Retention & "To Review" Card UI Consistency** (`Navigation.kt`, `GlobalCopilotScreen.kt`, `ReminderGlanceCard.kt`, `ReminderReviewCarousel.kt`):
+  1. **Dismissed Context Reference Banner Retention Across Settings**:
+     - Fixed bug where crossing off a voice note reference banner in AI chat was revoked upon navigating to Settings and pressing Back.
+     - Added `consumedFocusRecordingId` via `rememberSaveable` in `Navigation.kt` and sanitized `navController.currentBackStackEntry?.arguments?.putLong("focusRecordingId", -1L)` on both initial consumption and reference dismissal.
+     - In `GlobalCopilotScreen.kt`, synchronously set `focusedRecording = null` on clear to prevent race conditions.
+  2. **Active Tab Preservation Across Settings Back Navigation**:
+     - Fixed bug where navigating to Settings from Notes or Insights and pressing Back forced the user onto the AI tab instead of returning to Notes or Insights.
+     - Consuming the route arguments prevents `LaunchedEffect(initialFocusRecordingId)` from re-executing upon backstack re-entry.
+  3. **"To Review" Carousel Card Redesign & Consistency**:
+     - Redesigned `ReminderReviewCarousel.kt` cards to match the minimal, elegant visual architecture of `CompactReminderCard` from Dates & Reminders: 20dp squircle radius, subtle gradient fill, 34dp squircle icon badge (`Schedule`/`Flag`), overline `"NEEDS REVIEW"`, 15sp clean title (max 2 lines), `InsightSourceChip(compact = true)`, and minimal circular actions (`Icons.Default.Close` and `Icons.Default.Edit`).
+     - Added `rememberSnapFlingBehavior` for tactile, snappy horizontal carousel pagination.
+  4. **Empirical Verification & Hardware Deployment**:
+     - Full Kotlin compilation passed (`compileDebugKotlin`, exit code 0).
+     - Full unit test suite passed (`testDebugUnitTest`, 30 actionable tasks, exit code 0).
+     - Successfully deployed and verified on physical Android device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Notification Snooze Fix, Exhaustive Functionality Audit & System Wiring** (`ReminderAlarmReceiver.kt`, `ReminderPolicy.kt`, `MainActivity.kt`, `Navigation.kt`, `TabletWorkspaceScreen.kt`, `InsightsContent.kt`, `SettingsScreen.kt`, `AppPreferences.kt`, `AndroidManifest.xml`):
+  1. **Notification Snooze Root Cause Identified & Resolved**:
+     - `ReminderAlarmReceiver.ACTION_SNOOZE` was not setting `timePrecision = "EXACT"` or clearing `needsReview = false`. Because `ReminderPolicy.canSchedule()` requires `timePrecision == "EXACT"` and `!needsReview`, the snoozed reminder was never scheduled!
+     - Furthermore, `InsightsRepository.reconcile()` on subsequent app opens cancelled the snooze without rescheduling.
+     - Fixed: explicitly set `timePrecision = "EXACT"`, `needsReview = false`, `advanceNotification = false`, `scheduleRevision = reminder.scheduleRevision + 1`, and cleared `scheduleError`.
+     - Explicitly called `ReminderScheduler.cancelReminder()` prior to scheduling the snoozed alarm to avoid alarm collisions.
+     - Distinct data URIs added to notification pending intents (`srutam://reminder/${id}/done` and `srutam://reminder/${id}/snooze`) to prevent OS intent reuse.
+     - User-facing feedback added: "Snoozed for 10 minutes" toast on `Dispatchers.Main`.
+  2. **Notification Alarm Delivery Tolerance Expanded**:
+     - Expanded `ReminderPolicy.canDeliver()` upper window from 1 hour to 24 hours to accommodate deep Doze delays without discarding overdue alarms.
+  3. **Foreground Service Crash Prevention on Android 14+**:
+     - Updated `PersistentRecordingNotificationService` from `microphone` to `specialUse` with property `Persistent standby recording notification in status bar`, avoiding Android 14 `SecurityException` when launching standby notifications.
+  4. **Notification Click Routing to Actions Tab**:
+     - Plumbed `EXTRA_OPEN_REMINDER_ID` from `MainActivity` -> `SrutamApp` -> `SrutamNavigation` -> `RootScreen`, automatically setting `currentTab = RootTab.ACTIONS` when a reminder notification is clicked.
+  5. **Tablet Workspace Dead Buttons & Callbacks Wired**:
+     - Wired dead Share button in `TabletNoteDetailPane` to open the system share sheet (`Intent.ACTION_SEND` with `FileProvider` URI).
+     - Wired dead Bookmark button in `TabletNoteDetailPane` to toggle bookmark state in `AppPreferences` with reactive icon toggling (`Icons.Filled.Bookmark` vs `Icons.Outlined.BookmarkBorder`) and toast confirmation.
+     - Wired dead "Add next step" clickable row in `TabletNextStepsCard` to `onAddNextStep` callback.
+     - Cleared orphaned TODO in `Navigation.kt:onSendCopilotQuery`.
+  6. **Task Completion Visual Feedback ("Don't cross off" Fix)**:
+     - Fixed `viewingTask` dialog so tasks marked as done or with completed linked reminders display `TextDecoration.LineThrough` and muted typography, matching user expectations.
+  7. **Settings Clarity**:
+     - Relabeled "Quick Settings Tile" to "Persistent Recording Notification" with accurate subtitle "Always-accessible one-tap recording notification in status bar".
+  8. **Empirical Verification & Hardware Deployment**:
+     - Full Kotlin compilation passed (`compileDebugKotlin`, exit code 0).
+     - Full unit test suite passed (`testDebugUnitTest`, exit code 0).
+     - Installed and verified on physical device (`192.168.31.163:44275`).
+
 - **Completed Milestone: Multiple Next Steps for Ideas & Next Steps Dialog Redesign** (`InsightDao.kt`, `InsightsRepository.kt`, `InsightAccentCard.kt`, `InsightsContent.kt`, commits on `feature/action-item-lifecycle`):
   1. **Multiple Next Steps per Idea**:
      - Added `getDerivedTasksForIdea(id: String): List<InsightEntity>` in `InsightDao.kt`.

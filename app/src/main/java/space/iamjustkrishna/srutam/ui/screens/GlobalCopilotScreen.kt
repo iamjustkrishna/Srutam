@@ -232,6 +232,7 @@ fun GlobalCopilotScreen(
     }
 
     fun clearFocusedRecording() {
+        focusedRecording = null
         onClearFocusedRecording()
         val systemMsg = GlobalChatMessage(
             text = "Switched to all voice notes. Now referencing all your recordings and ideas.",

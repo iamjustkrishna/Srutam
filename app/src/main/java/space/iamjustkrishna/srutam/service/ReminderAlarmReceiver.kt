@@ -15,9 +15,11 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.room.withTransaction
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.data.AppDatabase
@@ -80,18 +82,30 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                             manager.cancel(notificationId)
                         }
-                        db.withTransaction {
-                            val reminder = db.reminderDao().getReminderById(id) ?: return@withTransaction
+                        val reminder = db.reminderDao().getReminderById(id)
+                        if (reminder != null) {
+                            // Cancel any prior pending alarms before scheduling the snoozed alarm
+                            ReminderScheduler.cancelReminder(context, reminder)
                             val snoozedTime = System.currentTimeMillis() + SNOOZE_DURATION_MS
                             val updated = reminder.copy(
                                 eventTimeMs = snoozedTime,
+                                timePrecision = "EXACT",
+                                needsReview = false,
+                                advanceNotification = false,
                                 status = ReminderStatus.ACTIVE,
                                 notificationEnabled = true,
                                 confirmedAt = System.currentTimeMillis(),
-                                scheduleRevision = reminder.scheduleRevision + 1
+                                scheduleRevision = reminder.scheduleRevision + 1,
+                                scheduleError = null
                             )
                             db.reminderDao().update(updated)
-                            ReminderScheduler.scheduleReminder(context, updated)
+                            val err = ReminderScheduler.scheduleReminder(context, updated)
+                            if (err != null) {
+                                db.reminderDao().update(updated.copy(scheduleError = err))
+                            }
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Snoozed for 10 minutes", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                     else -> {
@@ -175,6 +189,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         // Action: Mark Done
         val doneIntent = Intent(context, ReminderAlarmReceiver::class.java).apply {
             action = ACTION_MARK_DONE
+            data = Uri.parse("srutam://reminder/${reminder.id}/done")
             putExtra(EXTRA_REMINDER_ID, reminder.id)
             putExtra(EXTRA_NOTIFICATION_ID, notificationId)
         }
@@ -188,6 +203,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         // Action: Snooze 10m
         val snoozeIntent = Intent(context, ReminderAlarmReceiver::class.java).apply {
             action = ACTION_SNOOZE
+            data = Uri.parse("srutam://reminder/${reminder.id}/snooze")
             putExtra(EXTRA_REMINDER_ID, reminder.id)
             putExtra(EXTRA_NOTIFICATION_ID, notificationId)
         }

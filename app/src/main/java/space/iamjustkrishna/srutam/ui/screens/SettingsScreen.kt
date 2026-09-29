@@ -252,13 +252,13 @@ fun SettingsScreen(
 
                 HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
 
-                // Row 2: Quick Settings Notification Tile
+                // Row 2: Persistent Recording Notification
                 SettingsToggleRow(
                     icon = Icons.Default.Notifications,
                     iconBg = Color(0xFFFEF3C7),
                     iconTint = Color(0xFFD97706),
-                    title = "Quick Settings Tile",
-                    subtitle = "Persistent one-tap recording in status bar",
+                    title = "Persistent Recording Notification",
+                    subtitle = "Always-accessible one-tap recording notification in status bar",
                     checked = isPersistentNotificationEnabled,
                     onCheckedChange = { enabled ->
                         isPersistentNotificationEnabled = enabled

@@ -148,5 +148,12 @@ Thumbs.db
 desktop.ini
 
 
-mcp-server/
+# ==============================================================================
+# Antigravity Agents & Workflows
+# ==============================================================================
+AGENTS.md
+.agents/workflows/
+mcp-server/
+mcp-server/**
 supabase/
+supabase/**

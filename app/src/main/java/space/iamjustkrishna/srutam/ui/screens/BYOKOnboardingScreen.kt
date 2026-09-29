@@ -57,8 +57,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -105,7 +107,8 @@ fun BYOKOnboardingScreen(
     initialChoice: OnboardingAiChoice = OnboardingAiChoice.SRUTAM_CLOUD
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val isDark = LocalIsCosmicDark.current
 
@@ -531,10 +534,12 @@ fun BYOKOnboardingScreen(
                                             .padding(end = 6.dp)
                                             .clip(RoundedCornerShape(8.dp))
                                             .clickable {
-                                                val clip = clipboardManager.getText()?.text.orEmpty().trim()
-                                                if (clip.isNotBlank()) {
-                                                    apiKeyText = clip
-                                                    keyErrorText = null
+                                                coroutineScope.launch {
+                                                    val clip = clipboard.getClipEntry()?.clipData?.getItemAt(0)?.text?.toString().orEmpty().trim()
+                                                    if (clip.isNotBlank()) {
+                                                        apiKeyText = clip
+                                                        keyErrorText = null
+                                                    }
                                                 }
                                             }
                                     ) {

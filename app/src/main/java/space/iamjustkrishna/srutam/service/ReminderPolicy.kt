@@ -28,6 +28,6 @@ object ReminderPolicy {
         if (!sourceExists || !authorized(reminder) || reminder.scheduleRevision != revision) return false
         if (headsUp && !reminder.advanceNotification) return false
         val expected = reminder.eventTimeMs!! - if (headsUp) ADVANCE_MS else 0
-        return trigger == expected && now >= (expected - EARLY_TOLERANCE_MS) && now <= reminder.eventTimeMs + 60 * 60 * 1000L
+        return trigger == expected && now >= (expected - EARLY_TOLERANCE_MS) && now <= reminder.eventTimeMs + 24 * 60 * 60 * 1000L
     }
 }

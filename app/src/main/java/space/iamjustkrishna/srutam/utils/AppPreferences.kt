@@ -341,4 +341,31 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putStringSet(KEY_DISMISSED_THEMES, updated).apply()
     }
+
+    private const val KEY_BOOKMARKED_NOTES = "bookmarked_notes_paths"
+
+    fun getBookmarkedNotePaths(context: Context): Set<String> {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getStringSet(KEY_BOOKMARKED_NOTES, emptySet()) ?: emptySet()
+    }
+
+    fun isNoteBookmarked(context: Context, filePath: String): Boolean {
+        return getBookmarkedNotePaths(context).contains(filePath)
+    }
+
+    fun toggleNoteBookmark(context: Context, filePath: String): Boolean {
+        val current = getBookmarkedNotePaths(context).toMutableSet()
+        val willBeBookmarked = if (current.contains(filePath)) {
+            current.remove(filePath)
+            false
+        } else {
+            current.add(filePath)
+            true
+        }
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet(KEY_BOOKMARKED_NOTES, current)
+            .apply()
+        return willBeBookmarked
+    }
 }
