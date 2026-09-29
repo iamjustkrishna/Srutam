@@ -9,10 +9,12 @@
      - Dynamically transitions button state between `+ Next step` (0 steps), `View step` (1 open step), `View steps (N)` (multiple open steps), and `[✓] N done` (all steps completed).
   3. **Aesthetic Next Steps Modal Redesign (`IdeaStepsDialog`)**:
      - Removed the out-of-place top-right "Open" chip; replaced with an aesthetic "✕" close `IconButton`.
+     - Completely eliminated redundant bottom "Close" button by migrating to `Dialog` + `Surface`, saving vertical space.
      - Displayed the parent Idea in a compact, elegant reference card with "IDEA" badge and source note chip.
-     - Added interactive per-step completion toggle: circular checkboxes (`Icons.Default.CheckCircle` / `Icons.Default.RadioButtonUnchecked`), strikethrough text when done, reminder time chips, and one-tap delete.
+     - Added interactive per-step completion toggle: circular checkboxes (`Icons.Default.CheckCircle` / `Icons.Default.RadioButtonUnchecked`), explicit strikethrough (`TextDecoration.LineThrough`) when done, reminder time chips, and one-tap delete.
+     - Synchronized linked task completion with reminder completion in `InsightsRepository.setReminderStatus` and `reconcile` so completed reminder next steps immediately cross off.
+     - Entire step row is clickable to toggle completion.
      - Added `+ Add another step` button directly inside the dialog to smoothly open the task creator with unique instance session key.
-     - Removed the redundant primary "Mark as done" button, keeping only a clean "Close" button.
   4. **Standalone Task Modal Polish**:
      - Fixed `viewingTask` dialog so tasks originating from Ideas automatically redirect into the cohesive `IdeaStepsDialog`.
      - Replaced the top-right "Open" chip with an aesthetic "✕" close button.
