@@ -37,7 +37,10 @@ class ReminderPolicyTest {
         assertFalse(ReminderPolicy.canDeliver(confirmed, 2, due - 1, false, due, true))
         assertFalse(ReminderPolicy.canDeliver(confirmed, 2, due, false, due, false))
         assertFalse(ReminderPolicy.canDeliver(confirmed.copy(notificationEnabled = false), 2, due, false, due, true))
-        assertFalse(ReminderPolicy.canDeliver(confirmed, 2, due, false, due - 1, true))
+        // Within 60s early tolerance is accepted so micro clock drifts or early OS timer ticks don't drop alerts
+        assertTrue(ReminderPolicy.canDeliver(confirmed, 2, due, false, due - 1, true))
+        // Beyond early tolerance window is rejected
+        assertFalse(ReminderPolicy.canDeliver(confirmed, 2, due, false, due - ReminderPolicy.EARLY_TOLERANCE_MS - 1, true))
     }
 
     @Test fun advanceNotificationRequiresSeparateConsent() {

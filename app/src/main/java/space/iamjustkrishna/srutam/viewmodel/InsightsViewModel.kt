@@ -106,6 +106,7 @@ class InsightsViewModel(application: Application, private val savedStateHandle: 
             )
         }.catch { e ->
             if (e is CancellationException) throw e
+            android.util.Log.e("InsightsViewModel", "Failed to load insights", e)
             emit(InsightsUiState(error = "Could not load Insights. Please retry."))
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InsightsUiState())

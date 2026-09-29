@@ -11,6 +11,7 @@ interface ReminderAlarmService {
 
 object ReminderPolicy {
     const val ADVANCE_MS = 15 * 60 * 1000L
+    const val EARLY_TOLERANCE_MS = 60 * 1000L
 
     fun authorized(reminder: ReminderEntity): Boolean =
         reminder.status == ReminderStatus.ACTIVE && reminder.notificationEnabled &&
@@ -27,6 +28,6 @@ object ReminderPolicy {
         if (!sourceExists || !authorized(reminder) || reminder.scheduleRevision != revision) return false
         if (headsUp && !reminder.advanceNotification) return false
         val expected = reminder.eventTimeMs!! - if (headsUp) ADVANCE_MS else 0
-        return trigger == expected && now >= expected && now <= reminder.eventTimeMs + 60 * 60 * 1000L
+        return trigger == expected && now >= (expected - EARLY_TOLERANCE_MS) && now <= reminder.eventTimeMs + 60 * 60 * 1000L
     }
 }

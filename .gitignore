@@ -91,6 +91,7 @@ models/
 *.m4a
 *.aac
 *.flac
+!app/src/main/res/raw/*
 __pycache__/
 *.py[cod]
 *$py.class

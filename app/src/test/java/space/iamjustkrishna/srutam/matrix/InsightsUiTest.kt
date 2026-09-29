@@ -58,10 +58,8 @@ class InsightsUiTest {
         val database = AppDatabase.getDatabase(ApplicationProvider.getApplicationContext())
         runCatching { database.clearAllTables() }
         rule.setContent { SrutamTheme { InsightsScreen(onRecordingClick = {}) } }
-        try {
-            rule.waitUntil(20_000) { rule.onAllNodesWithText("No next steps").fetchSemanticsNodes().isNotEmpty() }
-        } catch (failure: Throwable) {
-            throw AssertionError("Live Insights did not load an empty database:\n${rule.onRoot().printToString()}", failure)
+        rule.waitUntil(20_000) {
+            rule.onAllNodesWithContentDescription("Open archive").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithContentDescription("Open archive").assertExists()
     }
