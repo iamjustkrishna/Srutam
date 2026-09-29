@@ -5,6 +5,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 val INSIGHTS_MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE recordings ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'NOT_SYNCED'")
+        db.execSQL("ALTER TABLE recordings ADD COLUMN isPrivate INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE recordings ADD COLUMN cloudId TEXT")
+        db.execSQL("ALTER TABLE recordings ADD COLUMN lastSyncedAt INTEGER")
         db.execSQL("ALTER TABLE recordings ADD COLUMN recordedZoneId TEXT")
         db.execSQL("ALTER TABLE recordings ADD COLUMN insightsImported INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE insight_items ADD COLUMN sourceInsightId TEXT")

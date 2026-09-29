@@ -90,7 +90,6 @@ class MainActivity : ComponentActivity() {
                 ?.cancel(space.iamjustkrishna.srutam.service.RecordingForegroundService.NOTIFICATION_ID)
         }
     }
-    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
