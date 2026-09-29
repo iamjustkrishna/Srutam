@@ -1,12 +1,22 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- Completed milestone: **Srutam AI tools, saved chats, and dark mode** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SemanticColors.kt`, ADR-049):
-  1. AI screen can propose reminders, next steps, ideas/decisions and note renames as confirm cards, with Undo. Reads (find notes, list reminders) run automatically.
-  2. Top-bar button is now History: last 3 chats are saved and can be reopened or deleted.
-  3. Chat-created reminders use source id 0 and are kept alive by `reconcile()` and the alarm receiver.
-  4. Dark mode fixed on AI, Notes, note detail, permissions, splash, note chat and recording sheet. All 296 unit tests passing cleanly across the test suite (resolved `InsightsPresentationTest` milestone retention and `InsightsRepositoryTest` unresolved reminder reviewability).
-  5. Connected physical test device (`192.168.31.163:38297`) is online and ready for live install/verification. Release readiness assessed for v2.3.0 bump.
+- **Released Milestone: Srutam v2.3.0 (Build 12) - AI Copilot Tools, Inline Reminders, Date Scroller & Cosmic Dark Mode** (commit `736fd5a`, branch `feature/action-item-lifecycle`):
+  1. **Version Bump**: `versionCode = 12`, `versionName = "2.3.0"` in `app/build.gradle.kts`.
+  2. **AI Copilot Tools & Saved Chats** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SourceIds.kt`, ADR-049):
+     - Prompt-level tool protocol with interactive confirmation cards and 24-hour Undo.
+     - Persistent saved chats (last 3 conversations) with top-bar History button.
+     - `SourceIds.CHAT = 0L` sentinel supporting alarm receiver and reconciliation.
+  3. **Inline Reminders Expansion** (`InsightCards.kt`, `InsightsContent.kt`, ADR-050):
+     - Replaced modal bottom sheet with 44dp expandable glance bar and snap LazyRow with 92dp compact 3-row cards.
+  4. **Notes Drum Vertical Alignment** (`FeedScreen.kt`):
+     - Unified font metrics and eliminated 5dp visual sag between month and day.
+  5. **Unified Cosmic Dark Palette** (`SemanticColors.kt`):
+     - Follows `LocalIsCosmicDark` across AI, Notes filter/cards, note detail, permissions, splash, and recording sheet.
+  6. **100% Test Passing & Live Hardware Verification**:
+     - All 296 unit tests passing cleanly (`testDebugUnitTest`, exit code 0).
+     - Debug APK assembled, installed, and launched on attached phone (`192.168.31.163:38297`), confirmed via `dumpsys` (`versionCode=12`, `versionName=2.3.0`).
+     - Branch preserved on `feature/action-item-lifecycle` with working tree clean.
 - **Installed & Active: Comprehensive 30-Skill Modern Android Toolkit & Google Android CLI**:
   - **Visual & UI Polish Suite**: `android-material3-design-system`, `android-adaptive-layouts`, `android-edge-to-edge`, `android-compose-motion-animations`, `android-mobile-frontend-design`, `android-compose-state-effects`, `android-ui-states-validation`, `android-compose-accessibility`, `android-compose-foundations`, `navigation-event`, `styles`, `android-coil-compose`.
   - **Efficiency & Performance Suite**: `android-profiler`, `android-performance-observability`, `android-compose-performance`, `android-workmanager-notifications`, `android-local-persistence-datastore`, `android-room-database`, `android-r8-analyzer`, `android-gradle-build-performance`, `play-policy-insights`.
