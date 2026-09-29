@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.service
+package space.iamjustkrishna.srutam.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
@@ -64,24 +64,12 @@ class VolumeButtonTriggerService : AccessibilityService() {
     }
 
     private fun toggleRecording() {
-        val intent = Intent(this, RecordingForegroundService::class.java).apply {
-            action = if (RecordingForegroundService.isRecording) {
-                RecordingForegroundService.ACTION_STOP_RECORDING
-            } else {
-                RecordingForegroundService.ACTION_START_RECORDING
-            }
-        }
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-                Log.d(TAG, "Started foreground service with action: ${intent.action}")
-            } else {
-                startService(intent)
-                Log.d(TAG, "Started service with action: ${intent.action}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting recording service", e)
+        if (RecordingCoordinator.isRecording || RecordingForegroundService.isRecording) {
+            RecordingCoordinator.requestStop(this)
+            Log.d(TAG, "Requested recording stop via VolumeButtonTriggerService")
+        } else {
+            RecordingCoordinator.requestStart(this)
+            Log.d(TAG, "Requested recording start via VolumeButtonTriggerService")
         }
     }
 

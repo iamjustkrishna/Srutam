@@ -2,6 +2,7 @@ package space.iamjustkrishna.srutam.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "recordings")
 data class Recording(
@@ -22,5 +23,7 @@ data class Recording(
     val syncStatus: String = SyncStatus.NOT_SYNCED,
     val isPrivate: Boolean = false,
     val cloudId: String? = null,
-    val lastSyncedAt: Long? = null
+    val lastSyncedAt: Long? = null,
+    val recordedZoneId: String? = java.time.ZoneId.systemDefault().id,
+    @ColumnInfo(defaultValue = "0") val insightsImported: Boolean = false
 )

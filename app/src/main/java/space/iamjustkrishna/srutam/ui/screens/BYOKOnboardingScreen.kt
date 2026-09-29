@@ -57,8 +57,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -105,7 +107,8 @@ fun BYOKOnboardingScreen(
     initialChoice: OnboardingAiChoice = OnboardingAiChoice.SRUTAM_CLOUD
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val isDark = LocalIsCosmicDark.current
 
@@ -265,8 +268,8 @@ fun BYOKOnboardingScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalAlignment = Alignment.Top,
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
@@ -360,11 +363,11 @@ fun BYOKOnboardingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
@@ -395,24 +398,12 @@ fun BYOKOnboardingScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isDark) Color.White else TextPrimary
                                 )
-                                Surface(
-                                    color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFEFF6FF),
-                                    shape = CircleShape
-                                ) {
-                                    Text(
-                                        text = "BYOK",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isDark) Color(0xFF93C5FD) else CobaltBlue,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    )
-                                }
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Connect your Gemini, OpenAI, Claude, or Groq key for unlimited requests and model control.",
+                                text = "Use your own Gemini, OpenAI, Claude, or Groq API key.",
                                 fontSize = 13.sp,
                                 color = if (isDark) TextOnDarkSecondary else TextSecondary,
                                 lineHeight = 18.sp
@@ -440,7 +431,7 @@ fun BYOKOnboardingScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 16.dp)
+                                .padding(top = 14.dp)
                         ) {
                             HorizontalDivider(
                                 color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.7f),
@@ -543,10 +534,12 @@ fun BYOKOnboardingScreen(
                                             .padding(end = 6.dp)
                                             .clip(RoundedCornerShape(8.dp))
                                             .clickable {
-                                                val clip = clipboardManager.getText()?.text.orEmpty().trim()
-                                                if (clip.isNotBlank()) {
-                                                    apiKeyText = clip
-                                                    keyErrorText = null
+                                                coroutineScope.launch {
+                                                    val clip = clipboard.getClipEntry()?.clipData?.getItemAt(0)?.text?.toString().orEmpty().trim()
+                                                    if (clip.isNotBlank()) {
+                                                        apiKeyText = clip
+                                                        keyErrorText = null
+                                                    }
                                                 }
                                             }
                                     ) {

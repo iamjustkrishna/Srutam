@@ -422,3 +422,18 @@ fun MatrixTabletWorkspaceCosmicDarkPreview() {
     }
 }
 
+@Composable
+fun MatrixCaptureSetupPreview() {
+    SrutamTheme {
+        CaptureSetupScreen(onComplete = {}, onSkip = {})
+    }
+}
+
+@Composable
+fun MatrixCaptureSetupCosmicDarkPreview() {
+    SrutamTheme(themeMode = ThemeMode.COSMIC_DARK) {
+        CaptureSetupScreen(onComplete = {}, onSkip = {})
+    }
+}
+
+

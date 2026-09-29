@@ -413,7 +413,7 @@ fun DeleteConfirmationDialog(
     SrutamStandardDialog(
         onDismissRequest = onDismiss,
         title = "Delete Recording?",
-        subtitle = "Are you sure you want to permanently delete \"$recordingName\"? This action cannot be undone.",
+        subtitle = "Permanently delete \"$recordingName\" and its linked insights, tasks, and reminders? Notifications will be cancelled. This cannot be undone.",
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
         confirmText = "Delete",
@@ -437,7 +437,7 @@ fun MultiDeleteConfirmationDialog(
     SrutamStandardDialog(
         onDismissRequest = onDismiss,
         title = "Delete ${recordingNames.size} Recording${if (recordingNames.size > 1) "s" else ""}?",
-        subtitle = "You are about to permanently delete the following recordings:",
+        subtitle = "Permanently delete these recordings and their linked insights, tasks, and reminders. Their notifications will be cancelled:",
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
         confirmText = "Delete All",

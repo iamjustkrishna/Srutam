@@ -1,6 +1,10 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import android.content.Intent
 import android.content.res.Configuration
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -42,6 +46,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.*
@@ -266,7 +271,7 @@ fun TabletWorkspaceLayout(
                             )
                         } catch (e: Exception) {
                             internalCopilotMessages = internalCopilotMessages + GlobalChatMessage(
-                                text = "Sorry, I couldn't complete your request: ${e.message}",
+                                text = "Something went wrong. Please try again in a moment.",
                                 isUser = false
                             )
                         } finally {
@@ -435,31 +440,22 @@ fun TabletWorkspaceLayout(
                         }
                     }
                     RootTab.ACTIONS -> {
-                        val archivedCount by (viewModel?.archivedActionsCount?.collectAsState() ?: remember { mutableIntStateOf(0) })
-                        val activityMetrics by (viewModel?.activityMetrics?.collectAsState() ?: remember { mutableStateOf(UserActivityMetrics()) })
-                        TabletInsights3ColumnWorkspace(
-                            activeActions = activeActions,
-                            allIdeas = allIdeas,
-                            allDecisions = allDecisions,
-                            themeClusters = themeClusters,
-                            isLargeTablet = isLargeTablet,
-                            activityMetrics = activityMetrics,
-                            onActionToggle = onActionToggle,
-                            onRecordingClick = { recId ->
-                                val targetAudio = effectiveAudioFiles.firstOrNull { audio ->
-                                    effectiveRecordingsByPath[audio.filePath]?.id == recId
-                                }
-                                if (targetAudio != null) {
-                                    selectedFilePath = targetAudio.filePath
-                                }
+                        val openSource: (Long) -> Unit = { recId ->
+                            val targetAudio = effectiveAudioFiles.firstOrNull { audio ->
+                                effectiveRecordingsByPath[audio.filePath]?.id == recId
+                            }
+                            if (targetAudio != null) {
+                                selectedFilePath = targetAudio.filePath
                                 onTabSelected(RootTab.NOTES)
-                            },
-                            onViewAllNotes = { onTabSelected(RootTab.NOTES) },
-                            onArchiveConfirmed = { viewModel?.archiveCompletedActions() },
-                            onRestoreArchived = { viewModel?.unarchiveAllActions() },
-                            onDismissTheme = { clusterName -> viewModel?.dismissTheme(clusterName) },
-                            archivedCount = archivedCount
-                        )
+                            }
+                        }
+                        if (viewModel != null) {
+                            InsightsScreen(onRecordingClick = openSource, onSettingsClick = onSettingsClick, audioViewModel = viewModel)
+                        } else {
+                            ActionItemsContent(activeActions, allIdeas, allDecisions, themeClusters,
+                                onRecordingClick = openSource, onSettingsClick = onSettingsClick,
+                                onActionToggle = onActionToggle)
+                        }
                     }
                     RootTab.AI -> {
                         TabletCopilot3PanelWorkspace(
@@ -2571,7 +2567,7 @@ fun TabletExecutiveSummaryView(
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.FormatListBulleted,
+                            imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
                             contentDescription = null,
                             tint = if (isDark) CosmicGlowBlue else CobaltBlue,
                             modifier = Modifier.size(16.dp)
@@ -2971,6 +2967,7 @@ fun TabletNextStepsCard(
     nextSteps: List<InsightEntity>,
     completedActionIds: Map<String, Boolean>,
     onToggleAction: (InsightEntity) -> Unit,
+    onAddNextStep: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
@@ -3074,7 +3071,7 @@ fun TabletNextStepsCard(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable { }
+                    .clickable(enabled = onAddNextStep != null) { onAddNextStep?.invoke() }
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3435,6 +3432,9 @@ fun TabletNotes3PanelWorkspace(
         }
     }
 
+    val context = LocalContext.current
+    var bookmarkVersion by remember { mutableIntStateOf(0) }
+
     Row(modifier = modifier.fillMaxSize()) {
         // Panel 1: Notes List Pane
         TabletNotesListPane(
@@ -3465,6 +3465,34 @@ fun TabletNotes3PanelWorkspace(
             onPlayPause = onPlayPause,
             onSeek = onSeek,
             onOpenFullNote = { selectedRecording?.id?.let(onRecordingClick) },
+            onShare = {
+                selectedAudioFile?.let { audio ->
+                    try {
+                        val file = File(audio.filePath)
+                        if (file.exists()) {
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "audio/*"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Voice Note"))
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Unable to share audio: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onToggleBookmark = {
+                selectedAudioFile?.let { audio ->
+                    val newStatus = AppPreferences.toggleNoteBookmark(context, audio.filePath)
+                    bookmarkVersion++
+                    Toast.makeText(context, if (newStatus) "Note bookmarked" else "Bookmark removed", Toast.LENGTH_SHORT).show()
+                }
+            },
+            isBookmarked = remember(selectedAudioFile, bookmarkVersion) {
+                selectedAudioFile?.let { AppPreferences.isNoteBookmarked(context, it.filePath) } == true
+            },
             modifier = Modifier.weight(if (isLargeTablet) 1.25f else 1.8f)
         )
 
@@ -3850,6 +3878,9 @@ fun TabletNoteDetailPane(
     onPlayPause: () -> Unit,
     onSeek: (Int) -> Unit,
     onOpenFullNote: () -> Unit,
+    onShare: () -> Unit = {},
+    onToggleBookmark: () -> Unit = {},
+    isBookmarked: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
@@ -3939,7 +3970,7 @@ fun TabletNoteDetailPane(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = {}) {
+                IconButton(onClick = onShare) {
                     Icon(
                         imageVector = Icons.Outlined.Share,
                         contentDescription = "Share",
@@ -3947,11 +3978,11 @@ fun TabletNoteDetailPane(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = {}) {
+                IconButton(onClick = onToggleBookmark) {
                     Icon(
-                        imageVector = Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Bookmark",
-                        tint = textSecondary,
+                        imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (isBookmarked) "Remove bookmark" else "Bookmark note",
+                        tint = if (isBookmarked) (if (isDark) CosmicGlowBlue else CobaltBlue) else textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -4683,6 +4714,8 @@ private fun TabletInspectorChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
         color = if (isSelected) accentColor.copy(alpha = if (isDark) 0.3f else 0.15f) else (if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
         border = BorderStroke(1.dp, if (isSelected) accentColor else Color.Transparent),
         modifier = modifier.height(30.dp)
@@ -4719,185 +4752,12 @@ fun TabletInsights3ColumnWorkspace(
     archivedCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsCosmicDark.current
-    val paneBg = if (isDark) CosmicVoidCard else Color.White
-    val textPrimary = if (isDark) TextOnDarkPrimary else TextPrimary
-    val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
-
-    val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT || configuration.screenWidthDp < configuration.screenHeightDp
-    val showActivitySidebar = !isPortrait && configuration.screenWidthDp >= 1000
-
-    var selectedTab by rememberSaveable { mutableStateOf(InsightsTab.NEXT_STEPS) }
-    var isCompletedExpanded by remember { mutableStateOf(false) }
-    var showArchiveDialog by remember { mutableStateOf(false) }
-
-    val pendingActions = remember(activeActions) {
-        activeActions.filter { it.status == InsightStatus.OPEN }
-    }
-    val completedActions = remember(activeActions) {
-        activeActions.filter { it.status == InsightStatus.COMPLETED }
-    }
-    val totalActiveActions = activeActions.size
-    val completedActionsCount = completedActions.size
-    val progressFraction = if (totalActiveActions > 0) completedActionsCount.toFloat() / totalActiveActions else 0f
-
-    if (showArchiveDialog) {
-        ArchiveTasksDialog(
-            taskCount = completedActionsCount,
-            onConfirm = {
-                showArchiveDialog = false
-                onArchiveConfirmed()
-            },
-            onDismiss = { showArchiveDialog = false }
-        )
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-            .background(paneBg)
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.TopStart
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .widthIn(max = 760.dp)
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, end = if (showActivitySidebar) 20.dp else 24.dp, top = 20.dp)
-            ) {
-            // Header Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Insights",
-                        fontFamily = PlayfairDisplayFontFamily,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Turn your voice notes into clarity.",
-                        fontSize = 14.sp,
-                        color = textSecondary
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.4f) else Color(0xFFEFF6FF),
-                    border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFDBEAFE))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = if (isDark) CosmicGlowBlue else CobaltBlue,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "AI-Extracted",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isDark) CosmicGlowBlue else CobaltBlue
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // 3-Option Top Switcher Capsule matching mobile view
-            SingleRowInsightsCapsule(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                nextStepsCount = pendingActions.size,
-                ideasCount = allIdeas.size,
-                decisionsCount = allDecisions.size,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Tab Content with full parity and flush padding matching outer container
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                when (selectedTab) {
-                    InsightsTab.NEXT_STEPS -> {
-                        NextStepsTab(
-                            pendingActions = pendingActions,
-                            completedActions = completedActions,
-                            themeClusters = themeClusters,
-                            totalActiveCount = totalActiveActions,
-                            completedCount = completedActionsCount,
-                            progressFraction = progressFraction,
-                            archivedCount = archivedCount,
-                            isCompletedExpanded = isCompletedExpanded,
-                            onToggleCompletedExpanded = { isCompletedExpanded = !isCompletedExpanded },
-                            onActionToggle = onActionToggle,
-                            onRecordingClick = onRecordingClick,
-                            onArchiveClick = { showArchiveDialog = true },
-                            onRestoreArchived = onRestoreArchived,
-                            onDismissTheme = onDismissTheme,
-                            contentPadding = PaddingValues(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 120.dp),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    InsightsTab.IDEAS -> {
-                        IdeasStreamTab(
-                            ideas = allIdeas,
-                            onRecordingClick = onRecordingClick,
-                            contentPadding = PaddingValues(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 120.dp),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    InsightsTab.DECISIONS -> {
-                        DecisionsTimelineTab(
-                            decisions = allDecisions,
-                            onRecordingClick = onRecordingClick,
-                            contentPadding = PaddingValues(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 120.dp),
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showActivitySidebar) {
-        VerticalDivider(
-            color = if (isDark) CosmicVoidCardBorder else Color(0xFFF1F5F9),
-            modifier = Modifier.fillMaxHeight()
-        )
-
-        TabletInsightsActivitySidebar(
-            metrics = activityMetrics,
-            onViewAllNotes = onViewAllNotes,
-            onNavigateToTab = { tab -> selectedTab = tab },
-            modifier = Modifier
-                .width(360.dp)
-                .fillMaxHeight()
-                .padding(start = 20.dp, end = 24.dp, top = 20.dp)
-        )
-    }
-}
+    ActionItemsContent(
+        activeActions, allIdeas, allDecisions, themeClusters, archivedCount,
+        onRecordingClick = onRecordingClick, onActionToggle = onActionToggle,
+        onArchiveConfirmed = onArchiveConfirmed, onRestoreArchived = onRestoreArchived,
+        onDismissTheme = onDismissTheme, modifier = modifier
+    )
 }
 
 @Composable

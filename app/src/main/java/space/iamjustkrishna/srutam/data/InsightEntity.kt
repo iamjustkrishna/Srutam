@@ -37,5 +37,8 @@ data class InsightEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
     val archivedAt: Long? = null,
-    val sourceOrder: Int = 0
+    val sourceOrder: Int = 0,
+    val sourceInsightId: String? = null,
+    val sourceReminderId: String? = null,
+    val extractionFingerprint: String? = null
 )

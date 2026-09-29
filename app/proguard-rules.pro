@@ -70,3 +70,6 @@
 # ------------------------------------------------------------------------------
 -keep class androidx.fragment.app.** { *; }
 -dontwarn androidx.fragment.app.**
+# Srutam AI chat history is saved as JSON with Gson
+-keep class space.iamjustkrishna.srutam.ai.copilot.** { *; }
+-keep class kotlin.Pair { *; }

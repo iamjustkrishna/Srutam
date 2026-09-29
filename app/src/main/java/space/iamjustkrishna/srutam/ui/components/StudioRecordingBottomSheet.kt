@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
@@ -62,7 +63,7 @@ fun StudioRecordingBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color.White,
+        containerColor = Sem.card,
         scrimColor = Color.Black.copy(alpha = 0.35f),
         dragHandle = {
             // Apple-style centered pill drag handle
@@ -70,15 +71,17 @@ fun StudioRecordingBottomSheet(
                 modifier = Modifier
                     .padding(vertical = 12.dp)
                     .size(width = 40.dp, height = 4.5.dp)
-                    .background(Color(0xFFD1D1D6), CircleShape)
+                    .background(Sem.border, CircleShape)
             )
         },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         modifier = modifier
     ) {
+        val maxSheetHeight = (LocalConfiguration.current.screenHeightDp * 0.60f).dp
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxSheetHeight)
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 24.dp),
@@ -106,7 +109,7 @@ fun StudioRecordingBottomSheet(
                         text = if (isPaused) "Recording Paused" else "Recording Voice Note",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isPaused) Color(0xFF8E8E93) else Color(0xFF1C1C1E)
+                        color = if (isPaused) Sem.textMuted else Sem.text
                     )
                 }
 
@@ -122,7 +125,7 @@ fun StudioRecordingBottomSheet(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,
-                        color = if (isHandsFreeLocked) Color(0xFF34C759) else Color(0xFF8E8E93)
+                        color = if (isHandsFreeLocked) Color(0xFF34C759) else Sem.textMuted
                     )
                     Switch(
                         checked = isHandsFreeLocked,
@@ -131,7 +134,7 @@ fun StudioRecordingBottomSheet(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFF34C759),
                             uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color(0xFFE5E5EA),
+                            uncheckedTrackColor = Sem.border,
                             uncheckedBorderColor = Color.Transparent
                         ),
                         modifier = Modifier.scale(0.8f)
@@ -147,7 +150,7 @@ fun StudioRecordingBottomSheet(
                 style = TextStyle(
                     fontSize = 46.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1C1C1E),
+                    color = Sem.text,
                     letterSpacing = (-1).sp,
                     fontFeatureSettings = "tnum"
                 )
@@ -184,13 +187,13 @@ fun StudioRecordingBottomSheet(
                             onPauseToggle()
                         }),
                     shape = CircleShape,
-                    color = Color(0xFFF2F4F7)
+                    color = Sem.chip
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                             contentDescription = if (isPaused) "Resume" else "Pause",
-                            tint = Color(0xFF1C1C1E),
+                            tint = Sem.text,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -229,13 +232,13 @@ fun StudioRecordingBottomSheet(
                             onCancel()
                         }),
                     shape = CircleShape,
-                    color = Color(0xFFFEE4E2)
+                    color = Sem.errorContainer
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = "Discard",
-                            tint = Color(0xFFD92D20),
+                            tint = Sem.error,
                             modifier = Modifier.size(24.dp)
                         )
                     }

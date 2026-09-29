@@ -5,6 +5,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface InsightDao {
+    @Query("SELECT * FROM insight_items WHERE id = :id")
+    suspend fun getById(id: String): InsightEntity?
+
+    @Query("SELECT * FROM insight_items WHERE sourceInsightId = :id OR sourceReminderId = :id LIMIT 1")
+    suspend fun getDerivedTask(id: String): InsightEntity?
+
+    @Query("SELECT * FROM insight_items WHERE sourceInsightId = :id ORDER BY createdAt ASC")
+    suspend fun getDerivedTasksForIdea(id: String): List<InsightEntity>
+
     @Query("SELECT * FROM insight_items ORDER BY createdAt DESC")
     fun getAllInsightsFlow(): Flow<List<InsightEntity>>
 
@@ -50,12 +59,17 @@ interface InsightDao {
     @Query("UPDATE insight_items SET status = 'ARCHIVED', archivedAt = :archivedAt WHERE kind = 'ACTION' AND status = 'COMPLETED'")
     suspend fun archiveCompletedActions(archivedAt: Long = System.currentTimeMillis())
 
-    @Query("UPDATE insight_items SET status = 'COMPLETED', archivedAt = null WHERE kind = 'ACTION' AND status = 'ARCHIVED'")
-    suspend fun unarchiveAllActions()
+    @Query("UPDATE insight_items SET status = 'COMPLETED', archivedAt = null, completedAt = :now WHERE kind = 'ACTION' AND status = 'ARCHIVED'")
+    suspend fun unarchiveAllActions(now: Long = System.currentTimeMillis())
 
     @Query("SELECT COUNT(*) FROM insight_items WHERE kind = 'ACTION' AND status = 'ARCHIVED'")
     fun getArchivedActionsCountFlow(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM insight_items")
     suspend fun getInsightCount(): Int
+
+    /** Auto-archive completed actions older than [cutoffMs]. Called on app startup. */
+    @Query("UPDATE insight_items SET status = 'ARCHIVED', archivedAt = :now WHERE kind = 'ACTION' AND status = 'COMPLETED' AND completedAt IS NOT NULL AND completedAt < :cutoffMs")
+    suspend fun autoArchiveStaleCompleted(cutoffMs: Long, now: Long = System.currentTimeMillis())
+
 }

@@ -41,6 +41,243 @@
     - Added Privacy Lock toggle (`Icons.Default.Lock` / `LockOpen`) to `DetailScreen.kt` top app bar, allowing users to exclude sensitive notes from external agents with instant cloud sync update.
   - Validation:
     - Passed Kotlin compilation (`.\gradlew compileDebugKotlin`), all 30 unit tests (`.\gradlew testDebugUnitTest`), and assembled debug APK (`.\gradlew assembleDebug`).
+
+
+- **Completed Milestone: Compose LocalClipboard Migration & Daemon Memory Tuning** (`BYOKOnboardingScreen.kt`, `gradle.properties`):
+  1. **Migrated `LocalClipboardManager` to `LocalClipboard`**:
+     - Resolved deprecation warning in [BYOKOnboardingScreen.kt](file:///c:/Users/krish/AndroidStudioProjects/Srutam/app/src/main/java/space/iamjustkrishna/srutam/ui/screens/BYOKOnboardingScreen.kt). Replaced deprecated `LocalClipboardManager` with modern suspend-capable `LocalClipboard.current`.
+     - Wrapped clipboard reads inside a dedicated `coroutineScope.launch` reading `clipboard.getClipEntry()?.clipData?.getItemAt(0)?.text?.toString()`.
+  2. **Daemon Memory Optimization**:
+     - Tuned `gradle.properties` daemon heap from `-Xmx2048m -XX:MaxMetaspaceSize=512m` to `-Xmx1536m -XX:MaxMetaspaceSize=384m` to prevent native heap allocation and malloc exhaustion during dexing and testing on memory-constrained environments.
+  3. **Empirical Verification & Hardware Deployment**:
+     - `compileDebugKotlin` passed with 0 warnings/errors.
+     - Unit test suite passed with 0 errors.
+     - Installed and verified live on physical device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Google Play Manifest Permissions Compliance for Production Release** (`AndroidManifest.xml`):
+  1. **Removed `USE_EXACT_ALARM` Restriction Hazard**:
+     - Removed `<uses-permission android:name="android.permission.USE_EXACT_ALARM" />`. Kept standard `SCHEDULE_EXACT_ALARM`, ensuring full compliance with Google Play policy which forbids `USE_EXACT_ALARM` for non-clock/calendar apps while maintaining 100% functional reminder delivery.
+  2. **Cleaned Manifest Syntax**:
+     - Removed redundant `<uses-permission android:name="android.permission.BIND_QUICK_SETTINGS_TILE" />`. Kept the required service guard `android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"` on `QuickRecordingTileService`.
+  3. **Removed Deprecated Legacy Storage Opt-Out**:
+     - Removed obsolete `android:requestLegacyExternalStorage="true"` attribute from `<application>`, eliminating automated Play Console scoped storage compliance warnings on `targetSdk 36`.
+  4. **Empirical Verification & Hardware Deployment**:
+     - `compileDebugKotlin` passed with 0 errors.
+     - `testDebugUnitTest` passed all 30 test tasks.
+     - Successfully deployed and installed debug package on physical device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Navigation State Retention & "To Review" Card UI Consistency** (`Navigation.kt`, `GlobalCopilotScreen.kt`, `ReminderGlanceCard.kt`, `ReminderReviewCarousel.kt`):
+  1. **Dismissed Context Reference Banner Retention Across Settings**:
+     - Fixed bug where crossing off a voice note reference banner in AI chat was revoked upon navigating to Settings and pressing Back.
+     - Added `consumedFocusRecordingId` via `rememberSaveable` in `Navigation.kt` and sanitized `navController.currentBackStackEntry?.arguments?.putLong("focusRecordingId", -1L)` on both initial consumption and reference dismissal.
+     - In `GlobalCopilotScreen.kt`, synchronously set `focusedRecording = null` on clear to prevent race conditions.
+  2. **Active Tab Preservation Across Settings Back Navigation**:
+     - Fixed bug where navigating to Settings from Notes or Insights and pressing Back forced the user onto the AI tab instead of returning to Notes or Insights.
+     - Consuming the route arguments prevents `LaunchedEffect(initialFocusRecordingId)` from re-executing upon backstack re-entry.
+  3. **"To Review" Carousel Card Redesign & Consistency**:
+     - Redesigned `ReminderReviewCarousel.kt` cards to match the minimal, elegant visual architecture of `CompactReminderCard` from Dates & Reminders: 20dp squircle radius, subtle gradient fill, 34dp squircle icon badge (`Schedule`/`Flag`), overline `"NEEDS REVIEW"`, 15sp clean title (max 2 lines), `InsightSourceChip(compact = true)`, and minimal circular actions (`Icons.Default.Close` and `Icons.Default.Edit`).
+     - Added `rememberSnapFlingBehavior` for tactile, snappy horizontal carousel pagination.
+  4. **Empirical Verification & Hardware Deployment**:
+     - Full Kotlin compilation passed (`compileDebugKotlin`, exit code 0).
+     - Full unit test suite passed (`testDebugUnitTest`, 30 actionable tasks, exit code 0).
+     - Successfully deployed and verified on physical Android device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Notification Snooze Fix, Exhaustive Functionality Audit & System Wiring** (`ReminderAlarmReceiver.kt`, `ReminderPolicy.kt`, `MainActivity.kt`, `Navigation.kt`, `TabletWorkspaceScreen.kt`, `InsightsContent.kt`, `SettingsScreen.kt`, `AppPreferences.kt`, `AndroidManifest.xml`):
+  1. **Notification Snooze Root Cause Identified & Resolved**:
+     - `ReminderAlarmReceiver.ACTION_SNOOZE` was not setting `timePrecision = "EXACT"` or clearing `needsReview = false`. Because `ReminderPolicy.canSchedule()` requires `timePrecision == "EXACT"` and `!needsReview`, the snoozed reminder was never scheduled!
+     - Furthermore, `InsightsRepository.reconcile()` on subsequent app opens cancelled the snooze without rescheduling.
+     - Fixed: explicitly set `timePrecision = "EXACT"`, `needsReview = false`, `advanceNotification = false`, `scheduleRevision = reminder.scheduleRevision + 1`, and cleared `scheduleError`.
+     - Explicitly called `ReminderScheduler.cancelReminder()` prior to scheduling the snoozed alarm to avoid alarm collisions.
+     - Distinct data URIs added to notification pending intents (`srutam://reminder/${id}/done` and `srutam://reminder/${id}/snooze`) to prevent OS intent reuse.
+     - User-facing feedback added: "Snoozed for 10 minutes" toast on `Dispatchers.Main`.
+  2. **Notification Alarm Delivery Tolerance Expanded**:
+     - Expanded `ReminderPolicy.canDeliver()` upper window from 1 hour to 24 hours to accommodate deep Doze delays without discarding overdue alarms.
+  3. **Foreground Service Crash Prevention on Android 14+**:
+     - Updated `PersistentRecordingNotificationService` from `microphone` to `specialUse` with property `Persistent standby recording notification in status bar`, avoiding Android 14 `SecurityException` when launching standby notifications.
+  4. **Notification Click Routing to Actions Tab**:
+     - Plumbed `EXTRA_OPEN_REMINDER_ID` from `MainActivity` -> `SrutamApp` -> `SrutamNavigation` -> `RootScreen`, automatically setting `currentTab = RootTab.ACTIONS` when a reminder notification is clicked.
+  5. **Tablet Workspace Dead Buttons & Callbacks Wired**:
+     - Wired dead Share button in `TabletNoteDetailPane` to open the system share sheet (`Intent.ACTION_SEND` with `FileProvider` URI).
+     - Wired dead Bookmark button in `TabletNoteDetailPane` to toggle bookmark state in `AppPreferences` with reactive icon toggling (`Icons.Filled.Bookmark` vs `Icons.Outlined.BookmarkBorder`) and toast confirmation.
+     - Wired dead "Add next step" clickable row in `TabletNextStepsCard` to `onAddNextStep` callback.
+     - Cleared orphaned TODO in `Navigation.kt:onSendCopilotQuery`.
+  6. **Task Completion Visual Feedback ("Don't cross off" Fix)**:
+     - Fixed `viewingTask` dialog so tasks marked as done or with completed linked reminders display `TextDecoration.LineThrough` and muted typography, matching user expectations.
+  7. **Settings Clarity**:
+     - Relabeled "Quick Settings Tile" to "Persistent Recording Notification" with accurate subtitle "Always-accessible one-tap recording notification in status bar".
+  8. **Empirical Verification & Hardware Deployment**:
+     - Full Kotlin compilation passed (`compileDebugKotlin`, exit code 0).
+     - Full unit test suite passed (`testDebugUnitTest`, exit code 0).
+     - Installed and verified on physical device (`192.168.31.163:44275`).
+
+- **Completed Milestone: Multiple Next Steps for Ideas & Next Steps Dialog Redesign** (`InsightDao.kt`, `InsightsRepository.kt`, `InsightAccentCard.kt`, `InsightsContent.kt`, commits on `feature/action-item-lifecycle`):
+  1. **Multiple Next Steps per Idea**:
+     - Added `getDerivedTasksForIdea(id: String): List<InsightEntity>` in `InsightDao.kt`.
+     - Updated `createTask()` in `InsightsRepository.kt` to allow multiple derived next steps per Idea while avoiding duplicate identical active steps.
+  2. **Dynamic Idea Card Button**:
+     - Updated `InsightAccentCard.kt` to accept `steps: List<InsightEntity>`.
+     - Dynamically transitions button state between `+ Next step` (0 steps), `View step` (1 open step), `View steps (N)` (multiple open steps), and `[✓] N done` (all steps completed).
+  3. **Aesthetic Next Steps Modal Redesign (`IdeaStepsDialog`)**:
+     - Removed the out-of-place top-right "Open" chip; replaced with an aesthetic "✕" close `IconButton`.
+     - Completely eliminated redundant bottom "Close" button by migrating to `Dialog` + `Surface`, saving vertical space.
+     - Displayed the parent Idea in a compact, elegant reference card with "IDEA" badge and source note chip.
+     - Added interactive per-step completion toggle: circular checkboxes (`Icons.Default.CheckCircle` / `Icons.Default.RadioButtonUnchecked`), explicit strikethrough (`TextDecoration.LineThrough`) when done, reminder time chips, and one-tap delete.
+     - Synchronized linked task completion with reminder completion in `InsightsRepository.setReminderStatus` and `reconcile` so completed reminder next steps immediately cross off.
+     - Entire step row is clickable to toggle completion.
+     - Added `+ Add another step` button directly inside the dialog to smoothly open the task creator with unique instance session key.
+  4. **Standalone Task Modal Polish**:
+     - Fixed `viewingTask` dialog so tasks originating from Ideas automatically redirect into the cohesive `IdeaStepsDialog`.
+     - Replaced the top-right "Open" chip with an aesthetic "✕" close button.
+  5. **100% Tests & Device Verification**:
+     - All unit tests passed (`testDebugUnitTest`, exit code 0).
+     - Built and installed live on physical phone (`192.168.31.163:41111`) via `./gradlew installDebug`.
+
+- **Released Milestone: Srutam v2.3.0 (Build 12) - AI Copilot Tools, Inline Reminders, Date Scroller & Cosmic Dark Mode** (commits `736fd5a`, `915537a`, `1776e78`, `1a8878b`, branch `feature/action-item-lifecycle`):
+  1. **Version Bump**: `versionCode = 12`, `versionName = "2.3.0"` in `app/build.gradle.kts`.
+  2. **AI Copilot Tools & Saved Chats** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SourceIds.kt`, ADR-049):
+     - Prompt-level tool protocol with interactive confirmation cards and 24-hour Undo.
+     - Persistent saved chats (last 3 conversations) with top-bar History button.
+     - `SourceIds.CHAT = 0L` sentinel supporting alarm receiver and reconciliation.
+  3. **Inline Reminders Expansion** (`InsightCards.kt`, `InsightsContent.kt`, ADR-050):
+     - Replaced modal bottom sheet with 44dp expandable glance bar and snap LazyRow with 92dp compact 3-row cards.
+  4. **Notes Drum Vertical Alignment** (`FeedScreen.kt`):
+     - Unified font metrics and eliminated 5dp visual sag between month and day.
+  5. **Unified Cosmic Dark Palette** (`SemanticColors.kt`):
+     - Follows `LocalIsCosmicDark` across AI, Notes filter/cards, note detail, permissions, splash, and recording sheet.
+  6. **Screen-Off Alarm Delivery Guarantee & Srutam Sonic Identity** (`ReminderAlarmReceiver.kt`, `ReminderPolicy.kt`, `res/raw/srutam_chime.wav`):
+     - Partial CPU `WakeLock` protection (15s safety timeout) acquired before Room database lookups to prevent CPU sleep during Doze.
+     - Lenient 60-second early-tick tolerance window in `ReminderPolicy.canDeliver` preventing alarm drops from clock drift or early timer ticks.
+     - Synthesized Srutam signature sound: resonant 528 Hz single-beat Tibetan singing bowl chime with organic harmonic overtones in `srutam_chime.wav`.
+     - Fresh notification channel `srutam_reminders_v2` with `IMPORTANCE_HIGH`, `USAGE_NOTIFICATION_EVENT`, `CONTENT_TYPE_SONIFICATION`, and custom vibration pattern.
+     - Quick notification actions: "Mark Done" (completes reminder and linked next step in background) and "Snooze 10m" (advances reminder by 10 minutes and reschedules).
+  7. **Deprecation & Policy Compliance**:
+     - Migrated `Icons.Filled.Undo` and `Icons.Filled.FormatListBulleted` to `Icons.AutoMirrored.Filled.*` in `GlobalCopilotScreen.kt`, `InsightsContent.kt`, and `TabletWorkspaceScreen.kt`.
+     - Migrated `Context.VIBRATOR_SERVICE` to `VibratorManager` on Android 12+ (API 31+) in `RecordingForegroundService.kt`.
+     - Removed restricted `USE_EXACT_ALARM` permission from `AndroidManifest.xml` and unrestricted `SCHEDULE_EXACT_ALARM` to comply with Google Play Store exact alarm policy.
+  8. **100% Test Passing & Live Hardware Verification**:
+     - All 296 unit tests passing cleanly (`testDebugUnitTest`, exit code 0).
+     - Debug APK assembled, installed, and launched on attached phone (`192.168.31.163:38297`), confirmed via `dumpsys` (`versionCode=12`, `versionName=2.3.0`).
+     - Branch preserved on `feature/action-item-lifecycle` with working tree clean.
+- **Installed & Active: Comprehensive 30-Skill Modern Android Toolkit & Google Android CLI**:
+  - **Visual & UI Polish Suite**: `android-material3-design-system`, `android-adaptive-layouts`, `android-edge-to-edge`, `android-compose-motion-animations`, `android-mobile-frontend-design`, `android-compose-state-effects`, `android-ui-states-validation`, `android-compose-accessibility`, `android-compose-foundations`, `navigation-event`, `styles`, `android-coil-compose`.
+  - **Efficiency & Performance Suite**: `android-profiler`, `android-performance-observability`, `android-compose-performance`, `android-workmanager-notifications`, `android-local-persistence-datastore`, `android-room-database`, `android-r8-analyzer`, `android-gradle-build-performance`, `play-policy-insights`.
+  - **Architecture, Concurrency & Build Suite**: `android-architecture-clean`, `android-viewmodel-state`, `android-data-layer-offline`, `android-di-hilt`, `android-navigation-compose`, `android-gradle-build-logic`, `android-agp-upgrade`, `android-coroutines-flow`, `android-networking-retrofit`, `appfunctions`, `testing-setup`.
+  - **Official Google Android CLI Tooling**: `android.exe` (v1.0.16406183) installed in `%USERPROFILE%\AppData\AndroidCLI` with PATH integration (`docs`, `layout`, `skills`, `emulator`).
+  - All 30 skills are dynamically mounted into Antigravity's progressive disclosure engine and active for pair programming.
+- Completed milestone: **Inline Reminders Expansion & Compact Card Redesign** (`InsightCards.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`):
+  1. **Zero Modal BottomSheet**: Completely eliminated `RemindersOverviewBottomSheet` modal, replacing it with an inline expansion directly inside the Insights screen LazyColumn.
+  2. **Expandable 44dp Glance Bar**: Tapping `CompactRemindersGlanceBar` smoothly toggles between collapsed overview (`[🔔] Tomorrow, 9:00 am • Determine i... [+1 more] [v]`) and expanded state (`[🔔] Dates & reminders (2) [^]`).
+  3. **Inline Horizontal LazyRow**: Expanded state reveals a horizontal `LazyRow` with snap fling behavior displaying `CompactReminderCard`s with natural peek-ahead.
+  4. **Compact 3-Row Card Architecture (~92dp height, 260dp width)**:
+     - Row 1: Time badge (e.g. `Tomorrow, 9:00 am` in Cobalt / Stardust Gold) + alert icon + compact source chip (`[🎙 Voice note]`).
+     - Row 2: Bold title in 13.5sp SemiBold text with single-line ellipsis.
+     - Row 3: 28dp pill actions: `Edit`, `Done`, `Dismiss` (no `+ Task` button).
+  5. **State Persistence**: Synced with `InsightsScreenMemory.datesExpanded` to persist expansion state across tab switches and backstack navigation.
+  6. **Unit Tests & Live Physical Device Verification**: `InsightsUiTest` passed cleanly. APK built and installed live on physical device (`RMX2151` at `192.168.31.163:33673`), verified via live adb screen captures in both collapsed and inline expanded modes.
+- Completed milestone: **Notes Screen Date Wheel Baseline & Vertical Alignment Polish** (`FeedScreen.kt`):
+  1. **Perfect Vertical Centering & Baseline Alignment**: Matched font line metrics (`lineHeight = 18.sp`, `includeFontPadding = false`) between the Month label (`"Sep"`) and the Date numbers (`"29"`), increasing item height to `22.dp` with symmetrical `13.dp` vertical padding inside the `48.dp` drum viewport.
+  2. **Eliminated Visual Sag**: Fixed the previous 15-pixel (5dp) drop where numbers hung lower than the month text. The month and date now share the exact same baseline and optical center line, behaving visually as a single unified unit (`"Sep 29"`).
+  3. **Cleaned Minimalist Drum**: Completely removed greyish box backgrounds, blue/grey dividers, and micro carets. Preserved 3D physics, snap-fling mechanics, activity indicator dots, and subtle gradient edge roll-offs matching the scaffold background.
+  4. **Live Verification on Device**: Verified via adb on physical device (`192.168.31.163:43147`) with pixel-level bounding analysis across both resting and scrolled states (e.g. `"Sep 30"`). Tested resetting with `"All Notes"`.
+- Completed milestone: **Srutam Experience Refinement & Architectural Streamlining** (`InsightsContent.kt`, `InsightCards.kt`, `InsightEditors.kt`, `FeedScreen.kt`, `GlobalCopilotScreen.kt`, `InsightsViewModel.kt`, `InsightsRepository.kt`, `InsightsUiTest.kt`):
+  1. **Next Steps Completed Tasks on Specific Dates**: Fixed completed tasks visibility so they appear under collapsible `"Completed (X done)"` accordion on both specific dates and "ALL". When all tasks for a day are finished, an "All caught up" celebration card is displayed.
+  2. **"Srutam AI" Header Typography**: Enlarged the accent "AI" typography on the Copilot screen top bar from `20.sp` to `24.sp` to match the brand visual prominence of "Insights" and "Notes".
+  3. **Streamlined Scheduled Event Edit BottomSheet**: Removed redundant loop-inducing actions (`+ Create Task`, `Mark Done`, `Cancel`), leaving a single, focused, clean "Confirm / Save changes" action button.
+  4. **Universal 60% BottomSheet Height Boundary**: Applied `Modifier.heightIn(max = screenHeightDp * 0.60f)` across all bottom sheets (`InsightReminderEditor`, `InsightTaskEditor`, Reminder History, Studio Recording Sheet) with internal scrolling to prevent viewport domination.
+  5. **Cleaned Up Dates & Reminders Card Actions**: Removed the redundant `+ Task` button from `ReminderSummary` (now cleanly featuring Review/Edit, Done, Dismiss).
+  6. **Reminder History 3-Day Retention Policy & Pruning**: Enforced automatic 3-day history retention (`now - time <= THREE_DAYS_MS`), added clear explanatory subtext, auto-moved expired reminders to history, added one-tap "✕" item dismissal and a header "Clear history" action.
+  7. **Content-First Notes Feed & Date Scroller**: Added `InsightsDateScroller` above the filter capsule in `FeedScreen.kt`, enabling day-by-day voice note browsing. Expanded note summaries to 2-line previews and added smart "✦ Next steps" badges on cards with active tasks.
+  8. **100% Unit Tests & Build Verification**: All 12 Robolectric native graphics tests in `InsightsUiTest` passed cleanly and `assembleDebug` completed successfully (exit code 0).
+- Completed milestone: **Insights BottomSheets, Task Completion Transition, Floating Toast & Reminders Architecture Overhaul** (`InsightEditors.kt`, `InsightCards.kt`, `InsightsContent.kt`, `InsightsRepository.kt`, `InsightsUiTest.kt`):
+  1. **Playfair Display BottomSheets & Tactile Tiles**: Redesigned `InsightTaskEditor` and `ReminderEditor` with Playfair Display bold headers, squircle icon badges, enclosed "Add a reminder" cards with theme-aware switches, dual icon-infused squircle date/time picker tiles (`"Tomorrow (Sep 29)"`, `"09:00 AM"`), and auto-detected system timezone chips.
+  2. **Tactile Task Completion Transition**: Tapping a task checkbox on Next Steps now immediately displays a green checkmark, strikes through text, turns card border into a subtle green glow, and fires haptic feedback with a 550ms hold before gracefully moving to the Completed section.
+  3. **Floating Pill Toast & Redesigned Next Step Modal**: Replaced raw Material3 snackbar with a 16dp floating cosmic squircle pill featuring an emerald checkmark and bold `"View"` button. Clicking "View" opens a custom 24dp squircle modal with status badges (`🎯 Open`, `✓ Completed`), origin note attribution, and styled actions.
+  4. **Reminders & History Architecture Overhaul**: Replaced the confusing `"Review"` button in Reminder History with `"Reschedule"`, ensured explicit edits mark `needsReview = false` to eliminate ghost review resurrections, and confined review carousels strictly to the Next Steps tab to keep Ideas and Decisions clutter-free.
+  5. **100% Test Passing & Deployment**: All 10 unit tests in `InsightsUiTest` passed cleanly, debug APK assembled, installed, and launched on connected device `192.168.31.163:39103`.
+- Completed milestone: **Next Steps Action-First Streamlined Card Layout (Option A)** (`InsightCards.kt`):
+  1. **Action-First Hierarchy**: Elevated the task text to Row 1 with immediate checkbox interaction and flush baseline alignment.
+  2. **Timestamp Formatting & Zero Line Breaking**: Eliminated awkward 4-line wrapping of timestamps (`Yesterday, 10:13 pm`), displaying cleanly on a single line with `maxLines = 1`, `softWrap = false`, and `TextOverflow.Ellipsis`.
+  3. **Compact Source Chip**: Simplified `InsightSourceChip(compact = true)` to display `[ 🎙 Voice note ]` without redundant 36-character timestamps, cutting chip width by ~60% and giving the relative timestamp ample breathing room.
+  4. **50% Height Reduction**: Decreased outer card height from ~160dp to ~85dp (`padding(horizontal = 14.dp, vertical = 10.dp)` and `14.dp` corners), allowing all 3 tasks to fit simultaneously on screen without vertical scrolling.
+  5. **Verified Live**: Installed on connected physical device (`192.168.31.163:39103`), tested checkbox state toggling (strikethrough text with completed drawer and archive flow), and verified all 3 open cards concurrently.
+- Completed milestone: **Three-Part Modern Insights Date Instrument Row & Bounded Vertical Month Snapping** (`InsightsDateScroller.kt`, `InsightsViewModel.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`).
+- Pushed and installed live onto connected physical device (`192.168.31.163:39103`), verified via adb live screenshots.
+- Key UX accomplishments:
+  1. **Three-Part Modern Instrument Row**: Balanced 44dp row with `[Month & Year (Left)]` $\rightarrow$ `[Horizontal Day Scroller (Center)]` $\rightarrow$ `['All' Button (Right)]`.
+  2. **Identical, Balanced Spacing**: Standardized equal `10dp` spacing between Month Year and Scroller, and between Scroller and All button, with dynamic month width matching the exact text size to eliminate excess dead space.
+  3. **"All" Button Toggle to Today**: Clicking the "All" button when already selected smoothly transitions to selecting "Today", centering the scroller on today and highlighting it. Clicking "All" again returns to "All" mode showing all items.
+  4. **Disabled Top Row Tab Shadows**: Removed `shadowElevation` and ripple indication across `SingleRowInsightsCapsule` (Ideas, Next Steps, Decisions) for crisp, flat, elevation-free modern tabs.
+  5. **Pure Month & Year Typography**: Removed inline "All" text from beneath the month. Styled with Dieter Rams typographic clarity (Playfair Display bold serif for month, tabular sans for year).
+  6. **Bounded Vertical Month Snapping**: Vertical snap-wheel automatically detects the earliest note timestamp (`earliestMonth`) across user recordings, insights, and reminders, scrolling backward from the current month strictly down to the earliest note month.
+  7. **Dedicated Tactile 'All' Squircle Pill**: Shares exact dimensions (`36dp` height, `12dp` corner radius) and color grammar with the active date cube. Solid Cobalt Blue / Cosmic Glow Blue when active (no date filtered), subtle outlined ceramic surface when a date is selected.
+  8. **Edge Gradient Masks & Drag Isolation**: Soft horizontal edge fades on days strip, and `collectIsDraggedAsState()` ensuring programmatic recentering never triggers accidental date selection.
+  9. **100% Test Passing & Visual Snapshots**: Unit test suite passed (`InsightsUiTest`), headless Roborazzi matrix tests passed across light & dark themes, and live device interactions verified.
+
+
+## Completed Milestone: Action Item & Reminder Lifecycle Management & Unified Insights UI (`feature/action-item-lifecycle`)
+- [x] **Unified Insights Visual Hierarchy & Responsive Header (`InsightsContent.kt`, `InsightCards.kt`, `SrutamTopAppBar.kt`)**:
+  - Aligned top bar to `SrutamTopAppBar(title = "Srutam", accentText = "Insights")`, removing awkward subtitle clutter.
+  - Added responsive scaling to `SrutamTopAppBar`: scaled font to `24.sp` when `accentText != null`, tightened padding to `16.dp`, and adjusted `SquircleActionButton` size to `40.dp` with `6.dp` spacing, guaranteeing 0 clipping on compact 360dp screens.
+  - Positioned `SingleRowInsightsCapsule` directly at top below the header (`horizontal = 16.dp, vertical = 8.dp`), matching the Y-cadence of Notes screen's `All Notes | Pending AI` capsule.
+  - Added horizontal `ThematicFilterChipsRow` (`All (count) | ✦ Theme (count) ✕`) with instant filtering and dismiss/undo support.
+  - Standardized cards on `20dp` squircles with soft pill badges (`💡 Idea`, `🎯 TARGET DATE`, `⚖️ Decision`), relative timestamps, and readable origin note source chips.
+  - Compact celebration card for 0 open tasks (`All caught up · X completed [Archive]`).
+  - Recorded 60/60 headless Roborazzi matrix tests across all device form factors (Compact, Phone, Foldable, Tablet 7", Tablet 10").
+  - Installed and verified live on connected phone (`RMX2151`).
+)**:
+  - Implemented automatic time-based lifecycle management to keep the Action Items and Insights screen clean, uncluttered, and proactive.
+  - **Auto-Archive Stale Actions**: Completed action items older than 3 days are automatically moved from `COMPLETED` to `ARCHIVED` on app startup (`autoArchiveStaleCompleted`), keeping the active and completed lists tidy while preserving them in Room DB.
+  - **DB Purge Policy**: Hard-deletes archived action items older than 30 days and completed/dismissed reminders older than 60 days to prevent unbounded database growth.
+  - **Reminder Auto-Dismiss & Overdue Management**: Overdue active reminders whose scheduled time has passed (+ 1 hour grace period) are automatically updated to `DISMISSED` so they stop lingering indefinitely above the insights capsule.
+  - **Past Reminders Collapsible History**: Added `PastRemindersSection` on `ActionItemsScreen.kt` below the Upcoming section, giving users a neat collapsible view of their past reminders (Done/Missed) with clear status pills and strike-through text.
+  - **Alarm Cancellation on Complete/Dismiss**: Updating a reminder's status to `COMPLETED` or `DISMISSED` now immediately cancels its pending `AlarmManager` alarms via `ReminderScheduler.cancelReminder()`.
+  - **Device Reboot Resilience**: Added `BootRescheduleReceiver` listening to `android.intent.action.BOOT_COMPLETED` with permission `RECEIVE_BOOT_COMPLETED` and `USE_EXACT_ALARM`, restoring all future active reminders after device reboot.
+  - **Build & Verification**: 100% unit tests passed (`testDebugUnitTest`), debug APK compiled and installed live onto connected physical test device (`RMX2151`), and `MainActivity` launched.
+
+- [x] **Version Bump to 2.2.4 (Build 11) for Play Store Release (`build.gradle.kts`)**:
+  - Bumped `versionCode = 11` and `versionName = "2.2.4"`.
+  - Verified clean release bundle compilation (`bundleRelease`), R8 minification, and signing generating production `app-release.aab` (79.5 MB).
+  - Installed and verified live on connected physical device (`192.168.31.163:41105`) with `dumpsys` confirming `versionCode=11`, `versionName=2.2.4`.
+- [x] **BYOK Card Visual Padding & Height Alignment (`BYOKOnboardingScreen.kt`)**:
+  - Resolved visual asymmetry between "Srutam Cloud" and "Bring Your Own Key" cards on the "Choose Your AI Engine" screen.
+  - Aligned both card headers with `verticalAlignment = Alignment.CenterVertically` and balanced padding `padding(horizontal = 16.dp, vertical = 14.dp)`, vertically centering the 44dp leading icon, text column, and 48dp radio button.
+  - Streamlined BYOK card subtitle to 2 lines (`"Use your own Gemini, OpenAI, Claude, or Groq API key."`) matching the exact 2-line cadence and pixel-identical height of the Srutam Cloud card.
+  - Re-recorded Roborazzi screenshot matrix tests (`02b_byok_onboarding.png`, `02c_byok_expanded.png`), verifying pixel-perfect visual balance in collapsed and expanded states.
+  - Clean Kotlin compilation and successfully installed update on physical test device over ADB.
+- [x] **Intuitive Capture Activation Onboarding & Habit Formation Flow (`CaptureSetupScreen.kt`, `MainActivity.kt`, `FeedScreen.kt`, `AppPreferences.kt`, `ScreenMatrixPreviews.kt`)**:
+  - Implemented dedicated `CaptureSetupScreen.kt` featuring pure Compose hero animation (`FloatingDockHeroIllustration`) with phone wireframe, pulsing floating dock, and soundwave ripples (zero Lottie dependency, fully theme-aware across Light and Cosmic Dark).
+  - Wired `AppStage.CAPTURE_SETUP` directly between `BYOK_SETUP` and `MAIN` in `MainActivity.kt` for fresh installs.
+  - Implemented auto-detection of overlay permission upon `ON_RESUME` returning from system settings: transitions CTA into celebratory green checkmark *"Floating Dock Enabled! ✓"*, fires haptic feedback, auto-starts `FloatingButtonService`, and auto-advances to `MAIN` after 1.5s delay.
+  - Implemented non-disruptive existing user upgrade card (`ExistingUserCaptureUpgradeCard`) in `FeedScreen.kt` for users upgrading from v2.2.x.
+  - Added skip re-engagement banner (`SkipReengagementBanner`) in `FeedScreen.kt` shown for at most 3 app opens with permanent dismissal.
+  - Added post-first-recording celebratory card (`PostFirstRecordingNudgeCard`) in `FeedScreen.kt`.
+  - Added screen matrix previews and headless Roborazzi test verification (`BaseScreenMatrixTest.kt`) generating pixel-perfect snapshots across phone, foldable, and tablet form factors.
+  - Full test suite passed (`testDebugUnitTest`), Kotlin compiled cleanly (`compileDebugKotlin`), and debug APK assembled (`assembleDebug`).
+  - Installed live onto physical Realme phone (`RMX2151`, `192.168.31.163:43029`), launched Activity, and verified onboarding flow in the foreground.
+- [x] **Srutam Cloud 3-Tier AI Multi-Key Failover & Rate Limiting (`SrutamCloudRouter.kt`, `GeminiLlmClient.kt`, `GroqLlmClient.kt`, `AIProcessor.kt`, `build.gradle.kts`)**:
+  - Benchmarked live API endpoints: verified `GEMINI_API_KEY` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), `GEMINI_API_KEY2` (10 RPM, 1,500 RPD on `gemini-3-flash-preview`), and `GROQ_API_KEY` (30 RPM, 1,000 RPD on `qwen/qwen3.8-27b` with 0.25s average latency).
+  - Combined free tier capacity: 50 requests/minute (10 + 10 + 30) and 4,000 requests/day, backed by on-device Room `AiQueryCache` to ensure 0-cost repeat queries.
+  - Rewrote `SrutamCloudRouter.kt` with a 3-tier cascade: tries Gemini 1 -> if rate limited/error, sets 60s cooldown and tries Gemini 2 -> if rate limited/error, sets 60s cooldown and tries Groq -> if all tiers fail, returns friendly high-traffic message (`"Srutam AI is currently experiencing high traffic across all servers. Please wait a moment and try again."`).
+  - Added cooldown bypassing so subsequent requests during active cooldowns jump directly to healthy tiers without waiting.
+  - Hardened `AIProcessor.kt` to ensure high traffic and error messages are never cached into `AiQueryCache`.
+  - Exposed `GEMINI_API_KEY2` and `GROQ_API_KEY` via `buildConfigField` in `app/build.gradle.kts`.
+  - All unit tests passed (`SrutamCloudRouterTest.kt`), clean compilation, and installed live onto connected physical device `RMX2151`.
+- [x] **Foreground Notification ID Collision Fix & Audio Playback Completion Icon Reset (`FloatingButtonService.kt`, `RecordingForegroundService.kt`, `MainActivity.kt`, `AudioPlayer.kt`)**:
+  - Solved stuck ongoing notification after stopping/saving via floating dock: discovered that `FloatingButtonService` and `RecordingForegroundService` both shared `NOTIFICATION_ID = 1001`. When recording stopped, Android kept the notification pinned because `FloatingButtonService` was still running with foreground notification ID 1001. Changed `FloatingButtonService.NOTIFICATION_ID` to `1002`, isolating their notification lifecycles completely.
+  - Removed `.setOngoing(true)` from `RecordingForegroundService.createNotification()` to avoid persistent `FLAG_ONGOING_EVENT` remaining on ColorOS/Realme UI after `stopForeground`.
+  - Re-ordered teardown so `stopForeground(STOP_FOREGROUND_REMOVE)` executes before `notificationManager.cancel(1001)` (AOSP rejects cancellations while `FLAG_FOREGROUND_SERVICE` is active).
+  - Added self-healing sweeps in `MainActivity.onCreate()`, `onResume()`, and `FloatingButtonService` on stop/cancel.
+  - Solved note playback end icon not resetting to Play on Notes screen: implemented `handlePlaybackComplete()` in `AudioPlayer.kt` with automated fallback detection in `startProgressUpdates()` ensuring `isPlaying = false`, `currentPosition = 0`, and the play/pause icon on `FeedScreen.kt` resets immediately to `Icons.Default.PlayArrow`.
+  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`), debug APK assembled cleanly (`assembleDebug`), and installed live on physical device `RMX2151`.
+- [x] **Single-Instance Recording Coordinator & Ghost Notification Fix (`RecordingCoordinator.kt`, `RecordingForegroundService.kt`, `FloatingButtonService.kt`)**:
+  - Solved ghost/zombie recording notification bug where saving via floating dock stopped audio capture but left an ongoing notification with ticking chronometer and unresponsive "Pause"/"Save" buttons in the status bar.
+  - Implemented centralized `RecordingCoordinator` singleton state machine (`Idle`, `Starting`, `Recording`, `Paused`, `Stopping`) with synchronized atomic mutex, guaranteeing that strictly one recording session can ever exist in the app at any given time.
+  - Hardened `RecordingForegroundService` lifecycle with unconditional `notificationManager.cancel(1001)` in `stopRecording()` (`finally`), `onDestroy()`, and all error handlers. Added self-healing: if action intents arrive while not recording, the service immediately sweeps the stale notification and exits.
+  - Replaced polling loops (`while(isActive) delay(...)`) across `FloatingButtonService.kt`, `Navigation.kt`, and `FeedScreen.kt` with direct reactive collection of `RecordingCoordinator.state`.
+  - Routed all recording entry points (`FloatingButtonService`, `Navigation`, `FeedScreen`, `QuickRecordingTileService`, `VolumeButtonTriggerService`) through `RecordingCoordinator`.
+  - Added unit test suite in `RecordingCoordinatorTest.kt` verifying lifecycle transitions, mutex rejection of concurrent start attempts, and thread safety.
+  - Bumped version to `2.2.1` (`versionCode = 8`) in `app/build.gradle.kts`.
+  - All 101 unit tests passed with 0 failures (`testDebugUnitTest`), debug APK assembled cleanly (`assembleDebug`), and installed/launched live on physical device `RMX2151` (`versionCode = 8`, `versionName = 2.2.1`).
 - [x] **Mobile Landscape Damped Sidebar with Spring Resistance & Dynamic Note Expansion (`TabletWorkspaceScreen.kt`)**:
   - Solved cramped vertical scrolling issue on standard phones rotated to landscape orientation (e.g. 1080x2400 @ 420dpi, height ~411dp) where the static top navigation area occupied ~220-250dp, leaving barely ~50dp for the notes list (displaying only 1 note).
   - Built `MobileLandscapeDampedSidebar` with a custom `NestedScrollConnection` providing damped upward scroll resistance (`dampFactor = 0.75f`) and spring physics (`Spring.DampingRatioLowBouncy`, `Spring.StiffnessMediumLow`).
@@ -341,6 +578,20 @@ All 5 planned tracks are fully implemented, verified via automated unit and scre
   - Referenced In card linking related voice notes with one-tap note switching.
   - Dual theme fidelity: light mode matching the reference design plus Cosmic Void Dark Mode.
   - Verified via Roborazzi native graphics tests across `tablet-7inch` and `tablet-10inch` profiles in both themes.
+
+- [x] **Notes Filter & Date Wheel State Persistence across All Screens (`FeedScreen.kt`, `AudioFilesViewModel.kt`, `ActionItemsScreen.kt`, `InsightsContent.kt`, `TabletWorkspaceScreen.kt`)**:
+  - Reverted date wheel allocation back to standard 30% row width (`Modifier.weight(0.30f)`), with 70% (`Modifier.weight(0.70f)`) for the segmented filter capsule ("All Notes", "Pending AI").
+  - Hoisted `selectedFilter` (`FeedFilter`) and `selectedDate` (`LocalDate?`) into `AudioFilesViewModel` as reactive `StateFlow`s, surviving all screen transitions, detail navigation, settings, and bottom navigation tab switches.
+  - Synchronized `selectedDate` bi-directionally between the Notes screen vertical drum and the Insights screen horizontal date scroller.
+  - Refined `CompactVerticalDateWheel` layout with transparent floating drum, zero grey background artifacts, zero top/bottom divider lines, centered month and day alignment, and smooth snap fling physics.
+  - Verified on physical hardware via ADB across tab transitions, settings back-stack, and date resets.
+
+- [x] **Dates & Reminders Component Redesign (`InsightCards.kt`, `InsightsContent.kt`, `InsightsUiTest.kt`, `InsightsMatrixTest.kt`)**:
+  - Replaced the bulky ~80dp accordion card with a sleek **44dp Compact Glance Bar** (`CompactRemindersGlanceBar`).
+  - Implemented **Time-First Hierarchy**: bold, colored date/time highlight (`Today, 12:30 PM` in Cobalt Blue / Cosmic Glow Blue) followed by a bullet separator, single-line title truncation, squircle badge, and a count pill (`+X more`).
+  - Implemented **Context-Aware Presence**: surfaces date-specific scheduled reminders in date-filtered mode (disappearing completely with zero height when no reminders exist on that day), and the earliest upcoming reminder in All mode.
+  - Added **Reminders Overview Bottom Sheet** (`RemindersOverviewBottomSheet`): tapping the glance bar smoothly opens a modal bottom sheet displaying full reminder cards with quick lifecycle controls (`Edit`, `Done`, `Dismiss`) and audio note links.
+  - Fully tested and verified via Robolectric unit tests (`InsightsUiTest`) and Roborazzi Native Graphics (`PhoneInsightsMatrixTest`) across light and cosmic dark themes.
 
 
 

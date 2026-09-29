@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -28,7 +29,8 @@ fun SquircleActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     iconModifier: Modifier = Modifier,
-    tint: Color? = null
+    tint: Color? = null,
+    size: androidx.compose.ui.unit.Dp = 40.dp
 ) {
     val isDark = LocalIsCosmicDark.current
     val resolvedTint = tint ?: if (isDark) TextOnDarkPrimary else Color(0xFF1E2229)
@@ -38,7 +40,7 @@ fun SquircleActionButton(
         color = if (isDark) CosmicVoidCard else Color.White.copy(alpha = 0.88f),
         border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFD6E0EC).copy(alpha = 0.85f)),
         shadowElevation = if (isDark) 0.dp else 1.dp,
-        modifier = modifier.size(44.dp)
+        modifier = modifier.size(size)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -58,6 +60,8 @@ fun SrutamTopAppBar(
     subtitle: String? = null,
     subtitleIcon: ImageVector? = null,
     subtitleColor: Color? = null,
+    titleFontSize: TextUnit = 28.sp,
+    accentFontSize: TextUnit = 20.sp,
     titleFontWeight: FontWeight = FontWeight.Bold,
     accentFontWeight: FontWeight = FontWeight.Medium,
     actions: @Composable RowScope.() -> Unit = {},
@@ -82,36 +86,44 @@ fun SrutamTopAppBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 8.dp)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     Text(
                         text = title,
-                        fontSize = 30.sp,
+                        fontSize = titleFontSize,
                         fontFamily = PlayfairDisplayFontFamily,
                         fontWeight = titleFontWeight,
-                        color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229)
+                        color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229),
+                        maxLines = 1,
+                        modifier = Modifier.alignByBaseline()
                     )
                     if (accentText != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = accentText,
-                            fontSize = 30.sp,
+                            fontSize = accentFontSize,
                             fontFamily = PlayfairDisplayFontFamily,
                             fontStyle = FontStyle.Italic,
                             fontWeight = accentFontWeight,
-                            color = if (isDark) CosmicGlowBlue else CobaltBlue
+                            color = if (isDark) CosmicGlowBlue else CobaltBlue,
+                            maxLines = 1,
+                            modifier = Modifier.alignByBaseline()
                         )
                     }
                 }
+                Spacer(modifier = Modifier.width(6.dp))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     actions()

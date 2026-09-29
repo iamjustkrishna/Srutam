@@ -3,9 +3,14 @@ package space.iamjustkrishna.srutam.ai
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.util.Log
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.RequestOptions
-import com.google.ai.client.generativeai.type.content
+import space.iamjustkrishna.srutam.ai.provider.AnthropicLlmClient
+import space.iamjustkrishna.srutam.ai.provider.GeminiLlmClient
+import space.iamjustkrishna.srutam.ai.provider.GroqLlmClient
+import space.iamjustkrishna.srutam.ai.provider.LlmClient
+import space.iamjustkrishna.srutam.ai.provider.OpenAiLlmClient
+import space.iamjustkrishna.srutam.ai.provider.SrutamCloudRouter
+import space.iamjustkrishna.srutam.data.AiQueryCache
+import space.iamjustkrishna.srutam.data.AppDatabase
 import com.google.gson.Gson
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.NetworkUtils
@@ -26,6 +31,7 @@ class AIProcessor(private val context: Context) {
 
     private val gson = Gson()
     private val localTranscriber = LocalTranscriber(context)
+    private val cacheDao by lazy { AppDatabase.getDatabase(context).aiQueryCacheDao() }
 
     suspend fun processRecording(audioFile: File): AIProcessingResult = withContext(Dispatchers.IO) {
         try {
@@ -49,17 +55,16 @@ class AIProcessor(private val context: Context) {
         }
     }
 
-    private fun createModel(modelName: String, timeoutMs: Long): GenerativeModel {
-        val apiKey = AppPreferences.getGeminiApiKey(context)
-            .takeIf { it.isNotBlank() }
-            ?: space.iamjustkrishna.srutam.BuildConfig.GEMINI_API_KEY.trim()
-        val customModel = AppPreferences.getCustomModel(context, AppPreferences.PROVIDER_GEMINI)
-        val effectiveModel = if (customModel.isNotBlank()) customModel else modelName
-        return GenerativeModel(
-            modelName = effectiveModel,
-            apiKey = apiKey,
-            requestOptions = RequestOptions(timeout = timeoutMs)
-        )
+    private fun getLlmClient(overrideModel: String? = null): LlmClient {
+        val provider = AppPreferences.getAIProvider(context)
+        return when (provider) {
+            AppPreferences.PROVIDER_SRUTAM_DEFAULT -> SrutamCloudRouter(context)
+            AppPreferences.PROVIDER_GROQ -> GroqLlmClient(context, overrideModel = overrideModel)
+            AppPreferences.PROVIDER_OPENAI -> OpenAiLlmClient(context, overrideModel = overrideModel)
+            AppPreferences.PROVIDER_ANTHROPIC -> AnthropicLlmClient(context, overrideModel = overrideModel)
+            AppPreferences.PROVIDER_GEMINI -> GeminiLlmClient(context, overrideModel = overrideModel)
+            else -> SrutamCloudRouter(context)
+        }
     }
 
     suspend fun transcribeAudio(audioFile: File): String = withContext(Dispatchers.IO) {
@@ -90,7 +95,7 @@ class AIProcessor(private val context: Context) {
         }
     }
 
-    suspend fun generateInsights(transcript: String): AIInsights = withContext(Dispatchers.IO) {
+    suspend fun generateInsights(transcript: String, timeContext: RecordingTimeContext? = null): AIInsights = withContext(Dispatchers.IO) {
         try {
             val normalizedTranscript = transcript.trim()
             if (normalizedTranscript.isBlank()) {
@@ -103,17 +108,11 @@ class AIProcessor(private val context: Context) {
                 normalizedTranscript
             }
 
-            val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis)
-            val response = withTimeout(INSIGHTS_TIMEOUT_MS) {
-                createModel(
-                    modelName = "gemini-2.5-flash",
-                    timeoutMs = INSIGHTS_TIMEOUT_MS
-                ).generateContent(prompt)
-            }
-            val responseText = response.text ?: throw Exception("Empty response from AI")
+            val prompt = buildStructuredInsightsPrompt(transcriptForAnalysis, timeContext)
+            val responseText = getLlmClient().generateText(prompt, INSIGHTS_TIMEOUT_MS)
 
             // Parse JSON response
-            parseAIResponse(responseText)
+            parseAIResponse(responseText, normalizedTranscript, timeContext)
         } catch (e: Exception) {
             Log.e(TAG, "Error generating insights", e)
             throw e
@@ -132,6 +131,7 @@ class AIProcessor(private val context: Context) {
                 - 5 concise bullet points with the most important facts
                 - action items mentioned
                 - unresolved questions or decisions
+                - verbatim quotes for every date/time expression and its event; preserve these exact source quotes
 
                 Keep it factual. Do not invent details.
 
@@ -139,14 +139,7 @@ class AIProcessor(private val context: Context) {
                 $chunk
             """.trimIndent()
 
-            val response = withTimeout(CHUNK_SUMMARY_TIMEOUT_MS) {
-                createModel(
-                    modelName = "gemini-2.5-flash",
-                    timeoutMs = CHUNK_SUMMARY_TIMEOUT_MS
-                ).generateContent(prompt)
-            }
-
-            val summary = response.text?.trim().orEmpty()
+            val summary = getLlmClient().generateText(prompt, CHUNK_SUMMARY_TIMEOUT_MS).trim()
             if (summary.isNotBlank()) {
                 chunkSummaries += "Chunk ${index + 1} Summary:\n$summary"
             }
@@ -159,10 +152,13 @@ class AIProcessor(private val context: Context) {
         chunkSummaries.joinToString("\n\n")
     }
 
-    private fun buildStructuredInsightsPrompt(transcript: String): String {
+    private fun buildStructuredInsightsPrompt(transcript: String, timeContext: RecordingTimeContext?): String {
         return """
             Analyze the following transcript and provide structured insights in EXACTLY this format:
 
+            Recording reference instant: ${timeContext?.let { java.time.Instant.ofEpochMilli(it.recordedAtMs).toString() } ?: "unknown"}
+            Recording time zone: ${timeContext?.zoneId ?: "unknown"}
+            Resolve relative dates from the recording reference, never from processing time.
             Transcript:
             $transcript
 
@@ -192,10 +188,12 @@ class AIProcessor(private val context: Context) {
                 {
                   "title": "Concise event or meeting title (e.g. Sync with Alex, Dentist Appointment, Submit Tax Return)",
                   "timeDescription": "Time expression as stated in transcript (e.g. tomorrow at 3pm, next Friday, in 2 hours)",
-                  "estimatedTimeOffsetHours": 24,
+                  "date": "YYYY-MM-DD or null when uncertain",
+                  "time": "HH:mm only if explicitly spoken, otherwise null",
+                  "timeZone": "IANA zone only if explicitly stated, otherwise null",
                   "person": "Name of person or null",
                   "location": "Location or platform or null",
-                  "type": "MEETING, DEADLINE, CALL, or REMINDER"
+                  "type": "MEETING, DEADLINE, CALL, REMINDER, or MILESTONE"
                 }
               ],
               "wiifm": "What's In It For Me: This recording helps you by [specific personal benefit]. You can use this to [concrete application or value]."
@@ -207,7 +205,7 @@ class AIProcessor(private val context: Context) {
             - Action Items: CRITICAL - Only extract actionable tasks or commitments IF EXPLICITLY MENTIONED in the transcript. Most voice notes (e.g. personal thoughts, diary entries, ideas) do NOT contain any tasks. If no clear action items are explicitly mentioned, you MUST return [] for "actionItems". NEVER invent generic to-dos.
             - Ideas: 0-4 distinct proposals, concepts, or thoughts worth remembering. Empty array [] if none.
             - Decisions: Only include explicit conclusions, choices, or agreements made in the transcript. Empty array [] if none.
-            - Reminders: Extract scheduled meetings, events, appointments, or deadlines explicitly mentioned with an estimated future time. Empty array [] if none.
+            - Reminders: Extract only explicitly mentioned events, deadlines or target dates. timeDescription MUST be a verbatim quote from the original transcript. Never invent a time for a date-only mention. Use MILESTONE for projections/strategic goals. All are suggestions requiring confirmation. Empty array [] if none.
             - WIIFM: Must start with "What's In It For Me:", explain personal utility and value.
             - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, decisions, and reminders may be empty [].
         """.trimIndent()
@@ -235,7 +233,7 @@ class AIProcessor(private val context: Context) {
         return chunks.filter { it.isNotBlank() }
     }
 
-    private fun parseAIResponse(responseText: String): AIInsights {
+    internal fun parseAIResponse(responseText: String, originalTranscript: String = "", timeContext: RecordingTimeContext? = null): AIInsights {
         return try {
             // Extract JSON from response (it might be wrapped in markdown code blocks)
             val jsonText = if (responseText.contains("```json")) {
@@ -297,20 +295,22 @@ class AIProcessor(private val context: Context) {
                         val title = item["title"] as? String
                         if (!title.isNullOrBlank()) {
                             val timeDesc = item["timeDescription"] as? String ?: ""
-                            val offsetHours = (item["estimatedTimeOffsetHours"] as? Number)?.toDouble() ?: -1.0
-                            val eventTimeMs = if (offsetHours > 0) {
-                                System.currentTimeMillis() + (offsetHours * 3600 * 1000).toLong()
-                            } else {
-                                parseTimeDescription(timeDesc)
-                            }
+                            val supported = timeDesc.isNotBlank() && originalTranscript.lowercase()
+                                .replace(Regex("\\s+"), " ").contains(timeDesc.lowercase().replace(Regex("\\s+"), " "))
+                            val resolved = if (supported && timeContext != null) ReminderTimeResolver.resolve(
+                                timeDesc, timeContext, item["date"] as? String, item["time"] as? String,
+                                (item["timeZone"] as? String)?.takeIf { it.isNotBlank() && it != "null" }
+                            ) else ResolvedReminderTime(zoneId = timeContext?.zoneId ?: java.time.ZoneId.systemDefault().id)
                             AIReminder(
                                 title = title.trim(),
-                                eventTimeMs = eventTimeMs,
-                                originalText = timeDesc,
+                                eventTimeMs = resolved.eventTimeMs,
+                                originalText = if (supported) timeDesc else "",
+                                timePrecision = resolved.precision, localDate = resolved.localDate,
+                                localTime = resolved.localTime, zoneId = resolved.zoneId,
                                 person = (item["person"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                                 location = (item["location"] as? String)?.trim()?.takeIf { it.isNotBlank() },
                                 type = (item["type"] as? String)?.trim()?.uppercase()?.takeIf {
-                                    it in listOf("MEETING", "DEADLINE", "CALL", "REMINDER")
+                                    it in listOf("MEETING", "DEADLINE", "CALL", "REMINDER", "MILESTONE")
                                 } ?: "REMINDER"
                             )
                         } else null
@@ -332,20 +332,6 @@ class AIProcessor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing AI response", e)
             throw e
-        }
-    }
-
-    private fun parseTimeDescription(timeDesc: String): Long {
-        val lower = timeDesc.lowercase()
-        val now = System.currentTimeMillis()
-        return when {
-            lower.contains("tomorrow") -> now + 24 * 3600 * 1000L
-            lower.contains("day after") -> now + 48 * 3600 * 1000L
-            lower.contains("next week") -> now + 7 * 24 * 3600 * 1000L
-            lower.contains("tonight") || lower.contains("today") -> now + 4 * 3600 * 1000L
-            lower.contains("in an hour") || lower.contains("1 hour") -> now + 3600 * 1000L
-            lower.contains("in 2 hours") || lower.contains("2 hours") -> now + 2 * 3600 * 1000L
-            else -> now + 24 * 3600 * 1000L // Default to tomorrow
         }
     }
 
@@ -379,11 +365,15 @@ class AIProcessor(private val context: Context) {
 
     data class AIReminder(
         val title: String,
-        val eventTimeMs: Long,
+        val eventTimeMs: Long?,
         val originalText: String = "",
         val person: String? = null,
         val location: String? = null,
-        val type: String = "REMINDER" // MEETING, DEADLINE, REMINDER, CALL
+        val type: String = "REMINDER",
+        val timePrecision: String = "UNKNOWN",
+        val localDate: String? = null,
+        val localTime: String? = null,
+        val zoneId: String? = null
     )
 
     data class AIInsights(
@@ -397,13 +387,23 @@ class AIProcessor(private val context: Context) {
         val wiifm: String
     )
 
-    suspend fun queryRecording(transcript: String, question: String): String = withContext(Dispatchers.IO) {
-        try {
-            val generativeModel = createModel(
-                modelName = "gemini-2.5-flash",
-                timeoutMs = QUERY_TIMEOUT_MS
-            )
+    suspend fun queryRecording(transcript: String, question: String, recordingId: Long? = null): String = withContext(Dispatchers.IO) {
+        val normalizedQ = AiCacheUtils.normalizeQuery(question)
+        val contextKey = if (recordingId != null) "rec_$recordingId" else "tx_${transcript.hashCode()}"
+        val cacheKey = AiCacheUtils.sha256("single:$contextKey:$normalizedQ")
 
+        try {
+            val cached = cacheDao.get(cacheKey)
+            if (cached != null) {
+                Log.d(TAG, "Cache HIT for single-note query: $question")
+                cacheDao.updateAccessTime(cacheKey)
+                return@withContext cached.answer
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed reading query cache", e)
+        }
+
+        try {
             val prompt = """
                 Based on the following transcript, please answer this question:
 
@@ -415,23 +415,46 @@ class AIProcessor(private val context: Context) {
                 Provide a clear, concise answer based only on the information in the transcript.
             """.trimIndent()
 
-            val response = withTimeout(QUERY_TIMEOUT_MS) {
-                generativeModel.generateContent(prompt)
+            val answer = getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS).trim()
+            val finalAnswer = answer.ifBlank { SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE }
+
+            if (finalAnswer != SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE && !finalAnswer.startsWith("Something went wrong")) {
+                try {
+                    cacheDao.insert(
+                        AiQueryCache(
+                            cacheKey = cacheKey,
+                            queryType = "SINGLE",
+                            normalizedQuery = normalizedQ,
+                            contextFingerprint = contextKey,
+                            answer = finalAnswer
+                        )
+                    )
+                    cacheDao.pruneOldEntries(500)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save query cache", e)
+                }
             }
-            response.text ?: "I couldn't generate an answer. Please try again."
+
+            finalAnswer
         } catch (e: Exception) {
             Log.e(TAG, "Error querying recording", e)
-            "Error: ${e.message ?: "Unable to process query"}"
+            SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE
+        }
+    }
+
+    /** Sends a fully built prompt to the configured provider. Used by the tool-using AI chat. */
+    suspend fun generateRaw(prompt: String): String = withContext(Dispatchers.IO) {
+        try {
+            getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS).trim()
+                .ifBlank { SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in AI chat request", e)
+            SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE
         }
     }
 
     suspend fun queryAllRecordings(contextSnippets: List<String>, question: String): String = withContext(Dispatchers.IO) {
         try {
-            val generativeModel = createModel(
-                modelName = "gemini-2.5-flash",
-                timeoutMs = QUERY_TIMEOUT_MS
-            )
-
             val notesContext = contextSnippets.joinToString("\n\n---\n\n")
 
             val prompt = """
@@ -454,13 +477,11 @@ class AIProcessor(private val context: Context) {
                 7. Maintain a crisp, helpful, professional tone.
             """.trimIndent()
 
-            val response = withTimeout(QUERY_TIMEOUT_MS) {
-                generativeModel.generateContent(prompt)
-            }
-            response.text ?: "I couldn't generate an answer across your voice notes. Please try again."
+            val response = getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS).trim()
+            response.ifBlank { SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE }
         } catch (e: Exception) {
             Log.e(TAG, "Error querying all recordings", e)
-            "Error: ${e.message ?: "Unable to process query across your voice notes"}"
+            SrutamCloudRouter.HIGH_TRAFFIC_MESSAGE
         }
     }
 

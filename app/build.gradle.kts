@@ -9,6 +9,10 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Load API key from local.properties
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -31,14 +35,18 @@ android {
         applicationId = "space.iamjustkrishna.srutam"
         minSdk = 29
         targetSdk = 36
-        versionCode = 9
-        versionName = "2.3.0"
+        versionCode = 13
+        versionName = "2.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Add API key to BuildConfig
+        // Add API keys to BuildConfig
         val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val geminiApiKey2 = localProperties.getProperty("GEMINI_API_KEY2") ?: ""
+        val groqApiKey = localProperties.getProperty("GROQ_API_KEY") ?: ""
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "GEMINI_API_KEY2", "\"$geminiApiKey2\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
 
         val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: "https://bnahuqxvpbtzaupyumeo.supabase.co"
         val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuYWh1cXh2cGJ0emF1cHl1bWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODM3NDQsImV4cCI6MjEwNTE1OTc0NH0.2GNtlaNyVSYy77FSYQ2mReZuzxbl4XSlZGQ-SJ-p7Ag"
@@ -111,6 +119,10 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             all {
+                it.minHeapSize = "64m"
+                it.maxHeapSize = providers.gradleProperty("srutam.testHeap").orElse("768m").get()
+                it.maxParallelForks = 1
+                it.jvmArgs("-XX:+UseSerialGC")
                 it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
                 it.systemProperty("robolectric.graphicsMode", "NATIVE")
             }
@@ -156,6 +168,9 @@ dependencies {
 
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // OkHttp for Cloud LLM REST APIs (Groq, OpenAI, Anthropic)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // WorkManager for background AI processing and constraints
     implementation("androidx.work:work-runtime-ktx:2.10.0")

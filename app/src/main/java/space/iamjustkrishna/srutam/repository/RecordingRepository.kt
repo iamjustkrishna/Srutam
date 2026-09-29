@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.repository
+package space.iamjustkrishna.srutam.repository
 
 import android.content.Context
 import android.util.Log
@@ -10,7 +10,8 @@ import java.io.IOException
 
 class RecordingRepository(
     private val context: Context,
-    private val recordingDao: RecordingDao
+    private val recordingDao: RecordingDao,
+    private val deleteAudio: (Context, String) -> Boolean = AudioStorage::deleteAudioFile
 ) {
 
     companion object {
@@ -36,13 +37,13 @@ class RecordingRepository(
     }
 
     suspend fun deleteRecording(recording: Recording) {
-        val deleted = AudioStorage.deleteAudioFile(context, recording.audioFilePath)
+        val deleted = deleteAudio(context, recording.audioFilePath)
         if (!deleted) {
             Log.w(TAG, "Failed to delete audio file: ${recording.audioFilePath}")
             throw IOException("Could not delete audio file")
         }
 
-        recordingDao.deleteRecording(recording)
+        InsightsRepository.from(context).deleteRecordingData(recording.id)
     }
 
     suspend fun deleteRecordingById(recordingId: Long) {
@@ -52,7 +53,7 @@ class RecordingRepository(
             deleteRecording(recording)
         } else {
             // If recording not found in DB, just delete from DB
-            recordingDao.deleteRecordingById(recordingId)
+            InsightsRepository.from(context).deleteRecordingData(recordingId)
         }
     }
 

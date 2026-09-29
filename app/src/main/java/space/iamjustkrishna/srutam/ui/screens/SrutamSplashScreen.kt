@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.R
+import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 
 @Composable
@@ -78,9 +79,9 @@ fun SrutamSplashScreenContent(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFF8FAFC),
-                        Color(0xFFF1F5F9)
+                        Sem.card,
+                        Sem.soft,
+                        Sem.scaffold
                     )
                 )
             ),
@@ -107,7 +108,7 @@ fun SrutamSplashScreenContent(
                 fontFamily = PlayfairDisplayFontFamily,
                 fontSize = 38.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F172A),
+                color = Sem.text,
                 letterSpacing = 0.5.sp
             )
 
@@ -118,7 +119,7 @@ fun SrutamSplashScreenContent(
                 fontSize = 13.sp,
                 fontStyle = FontStyle.Italic,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B),
+                color = Sem.textSecondary,
                 letterSpacing = 0.2.sp
             )
         }

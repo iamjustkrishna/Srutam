@@ -27,6 +27,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import space.iamjustkrishna.srutam.navigation.SrutamNavigation
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.ui.screens.BYOKOnboardingScreen
+import space.iamjustkrishna.srutam.ui.screens.CaptureSetupScreen
 import space.iamjustkrishna.srutam.ui.screens.PermissionsOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -37,22 +38,30 @@ enum class AppStage {
     SPLASH,
     PERMISSIONS,
     BYOK_SETUP,
+    CAPTURE_SETUP,
     MAIN
 }
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_RECORDING_ID = "space.iamjustkrishna.srutam.EXTRA_OPEN_RECORDING_ID"
+        const val EXTRA_OPEN_REMINDER_ID = "extra_open_reminder_id"
     }
 
     private var openRecordingId by mutableStateOf<Long?>(null)
+    private var openReminderId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Srutam)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
+        openReminderId = intent?.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        cleanUpStaleRecordingNotification()
 
         setContent {
             val themeModeStr by AppPreferences.themeModeFlow.collectAsState(
@@ -64,7 +73,7 @@ class MainActivity : ComponentActivity() {
                 else -> ThemeMode.SYSTEM
             }
             SrutamTheme(themeMode = themeMode) {
-                SrutamApp(initialRecordingId = openRecordingId)
+                SrutamApp(initialRecordingId = openRecordingId, initialReminderId = openReminderId)
             }
         }
     }
@@ -72,6 +81,15 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(this)
+        cleanUpStaleRecordingNotification()
+    }
+
+    private fun cleanUpStaleRecordingNotification() {
+        if (space.iamjustkrishna.srutam.service.RecordingCoordinator.isIdle) {
+            getSystemService(android.app.NotificationManager::class.java)
+                ?.cancel(space.iamjustkrishna.srutam.service.RecordingForegroundService.NOTIFICATION_ID)
+        }
+    }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -81,12 +99,16 @@ class MainActivity : ComponentActivity() {
         if (id != null) {
             openRecordingId = id
         }
+        val remId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        if (remId != null) {
+            openReminderId = remId
+        }
     }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun SrutamApp(initialRecordingId: Long? = null) {
+fun SrutamApp(initialRecordingId: Long? = null, initialReminderId: String? = null) {
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
 
@@ -176,12 +198,24 @@ fun SrutamApp(initialRecordingId: Long? = null) {
             AppStage.BYOK_SETUP -> {
                 BYOKOnboardingScreen(
                     onComplete = {
+                        appStage = AppStage.CAPTURE_SETUP
+                    }
+                )
+            }
+            AppStage.CAPTURE_SETUP -> {
+                CaptureSetupScreen(
+                    onComplete = {
+                        AppPreferences.setHasCompletedCaptureSetup(context, true)
+                        appStage = AppStage.MAIN
+                    },
+                    onSkip = {
+                        AppPreferences.setHasCompletedCaptureSetup(context, true)
                         appStage = AppStage.MAIN
                     }
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation(initialRecordingId = initialRecordingId)
+                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId)
             }
         }
     }

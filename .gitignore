@@ -71,6 +71,11 @@ screen_*.png
 !app/src/main/ic_launcher-playstore.png
 !art/**
 
+# Versioned Insights regression baselines
+!app/src/test/screenshots/
+!app/src/test/screenshots/insights/
+!app/src/test/screenshots/insights/**
+
 # ==============================================================================
 # Local ASR Lab, ML Models, Audio & Python Environment
 # ==============================================================================
@@ -86,6 +91,7 @@ models/
 *.m4a
 *.aac
 *.flac
+!app/src/main/res/raw/*
 __pycache__/
 *.py[cod]
 *$py.class
@@ -140,3 +146,9 @@ sherpa-onnx-master-src/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ==============================================================================
+# Antigravity Agents & Workflows
+# ==============================================================================
+AGENTS.md
+.agents/workflows/
