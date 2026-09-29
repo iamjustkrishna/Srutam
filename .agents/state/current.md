@@ -1,7 +1,7 @@
 # Current Workspace State: Srutam
 
 ## Active Focus
-- **Released Milestone: Srutam v2.3.0 (Build 12) - AI Copilot Tools, Inline Reminders, Date Scroller & Cosmic Dark Mode** (commits `736fd5a`, `915537a`, `1776e78`, branch `feature/action-item-lifecycle`):
+- **Released Milestone: Srutam v2.3.0 (Build 12) - AI Copilot Tools, Inline Reminders, Date Scroller & Cosmic Dark Mode** (commits `736fd5a`, `915537a`, `1776e78`, `1a8878b`, branch `feature/action-item-lifecycle`):
   1. **Version Bump**: `versionCode = 12`, `versionName = "2.3.0"` in `app/build.gradle.kts`.
   2. **AI Copilot Tools & Saved Chats** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SourceIds.kt`, ADR-049):
      - Prompt-level tool protocol with interactive confirmation cards and 24-hour Undo.
@@ -13,11 +13,17 @@
      - Unified font metrics and eliminated 5dp visual sag between month and day.
   5. **Unified Cosmic Dark Palette** (`SemanticColors.kt`):
      - Follows `LocalIsCosmicDark` across AI, Notes filter/cards, note detail, permissions, splash, and recording sheet.
-  6. **Deprecation & Policy Compliance**:
+  6. **Screen-Off Alarm Delivery Guarantee & Srutam Sonic Identity** (`ReminderAlarmReceiver.kt`, `ReminderPolicy.kt`, `res/raw/srutam_chime.wav`):
+     - Partial CPU `WakeLock` protection (15s safety timeout) acquired before Room database lookups to prevent CPU sleep during Doze.
+     - Lenient 60-second early-tick tolerance window in `ReminderPolicy.canDeliver` preventing alarm drops from clock drift or early timer ticks.
+     - Synthesized Srutam signature sound: resonant 528 Hz single-beat Tibetan singing bowl chime with organic harmonic overtones in `srutam_chime.wav`.
+     - Fresh notification channel `srutam_reminders_v2` with `IMPORTANCE_HIGH`, `USAGE_NOTIFICATION_EVENT`, `CONTENT_TYPE_SONIFICATION`, and custom vibration pattern.
+     - Quick notification actions: "Mark Done" (completes reminder and linked next step in background) and "Snooze 10m" (advances reminder by 10 minutes and reschedules).
+  7. **Deprecation & Policy Compliance**:
      - Migrated `Icons.Filled.Undo` and `Icons.Filled.FormatListBulleted` to `Icons.AutoMirrored.Filled.*` in `GlobalCopilotScreen.kt`, `InsightsContent.kt`, and `TabletWorkspaceScreen.kt`.
      - Migrated `Context.VIBRATOR_SERVICE` to `VibratorManager` on Android 12+ (API 31+) in `RecordingForegroundService.kt`.
      - Removed restricted `USE_EXACT_ALARM` permission from `AndroidManifest.xml` and unrestricted `SCHEDULE_EXACT_ALARM` to comply with Google Play Store exact alarm policy.
-  7. **100% Test Passing & Live Hardware Verification**:
+  8. **100% Test Passing & Live Hardware Verification**:
      - All 296 unit tests passing cleanly (`testDebugUnitTest`, exit code 0).
      - Debug APK assembled, installed, and launched on attached phone (`192.168.31.163:38297`), confirmed via `dumpsys` (`versionCode=12`, `versionName=2.3.0`).
      - Branch preserved on `feature/action-item-lifecycle` with working tree clean.
