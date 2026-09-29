@@ -1,6 +1,25 @@
 # Current Workspace State: Srutam
 
-## Active Focus
+- **Completed Milestone: Multiple Next Steps for Ideas & Next Steps Dialog Redesign** (`InsightDao.kt`, `InsightsRepository.kt`, `InsightAccentCard.kt`, `InsightsContent.kt`, commits on `feature/action-item-lifecycle`):
+  1. **Multiple Next Steps per Idea**:
+     - Added `getDerivedTasksForIdea(id: String): List<InsightEntity>` in `InsightDao.kt`.
+     - Updated `createTask()` in `InsightsRepository.kt` to allow multiple derived next steps per Idea while avoiding duplicate identical active steps.
+  2. **Dynamic Idea Card Button**:
+     - Updated `InsightAccentCard.kt` to accept `steps: List<InsightEntity>`.
+     - Dynamically transitions button state between `+ Next step` (0 steps), `View step` (1 open step), `View steps (N)` (multiple open steps), and `[✓] N done` (all steps completed).
+  3. **Aesthetic Next Steps Modal Redesign (`IdeaStepsDialog`)**:
+     - Removed the out-of-place top-right "Open" chip; replaced with an aesthetic "✕" close `IconButton`.
+     - Displayed the parent Idea in a compact, elegant reference card with "IDEA" badge and source note chip.
+     - Added interactive per-step completion toggle: circular checkboxes (`Icons.Default.CheckCircle` / `Icons.Default.RadioButtonUnchecked`), strikethrough text when done, reminder time chips, and one-tap delete.
+     - Added `+ Add another step` button directly inside the dialog to smoothly open the task creator with unique instance session key.
+     - Removed the redundant primary "Mark as done" button, keeping only a clean "Close" button.
+  4. **Standalone Task Modal Polish**:
+     - Fixed `viewingTask` dialog so tasks originating from Ideas automatically redirect into the cohesive `IdeaStepsDialog`.
+     - Replaced the top-right "Open" chip with an aesthetic "✕" close button.
+  5. **100% Tests & Device Verification**:
+     - All unit tests passed (`testDebugUnitTest`, exit code 0).
+     - Built and installed live on physical phone (`192.168.31.163:41111`) via `./gradlew installDebug`.
+
 - **Released Milestone: Srutam v2.3.0 (Build 12) - AI Copilot Tools, Inline Reminders, Date Scroller & Cosmic Dark Mode** (commits `736fd5a`, `915537a`, `1776e78`, `1a8878b`, branch `feature/action-item-lifecycle`):
   1. **Version Bump**: `versionCode = 12`, `versionName = "2.3.0"` in `app/build.gradle.kts`.
   2. **AI Copilot Tools & Saved Chats** (`ai/copilot/*`, `GlobalCopilotScreen.kt`, `SourceIds.kt`, ADR-049):
