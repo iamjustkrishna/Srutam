@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -798,7 +799,7 @@ fun InsightsContent(
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Undo,
+                                                imageVector = Icons.AutoMirrored.Filled.Undo,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(15.dp)
                                             )

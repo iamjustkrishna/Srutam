@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -967,7 +968,7 @@ private fun ProposalCard(
                 }
                 ProposalStatus.APPLIED -> if (proposal.undo != null && (live == null || live.canUndo)) {
                     TextButton(onClick = onUndo, enabled = !busy, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
-                        Icon(Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(15.dp), tint = palette.accent)
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(15.dp), tint = palette.accent)
                         Spacer(Modifier.width(4.dp))
                         Text("Undo", color = palette.accent, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp)
                     }

@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import space.iamjustkrishna.srutam.MainActivity
@@ -79,7 +80,12 @@ class RecordingForegroundService : Service() {
         super.onCreate()
         AudioFileReader.init(this)
         notificationManager = getSystemService(NotificationManager::class.java)
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
         createNotificationChannel()
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
