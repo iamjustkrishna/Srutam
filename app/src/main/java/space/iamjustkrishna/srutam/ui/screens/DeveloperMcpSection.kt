@@ -389,7 +389,7 @@ fun DeveloperMcpSection(
                                               "mcp": {
                                                 "srutam": {
                                                   "type": "local",
-                                                  "command": ["npx", "-y", "srutam-mcp"],
+                                                  "command": ["npx", "-y", "srutam-mcp", "serve"],
                                                   "environment": {
                                                     "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                                   },
@@ -404,7 +404,7 @@ fun DeveloperMcpSection(
                                                 "srutam": {
                                                   "command": {
                                                     "path": "npx",
-                                                    "args": ["-y", "srutam-mcp"],
+                                                    "args": ["-y", "srutam-mcp", "serve"],
                                                     "env": {
                                                       "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                                     }
@@ -418,7 +418,7 @@ fun DeveloperMcpSection(
                                               "mcpServers": {
                                                 "srutam": {
                                                   "command": "npx",
-                                                  "args": ["-y", "srutam-mcp"],
+                                                  "args": ["-y", "srutam-mcp", "serve"],
                                                   "env": {
                                                     "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                                   }
@@ -492,7 +492,7 @@ fun DeveloperMcpSection(
                                   "mcp": {
                                     "srutam": {
                                       "type": "local",
-                                      "command": ["npx", "-y", "srutam-mcp"],
+                                      "command": ["npx", "-y", "srutam-mcp", "serve"],
                                       "environment": {
                                         "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                       },
@@ -507,7 +507,7 @@ fun DeveloperMcpSection(
                                     "srutam": {
                                       "command": {
                                         "path": "npx",
-                                        "args": ["-y", "srutam-mcp"],
+                                        "args": ["-y", "srutam-mcp", "serve"],
                                         "env": {
                                           "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                         }
@@ -521,7 +521,7 @@ fun DeveloperMcpSection(
                                   "mcpServers": {
                                     "srutam": {
                                       "command": "npx",
-                                      "args": ["-y", "srutam-mcp"],
+                                      "args": ["-y", "srutam-mcp", "serve"],
                                       "env": {
                                         "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
                                       }
@@ -553,7 +553,7 @@ fun DeveloperMcpSection(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "Run 'srutam-mcp init' in terminal for auto configuration wizard.",
+                                text = "Recommended: run 'npx srutam-mcp init' - it verifies your key and keeps it out of IDE config files.",
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8)
                             )

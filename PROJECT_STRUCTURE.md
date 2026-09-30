@@ -121,12 +121,12 @@ The `srutam-mcp` package is a standalone TypeScript server implementing the Mode
 
 ## Supabase Backend (`supabase/`)
 
-- `migrations/20260916_01_srutam_cloud_mcp.sql`: Database schema creating `notes`, `action_items`, `api_keys`, and `agent_logs` tables with pgvector support.
-- Row Level Security (RLS): Strict tenant isolation guaranteeing users can only read and write their own data.
-- RPC Functions:
-  - `verify_srutam_api_key(token)`: Validates SHA-256 hashed API keys with automatic rate limiting and last-used timestamp updates.
-  - `mcp_search_notes(query, limit)`: Performs combined text search and vector similarity search.
-- Trigger Policies: Enforces a maximum limit of 3 active Personal Access Tokens per user.
+- `migrations/20260916_01_srutam_cloud_mcp.sql`: Database schema creating `notes`, `action_items`, `api_keys`, and `agent_logs` tables (the `embedding` column exists but is not yet populated or queried - search is full-text + substring).
+- Row Level Security (RLS): Strict tenant isolation guaranteeing the phone app (JWT) can only read and write its own data.
+- MCP RPC layer (`mcp_*`, called by `srutam-mcp` with the public anon key): every function takes the SHA-256 hash of the API key as `p_key_hash` and resolves the owning user **inside the database** (`private.resolve_mcp_key`), so the caller never asserts a user id. All are `SECURITY DEFINER` with a pinned `search_path`, honour `notes.is_private`, and are executable by `anon` only. Introduced by `20260930_04_mcp_key_auth_hardening.sql` (which replaced the earlier `p_user_id` signatures).
+  - `mcp_search_notes`, `mcp_get_note_detail`, `mcp_list_action_items`, `mcp_update_action_item`, `mcp_append_agent_log`, `mcp_cloud_status`.
+- Trigger Policies: Enforces a maximum limit of 3 active Personal Access Tokens per user (serialised with an advisory lock).
+- `tests/mcp_rpc_isolation.sql`: dependency-free cross-tenant / private-note / grant assertions. Run against a scratch DB: `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/mcp_rpc_isolation.sql`.
 
 ---
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
+import { oneLine, wrapUntrusted } from './format.js';
 
 export const listActionItemsSchema = {
   status: z
@@ -9,6 +10,7 @@ export const listActionItemsSchema = {
     .describe('Filter tasks by status (default: "pending")'),
   limit: z
     .number()
+    .int()
     .min(1)
     .max(50)
     .optional()
@@ -35,21 +37,19 @@ export async function handleListActionItems(
     };
   }
 
-  let formatted = `### Srutam Action Items (${status}):\n\n`;
+  let list = `### Srutam Action Items (${status}):\n\n`;
   items.forEach((item) => {
     const box = item.is_completed ? '[x]' : '[ ]';
     const noteRef = `*(Note ID: \`${item.note_id}\`)*`;
-    const by = item.completed_by ? ` (done by ${item.completed_by})` : '';
-    formatted += `- ${box} **ID: \`${item.id}\`** - ${item.description} ${noteRef}${by}\n`;
+    const by = item.completed_by ? ` (done by ${oneLine(item.completed_by, 60)})` : '';
+    list += `- ${box} **ID: \`${item.id}\`** - ${oneLine(item.description, 500)} ${noteRef}${by}\n`;
   });
-
-  formatted += `\nUse \`update_action_item\` with the task ID to mark any task completed.`;
 
   return {
     content: [
       {
         type: 'text' as const,
-        text: formatted,
+        text: `${wrapUntrusted(list)}\n\nUse \`update_action_item\` with the task ID to mark any task completed.`,
       },
     ],
   };

@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
+import { formatNoteSummary, wrapUntrusted } from './format.js';
 
 export const listRecentNotesSchema = {
   limit: z
     .number()
+    .int()
     .min(1)
     .max(25)
     .optional()
@@ -29,19 +31,19 @@ export async function handleListRecentNotes(
     };
   }
 
-  const formatted = notes.map((note, index) => {
-    return `### [${index + 1}] ${note.title} (ID: ${note.id})\n` +
-      `*Recorded*: ${new Date(note.timestamp).toLocaleString()} | *Duration*: ${Math.round(note.duration_ms / 1000)}s\n` +
-      `*Summary*: ${note.summary || 'Pending summary'}\n` +
-      `*Key Points*: ${Array.isArray(note.key_points) ? note.key_points.join('; ') : JSON.stringify(note.key_points || [])}\n` +
-      `---\n`;
-  }).join('\n');
+  const formatted = notes
+    .map((note, index) =>
+      formatNoteSummary(note, index, { withDuration: true, summaryFallback: 'Pending summary' })
+    )
+    .join('\n');
 
   return {
     content: [
       {
         type: 'text' as const,
-        text: `Here are your ${notes.length} most recent voice notes from Srutam:\n\n${formatted}\nUse \`get_note_detail\` with any note ID to fetch the full transcript and actionable tasks.`,
+        text:
+          `Here are your ${notes.length} most recent voice notes from Srutam:\n\n${wrapUntrusted(formatted)}\n\n` +
+          `Use \`get_note_detail\` with any note ID to fetch the full transcript and actionable tasks.`,
       },
     ],
   };

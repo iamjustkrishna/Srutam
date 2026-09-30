@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
+import { oneLine } from './format.js';
 
 export const updateActionItemSchema = {
-  action_item_id: z.string().min(1).max(64).describe('The UUID of the action item to update'),
+  action_item_id: z.string().trim().uuid().describe('The UUID of the action item to update'),
   completed: z.boolean().describe('Whether the action item is marked completed (true) or open (false)'),
   agent_name: z
     .string()
@@ -26,7 +27,7 @@ export async function handleUpdateActionItem(
     content: [
       {
         type: 'text' as const,
-        text: `Successfully updated task "${updated.description}": marked ${updated.is_completed ? 'COMPLETED' : 'OPEN'} by ${updated.completed_by || 'user'}. This update will sync back to the user's phone on their next app resume.`,
+        text: `Successfully updated task "${oneLine(updated.description, 120)}": marked ${updated.is_completed ? 'COMPLETED' : 'OPEN'} by ${updated.completed_by || 'user'}. This update will sync back to the user's phone on their next app resume.`,
       },
     ],
   };

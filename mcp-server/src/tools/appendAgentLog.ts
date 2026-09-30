@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { SrutamClient } from '../supabase.js';
+import { oneLine } from './format.js';
 
 export const appendAgentLogSchema = {
-  note_id: z.string().min(1).max(64).describe('The UUID of the note to append the log/comment to'),
+  note_id: z.string().trim().uuid().describe('The UUID of the note to append the log/comment to'),
   message: z
     .string()
+    .trim()
     .min(1)
     .max(4000)
     .describe('Audit message or implementation note left by the agent (e.g., "Created database migrations and API endpoints in commit 8a4c12")'),
@@ -30,7 +32,7 @@ export async function handleAppendAgentLog(
     content: [
       {
         type: 'text' as const,
-        text: `Successfully attached work log to note \`${log.note_id}\` by **${log.agent_name}**: "${log.message}".`,
+        text: `Successfully attached work log to note \`${log.note_id}\` by **${oneLine(log.agent_name, 60)}**: "${oneLine(log.message, 300)}".`,
       },
     ],
   };
