@@ -72,7 +72,7 @@ export class TokenBucketRateLimiter {
   /**
    * Checks if an action is allowed for the given identifier. Consumes 1 token if allowed.
    */
-  tryConsume(key: string, tokens: number = 1): { allowed: boolean; remaining: number } {
+  tryConsume(key: string, tokens: number = 1): { allowed: boolean; remaining: number; retryAfterSeconds: number } {
     const now = Date.now();
     let bucket = this.buckets.get(key);
 
@@ -89,9 +89,18 @@ export class TokenBucketRateLimiter {
 
     if (bucket.tokens >= tokens) {
       bucket.tokens -= tokens;
-      return { allowed: true, remaining: Math.floor(bucket.tokens) };
+      return { allowed: true, remaining: Math.floor(bucket.tokens), retryAfterSeconds: 0 };
     }
 
-    return { allowed: false, remaining: 0 };
+    const missingTokens = tokens - bucket.tokens;
+    const retryAfterSeconds = Math.ceil(missingTokens / this.refillRatePerSec);
+    return { allowed: false, remaining: 0, retryAfterSeconds };
+  }
+
+  /**
+   * Resets rate limiting state for a specific key.
+   */
+  reset(key: string): void {
+    this.buckets.delete(key);
   }
 }

@@ -23,11 +23,11 @@ Usage:
   srutam-mcp [command] [options]
 
 Commands:
-  init, setup    Interactive setup wizard (OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity, Cline)
+  serve, stdio   Start stdio MCP server for AI coding agents (OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity)
+  init, setup    Interactive setup wizard to link IDE configuration files
   status         Test cloud connection and view synced note count
   logout, reset  Clear saved API credentials
-  [none]         In terminal: Show interactive status dashboard
-                 In IDE: Run stdio MCP server for OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity
+  dashboard      Show interactive terminal dashboard
 
 Options:
   -h, --help     Show this help message
@@ -199,6 +199,11 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0]?.toLowerCase();
 
+  if (command === 'serve' || command === 'stdio') {
+    await startServer();
+    return;
+  }
+
   if (command === 'init' || command === 'setup' || command === '--setup') {
     await runWizard();
     return;
@@ -224,13 +229,23 @@ async function main(): Promise<void> {
     return;
   }
 
-  // When run interactively from terminal without arguments, show dashboard
-  if (process.stdin.isTTY) {
+  if (command === 'dashboard') {
     await showInteractiveDashboard();
     return;
   }
 
-  // Otherwise (e.g. piped or spawned as child process by IDE), run MCP stdio server
+  if (command && !command.startsWith('-')) {
+    console.error(`Unknown command: ${command}\nRun "srutam-mcp --help" for available commands.`);
+    process.exit(1);
+  }
+
+  // When run interactively from terminal without arguments, show dashboard
+  if (process.stdout.isTTY || process.stdin.isTTY) {
+    await showInteractiveDashboard();
+    return;
+  }
+
+  // Otherwise (both stdin and stdout are pipes, e.g. spawned by an IDE), run MCP stdio server
   await startServer();
 }
 

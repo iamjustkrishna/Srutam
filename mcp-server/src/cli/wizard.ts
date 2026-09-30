@@ -6,21 +6,21 @@ import os from 'os';
 import { saveUserConfig, clearUserConfig, getConfigPath } from '../config.js';
 import { SrutamClient } from '../supabase.js';
 
-function getCursorMcpPath(): string {
+export function getCursorMcpPath(): string {
   return path.join(os.homedir(), '.cursor', 'mcp.json');
 }
 
-function getWindsurfMcpPath(): string {
+export function getWindsurfMcpPath(): string {
   return path.join(os.homedir(), '.codeium', 'windsurf', 'mcp_config.json');
 }
 
-function getOpenCodeMcpPath(): string {
+export function getOpenCodeMcpPath(): string {
   const localPath = path.join(process.cwd(), 'opencode.json');
   if (fs.existsSync(localPath)) return localPath;
   return path.join(os.homedir(), '.config', 'opencode', 'opencode.json');
 }
 
-function getZedSettingsPath(): string {
+export function getZedSettingsPath(): string {
   if (process.platform === 'win32') {
     const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
     return path.join(appData, 'Zed', 'settings.json');
@@ -28,7 +28,7 @@ function getZedSettingsPath(): string {
   return path.join(os.homedir(), '.config', 'zed', 'settings.json');
 }
 
-function getClineMcpPath(): string {
+export function getClineMcpPath(): string {
   if (process.platform === 'win32') {
     const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
     return path.join(
@@ -65,11 +65,11 @@ function getClineMcpPath(): string {
   );
 }
 
-function getAntigravityMcpPath(): string {
+export function getAntigravityMcpPath(): string {
   return path.join(os.homedir(), '.gemini', 'config', 'mcp_config.json');
 }
 
-function getClaudeDesktopMcpPath(): string {
+export function getClaudeDesktopMcpPath(): string {
   if (process.platform === 'win32') {
     const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
     return path.join(appData, 'Claude', 'claude_desktop_config.json');
@@ -79,7 +79,7 @@ function getClaudeDesktopMcpPath(): string {
   return path.join(os.homedir(), '.config', 'Claude', 'claude_desktop_config.json');
 }
 
-function injectStandardMcpServer(filePath: string, apiKey: string): boolean {
+export function injectStandardMcpServer(filePath: string, apiKey: string): boolean {
   try {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
@@ -115,7 +115,7 @@ function injectStandardMcpServer(filePath: string, apiKey: string): boolean {
   }
 }
 
-function injectOpenCodeMcpServer(filePath: string, apiKey: string): boolean {
+export function injectOpenCodeMcpServer(filePath: string, apiKey: string): boolean {
   try {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
@@ -155,7 +155,7 @@ function injectOpenCodeMcpServer(filePath: string, apiKey: string): boolean {
   }
 }
 
-function injectZedMcpServer(filePath: string, apiKey: string): boolean {
+export function injectZedMcpServer(filePath: string, apiKey: string): boolean {
   try {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {

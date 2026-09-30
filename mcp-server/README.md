@@ -29,6 +29,9 @@ You can run `srutam-mcp` directly in your terminal for status checks and mainten
 # Interactive dashboard (shows active key, synced notes count, and health)
 npx srutam-mcp
 
+# Start stdio MCP server for IDEs (optional explicit command)
+npx srutam-mcp serve
+
 # Test cloud connectivity
 npx srutam-mcp status
 
