@@ -147,13 +147,18 @@ sherpa-onnx-master-src/
 Thumbs.db
 desktop.ini
 
-
 # ==============================================================================
-# Antigravity Agents & Workflows
+# Antigravity Agents, Workflows & Memory State
 # ==============================================================================
 AGENTS.md
 .agents/workflows/
-mcp-server/
-mcp-server/**
-supabase/
-supabase/**
+.agents/state/
+
+# ==============================================================================
+# Plans, Visual Assets, Media & Design Documentation
+# ==============================================================================
+plan/
+screenshots/
+visuals/
+art/
+design_docs/
