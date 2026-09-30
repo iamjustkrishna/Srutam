@@ -1,334 +1,144 @@
-﻿# Srutam - Zero-Friction AI Audio Note-Taker
+# Srutam: Zero-Friction AI Audio Note-Taker & Context Platform
 
 ## Project Overview
 
-Srutam is a modern Android application that allows users to record audio notes instantly using a hardware button shortcut (double-press Volume Down), transcribe them on-device, and generate AI-driven summaries and action items.
-
-## Architecture
-
-The app follows **MVVM (Model-View-ViewModel)** architecture with clean separation of concerns:
-
-```
-space.iamjustkrishna.srutam/
-â”œâ”€â”€ ai/                          # AI Processing Layer
-â”‚   â””â”€â”€ AIProcessor.kt          # Handles transcription and AI analysis
-â”œâ”€â”€ data/                        # Data Layer
-â”‚   â”œâ”€â”€ Recording.kt            # Room Entity
-â”‚   â”œâ”€â”€ RecordingDao.kt         # Database Access Object
-â”‚   â””â”€â”€ AppDatabase.kt          # Room Database
-â”œâ”€â”€ navigation/                  # Navigation
-â”‚   â””â”€â”€ Navigation.kt           # Compose Navigation setup
-â”œâ”€â”€ repository/                  # Repository Layer
-â”‚   â””â”€â”€ RecordingRepository.kt  # Data access abstraction
-â”œâ”€â”€ service/                     # Background Services
-â”‚   â”œâ”€â”€ VolumeButtonTriggerService.kt    # Accessibility Service
-â”‚   â””â”€â”€ RecordingForegroundService.kt    # Recording Service
-â”œâ”€â”€ ui/
-â”‚   â”œâ”€â”€ screens/                # Compose UI Screens
-â”‚   â”‚   â”œâ”€â”€ FeedScreen.kt       # List of recordings
-â”‚   â”‚   â”œâ”€â”€ DetailScreen.kt     # Recording details
-â”‚   â”‚   â””â”€â”€ ChatScreen.kt       # AI Query interface
-â”‚   â””â”€â”€ theme/                  # Material 3 theme
-â”œâ”€â”€ viewmodel/                   # ViewModels
-â”‚   â”œâ”€â”€ RecordingsViewModel.kt  # Feed screen VM
-â”‚   â””â”€â”€ DetailViewModel.kt      # Detail & Chat VM
-â”œâ”€â”€ MainActivity.kt             # Main entry point
-â””â”€â”€ SrutamApplication.kt        # Application class
-```
-
-## Tech Stack
-
-### Core Technologies
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose (Material 3)
-- **Architecture**: MVVM with Repository Pattern
-- **Dependency Injection**: Manual DI (can be upgraded to Hilt)
-
-### Key Libraries
-- **Room Database** (2.6.1) - Local data persistence
-- **Google Generative AI** (0.9.0) - Gemini AI for analysis
-- **Navigation Compose** (2.8.5) - Screen navigation
-- **Accompanist Permissions** (0.36.0) - Runtime permissions
-- **Coroutines** (1.9.0) - Asynchronous operations
-- **Gson** (2.11.0) - JSON serialization
-
-### Android Components
-- **AccessibilityService** - Intercepts volume button presses
-- **ForegroundService** (Microphone type) - Background audio recording
-- **MediaRecorder** - Audio recording to M4A format
-
-## Features Implemented
-
-### âœ… Core Features
-1. **Hardware Button Trigger**
-   - Double-press Volume Down to start/stop recording
-   - Works even when screen is off
-   - Implemented via AccessibilityService
-
-2. **Background Recording**
-   - Foreground Service with persistent notification
-   - Records to M4A format in internal storage
-   - Compliant with Android 16+ requirements
-
-3. **AI Processing Pipeline**
-   - On-device transcription (placeholder - needs ML Kit Speech integration)
-   - AI-powered analysis using Gemini:
-     - Summary generation
-     - Key points extraction
-     - Action items identification
-     - WIIFM (What's In It For Me) section
-
-4. **Modern UI**
-   - Feed screen with swipe-to-delete
-   - Detailed view with all AI-generated sections
-   - Chat interface for querying recordings
-   - Material 3 design system
-
-5. **Data Persistence**
-   - Room database for metadata and AI results
-   - Internal storage for audio files
-   - Real-time updates with Flow
-
-## Setup Instructions
-
-### 1. Configure API Key
-
-**IMPORTANT**: You need to add your Google Generative AI API key to use the AI features.
-
-**Option A: Using BuildConfig (Recommended)**
-
-1. Add to `local.properties`:
-   ```properties
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
-2. Update `app/build.gradle.kts`:
-   ```kotlin
-   android {
-       defaultConfig {
-           // ... existing config
-           buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY")}\"")
-       }
-   }
-   ```
-
-3. Update `AIProcessor.kt` line 72:
-   ```kotlin
-   apiKey = BuildConfig.GEMINI_API_KEY
-   ```
-
-**Option B: Direct Replacement (Not recommended for production)**
-
-Replace `"YOUR_API_KEY_HERE"` in `AIProcessor.kt` (lines 72 and 139) with your actual API key.
-
-**Get an API Key**: https://ai.google.dev/
-
-### 2. Enable Accessibility Service
-
-After installing the app:
-1. Go to **Settings** â†’ **Accessibility**
-2. Find **Srutam** or **Volume Button Trigger Service**
-3. Enable it
-4. Grant the permission
-
-### 3. Grant Permissions
-
-The app will request:
-- **RECORD_AUDIO** - Required for recording
-- **POST_NOTIFICATIONS** - For foreground service notification
-
-## How It Works
-
-### Recording Flow
-1. User double-presses Volume Down
-2. `VolumeButtonTriggerService` (Accessibility) detects the gesture
-3. Starts `RecordingForegroundService`
-4. Service displays notification and begins recording
-5. Second double-press stops recording
-6. Audio saved to internal storage
-7. Recording metadata inserted into Room database
-8. AI processing begins in background
-
-### AI Processing Flow
-1. `AIProcessor.transcribeAudio()` - Converts audio to text
-2. `AIProcessor.generateInsights()` - Calls Gemini API with structured prompt
-3. Parses JSON response into:
-   - Summary
-   - Key Points (array)
-   - Action Items (array)
-   - WIIFM
-4. Updates Room database with results
-5. UI automatically refreshes via Flow
-
-### Query Feature
-1. User opens Detail screen â†’ Chat
-2. Types question about recording
-3. `AIProcessor.queryRecording()` sends transcript + question to Gemini
-4. Response displayed in chat interface
-
-## Important Notes
-
-### Transcription Implementation
-The current implementation uses a **placeholder** for transcription. To implement real transcription:
-
-**Option 1: Android SpeechRecognizer**
-```kotlin
-val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-// Configure and start recognition
-```
-
-**Option 2: Google Cloud Speech-to-Text**
-- Use Cloud Speech-to-Text API
-- Requires network connection
-- More accurate but costs money
-
-**Option 3: ML Kit (Future)**
-- Google is working on on-device speech recognition
-- Not yet fully available for all use cases
-
-### Gemini Nano vs Cloud
-Current implementation uses **Gemini Cloud API** (requires internet).
-
-For true on-device processing with **Gemini Nano**:
-- Use Android AICore API (currently in preview)
-- Requires Android 14+ with specific device support
-- Limited model capabilities
-
-### Permissions
-- **BIND_ACCESSIBILITY_SERVICE** - System-level, granted by user in Settings
-- **FOREGROUND_SERVICE_MICROPHONE** - Required for Android 16+
-- **RECORD_AUDIO** - Runtime permission
-- **POST_NOTIFICATIONS** - Runtime permission (Android 13+)
-
-## File Structure Details
-
-### Data Models
-- **Recording** - Entity with all fields including AI results
-- Room auto-generates DB at `srutam_database`
-- Audio files stored in `app_files/recordings/`
-
-### Services
-- **VolumeButtonTriggerService** - Runs continuously when enabled
-- **RecordingForegroundService** - Runs only during recording
-- Both use minimal battery when idle
-
-### ViewModels
-- **RecordingsViewModel** - Manages list of recordings
-- **DetailViewModel** - Handles single recording + chat messages
-- Both use StateFlow for reactive UI updates
-
-## Testing the App
-
-1. **First Launch**:
-   - Grant microphone permission
-   - Enable accessibility service in Settings
-
-2. **Record Audio**:
-   - Double-press Volume Down
-   - Speak into microphone
-   - Double-press again to stop
-
-3. **View Results**:
-   - Open app
-   - See recording in feed
-   - Wait for "Processing..." to complete
-   - Tap to view details
-
-4. **Query Recording**:
-   - In detail screen, tap Chat icon
-   - Ask questions about the recording
-   - Get AI-powered answers
-
-## Future Enhancements
-
-### Recommended Improvements
-1. **On-device Transcription** - Integrate ML Kit when available
-2. **Gemini Nano** - Switch to on-device AI when AICore stabilizes
-3. **Audio Playback** - Add MediaPlayer to play recordings
-4. **Export Options** - Share as text/PDF
-5. **Categories/Tags** - Organize recordings
-6. **Search** - Full-text search across transcripts
-7. **Cloud Backup** - Sync to Google Drive
-8. **Widget** - Quick record button on home screen
-9. **Wear OS** - Smart watch recording
-
-### Security Enhancements
-1. **Encryption** - Encrypt audio files and database
-2. **Biometric Lock** - Require fingerprint to access
-3. **Secure Storage** - Use Android Keystore for API keys
-4. **Auto-delete** - Option to delete old recordings
-
-## Troubleshooting
-
-### Recording Not Starting
-- Check if accessibility service is enabled
-- Verify microphone permission granted
-- Look for errors in Logcat (tag: "RecordingService")
-
-### AI Processing Fails
-- Verify API key is configured
-- Check internet connection (for cloud Gemini)
-- Look at error message in recording detail
-
-### Volume Buttons Not Working
-- Ensure accessibility service is running
-- Check if another app is using accessibility
-- Try disabling and re-enabling the service
-
-## Build Variants
-
-Current setup uses single build variant. For production:
-
-```kotlin
-android {
-    buildTypes {
-        debug {
-            buildConfigField("String", "GEMINI_API_KEY", "\"debug_key\"")
-        }
-        release {
-            buildConfigField("String", "GEMINI_API_KEY", "\"prod_key\"")
-            isMinifyEnabled = true
-            proguardFiles(...)
-        }
-    }
-}
-```
-
-## Performance Considerations
-
-- **Database queries** run on IO dispatcher
-- **AI processing** runs in background coroutine
-- **UI updates** via StateFlow (no unnecessary recomposition)
-- **Audio files** compressed with AAC codec
-- **Memory** - Only loads transcript when needed
-
-## Compliance
-
-### Android Requirements
-- âœ… Foreground service with proper type declaration
-- âœ… Persistent notification during recording
-- âœ… Runtime permissions with rationale
-- âœ… Accessibility service description
-
-### Privacy
-- All data stored locally by default
-- No analytics or tracking
-- User controls deletion
-- Clear permission purposes
-
-## Credits
-
-Built with modern Android development best practices:
-- [Jetpack Compose](https://developer.android.com/jetpack/compose)
-- [Room Database](https://developer.android.com/training/data-storage/room)
-- [Google Generative AI](https://ai.google.dev/)
-- [Material Design 3](https://m3.material.io/)
+Srutam is a modern, privacy-first Android application and developer context platform that allows users to record spoken thoughts instantly using hardware button shortcuts (double-press Volume Down) or an on-screen floating dock, transcribe them on-device or via cloud AI, extract structured insights (Summaries, Action Items, Reminders, Ideas, Decisions, WIIFM), and expose this rich personal knowledge base directly to modern AI coding assistants (Cursor, OpenCode, Windsurf, Zed, Claude Desktop, Antigravity) via the Model Context Protocol (MCP).
 
 ---
 
-**Package**: space.iamjustkrishna.srutam  
-**Min SDK**: 29 (Android 10)  
-**Target SDK**: 35 (Android 16)  
-**Language**: Kotlin  
-**Architecture**: MVVM
+## High-Level Architecture
+
+Srutam is architected around modern Android Clean MVVM patterns with Unidirectional Data Flow (UDF), a local-first Room database, background WorkManager jobs, and an external TypeScript MCP server communicating over standard I/O (stdio).
+
+```
+Srutam/
+|-- app/                               # Android Application Module
+|   |-- src/main/java/space/iamjustkrishna/srutam/
+|   |   |-- ai/                        # AI Processing & Inference Engines
+|   |   |   |-- copilot/               # Global Copilot, BM25 Indexing & Cache
+|   |   |   |-- provider/              # Gemini and LLM Provider Integrations
+|   |   |   |-- AIProcessor.kt         # Core transcription & insight extraction
+|   |   |-- analytics/                 # Privacy-preserving local metrics
+|   |   |-- cloud/                     # Supabase Cloud Sync Engine & Auth
+|   |   |-- data/                      # Room Database (v7), Entities & DAOs
+|   |   |-- navigation/                # Compose Navigation & Deep Linking
+|   |   |-- player/                    # Audio Playback Engine
+|   |   |-- repository/                # Data Repository Abstractions
+|   |   |-- service/                   # Foreground, Accessibility & Alarm Services
+|   |   |-- ui/                        # Jetpack Compose UI (Material 3)
+|   |   |   |-- components/            # Reusable UI widgets & app bars
+|   |   |   |-- screens/               # Screen composables & bottom sheets
+|   |   |   |-- theme/                 # Cosmic Void / Light / Dark Design Tokens
+|   |   |-- utils/                     # Storage, Preferences & Audio Decoders
+|   |   |-- viewmodel/                 # StateFlow ViewModels & Screen State
+|   |   |-- MainActivity.kt            # Single Activity Entry Point
+|   |   |-- SrutamApplication.kt       # Application Lifecycle & Service Inits
+|-- mcp-server/                        # Model Context Protocol Server (TypeScript)
+|   |-- src/                           # MCP Tools, Supabase Client & CLI Wizard
+|   |-- dist/                          # Compiled Node.js CJS/ESM Bundle
+|   |-- package.json                   # srutam-mcp NPM Package Configuration
+|-- supabase/                          # Backend Cloud Infrastructure
+|   |-- migrations/                    # SQL Schemas, RLS Policies & RPCs
+|   |-- email-templates/               # Dark-mode OTP & Auth Templates
+```
+
+---
+
+## Package Structure Breakdown
+
+### 1. `space.iamjustkrishna.srutam.ai`
+Handles audio transcription, insight extraction, and global querying.
+- `AIProcessor.kt`: Coordinates audio transcription and invokes generative AI prompts to produce summaries, key points, action items, reminders, ideas, decisions, and WIIFM.
+- `ai/copilot/GlobalCopilotEngine.kt`: Cross-note search engine powered by BM25 ranking and TF-IDF term scoring.
+- `ai/copilot/AiQueryCache.kt`: Persistent cache to avoid redundant LLM invocations for previously answered queries.
+- `ai/provider/`: Multi-provider abstraction supporting Gemini Cloud, BYOK (Bring Your Own Key), and on-device processing.
+
+### 2. `space.iamjustkrishna.srutam.cloud`
+Local-first cloud synchronization with Supabase backend.
+- `SupabaseCloudClient.kt`: REST client for note synchronization, Personal Access Token (PAT) generation, key revocation, and remote task updates.
+- `SupabaseAuthManager.kt`: Native Android Credential Manager integration for 1-tap Google Sign-In and email OTP authentication.
+- `CloudSyncWorker.kt`: Android WorkManager coroutine worker executing background sync under network constraints.
+- `CloudSyncManager.kt`: Orchestrates automatic push synchronization after AI completion and pull synchronization on app resume.
+
+### 3. `space.iamjustkrishna.srutam.data`
+Local SQLite persistence via Android Room (Database Version 7).
+- `AppDatabase.kt`: Room database definition configuring entities and migration strategies.
+- `Recording.kt` & `RecordingDao.kt`: Core voice note entity storing audio paths, transcripts, summaries, AI status, and cloud sync metadata (`syncStatus`, `isPrivate`, `cloudId`, `lastSyncedAt`).
+- `InsightEntity.kt` & `InsightDao.kt`: Granular itemized insights (Action Items, Ideas, Decisions) with completion, archiving, and editing states.
+- `ReminderEntity.kt` & `ReminderDao.kt`: Scheduled reminders with exact timestamps, review states, notification flags, and timezone inference.
+- `ExtractionSuppression.kt`: Prevents re-extracting deleted or modified insights during re-processing.
+- `InsightsMigration.kt`: Schema migration from version 6 to version 7 preserving user data while adding sync and insight tracking columns.
+
+### 4. `space.iamjustkrishna.srutam.service`
+Hardware button hooks, foreground recording, and background scheduling.
+- `VolumeButtonTriggerService.kt`: Android Accessibility Service intercepting double-press Volume Down gestures to trigger hands-free recording even when the device is locked.
+- `RecordingForegroundService.kt`: Persistent foreground service recording audio via MediaRecorder to high-quality AAC/M4A.
+- `FloatingButtonService.kt`: System overlay service providing an on-screen floating dock for quick record, pause, and stop controls.
+- `ReminderScheduler.kt` & `ReminderAlarmReceiver.kt`: Exact alarm scheduling via AlarmManager delivering rich notifications with direct action buttons (Complete, Snooze, Review).
+- `BootRescheduleReceiver.kt`: Re-registers pending reminder alarms after device reboot.
+- `AiProcessingWorker.kt` & `AiSummaryNetworkWorker.kt`: Background WorkManager execution for transcription and insight generation.
+
+### 5. `space.iamjustkrishna.srutam.ui`
+Modern, reactive UI built entirely with Jetpack Compose and Material 3 tokens.
+- `ui/screens/FeedScreen.kt`: Chronological feed of recorded notes with swipe actions, cloud sync indicators, multi-select deletion, and search.
+- `ui/screens/DetailScreen.kt`: Rich note detail view showing audio waveform playback, editable transcripts, itemized insight cards, and privacy lock controls.
+- `ui/screens/ActionItemsScreen.kt`: Dedicated tasks and reminders hub with status filters, date groupings, and swipe completion.
+- `ui/screens/GlobalCopilotScreen.kt`: Conversational cross-note search assistant querying your entire audio knowledge base.
+- `ui/screens/DeveloperMcpSection.kt`: Developer dashboard displaying cloud sync status, 1-tap API key generator (max 3 keys), and copyable MCP config snippets for OpenCode, Cursor, Windsurf, Zed, and Claude Desktop.
+- `ui/screens/SettingsScreen.kt`: Preferences for AI provider, audio quality, auto-sync, appearance themes, and storage cleanup.
+- `ui/screens/TabletWorkspaceScreen.kt`: Adaptive multi-pane layout for large-screen tablets and foldables.
+- `ui/theme/`: Cosmic Void pure OLED black, Dark, and Light themes with tailored semantic color palettes.
+
+### 6. `space.iamjustkrishna.srutam.utils`
+Utility classes and helpers.
+- `AppPreferences.kt`: Encrypted and DataStore backed user preferences.
+- `AudioStorage.kt`: Manages app-private audio file paths, folder structures, and storage quotas.
+- `AudioFileReader.kt` & `AudioDecoder.kt`: Reads raw audio waveforms and metadata for visualization and playback.
+
+---
+
+## Standalone MCP Server (`mcp-server/`)
+
+The `srutam-mcp` package is a standalone TypeScript server implementing the Model Context Protocol (MCP) specification over standard I/O (stdio). It bridges modern AI coding environments with the user's Srutam Cloud database.
+
+### Implemented MCP Tools:
+1. `search_notes`: Semantic and keyword search across transcripts, summaries, and key points.
+2. `list_recent_notes`: Retrieves recently recorded notes with pagination and date filters.
+3. `get_note_detail`: Fetches the full transcript, summary, action items, and metadata for a specific note.
+4. `list_action_items`: Lists pending or completed tasks extracted from voice notes.
+5. `update_action_item`: Marks action items as completed or archived directly from the coding agent.
+6. `append_agent_work_log`: Appends audit logs and implementation notes from AI coding sessions back to the note.
+
+### Supported Coding Assistants:
+- OpenCode (`opencode.json`)
+- Cursor (`~/.cursor/mcp.json`)
+- Windsurf (`~/.codeium/windsurf/mcp_config.json`)
+- Zed Editor (`~/.config/zed/settings.json`)
+- Claude Desktop (`claude_desktop_config.json`)
+- Google Antigravity IDE
+
+---
+
+## Supabase Backend (`supabase/`)
+
+- `migrations/20260916_01_srutam_cloud_mcp.sql`: Database schema creating `notes`, `action_items`, `api_keys`, and `agent_logs` tables with pgvector support.
+- Row Level Security (RLS): Strict tenant isolation guaranteeing users can only read and write their own data.
+- RPC Functions:
+  - `verify_srutam_api_key(token)`: Validates SHA-256 hashed API keys with automatic rate limiting and last-used timestamp updates.
+  - `mcp_search_notes(query, limit)`: Performs combined text search and vector similarity search.
+- Trigger Policies: Enforces a maximum limit of 3 active Personal Access Tokens per user.
+
+---
+
+## Tech Stack & Dependencies
+
+- **Language**: Kotlin 2.0+ (Android), TypeScript / Node.js (MCP Server)
+- **UI Toolkit**: Jetpack Compose, Material 3, Accompanist
+- **Local Persistence**: Room Database 2.6.1 (Version 7)
+- **Async Concurrency**: Kotlin Coroutines, StateFlow, SharedFlow
+- **Background Jobs**: AndroidX WorkManager 2.10+
+- **Authentication**: Android Credential Manager (Google One Tap), Supabase Auth
+- **AI Integrations**: Google Generative AI SDK, Gemini 1.5 Flash / Pro, BM25 Engine
+- **Audio Processing**: MediaRecorder (AAC/M4A), Android MediaPlayer, AudioTrack
+- **Minimum SDK**: 29 (Android 10)
+- **Target SDK**: 35 (Android 15 / 16)

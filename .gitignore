@@ -148,7 +148,17 @@ Thumbs.db
 desktop.ini
 
 # ==============================================================================
-# Antigravity Agents & Workflows
+# Antigravity Agents, Workflows & Memory State
 # ==============================================================================
 AGENTS.md
 .agents/workflows/
+.agents/state/
+
+# ==============================================================================
+# Plans, Visual Assets, Media & Design Documentation
+# ==============================================================================
+plan/
+screenshots/
+visuals/
+art/
+design_docs/
