@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -185,14 +186,17 @@ fun SrutamDialogConfirmButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isDestructive: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isLoading: Boolean = false
 ) {
+    val clickable = enabled && !isLoading
     val buttonBackground = when {
+        isLoading -> Brush.verticalGradient(listOf(Color(0xFF60A5FA), Color(0xFF3B82F6)))
         !enabled -> Brush.verticalGradient(listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8)))
         isDestructive -> Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFDC2626)))
         else -> Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF2563EB)))
     }
-    val contentColor = if (enabled) Color.White else Color(0xFFF1F5F9)
+    val contentColor = if (enabled || isLoading) Color.White else Color(0xFFF1F5F9)
 
     Box(
         modifier = modifier
@@ -209,16 +213,36 @@ fun SrutamDialogConfirmButton(
             )
             .background(brush = buttonBackground, shape = CircleShape)
             .clip(CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = clickable, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor,
-            textAlign = TextAlign.Center
-        )
+        if (isLoading) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                )
+                Text(
+                    text = text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -226,7 +250,8 @@ fun SrutamDialogConfirmButton(
 fun SrutamDialogDismissButton(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val isDark = LocalIsCosmicDark.current
     val backgroundColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
@@ -247,14 +272,14 @@ fun SrutamDialogDismissButton(
                 shape = CircleShape
             )
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = textColor,
+            color = if (enabled) textColor else textColor.copy(alpha = 0.45f),
             textAlign = TextAlign.Center
         )
     }
@@ -268,7 +293,8 @@ fun SrutamCustomDialog(
     subtitle: String? = null,
     content: @Composable () -> Unit = {},
     confirmButton: @Composable () -> Unit,
-    dismissButton: (@Composable () -> Unit)? = null
+    dismissButton: (@Composable () -> Unit)? = null,
+    dismissible: Boolean = true
 ) {
     val isDark = LocalIsCosmicDark.current
     val surfaceColor = if (isDark) CosmicVoidCard else Color(0xFAFFFFFF)
@@ -292,7 +318,11 @@ fun SrutamCustomDialog(
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            dismissOnBackPress = dismissible,
+            dismissOnClickOutside = dismissible,
+            usePlatformDefaultWidth = false
+        )
     ) {
         Surface(
             modifier = Modifier
@@ -370,12 +400,15 @@ fun SrutamStandardDialog(
     dismissText: String? = "Cancel",
     isDestructive: Boolean = badgeType == DialogBadgeType.DESTRUCTIVE,
     confirmEnabled: Boolean = true,
+    /** While true: confirm shows a spinner and ignores taps, Cancel is disabled, and back/outside taps cannot dismiss. */
+    isLoading: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit = onDismissRequest,
     content: @Composable () -> Unit = {}
 ) {
     SrutamCustomDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = if (isLoading) ({}) else onDismissRequest,
+        dismissible = !isLoading,
         iconBadge = {
             SrutamDialogIconBadge(
                 icon = icon,
@@ -390,13 +423,15 @@ fun SrutamStandardDialog(
                 text = confirmText,
                 onClick = onConfirm,
                 isDestructive = isDestructive,
-                enabled = confirmEnabled
+                enabled = confirmEnabled,
+                isLoading = isLoading
             )
         },
         dismissButton = if (dismissText != null) {
             {
                 SrutamDialogDismissButton(
                     text = dismissText,
+                    enabled = !isLoading,
                     onClick = onDismiss
                 )
             }

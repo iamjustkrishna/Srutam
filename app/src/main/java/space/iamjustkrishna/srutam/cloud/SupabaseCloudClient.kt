@@ -6,6 +6,8 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -40,6 +42,21 @@ class SupabaseCloudClient(private val context: Context) {
         .readTimeout(20, TimeUnit.SECONDS)
         .writeTimeout(20, TimeUnit.SECONDS)
         .build()
+
+    private companion object {
+        /** Shared by every SupabaseCloudClient instance so key creations can never overlap. */
+        val createKeyMutex = Mutex()
+    }
+
+    /** Turns a PostgREST error into a typed exception the UI can show as a friendly message. */
+    private fun mapCreateKeyError(httpCode: Int, body: String): Exception = when {
+        body.contains("KEY_LIMIT_REACHED") -> ApiKeyLimitException()
+        httpCode == 409 || body.contains("23505") || body.contains("uq_api_keys_active_name") ->
+            ApiKeyNameException("You already have a key with that name. Pick a different name.")
+        body.contains("api_keys_active_name_len") || body.contains("23514") ->
+            ApiKeyNameException("Name must be 1 to ${ApiKeyRules.MAX_NAME_LENGTH} characters.")
+        else -> Exception("Failed to generate API Key: $body")
+    }
 
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
@@ -209,6 +226,26 @@ class SupabaseCloudClient(private val context: Context) {
      * Returns Pair(plainTextKey, keyPrefix). The plainTextKey is only shown once to user.
      */
     suspend fun createApiKey(name: String): Result<Pair<String, String>> = withContext(Dispatchers.IO) {
+        // One creation at a time per process: overlapping calls (double taps, other screens) queue here,
+        // and each re-checks the limit and names against a fresh list before inserting.
+        createKeyMutex.withLock {
+            try {
+                val cleanName = ApiKeyRules.normalizeName(name)
+                val active = listApiKeys().getOrElse { return@withLock Result.failure(it) }
+                if (ApiKeyRules.limitReached(active.size)) {
+                    return@withLock Result.failure(ApiKeyLimitException())
+                }
+                ApiKeyRules.validateName(cleanName, active.map { it.name })?.let {
+                    return@withLock Result.failure(ApiKeyNameException(it))
+                }
+                insertApiKey(cleanName)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    private suspend fun insertApiKey(name: String): Result<Pair<String, String>> = withContext(Dispatchers.IO) {
         try {
             val userId = AppPreferences.getCloudUserId(context)
                 ?: return@withContext Result.failure(IllegalStateException("User not signed in"))
@@ -224,13 +261,14 @@ class SupabaseCloudClient(private val context: Context) {
                 addProperty("user_id", userId)
                 addProperty("key_hash", keyHash)
                 addProperty("key_prefix", keyPrefix)
-                addProperty("name", name.ifBlank { "Developer Key" })
+                addProperty("name", name)
             }
 
             val requestBuilder = Request.Builder()
                 .url("$baseUrl/rest/v1/api_keys")
                 .addHeader("Prefer", "return=representation")
                 .post(body.toString().toRequestBody(jsonMediaType))
+            getAuthHeaders(requestBuilder)
 
             var response = client.newCall(requestBuilder.build()).execute()
             if (!response.isSuccessful && (response.code == 401 || response.code == 403)) {
@@ -249,7 +287,7 @@ class SupabaseCloudClient(private val context: Context) {
             response.use { res ->
                 if (!res.isSuccessful) {
                     val err = res.body?.string() ?: "HTTP ${res.code}"
-                    return@withContext Result.failure(Exception("Failed to generate API Key: $err"))
+                    return@withContext Result.failure(mapCreateKeyError(res.code, err))
                 }
                 Result.success(Pair(plainKey, keyPrefix))
             }

@@ -4,7 +4,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ConfigError, loadConfig } from './config.js';
 import { SrutamClient } from './supabase.js';
-import { runWizard, runLogout } from './cli/wizard.js';
+import { runWizard, runLogout, type InitOptions } from './cli/wizard.js';
+import { CLIENTS, MANUAL_CLIENTS, findClient, manualSnippets, renderSnippet } from './cli/clients.js';
 import { VERSION } from './version.js';
 
 import { searchNotesSchema, handleSearchNotes } from './tools/searchNotes.js';
@@ -26,7 +27,11 @@ Usage:
 
 Commands:
   serve, stdio   Start stdio MCP server for AI coding agents (OpenCode, Cursor, Windsurf, Claude, Zed, Antigravity)
-  init, setup    Interactive setup wizard to link IDE configuration files
+  init, setup    Interactive setup wizard: verify your key and add srutam to your AI assistants
+                 (Claude Code, Codex, Gemini CLI, Cursor, VS Code, Windsurf, OpenCode, Zed, Kiro, ...)
+                   --client codex,claude-code   configure these without the menu ("all" = every detected)
+                   --yes                        non-interactive: reuse the saved key, never prompt
+  print-config   Print the config snippet for an assistant: print-config [client] [--windows]
   status         Test cloud connection and view synced note count
   logout, reset  Clear saved API credentials
   dashboard      Show interactive terminal dashboard
@@ -220,6 +225,40 @@ async function startServer(): Promise<void> {
   console.error(`Srutam MCP server v${VERSION} running on stdio`);
 }
 
+function parseInitArgs(args: string[]): InitOptions {
+  const options: InitOptions = {};
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--yes' || arg === '-y') options.yes = true;
+    else if (arg === '--client' || arg === '--clients') options.clients = args[++i] ?? '';
+    else if (arg.startsWith('--client=')) options.clients = arg.slice('--client='.length);
+  }
+  return options;
+}
+
+function printConfig(args: string[]): void {
+  const platform = args.includes('--windows') ? 'win32' : process.platform;
+  const name = args.find((a) => !a.startsWith('-'));
+  if (!name) {
+    console.log(manualSnippets(platform));
+    console.log('\nSupported clients: ' + [...CLIENTS.map((c) => c.id), ...MANUAL_CLIENTS.map((m) => m.id)].join(', '));
+    return;
+  }
+  const { client, manual } = findClient(name);
+  if (client) {
+    console.log(`# ${client.name}${client.configPath ? ` - ${client.configPath()}` : ''}`);
+    console.log(renderSnippet(client.format, platform));
+    return;
+  }
+  if (manual) {
+    console.log(`# ${manual.name} - ${manual.where}`);
+    console.log(renderSnippet(manual.format, platform));
+    return;
+  }
+  console.error(`Unknown client "${name}". Supported: ${[...CLIENTS.map((c) => c.id), ...MANUAL_CLIENTS.map((m) => m.id)].join(', ')}`);
+  process.exit(1);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0]?.toLowerCase();
@@ -230,7 +269,12 @@ async function main(): Promise<void> {
   }
 
   if (command === 'init' || command === 'setup' || command === '--setup') {
-    await runWizard();
+    await runWizard(parseInitArgs(args.slice(1)));
+    return;
+  }
+
+  if (command === 'print-config' || command === 'config') {
+    printConfig(args.slice(1));
     return;
   }
 

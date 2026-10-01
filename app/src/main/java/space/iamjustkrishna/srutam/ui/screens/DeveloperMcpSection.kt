@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.sp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.cloud.ApiKeyItem
+import space.iamjustkrishna.srutam.cloud.ApiKeyLimitException
+import space.iamjustkrishna.srutam.cloud.ApiKeyNameException
+import space.iamjustkrishna.srutam.cloud.ApiKeyRules
 import space.iamjustkrishna.srutam.cloud.CloudSyncManager
 import space.iamjustkrishna.srutam.cloud.SupabaseAuthManager
 import space.iamjustkrishna.srutam.cloud.SupabaseCloudClient
@@ -61,12 +64,14 @@ fun DeveloperMcpSection(
     var showGenerateKeyDialog by remember { mutableStateOf(false) }
     var keyNameInput by remember { mutableStateOf("Cursor IDE") }
     var generatedKeyResult by remember { mutableStateOf<Pair<String, String>?>(null) } // (plainKey, prefix)
+    // Single-flight guard for key creation: set synchronously on the first tap, before any coroutine starts.
+    var isCreatingKey by remember { mutableStateOf(false) }
+    var keyDialogError by remember { mutableStateOf<String?>(null) }
 
     var isAuthLoading by remember { mutableStateOf(false) }
     var isAutoSyncEnabled by remember {
         mutableStateOf(AppPreferences.isAutoCloudSyncEnabled(context))
     }
-    var selectedMcpClient by remember { mutableStateOf("OpenCode") }
 
     fun refreshKeys() {
         if (isSignedIn) {
@@ -265,7 +270,7 @@ fun DeveloperMcpSection(
                                 }
                             }
                             Text(
-                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for OpenCode, Cursor, Windsurf, Zed & Claude",
+                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for Claude Code, Codex, Cursor, Gemini CLI & more",
                                 fontSize = 11.sp,
                                 color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) TextOnDarkSecondary else TextSecondary),
                                 maxLines = 1,
@@ -278,11 +283,12 @@ fun DeveloperMcpSection(
                                 if (apiKeys.size >= 3) {
                                     Toast.makeText(context, "Maximum 3 keys allowed. Please revoke an old key first.", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    keyNameInput = "Cursor IDE"
+                                    keyNameInput = ""
+                                    keyDialogError = null
                                     showGenerateKeyDialog = true
                                 }
                             },
-                            enabled = apiKeys.size < 3,
+                            enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isCreatingKey,
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = CobaltBlue,
@@ -362,203 +368,7 @@ fun DeveloperMcpSection(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Setup Guide Card with Client Selector
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isDark) Color(0xFF070B18) else Color(0xFF1E293B),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Agent MCP Config Snippet",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                IconButton(
-                                    onClick = {
-                                        val sampleJson = when (selectedMcpClient) {
-                                            "OpenCode" -> """
-                                            {
-                                              "${'$'}schema": "https://opencode.ai/config.json",
-                                              "mcp": {
-                                                "srutam": {
-                                                  "type": "local",
-                                                  "command": ["npx", "-y", "srutam-mcp", "serve"],
-                                                  "environment": {
-                                                    "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                                  },
-                                                  "enabled": true
-                                                }
-                                              }
-                                            }
-                                            """.trimIndent()
-                                            "Zed" -> """
-                                            {
-                                              "context_servers": {
-                                                "srutam": {
-                                                  "command": {
-                                                    "path": "npx",
-                                                    "args": ["-y", "srutam-mcp", "serve"],
-                                                    "env": {
-                                                      "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                                    }
-                                                  }
-                                                }
-                                              }
-                                            }
-                                            """.trimIndent()
-                                            else -> """
-                                            {
-                                              "mcpServers": {
-                                                "srutam": {
-                                                  "command": "npx",
-                                                  "args": ["-y", "srutam-mcp", "serve"],
-                                                  "env": {
-                                                    "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                                  }
-                                                }
-                                              }
-                                            }
-                                            """.trimIndent()
-                                        }
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("$selectedMcpClient MCP Config", sampleJson))
-                                        Toast.makeText(context, "$selectedMcpClient config copied to clipboard", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy Config", tint = Color.White, modifier = Modifier.size(16.dp))
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Client Switcher Chips Row
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf("OpenCode", "Cursor", "Windsurf", "Zed", "Claude").forEach { client ->
-                                    val isSelected = selectedMcpClient == client
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSelected) CobaltBlue else (if (isDark) Color(0xFF131B2E) else Color(0xFF334155)),
-                                        modifier = Modifier.clickable { selectedMcpClient = client }
-                                    ) {
-                                        Text(
-                                            text = client,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            val configPathHint = when (selectedMcpClient) {
-                                "OpenCode" -> "opencode.json (project root or ~/.config/opencode/)"
-                                "Cursor" -> ".cursor/mcp.json or Settings > Features > MCP"
-                                "Windsurf" -> "~/.codeium/windsurf/mcp_config.json"
-                                "Zed" -> "settings.json (under context_servers)"
-                                "Claude" -> "claude_desktop_config.json"
-                                else -> "mcp_config.json"
-                            }
-
-                            Text(
-                                text = "Path: $configPathHint",
-                                fontSize = 10.5.sp,
-                                color = Color(0xFF94A3B8),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            val snippetDisplay = when (selectedMcpClient) {
-                                "OpenCode" -> """
-                                {
-                                  "${'$'}schema": "https://opencode.ai/config.json",
-                                  "mcp": {
-                                    "srutam": {
-                                      "type": "local",
-                                      "command": ["npx", "-y", "srutam-mcp", "serve"],
-                                      "environment": {
-                                        "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                      },
-                                      "enabled": true
-                                    }
-                                  }
-                                }
-                                """.trimIndent()
-                                "Zed" -> """
-                                {
-                                  "context_servers": {
-                                    "srutam": {
-                                      "command": {
-                                        "path": "npx",
-                                        "args": ["-y", "srutam-mcp", "serve"],
-                                        "env": {
-                                          "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                                """.trimIndent()
-                                else -> """
-                                {
-                                  "mcpServers": {
-                                    "srutam": {
-                                      "command": "npx",
-                                      "args": ["-y", "srutam-mcp", "serve"],
-                                      "env": {
-                                        "SRUTAM_API_KEY": "YOUR_GENERATED_KEY"
-                                      }
-                                    }
-                                  }
-                                }
-                                """.trimIndent()
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = snippetDisplay,
-                                    fontSize = 10.5.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF38BDF8),
-                                    lineHeight = 15.sp,
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .horizontalScroll(rememberScrollState())
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                text = "Recommended: run 'npx srutam-mcp init' - it verifies your key and keeps it out of IDE config files.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
-                            )
-                        }
-                    }
+                    McpSnippetCard(isDark = isDark)
                 }
             }
         } else {
@@ -662,35 +472,70 @@ fun DeveloperMcpSection(
     // Modal: Generate New API Key
     if (showGenerateKeyDialog) {
         if (generatedKeyResult == null) {
+            val nameError = ApiKeyRules.validateName(keyNameInput, apiKeys.map { it.name })
             SrutamStandardDialog(
                 onDismissRequest = { showGenerateKeyDialog = false },
                 title = "Create Agent API Key",
                 subtitle = "Label this key to recognize your IDE or laptop",
                 icon = Icons.Default.VpnKey,
                 badgeType = DialogBadgeType.PRIMARY,
-                confirmText = "Generate",
+                confirmText = if (isCreatingKey) "Creating key..." else "Generate",
                 dismissText = "Cancel",
+                confirmEnabled = nameError == null,
+                isLoading = isCreatingKey,
                 onConfirm = {
+                    // Ignore every tap after the first until the request finishes.
+                    if (isCreatingKey) return@SrutamStandardDialog
+                    if (nameError != null) {
+                        keyDialogError = nameError
+                        return@SrutamStandardDialog
+                    }
+                    isCreatingKey = true
+                    keyDialogError = null
                     scope.launch {
-                        val res = cloudClient.createApiKey(keyNameInput)
-                        if (res.isSuccess) {
-                            generatedKeyResult = res.getOrThrow()
+                        try {
+                            val res = cloudClient.createApiKey(keyNameInput)
+                            if (res.isSuccess) {
+                                generatedKeyResult = res.getOrThrow()
+                            } else {
+                                keyDialogError = when (val err = res.exceptionOrNull()) {
+                                    is ApiKeyLimitException, is ApiKeyNameException -> err.message
+                                    else -> "Could not create the key. Check your connection and try again."
+                                }
+                            }
+                        } finally {
+                            isCreatingKey = false
                             refreshKeys()
-                        } else {
-                            Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                         }
                     }
                 },
                 content = {
-                    OutlinedTextField(
-                        value = keyNameInput,
-                        onValueChange = { keyNameInput = it },
-                        label = { Text("Key Label") },
-                        placeholder = { Text("e.g. OpenCode, Cursor, Windsurf") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = keyNameInput,
+                            onValueChange = {
+                                keyNameInput = it.take(ApiKeyRules.MAX_NAME_LENGTH)
+                                keyDialogError = null
+                            },
+                            label = { Text("Key Label") },
+                            placeholder = { Text("e.g. OpenCode, Cursor, Windsurf") },
+                            singleLine = true,
+                            readOnly = isCreatingKey,
+                            isError = keyNameInput.isNotBlank() && nameError != null || keyDialogError != null,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        val hint = keyDialogError ?: if (keyNameInput.isNotBlank()) nameError else null
+                        if (hint != null) {
+                            Text(text = hint, fontSize = 12.sp, color = Color(0xFFEF4444))
+                        } else if (isCreatingKey) {
+                            Text(
+                                text = "Creating your key. This can take a few seconds.",
+                                fontSize = 12.sp,
+                                color = if (isDark) TextOnDarkSecondary else TextSecondary
+                            )
+                        }
+                    }
                 }
             )
         } else {
@@ -729,6 +574,187 @@ fun DeveloperMcpSection(
                         )
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun McpSnippetCard(isDark: Boolean) {
+    val context = LocalContext.current
+    var selectedId by remember { mutableStateOf(McpClients.all.first().id) }
+    var windows by remember { mutableStateOf(false) }
+    val client = McpClients.byId(selectedId)
+    val snippet = client.snippet(windows)
+
+    fun copyToClipboard(label: String, text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(context, "$label copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isDark) Color(0xFF070B18) else Color(0xFF1E293B),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Agent MCP Config Snippet",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                IconButton(
+                    onClick = { copyToClipboard("${client.label} config", snippet) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy config", tint = Color.White, modifier = Modifier.size(16.dp))
+                }
+            }
+
+            McpClientGroup.values().forEach { group ->
+                val clients = McpClients.all.filter { it.group == group }
+                if (clients.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = group.label.uppercase(),
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        clients.forEach { option ->
+                            val isSelected = selectedId == option.id
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) CobaltBlue else (if (isDark) Color(0xFF131B2E) else Color(0xFF334155)),
+                                modifier = Modifier.clickable { selectedId = option.id }
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "I'm on Windows (uses cmd /c npx)",
+                    fontSize = 11.sp,
+                    color = Color(0xFF94A3B8),
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = windows,
+                    onCheckedChange = { windows = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = CobaltBlue,
+                        checkedBorderColor = CobaltBlue,
+                        uncheckedThumbColor = Color(0xFF94A3B8),
+                        uncheckedTrackColor = Color(0xFF1E293B),
+                        uncheckedBorderColor = Color(0xFF475569)
+                    )
+                )
+            }
+
+            Text(
+                text = "Where: ${client.pathHint}",
+                fontSize = 10.5.sp,
+                color = Color(0xFF94A3B8)
+            )
+
+            if (client.unverified) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Not verified against the real ${client.label}. Check its docs if this does not load.",
+                    fontSize = 10.5.sp,
+                    color = Color(0xFFFBBF24)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(
+                    text = snippet,
+                    fontSize = 10.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color(0xFF38BDF8),
+                    lineHeight = 15.sp,
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .horizontalScroll(rememberScrollState())
+                )
+            }
+
+            client.cliCommand?.let { command ->
+                val commandText = command(windows)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Or run this command:", fontSize = 10.5.sp, color = Color(0xFF94A3B8))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clickable { copyToClipboard("Command", commandText) }
+                ) {
+                    Text(
+                        text = commandText,
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color(0xFF86EFAC),
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .horizontalScroll(rememberScrollState())
+                    )
+                }
+                Text(text = "Tap the command to copy it.", fontSize = 10.sp, color = Color(0xFF64748B))
+            }
+
+            client.note?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = it, fontSize = 10.5.sp, color = Color(0xFF94A3B8))
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Recommended: run 'npx srutam-mcp init'. It verifies your key and stores it once, so no key ever goes into these files.",
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8)
             )
         }
     }

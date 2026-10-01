@@ -2,7 +2,7 @@
 
 Official **Model Context Protocol (MCP)** server for [Srutam](https://srutam.space): Pure Voice, Crystallized Thought.
 
-Capture ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly search, read, and execute them directly inside your favorite AI coding agents (**OpenCode**, **Cursor**, **Windsurf**, **Zed**, **Claude Desktop**, **Antigravity**, **Cline**).
+Capture ideas, architectural brainstorms, and task lists on your phone using Srutam, and seamlessly search, read, and execute them directly inside your favorite AI coding agents (**Claude Code**, **Codex**, **Gemini CLI**, **Cursor**, **VS Code**, **Windsurf**, **OpenCode**, **Zed**, **Kiro** and more).
 
 **Requires Node.js 22 or newer.**
 
@@ -17,10 +17,18 @@ npx -y srutam-mcp init
 ```
 
 The wizard will:
-1. Prompt for your Srutam API key (Srutam app → **Settings** → **Cloud Sync & Developer Brain (MCP)** → **MCP Agent Keys** → **New Key**). Input is hidden.
-2. Validate the key against Srutam Cloud.
-3. Save it to `~/.srutam/config.json` (owner-only permissions on macOS/Linux).
-4. Add a `srutam` entry to the IDE configs it finds on your machine (Cursor, Windsurf, OpenCode, Claude Desktop, Antigravity, Zed, Cline). **Your API key is never written into those files.** Existing settings, comments and formatting are preserved, and a file the wizard cannot parse is left untouched.
+1. Reuse your saved key if there is one, or ask for a new one (Srutam app → **Settings** → **Cloud Sync & Developer Brain (MCP)** → **MCP Agent Keys** → **New Key**). Input is hidden.
+2. Validate the key against Srutam Cloud and save it to `~/.srutam/config.json` (owner-only permissions on macOS/Linux).
+3. Show every supported assistant, mark the ones it finds on your machine, and add a `srutam` entry to the ones you pick (default: all detected). **Your API key is never written into those files.** Existing settings, comments and formatting are preserved, and a file the wizard cannot parse is left untouched.
+
+Supported: **Claude Code, OpenAI Codex, Gemini CLI, Cursor, VS Code / GitHub Copilot, Windsurf, OpenCode, Claude Desktop, Zed, Kiro, Qwen Code, Crush, Amp, GitHub Copilot CLI, Cline, Antigravity**, plus printable snippets for Goose, Continue and JetBrains.
+
+Non-interactive, for scripts and dotfiles:
+
+```bash
+npx -y srutam-mcp init --client codex,claude-code,gemini --yes   # uses the saved key; "all" = every detected client
+npx -y srutam-mcp print-config codex                             # print one client's snippet (add --windows for the Windows launcher)
+```
 
 ---
 
@@ -36,8 +44,11 @@ npx srutam-mcp serve
 # Test cloud connectivity
 npx srutam-mcp status
 
-# Reconfigure or link a new IDE
+# Reconfigure or link another assistant
 npx srutam-mcp init
+
+# Print a config snippet
+npx srutam-mcp print-config codex
 
 # Disconnect and clear saved credentials
 npx srutam-mcp logout
@@ -50,13 +61,25 @@ npx srutam-mcp --help
 
 ## 🛠 Manual Configuration
 
-`srutam-mcp init` is the recommended path. To configure by hand, first save your key once with `npx srutam-mcp init` (or create `~/.srutam/config.json` containing `{ "apiKey": "srtm_live_..." }`), then add the launch entry below. **No key belongs in the IDE file.**
+`srutam-mcp init` is the recommended path. To configure by hand, first save your key once with `npx srutam-mcp init` (or create `~/.srutam/config.json` containing `{ "apiKey": "srtm_live_..." }`), then add the launch entry for your assistant. **No key belongs in these files.** `npx srutam-mcp print-config <client>` prints the exact snippet.
 
-On **Windows**, use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "srutam-mcp@1", "serve"]` (most clients cannot start `npx` directly).
+On **Windows**, most clients cannot start `npx` directly: use `"command": "cmd"` with `"args": ["/c", "npx", "-y", "srutam-mcp@1", "serve"]` (`print-config --windows` does this for you).
 
-### Standard `mcpServers` clients
+| Client | Where | Format |
+| :--- | :--- | :--- |
+| **Claude Code** | run `claude mcp add --scope user srutam -- npx -y srutam-mcp@1 serve` | CLI (stored in `~/.claude.json`) |
+| **OpenAI Codex** | `~/.codex/config.toml` (`codex mcp add srutam -- npx -y srutam-mcp@1 serve` also works) | TOML `[mcp_servers.srutam]` |
+| **Gemini CLI**, **Qwen Code**, **Kiro**, **Cursor**, **Windsurf**, **Claude Desktop**, **Cline**, **Antigravity***, **Copilot CLI*** | `~/.gemini/settings.json`, `~/.qwen/settings.json`, `~/.kiro/settings/mcp.json`, `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`, `claude_desktop_config.json`, Cline's `cline_mcp_settings.json`, ... | JSON `mcpServers` |
+| **VS Code / GitHub Copilot** | `.vscode/mcp.json` or *MCP: Open User Configuration* | JSON `servers` with `"type": "stdio"` |
+| **OpenCode** | `~/.config/opencode/opencode.json` | JSON `mcp` with `"type": "local"` |
+| **Zed** | `settings.json` | JSON `context_servers` |
+| **Crush** | `~/.config/crush/crush.json` | JSON `mcp` with `"type": "stdio"` |
+| **Amp*** | `~/.config/amp/settings.json` | JSON `amp.mcpServers` |
+| **Goose**, **Continue**, **JetBrains** | see `print-config goose` etc. | snippet only |
 
-Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.codeium/windsurf/mcp_config.json`), Claude Desktop (`claude_desktop_config.json`), Antigravity, and Cline / Roo Code (`cline_mcp_settings.json`) all use:
+* format not verified against the real application; check its docs if the server does not load.
+
+The standard entry looks like this:
 
 ```json
 {
@@ -69,57 +92,11 @@ Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.codeium/windsurf/mcp_config.json`),
 }
 ```
 
-### OpenCode (`~/.config/opencode/opencode.json`)
+Tip: the first start downloads the package via `npx`, which can exceed a client's default startup timeout. The Codex entry sets `startup_timeout_sec = 60`; for Claude Code set `MCP_TIMEOUT=60000` if the first start fails.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "srutam": {
-      "type": "local",
-      "command": ["npx", "-y", "srutam-mcp@1", "serve"],
-      "enabled": true
-    }
-  }
-}
-```
+### When the client cannot see `~/.srutam/config.json`
 
-### Zed Editor (`settings.json`)
-
-```json
-{
-  "context_servers": {
-    "srutam": {
-      "command": {
-        "path": "npx",
-        "args": ["-y", "srutam-mcp@1", "serve"]
-      }
-    }
-  }
-}
-```
-
-### Continue.dev (`~/.continue/config.json`)
-
-```json
-{
-  "experimental": {
-    "modelContextProtocolServers": [
-      {
-        "transport": {
-          "type": "stdio",
-          "command": "npx",
-          "args": ["-y", "srutam-mcp@1", "serve"]
-        }
-      }
-    ]
-  }
-}
-```
-
-### When the IDE cannot see `~/.srutam/config.json`
-
-WSL, dev containers and remote SSH sessions run the server in a different environment than the one where you ran `init`. In that case, pass the key through the environment for that entry instead:
+WSL, dev containers and remote SSH sessions run the server in a different environment than the one where you ran `init`. Pass the key through the environment for that entry instead:
 
 ```json
 "env": { "SRUTAM_API_KEY": "srtm_live_your_key_here" }

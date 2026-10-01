@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "c713f7a0c79697a7560a8f9dbe2ed623",
+    "identityHash": "3a5076af60f16c8a0b959b860b7059c1",
     "entities": [
       {
         "tableName": "recordings",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `audioFilePath` TEXT NOT NULL, `duration` INTEGER NOT NULL, `name` TEXT NOT NULL, `transcript` TEXT, `summary` TEXT, `keyPoints` TEXT, `actionItems` TEXT, `wiifm` TEXT, `aiStatus` TEXT NOT NULL, `isProcessing` INTEGER NOT NULL, `processingError` TEXT, `syncStatus` TEXT NOT NULL, `isPrivate` INTEGER NOT NULL, `cloudId` TEXT, `lastSyncedAt` INTEGER, `recordedZoneId` TEXT, `insightsImported` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `audioFilePath` TEXT NOT NULL, `duration` INTEGER NOT NULL, `name` TEXT NOT NULL, `transcript` TEXT, `summary` TEXT, `keyPoints` TEXT, `actionItems` TEXT, `wiifm` TEXT, `aiStatus` TEXT NOT NULL, `isProcessing` INTEGER NOT NULL, `processingError` TEXT, `recordedZoneId` TEXT, `insightsImported` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -84,30 +84,6 @@
             "fieldPath": "processingError",
             "columnName": "processingError",
             "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "syncStatus",
-            "columnName": "syncStatus",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "isPrivate",
-            "columnName": "isPrivate",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "cloudId",
-            "columnName": "cloudId",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "lastSyncedAt",
-            "columnName": "lastSyncedAt",
-            "affinity": "INTEGER",
             "notNull": false
           },
           {
@@ -564,7 +540,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c713f7a0c79697a7560a8f9dbe2ed623')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3a5076af60f16c8a0b959b860b7059c1')"
     ]
   }
 }
