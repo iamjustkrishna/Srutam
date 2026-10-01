@@ -417,7 +417,7 @@ fun DeveloperMcpSection(
                         }
                     } else if (apiKeys.isEmpty()) {
                         Text(
-                            text = "No active API keys. Generate one to connect your IDE coding agents.",
+                            text = "No computers connected yet. Run srutam-mcp init on your computer and scan the code.",
                             fontSize = 12.sp,
                             color = if (isDark) TextOnDarkSecondary else TextSecondary,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -492,7 +492,7 @@ fun DeveloperMcpSection(
                             tint = if (isDark) TextOnDarkSecondary else TextSecondary
                         )
                         Text(
-                            text = "On your computer:  npx -y srutam-mcp init",
+                            text = "npx -y srutam-mcp init",
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
                             color = if (isDark) TextOnDarkSecondary else TextSecondary,
