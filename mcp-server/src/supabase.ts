@@ -39,6 +39,29 @@ export interface AgentLogRecord {
   created_at: string;
 }
 
+export interface InsightRecord {
+  id: string;
+  note_id: string;
+  kind: 'idea' | 'decision';
+  text: string;
+  evidence: string | null;
+  rationale: string | null;
+  created_at: string;
+}
+
+export interface ReminderRecord {
+  id: string;
+  note_id: string;
+  title: string;
+  event_time: string | null;
+  original_text: string | null;
+  person: string | null;
+  location: string | null;
+  type: string | null;
+  status: string;
+  created_at: string;
+}
+
 export interface CloudStatus {
   userId: string;
   noteCount: number;
@@ -161,6 +184,48 @@ export class SrutamClient {
 
     const data = await this.rpc<ActionItemRecord[]>('mcp_list_action_items', {
       p_status: status,
+      p_limit: boundedLimit,
+    });
+
+    const items = Array.isArray(data) ? data : [];
+    this.readCache.set(cacheKey, items, 20);
+    return items;
+  }
+
+  async listInsights(
+    kind: 'all' | 'idea' | 'decision' = 'all',
+    limit: number = 20
+  ): Promise<InsightRecord[]> {
+    this.guard();
+    const boundedLimit = Math.max(1, Math.min(limit, 50));
+
+    const cacheKey = `insights:${kind}:${boundedLimit}`;
+    const cached = this.readCache.get(cacheKey);
+    if (cached) return cached;
+
+    const data = await this.rpc<InsightRecord[]>('mcp_list_insights', {
+      p_kind: kind,
+      p_limit: boundedLimit,
+    });
+
+    const items = Array.isArray(data) ? data : [];
+    this.readCache.set(cacheKey, items, 20);
+    return items;
+  }
+
+  async listReminders(
+    upcomingOnly: boolean = true,
+    limit: number = 20
+  ): Promise<ReminderRecord[]> {
+    this.guard();
+    const boundedLimit = Math.max(1, Math.min(limit, 50));
+
+    const cacheKey = `reminders:${upcomingOnly}:${boundedLimit}`;
+    const cached = this.readCache.get(cacheKey);
+    if (cached) return cached;
+
+    const data = await this.rpc<ReminderRecord[]>('mcp_list_reminders', {
+      p_upcoming_only: upcomingOnly,
       p_limit: boundedLimit,
     });
 

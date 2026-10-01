@@ -6,6 +6,8 @@ import { getNoteDetailSchema, handleGetNoteDetail } from '../src/tools/getNoteDe
 import { listActionItemsSchema, handleListActionItems } from '../src/tools/listActionItems.js';
 import { updateActionItemSchema, handleUpdateActionItem } from '../src/tools/updateActionItem.js';
 import { appendAgentLogSchema, handleAppendAgentLog } from '../src/tools/appendAgentLog.js';
+import { listInsightsSchema, handleListInsights } from '../src/tools/listInsights.js';
+import { listRemindersSchema, handleListReminders } from '../src/tools/listReminders.js';
 import { UNTRUSTED_TAG } from '../src/tools/format.js';
 import { SrutamClient } from '../src/supabase.js';
 
@@ -49,6 +51,24 @@ describe('MCP Tools Schema Validation', () => {
     expect(schema.safeParse({ status: 'invalid_status' }).success).toBe(false);
   });
 
+  it('validates listInsights arguments', () => {
+    const schema = z.object(listInsightsSchema);
+    expect(schema.safeParse({}).success).toBe(true);
+    expect(schema.safeParse({ kind: 'idea' }).success).toBe(true);
+    expect(schema.safeParse({ kind: 'decision', limit: 5 }).success).toBe(true);
+    expect(schema.safeParse({ kind: 'action' }).success).toBe(false);
+    expect(schema.safeParse({ limit: 0 }).success).toBe(false);
+    expect(schema.safeParse({ limit: 51 }).success).toBe(false);
+  });
+
+  it('validates listReminders arguments', () => {
+    const schema = z.object(listRemindersSchema);
+    expect(schema.safeParse({}).success).toBe(true);
+    expect(schema.safeParse({ upcoming_only: false }).success).toBe(true);
+    expect(schema.safeParse({ upcoming_only: 'yes' }).success).toBe(false);
+    expect(schema.safeParse({ limit: 51 }).success).toBe(false);
+  });
+
   it('validates updateActionItem arguments', () => {
     const schema = z.object(updateActionItemSchema);
     expect(schema.safeParse({ action_item_id: ITEM_ID, completed: true }).success).toBe(true);
@@ -74,6 +94,8 @@ describe('MCP Tools Handlers with Mock Client', () => {
     listActionItems: vi.fn(),
     updateActionItem: vi.fn(),
     appendAgentLog: vi.fn(),
+    listInsights: vi.fn(),
+    listReminders: vi.fn(),
   } as unknown as SrutamClient;
 
   // Shaped exactly like a row returned by the mcp_search_notes RPC (no transcript).
@@ -184,6 +206,50 @@ describe('MCP Tools Handlers with Mock Client', () => {
     expect(response.content[0].text).toContain(ITEM_ID);
   });
 
+  it('handleListInsights formats ideas and decisions, with rationale shown', async () => {
+    (mockClient.listInsights as any).mockResolvedValueOnce([
+      { id: ITEM_ID, note_id: NOTE_ID, kind: 'idea', text: 'Try a BLE clicker', evidence: null, rationale: null, created_at: '2026-09-30T10:00:00Z' },
+      { id: ITEM_ID_2, note_id: NOTE_ID, kind: 'decision', text: 'Use Postgres', evidence: null, rationale: 'Already running Supabase', created_at: '2026-09-30T10:05:00Z' },
+    ]);
+
+    const response = await handleListInsights(mockClient, { kind: 'all' });
+    expect(response.content[0].text).toContain('Try a BLE clicker');
+    expect(response.content[0].text).toContain('Use Postgres');
+    expect(response.content[0].text).toContain('Already running Supabase');
+    expect(response.content[0].text).toContain(ITEM_ID);
+  });
+
+  it('handleListInsights reports an empty, kind-specific message', async () => {
+    (mockClient.listInsights as any).mockResolvedValueOnce([]);
+    const response = await handleListInsights(mockClient, { kind: 'decision' });
+    expect(response.content[0].text).toContain('No decision insights found');
+  });
+
+  it('handleListReminders formats upcoming reminders with person/location', async () => {
+    (mockClient.listReminders as any).mockResolvedValueOnce([
+      {
+        id: ITEM_ID, note_id: NOTE_ID, title: 'Call with Priya', event_time: '2026-10-05T14:00:00Z',
+        original_text: 'call Priya next week', person: 'Priya', location: null, type: 'CALL', status: 'ACTIVE',
+        created_at: '2026-09-30T10:00:00Z',
+      },
+    ]);
+
+    const response = await handleListReminders(mockClient, { upcoming_only: true });
+    expect(response.content[0].text).toContain('Call with Priya');
+    expect(response.content[0].text).toContain('Priya');
+    expect(response.content[0].text).toContain('read-only');
+  });
+
+  it('handleListReminders reports an empty-upcoming message distinct from empty-all', async () => {
+    (mockClient.listReminders as any).mockResolvedValueOnce([]);
+    const upcoming = await handleListReminders(mockClient, { upcoming_only: true });
+    expect(upcoming.content[0].text).toContain('No upcoming reminders');
+
+    (mockClient.listReminders as any).mockResolvedValueOnce([]);
+    const all = await handleListReminders(mockClient, { upcoming_only: false });
+    expect(all.content[0].text).toBe('No reminders found in your Srutam account.');
+  });
+
   it('handleUpdateActionItem confirms update', async () => {
     (mockClient.updateActionItem as any).mockResolvedValueOnce({
       id: ITEM_ID,
@@ -221,6 +287,8 @@ describe('Prompt-injection hardening of tool output', () => {
     searchNotes: vi.fn(),
     getNoteDetail: vi.fn(),
     listActionItems: vi.fn(),
+    listInsights: vi.fn(),
+    listReminders: vi.fn(),
   } as unknown as SrutamClient;
 
   const closing = `</${UNTRUSTED_TAG}>`;
@@ -265,6 +333,22 @@ describe('Prompt-injection hardening of tool output', () => {
       { id: ITEM_ID, note_id: NOTE_ID, description: attack, is_completed: false },
     ]);
     const { content } = await handleListActionItems(mockClient, {});
+    expect(count(content[0].text, closing)).toBe(1);
+  });
+
+  it('fences insight text and rationale as untrusted', async () => {
+    (mockClient.listInsights as any).mockResolvedValueOnce([
+      { id: ITEM_ID, note_id: NOTE_ID, kind: 'idea', text: attack, evidence: null, rationale: attack, created_at: '2026-09-30T10:00:00Z' },
+    ]);
+    const { content } = await handleListInsights(mockClient, {});
+    expect(count(content[0].text, closing)).toBe(1);
+  });
+
+  it('fences reminder fields as untrusted', async () => {
+    (mockClient.listReminders as any).mockResolvedValueOnce([
+      { id: ITEM_ID, note_id: NOTE_ID, title: attack, event_time: null, original_text: attack, person: attack, location: null, type: null, status: 'ACTIVE', created_at: '2026-09-30T10:00:00Z' },
+    ]);
+    const { content } = await handleListReminders(mockClient, { upcoming_only: false });
     expect(count(content[0].text, closing)).toBe(1);
   });
 });

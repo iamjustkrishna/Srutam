@@ -14,6 +14,8 @@ import { getNoteDetailSchema, handleGetNoteDetail } from './tools/getNoteDetail.
 import { listActionItemsSchema, handleListActionItems } from './tools/listActionItems.js';
 import { updateActionItemSchema, handleUpdateActionItem } from './tools/updateActionItem.js';
 import { appendAgentLogSchema, handleAppendAgentLog } from './tools/appendAgentLog.js';
+import { listInsightsSchema, handleListInsights } from './tools/listInsights.js';
+import { listRemindersSchema, handleListReminders } from './tools/listReminders.js';
 
 // NOTE: in `serve` mode stdout carries the JSON-RPC stream. Nothing on that path may console.log();
 // diagnostics go to stderr. Human-facing output (help/status/dashboard/wizard) is CLI-only.
@@ -125,6 +127,8 @@ async function showInteractiveDashboard(): Promise<void> {
   console.log('  • list_action_items     - List pending tasks across voice memos');
   console.log('  • update_action_item    - Mark task as completed (syncs to phone)');
   console.log('  • append_agent_work_log - Attach commit message or work log to note');
+  console.log('  • list_insights         - List ideas and decisions from voice memos');
+  console.log('  • list_reminders        - List upcoming meetings, deadlines, and calls');
 
   console.log('\nCLI Commands:');
   console.log('  srutam-mcp init         Re-run setup wizard for another IDE');
@@ -201,6 +205,22 @@ async function startServer(): Promise<void> {
     'Attach an implementation note, git commit reference, or work log to a specific Srutam voice note.',
     appendAgentLogSchema,
     async (args) => handleAppendAgentLog(client, args)
+  );
+
+  // Tool 7: list_insights
+  server.tool(
+    'list_insights',
+    'List ideas and decisions captured in Srutam voice notes, filtered by kind. Distinct from action items: these are things to consider or that were already decided, not tasks to do.',
+    listInsightsSchema,
+    async (args) => handleListInsights(client, args)
+  );
+
+  // Tool 8: list_reminders
+  server.tool(
+    'list_reminders',
+    'List reminders (meetings, deadlines, calls, milestones) captured in Srutam voice notes. Read-only: reminders are managed from the Srutam app, not from MCP.',
+    listRemindersSchema,
+    async (args) => handleListReminders(client, args)
   );
 
   const transport = new StdioServerTransport();

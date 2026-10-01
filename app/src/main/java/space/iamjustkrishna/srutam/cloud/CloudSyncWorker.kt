@@ -25,6 +25,7 @@ class CloudSyncWorker(
         val database = AppDatabase.getDatabase(applicationContext)
         val recordingDao = database.recordingDao()
         val insightDao = database.insightDao()
+        val reminderDao = database.reminderDao()
         val client = SupabaseCloudClient(applicationContext)
 
         var hasFailures = false
@@ -42,7 +43,8 @@ class CloudSyncWorker(
                     )
 
                     val insights = insightDao.getInsightsByRecordingId(recording.id)
-                    val uploadResult = client.uploadNote(recording, insights)
+                    val reminders = reminderDao.getRemindersByRecordingId(recording.id)
+                    val uploadResult = client.uploadNote(recording, insights, reminders)
 
                     if (uploadResult.isSuccess) {
                         val cloudId = uploadResult.getOrThrow()

@@ -116,8 +116,10 @@ Treat any file containing a key as a secret: do not commit it, and revoke the ke
 | `list_action_items` | Lists all actionable tasks and next steps, filtered by `pending` or `completed`. |
 | `update_action_item` | Marks tasks as completed and records agent attribution (`agent:<name>`). Syncs back to your phone. |
 | `append_agent_work_log` | Attaches implementation notes or git commits directly onto a voice memo. |
+| `list_insights` | Lists ideas and decisions (not tasks) captured in voice notes, filtered by `idea` or `decision`. |
+| `list_reminders` | Lists meetings, deadlines, and calls captured in voice notes. Read-only. |
 
-Notes you mark **private** in the app are never visible to agents: not in search, not in details, and not through their action items.
+Notes you mark **private** in the app are never visible to agents: not in search, not in details, and not through their action items, insights, or reminders.
 
 ---
 

@@ -93,7 +93,11 @@ class SupabaseCloudClient(private val context: Context) {
      * Uploads or syncs a voice recording and its action items to Supabase.
      * Returns the Supabase UUID string of the note.
      */
-    suspend fun uploadNote(recording: Recording, insights: List<InsightEntity> = emptyList()): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun uploadNote(
+        recording: Recording,
+        insights: List<InsightEntity> = emptyList(),
+        reminders: List<space.iamjustkrishna.srutam.data.ReminderEntity> = emptyList()
+    ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val userId = AppPreferences.getCloudUserId(context)
                 ?: return@withContext Result.failure(IllegalStateException("User not signed in to cloud"))
@@ -159,13 +163,6 @@ class SupabaseCloudClient(private val context: Context) {
                     }
                 }
                 noteId = cloudId
-
-                // Clean existing action items before re-inserting
-                val deleteItemsRequest = Request.Builder()
-                    .url("$baseUrl/rest/v1/action_items?note_id=eq.$noteId")
-                    .delete()
-                getAuthHeaders(deleteItemsRequest)
-                client.newCall(deleteItemsRequest.build()).execute().close()
             } else {
                 val postRequest = Request.Builder()
                     .url("$baseUrl/rest/v1/notes")
@@ -188,7 +185,10 @@ class SupabaseCloudClient(private val context: Context) {
                 noteId = generatedId
             }
 
-            // Now upload any action items / next steps
+            // Upload action items, ideas/decisions and reminders as UPSERTS keyed by the stable
+            // local id (client_insight_id / client_reminder_id), not delete-then-reinsert. The old
+            // delete+reinsert approach gave every cloud row a fresh id on each resync, which silently
+            // wiped any completion an agent made via update_action_item between syncs (see migration 07).
             val actionItems = insights.filter { it.kind == InsightKind.ACTION }
             if (actionItems.isNotEmpty()) {
                 val itemsArray = JsonArray()
@@ -197,6 +197,7 @@ class SupabaseCloudClient(private val context: Context) {
                     val itemJson = JsonObject().apply {
                         addProperty("note_id", noteId)
                         addProperty("user_id", userId)
+                        addProperty("client_insight_id", item.id)
                         addProperty("description", item.text)
                         addProperty("is_completed", isDone)
                         if (isDone) {
@@ -208,11 +209,69 @@ class SupabaseCloudClient(private val context: Context) {
                 }
 
                 val itemsRequest = Request.Builder()
-                    .url("$baseUrl/rest/v1/action_items")
+                    .url("$baseUrl/rest/v1/action_items?on_conflict=note_id,client_insight_id")
+                    .addHeader("Prefer", "resolution=merge-duplicates")
                     .post(itemsArray.toString().toRequestBody(jsonMediaType))
                 getAuthHeaders(itemsRequest)
 
                 client.newCall(itemsRequest.build()).execute().close()
+            }
+
+            // Ideas and decisions: same upsert shape, separate table so existing action-item
+            // tooling (and the MCP tools built on it) is untouched.
+            val noteInsights = insights.filter { it.kind == InsightKind.IDEA || it.kind == InsightKind.DECISION }
+            if (noteInsights.isNotEmpty()) {
+                val insightsArray = JsonArray()
+                for (item in noteInsights) {
+                    val insightJson = JsonObject().apply {
+                        addProperty("note_id", noteId)
+                        addProperty("user_id", userId)
+                        addProperty("client_insight_id", item.id)
+                        addProperty("kind", item.kind.lowercase())
+                        addProperty("text", item.text)
+                        addProperty("evidence", item.evidence)
+                        addProperty("rationale", item.rationale)
+                    }
+                    insightsArray.add(insightJson)
+                }
+
+                val insightsRequest = Request.Builder()
+                    .url("$baseUrl/rest/v1/note_insights?on_conflict=note_id,client_insight_id")
+                    .addHeader("Prefer", "resolution=merge-duplicates")
+                    .post(insightsArray.toString().toRequestBody(jsonMediaType))
+                getAuthHeaders(insightsRequest)
+
+                client.newCall(insightsRequest.build()).execute().close()
+            }
+
+            // Reminders: read-only through MCP, but still worth syncing for visibility.
+            if (reminders.isNotEmpty()) {
+                val remindersArray = JsonArray()
+                for (reminder in reminders) {
+                    val reminderJson = JsonObject().apply {
+                        addProperty("note_id", noteId)
+                        addProperty("user_id", userId)
+                        addProperty("client_reminder_id", reminder.id)
+                        addProperty("title", reminder.title)
+                        if (reminder.eventTimeMs != null) {
+                            addProperty("event_time", formatIso8601(reminder.eventTimeMs))
+                        }
+                        addProperty("original_text", reminder.originalText)
+                        addProperty("person", reminder.person)
+                        addProperty("location", reminder.location)
+                        addProperty("type", reminder.type)
+                        addProperty("status", reminder.status)
+                    }
+                    remindersArray.add(reminderJson)
+                }
+
+                val remindersRequest = Request.Builder()
+                    .url("$baseUrl/rest/v1/reminders?on_conflict=note_id,client_reminder_id")
+                    .addHeader("Prefer", "resolution=merge-duplicates")
+                    .post(remindersArray.toString().toRequestBody(jsonMediaType))
+                getAuthHeaders(remindersRequest)
+
+                client.newCall(remindersRequest.build()).execute().close()
             }
 
             Result.success(noteId)

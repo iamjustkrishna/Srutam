@@ -1,6 +1,6 @@
 {
   "name": "srutam-mcp",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Model Context Protocol (MCP) server for Srutam - fetch voice notes, ideas, and action items inside AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, VS Code, Windsurf, OpenCode, Zed, Kiro and more)",
   "main": "dist/index.js",
   "bin": {
