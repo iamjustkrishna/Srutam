@@ -284,7 +284,7 @@ async function main(): Promise<void> {
   }
 
   if (command === 'logout' || command === 'reset') {
-    runLogout();
+    await runLogout({ local: args.includes('--local') });
     return;
   }
 

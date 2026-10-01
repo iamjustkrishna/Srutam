@@ -418,4 +418,94 @@ class SupabaseCloudClient(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    // ---- QR pairing -------------------------------------------------------------------------
+    //
+    // The computer generates its own key and only ever sends sha256(key). These two calls let the
+    // phone look at a pending request and, once the user confirms, register that hash under this
+    // account. Both run as `authenticated`: the server takes the user from auth.uid(), never from
+    // a parameter we could get wrong.
+
+    /** Calls an RPC with the signed-in user's token, refreshing the session once on 401/403. */
+    private suspend fun callAuthedRpc(fn: String, body: JsonObject): Pair<Int, String> {
+        fun build(): Request = Request.Builder()
+            .url("$baseUrl/rest/v1/rpc/$fn")
+            .post(body.toString().toRequestBody(jsonMediaType))
+            .also { getAuthHeaders(it) }
+            .build()
+
+        var response = client.newCall(build()).execute()
+        if (!response.isSuccessful && (response.code == 401 || response.code == 403)) {
+            response.close()
+            if (SupabaseAuthManager(context).refreshSession().isSuccess) {
+                response = client.newCall(build()).execute()
+            } else {
+                return 401 to ""
+            }
+        }
+        return response.use { it.code to (it.body?.string() ?: "") }
+    }
+
+    /**
+     * Looks up a scanned code without changing anything, so the user can see which computer is
+     * asking before approving. A wrong or expired code counts towards the server's lockout.
+     */
+    suspend fun pairPreview(code: String): Result<PairingPreview> = withContext(Dispatchers.IO) {
+        try {
+            val normalized = PairingRules.normalizeCode(code)
+            val (status, body) = callAuthedRpc("mcp_pair_preview", JsonObject().apply {
+                addProperty("p_code", normalized)
+            })
+            if (status !in 200..299) return@withContext Result.failure(PairingRules.errorForHttp(status, body))
+
+            val json = JsonParser.parseString(body).asJsonObject
+            if (!json.get("ok").asBoolean) {
+                val retry = json.get("retryAfterSeconds")?.takeIf { !it.isJsonNull }?.asInt
+                return@withContext Result.failure(
+                    PairingRules.errorFor(json.get("error")?.takeIf { !it.isJsonNull }?.asString, retry)
+                )
+            }
+            Result.success(
+                PairingPreview(
+                    label = json.get("label").asString,
+                    platform = json.get("platform")?.takeIf { !it.isJsonNull }?.asString,
+                    clientVersion = json.get("clientVersion")?.takeIf { !it.isJsonNull }?.asString,
+                    keyPrefix = json.get("keyPrefix")?.takeIf { !it.isJsonNull }?.asString,
+                    expiresAt = json.get("expiresAt")?.takeIf { !it.isJsonNull }?.asString
+                )
+            )
+        } catch (e: PairingException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(PairingException(PairingError.OFFLINE, "No connection. Check your network and try again."))
+        }
+    }
+
+    /**
+     * Approves a pairing: the server creates the API key for this account from the hash the
+     * computer registered. The 3-key quota and unique-name rules still apply and surface here.
+     */
+    suspend fun pairApprove(code: String, name: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val normalized = PairingRules.normalizeCode(code)
+            val (status, body) = callAuthedRpc("mcp_pair_approve", JsonObject().apply {
+                addProperty("p_code", normalized)
+                addProperty("p_name", ApiKeyRules.normalizeName(name))
+            })
+            if (status !in 200..299) return@withContext Result.failure(PairingRules.errorForHttp(status, body))
+
+            val json = JsonParser.parseString(body).asJsonObject
+            if (!json.get("ok").asBoolean) {
+                val retry = json.get("retryAfterSeconds")?.takeIf { !it.isJsonNull }?.asInt
+                return@withContext Result.failure(
+                    PairingRules.errorFor(json.get("error")?.takeIf { !it.isJsonNull }?.asString, retry)
+                )
+            }
+            Result.success(json.get("keyName")?.takeIf { !it.isJsonNull }?.asString ?: name)
+        } catch (e: PairingException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(PairingException(PairingError.OFFLINE, "No connection. Check your network and try again."))
+        }
+    }
 }

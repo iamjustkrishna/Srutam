@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.saveable.rememberSaveable
+import space.iamjustkrishna.srutam.cloud.PairingError
+import space.iamjustkrishna.srutam.cloud.PairingException
+import space.iamjustkrishna.srutam.cloud.PairingRules
 import space.iamjustkrishna.srutam.cloud.ApiKeyItem
 import space.iamjustkrishna.srutam.cloud.ApiKeyLimitException
 import space.iamjustkrishna.srutam.cloud.ApiKeyNameException
@@ -85,6 +89,106 @@ fun DeveloperMcpSection(
             }
         }
     }
+
+    // ---- QR pairing state ----------------------------------------------------------------
+    // Survives rotation and backgrounding, so a half-finished pairing is not silently lost.
+    var pairingState by rememberSaveable(
+        stateSaver = androidx.compose.runtime.saveable.Saver(
+            save = { state -> if (state is PairingUiState.EnteringCode) state.code else "" },
+            restore = { code -> if ((code as String).isEmpty()) PairingUiState.Idle else PairingUiState.EnteringCode(code) }
+        )
+    ) { mutableStateOf<PairingUiState>(PairingUiState.Idle) }
+    // Single-flight guard, same reasoning as key creation: set before any coroutine starts.
+    var isPairing by remember { mutableStateOf(false) }
+
+    /** Looks a scanned or typed code up, then shows the confirmation sheet. */
+    fun previewCode(code: String) {
+        if (isPairing) return
+        isPairing = true
+        pairingState = PairingUiState.EnteringCode(code = code, busy = true)
+        scope.launch {
+            val result = cloudClient.pairPreview(code)
+            isPairing = false
+            result.fold(
+                onSuccess = { preview ->
+                    pairingState = PairingUiState.Confirming(
+                        code = code,
+                        preview = preview,
+                        name = preview.label
+                    )
+                },
+                onFailure = { error ->
+                    val message = error.message ?: "Could not read that code."
+                    // A bad code keeps the entry sheet open so the user can correct it; anything
+                    // else is a dead end, so it closes with a toast.
+                    val pairingError = (error as? PairingException)?.error
+                    if (pairingError == PairingError.INVALID_CODE || pairingError == PairingError.NOT_A_SRUTAM_CODE) {
+                        pairingState = PairingUiState.EnteringCode(code = code, error = message)
+                    } else {
+                        pairingState = PairingUiState.Idle
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
+        }
+    }
+
+    fun startScan() {
+        if (isPairing) return
+        CodeScannerLauncher.scan(
+            context = context,
+            onResult = { raw ->
+                try {
+                    previewCode(PairingRules.parseScanned(raw))
+                } catch (e: PairingException) {
+                    Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
+                }
+            },
+            onUnavailable = {
+                // No Play Services (or the scanner failed): typing the code always works.
+                Toast.makeText(context, "Scanner unavailable - enter the code instead.", Toast.LENGTH_SHORT).show()
+                pairingState = PairingUiState.EnteringCode()
+            },
+            onCancelled = { }
+        )
+    }
+
+    /** Approves the pairing after the device-credential check. */
+    fun approvePairing(state: PairingUiState.Confirming) {
+        if (isPairing) return
+        val nameError = ApiKeyRules.validateName(state.name, apiKeys.map { it.name })
+        if (nameError != null) {
+            pairingState = state.copy(error = nameError)
+            return
+        }
+        PairingConfirmGate.confirm(
+            context = context,
+            onConfirmed = {
+                if (isPairing) return@confirm
+                isPairing = true
+                pairingState = state.copy(busy = true, error = null)
+                scope.launch {
+                    val result = cloudClient.pairApprove(state.code, state.name)
+                    isPairing = false
+                    result.fold(
+                        onSuccess = { keyName ->
+                            pairingState = PairingUiState.Idle
+                            Toast.makeText(context, "Connected \"$keyName\"", Toast.LENGTH_SHORT).show()
+                            refreshKeys()
+                        },
+                        onFailure = { error ->
+                            pairingState = state.copy(busy = false, error = error.message ?: "Could not connect.")
+                        }
+                    )
+                }
+            },
+            onDenied = { message ->
+                if (message.isNotBlank()) Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+
 
     LaunchedEffect(isSignedIn) {
         refreshKeys()
@@ -278,31 +382,32 @@ fun DeveloperMcpSection(
                             )
                         }
 
-                        Button(
-                            onClick = {
-                                if (apiKeys.size >= 3) {
-                                    Toast.makeText(context, "Maximum 3 keys allowed. Please revoke an old key first.", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    keyNameInput = ""
-                                    keyDialogError = null
-                                    showGenerateKeyDialog = true
-                                }
-                            },
-                            enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isCreatingKey,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = CobaltBlue,
-                                disabledContainerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0),
-                                disabledContentColor = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("New Key", fontSize = 11.sp)
-                        }
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    ConnectComputerCard(
+                        isDark = isDark,
+                        enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isPairing,
+                        onScanRequested = { startScan() },
+                        onEnterCodeRequested = { pairingState = PairingUiState.EnteringCode() }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Manual key creation stays available but secondary: it is the only route for
+                    // WSL, dev containers and SSH boxes, which have no screen to scan from.
+                    Text(
+                        text = "Create key manually",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (apiKeys.size >= ApiKeyRules.MAX_ACTIVE_KEYS) (if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)) else CobaltBlue,
+                        modifier = Modifier.clickable(enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isCreatingKey) {
+                            keyNameInput = ""
+                            keyDialogError = null
+                            showGenerateKeyDialog = true
+                        }
+                    )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -366,9 +471,42 @@ fun DeveloperMcpSection(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    McpSnippetCard(isDark = isDark)
+                    // srutam-mcp init configures every supported client itself, so the long
+                    // per-client snippet card this screen used to carry is gone. One command is
+                    // all a user needs, and it keeps anyone whose CLI predates pairing unstuck.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Srutam MCP setup", "npx -y srutam-mcp init"))
+                            Toast.makeText(context, "Command copied", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Terminal,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isDark) TextOnDarkSecondary else TextSecondary
+                        )
+                        Text(
+                            text = "On your computer:  npx -y srutam-mcp init",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Copy command",
+                            modifier = Modifier.size(13.dp),
+                            tint = if (isDark) TextOnDarkSecondary else TextSecondary
+                        )
+                    }
                 }
             }
         } else {
@@ -468,6 +606,36 @@ fun DeveloperMcpSection(
             }
         }
     }
+
+    // ---- Pairing dialogs -----------------------------------------------------------------
+    when (val state = pairingState) {
+        is PairingUiState.EnteringCode -> EnterPairingCodeDialog(
+            state = state,
+            onCodeChange = { typed ->
+                // Clear the previous error as soon as the user edits, so it does not look stuck.
+                pairingState = state.copy(code = typed.uppercase(), error = null)
+            },
+            onSubmit = {
+                try {
+                    previewCode(PairingRules.normalizeCode(state.code))
+                } catch (e: PairingException) {
+                    pairingState = state.copy(error = e.message)
+                }
+            },
+            onDismiss = { pairingState = PairingUiState.Idle }
+        )
+
+        is PairingUiState.Confirming -> ConfirmPairingDialog(
+            state = state,
+            isDark = isDark,
+            onNameChange = { pairingState = state.copy(name = it, error = null) },
+            onConfirm = { approvePairing(state) },
+            onDismiss = { pairingState = PairingUiState.Idle }
+        )
+
+        PairingUiState.Idle -> Unit
+    }
+
 
     // Modal: Generate New API Key
     if (showGenerateKeyDialog) {
@@ -579,183 +747,3 @@ fun DeveloperMcpSection(
     }
 }
 
-@Composable
-private fun McpSnippetCard(isDark: Boolean) {
-    val context = LocalContext.current
-    var selectedId by remember { mutableStateOf(McpClients.all.first().id) }
-    var windows by remember { mutableStateOf(false) }
-    val client = McpClients.byId(selectedId)
-    val snippet = client.snippet(windows)
-
-    fun copyToClipboard(label: String, text: String) {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-        Toast.makeText(context, "$label copied to clipboard", Toast.LENGTH_SHORT).show()
-    }
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isDark) Color(0xFF070B18) else Color(0xFF1E293B),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Agent MCP Config Snippet",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                IconButton(
-                    onClick = { copyToClipboard("${client.label} config", snippet) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy config", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-            }
-
-            McpClientGroup.values().forEach { group ->
-                val clients = McpClients.all.filter { it.group == group }
-                if (clients.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = group.label.uppercase(),
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
-                        color = Color(0xFF64748B)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        clients.forEach { option ->
-                            val isSelected = selectedId == option.id
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) CobaltBlue else (if (isDark) Color(0xFF131B2E) else Color(0xFF334155)),
-                                modifier = Modifier.clickable { selectedId = option.id }
-                            ) {
-                                Text(
-                                    text = option.label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else Color(0xFF94A3B8),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "I'm on Windows (uses cmd /c npx)",
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8),
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(
-                    checked = windows,
-                    onCheckedChange = { windows = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = CobaltBlue,
-                        checkedBorderColor = CobaltBlue,
-                        uncheckedThumbColor = Color(0xFF94A3B8),
-                        uncheckedTrackColor = Color(0xFF1E293B),
-                        uncheckedBorderColor = Color(0xFF475569)
-                    )
-                )
-            }
-
-            Text(
-                text = "Where: ${client.pathHint}",
-                fontSize = 10.5.sp,
-                color = Color(0xFF94A3B8)
-            )
-
-            if (client.unverified) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Not verified against the real ${client.label}. Check its docs if this does not load.",
-                    fontSize = 10.5.sp,
-                    color = Color(0xFFFBBF24)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                Text(
-                    text = snippet,
-                    fontSize = 10.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF38BDF8),
-                    lineHeight = 15.sp,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .horizontalScroll(rememberScrollState())
-                )
-            }
-
-            client.cliCommand?.let { command ->
-                val commandText = command(windows)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Or run this command:", fontSize = 10.5.sp, color = Color(0xFF94A3B8))
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isDark) Color(0xFF03050B) else Color(0xFF0F172A),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable { copyToClipboard("Command", commandText) }
-                ) {
-                    Text(
-                        text = commandText,
-                        fontSize = 10.5.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = Color(0xFF86EFAC),
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .horizontalScroll(rememberScrollState())
-                    )
-                }
-                Text(text = "Tap the command to copy it.", fontSize = 10.sp, color = Color(0xFF64748B))
-            }
-
-            client.note?.let {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = it, fontSize = 10.5.sp, color = Color(0xFF94A3B8))
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Recommended: run 'npx srutam-mcp init'. It verifies your key and stores it once, so no key ever goes into these files.",
-                fontSize = 11.sp,
-                color = Color(0xFF94A3B8)
-            )
-        }
-    }
-}

@@ -181,6 +181,12 @@ dependencies {
 
     // Credential Manager for 1-Tap Google Sign-In
     implementation("androidx.credentials:credentials:1.3.0")
+    // QR pairing: Google's Code Scanner renders its own camera UI in Play Services, so the app
+    // needs no CAMERA permission and ships no camera code. Devices without it fall back to
+    // typing the code (see PairingSheet).
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    // Confirming a pairing grants long-lived access to notes, so it is gated behind device auth.
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 

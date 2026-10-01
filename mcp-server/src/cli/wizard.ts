@@ -11,6 +11,8 @@ import {
   clearUserConfig,
 } from '../config.js';
 import { SrutamClient } from '../supabase.js';
+import { pairInteractively } from './pairPrompt.js';
+import { PairingClient, sha256 } from '../pairing.js';
 import {
   CLIENTS,
   applyClient,
@@ -153,29 +155,39 @@ export async function runWizard(options: InitOptions = {}): Promise<void> {
     }
 
     if (!apiKey) {
-      console.log('To get your API key:');
-      console.log('1. Open Srutam app on your phone.');
-      console.log('2. Go to Settings -> Cloud Sync & Developer Brain (MCP) -> MCP Agent Keys -> New Key.');
-      console.log('3. Tap Generate and copy your key.\n');
+      // Pairing first: the key is generated here and the phone only ever approves its hash, so
+      // nothing secret is displayed, photographed or pasted. Pasting stays available for machines
+      // that cannot show a scannable screen (WSL, containers, SSH).
+      const paired = await pairInteractively({ endpoint, ask, askSecret });
 
-      for (let attempt = 1; attempt <= MAX_KEY_ATTEMPTS && !apiKey; attempt++) {
-        const trimmed = (await askSecret('Enter your Srutam API key (input is hidden): ')).trim();
-        if (!trimmed) {
-          console.log('No key entered.\n');
-          continue;
+      if (paired.kind === 'paired') {
+        apiKey = paired.apiKey;
+        const who = paired.accountHint ? ` to ${paired.accountHint}` : '';
+        const named = paired.keyName ? ` as "${paired.keyName}"` : '';
+        console.log(`\nConnected${who}${named}.\n`);
+      } else if (paired.kind === 'paste') {
+        for (let attempt = 1; attempt <= MAX_KEY_ATTEMPTS && !apiKey; attempt++) {
+          const trimmed = (await askSecret('Enter your Srutam API key (input is hidden): ')).trim();
+          if (!trimmed) {
+            console.log('No key entered.\n');
+            continue;
+          }
+          if (!trimmed.startsWith('srtm_live_')) {
+            console.log('Warning: Srutam API keys typically start with "srtm_live_".');
+          }
+          if (await verify(trimmed)) {
+            apiKey = trimmed;
+          } else if (attempt < MAX_KEY_ATTEMPTS) {
+            console.log('Please check the key copied from your phone and try again.\n');
+          }
         }
-        if (!trimmed.startsWith('srtm_live_')) {
-          console.log('Warning: Srutam API keys typically start with "srtm_live_".');
+        if (!apiKey) {
+          console.log(`\nSetup aborted: no valid API key after ${MAX_KEY_ATTEMPTS} attempts.\n`);
+          process.exitCode = 1;
+          return;
         }
-        if (await verify(trimmed)) {
-          apiKey = trimmed;
-        } else if (attempt < MAX_KEY_ATTEMPTS) {
-          console.log('Please check the key copied from your phone and try again.\n');
-        }
-      }
-
-      if (!apiKey) {
-        console.log(`\nSetup aborted: no valid API key after ${MAX_KEY_ATTEMPTS} attempts.\n`);
+      } else {
+        console.log(`\n${paired.message}\n`);
         process.exitCode = 1;
         return;
       }
@@ -252,9 +264,40 @@ export async function runWizard(options: InitOptions = {}): Promise<void> {
   }
 }
 
-export function runLogout(): void {
+export interface LogoutOptions {
+  /** Only forget the key locally; do not revoke it on the server. */
+  local?: boolean;
+}
+
+/**
+ * Clears the saved key and, by default, revokes it server-side as well.
+ *
+ * Forgetting a key locally used to leave it active on the account forever, which quietly ate one
+ * of the three key slots. Revocation uses the key's own hash, so it needs no sign-in.
+ */
+export async function runLogout(options: LogoutOptions = {}): Promise<void> {
+  let saved: string | undefined;
+  let endpoint: { supabaseUrl: string; supabaseAnonKey: string } | undefined;
+  try {
+    const config = loadConfig();
+    saved = config?.apiKey;
+    if (config) endpoint = { supabaseUrl: config.supabaseUrl, supabaseAnonKey: config.supabaseAnonKey };
+  } catch {
+    saved = undefined;
+  }
+
+  if (saved && endpoint && !options.local) {
+    try {
+      const revoked = await new PairingClient(endpoint).revokeSelf(sha256(saved));
+      console.log(revoked ? 'Revoked this key on your Srutam account.' : 'This key was already revoked on your account.');
+    } catch (err: any) {
+      console.log(`Could not revoke the key online (${err?.message ?? 'network error'}).`);
+      console.log('It is cleared locally; revoke it in the Srutam app to be sure.');
+    }
+  }
+
   clearUserConfig();
   console.log(`Cleared Srutam credentials from ${getConfigPath()}.`);
-  console.log('If you ever pasted the key into a client config manually, remove it there too and revoke the key in the app.');
-  console.log('To reconnect anytime, run: npx srutam-mcp init\n');
+  console.log('If you ever pasted the key into a client config manually, remove it there too.');
+  console.log('To reconnect anytime, run: npx srutam-mcp init' + String.fromCharCode(10));
 }
