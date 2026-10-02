@@ -210,7 +210,7 @@ async function startServer(): Promise<void> {
   // Tool 7: list_insights
   server.tool(
     'list_insights',
-    'List ideas and decisions captured in Srutam voice notes, filtered by kind. Distinct from action items: these are things to consider or that were already decided, not tasks to do.',
+    'List ideas and decisions captured in Srutam voice notes, filtered by kind. Distinct from action items: these are things to consider or that were already decided, not tasks to do. Archived insights are hidden unless include_archived is set.',
     listInsightsSchema,
     async (args) => handleListInsights(client, args)
   );
@@ -218,7 +218,7 @@ async function startServer(): Promise<void> {
   // Tool 8: list_reminders
   server.tool(
     'list_reminders',
-    'List reminders (meetings, deadlines, calls, milestones) captured in Srutam voice notes. Read-only: reminders are managed from the Srutam app, not from MCP.',
+    'List reminders (meetings, deadlines, calls, milestones) captured in Srutam voice notes, including undated target dates. Reminders the user has not yet reviewed are flagged as unconfirmed, so their times should be treated as provisional. Read-only: reminders are managed from the Srutam app, not from MCP.',
     listRemindersSchema,
     async (args) => handleListReminders(client, args)
   );

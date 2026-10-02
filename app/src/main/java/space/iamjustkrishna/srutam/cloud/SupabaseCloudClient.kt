@@ -35,7 +35,17 @@ data class RemoteActionItemUpdate(
     val completedAt: String?
 )
 
-class SupabaseCloudClient(private val context: Context) {
+/**
+ * @param baseUrlOverride points the client at a local test server instead of the
+ *   real project. Production always passes null and reads BuildConfig, so this
+ *   cannot change shipped behaviour; it exists so the upload paths can be tested
+ *   against real HTTP responses, including the failure codes that used to be
+ *   silently discarded.
+ */
+class SupabaseCloudClient(
+    private val context: Context,
+    private val baseUrlOverride: String? = null
+) {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -62,7 +72,7 @@ class SupabaseCloudClient(private val context: Context) {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     private val baseUrl: String by lazy {
-        BuildConfig.SUPABASE_URL.trimEnd('/')
+        (baseUrlOverride ?: BuildConfig.SUPABASE_URL).trimEnd('/')
     }
 
     private val anonKey: String by lazy {
@@ -87,6 +97,28 @@ class SupabaseCloudClient(private val context: Context) {
     private fun sha256(input: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Runs one child-table upsert and fails loudly.
+     *
+     * The three child uploads below used to discard their response entirely
+     * (`.execute().close()`), so a missing table or column returned 404/400 in
+     * silence and uploadNote() still reported success - the note was marked
+     * SYNCED with none of its action items, insights or reminders attached.
+     * Throwing here lets the outer catch turn it into Result.failure, which
+     * CloudSyncWorker already handles by resetting the note to PENDING for retry.
+     *
+     * The response body is included in the message because that is what names
+     * the missing relation or column when a migration has not been applied.
+     */
+    private fun executeChildUpsert(request: Request, label: String) {
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val err = response.body?.string()?.takeIf { it.isNotBlank() } ?: ""
+                throw Exception("Failed to upload $label: HTTP ${response.code} $err".trim())
+            }
+        }
     }
 
     /**
@@ -214,7 +246,7 @@ class SupabaseCloudClient(private val context: Context) {
                     .post(itemsArray.toString().toRequestBody(jsonMediaType))
                 getAuthHeaders(itemsRequest)
 
-                client.newCall(itemsRequest.build()).execute().close()
+                executeChildUpsert(itemsRequest.build(), "action items")
             }
 
             // Ideas and decisions: same upsert shape, separate table so existing action-item
@@ -231,6 +263,16 @@ class SupabaseCloudClient(private val context: Context) {
                         addProperty("text", item.text)
                         addProperty("evidence", item.evidence)
                         addProperty("rationale", item.rationale)
+                        // Lifecycle, so an archived or completed idea does not read as open
+                        // to an agent (migration 08).
+                        addProperty("status", item.status)
+                        item.completedAt?.let { addProperty("completed_at", formatIso8601(it)) }
+                        item.archivedAt?.let { addProperty("archived_at", formatIso8601(it)) }
+                        // Provenance: "convert to next step" creates a NEW action row linked
+                        // by sourceInsightId rather than mutating kind, so without these an
+                        // agent sees the idea and its derived task as unrelated rows.
+                        addProperty("source_insight_id", item.sourceInsightId)
+                        addProperty("source_reminder_id", item.sourceReminderId)
                     }
                     insightsArray.add(insightJson)
                 }
@@ -241,7 +283,7 @@ class SupabaseCloudClient(private val context: Context) {
                     .post(insightsArray.toString().toRequestBody(jsonMediaType))
                 getAuthHeaders(insightsRequest)
 
-                client.newCall(insightsRequest.build()).execute().close()
+                executeChildUpsert(insightsRequest.build(), "ideas and decisions")
             }
 
             // Reminders: read-only through MCP, but still worth syncing for visibility.
@@ -261,6 +303,17 @@ class SupabaseCloudClient(private val context: Context) {
                         addProperty("location", reminder.location)
                         addProperty("type", reminder.type)
                         addProperty("status", reminder.status)
+                        // Review state: without this an agent cannot tell a freshly
+                        // extracted guess from a reminder the user reviewed and locked in.
+                        addProperty("needs_review", reminder.needsReview)
+                        reminder.confirmedAt?.let { addProperty("confirmed_at", formatIso8601(it)) }
+                        // Resolved local time, so an agent can render "May 20" without a
+                        // clock time rather than inventing midnight UTC.
+                        addProperty("time_precision", reminder.timePrecision)
+                        addProperty("local_date", reminder.localDate)
+                        addProperty("local_time", reminder.localTime)
+                        addProperty("zone_id", reminder.zoneId)
+                        addProperty("linked_task_id", reminder.linkedTaskId)
                     }
                     remindersArray.add(reminderJson)
                 }
@@ -271,7 +324,7 @@ class SupabaseCloudClient(private val context: Context) {
                     .post(remindersArray.toString().toRequestBody(jsonMediaType))
                 getAuthHeaders(remindersRequest)
 
-                client.newCall(remindersRequest.build()).execute().close()
+                executeChildUpsert(remindersRequest.build(), "reminders")
             }
 
             Result.success(noteId)

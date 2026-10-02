@@ -46,6 +46,13 @@ export interface InsightRecord {
   text: string;
   evidence: string | null;
   rationale: string | null;
+  /** OPEN | COMPLETED | ARCHIVED. Added by migration 08; absent on older servers. */
+  status?: string | null;
+  completed_at?: string | null;
+  archived_at?: string | null;
+  /** Set when this insight produced a derived next step, or came from a reminder. */
+  source_insight_id?: string | null;
+  source_reminder_id?: string | null;
   created_at: string;
 }
 
@@ -59,6 +66,20 @@ export interface ReminderRecord {
   location: string | null;
   type: string | null;
   status: string;
+  /**
+   * true = extracted but not yet reviewed by the user, false = reviewed and
+   * confirmed, null/undefined = unknown (a row written before migration 08).
+   * Unknown must never be rendered as confirmed.
+   */
+  needs_review?: boolean | null;
+  confirmed_at?: string | null;
+  /** EXACT | UNKNOWN | ... - how precisely the time was resolved from speech. */
+  time_precision?: string | null;
+  local_date?: string | null;
+  local_time?: string | null;
+  zone_id?: string | null;
+  /** The next step this reminder was converted into, if any. */
+  linked_task_id?: string | null;
   created_at: string;
 }
 
@@ -194,17 +215,19 @@ export class SrutamClient {
 
   async listInsights(
     kind: 'all' | 'idea' | 'decision' = 'all',
-    limit: number = 20
+    limit: number = 20,
+    includeArchived: boolean = false
   ): Promise<InsightRecord[]> {
     this.guard();
     const boundedLimit = Math.max(1, Math.min(limit, 50));
 
-    const cacheKey = `insights:${kind}:${boundedLimit}`;
+    const cacheKey = `insights:${kind}:${boundedLimit}:${includeArchived}`;
     const cached = this.readCache.get(cacheKey);
     if (cached) return cached;
 
     const data = await this.rpc<InsightRecord[]>('mcp_list_insights', {
       p_kind: kind,
+      p_include_archived: includeArchived,
       p_limit: boundedLimit,
     });
 

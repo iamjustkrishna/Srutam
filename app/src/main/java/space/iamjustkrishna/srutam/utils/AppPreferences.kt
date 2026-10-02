@@ -19,6 +19,7 @@ object AppPreferences {
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
+    private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
     private const val KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT = "capture_skip_banner_dismiss_count"
     private const val KEY_CAPTURE_SKIP_BANNER_DISMISSED = "capture_skip_banner_dismissed"
@@ -164,6 +165,26 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
+            .apply()
+    }
+
+    /**
+     * Whether the one-time insight/reminder parity backfill has run.
+     *
+     * Notes synced before migration 08 were marked SYNCED even when their child
+     * uploads silently failed, and nothing would ever re-send them. The backfill
+     * marks those notes dirty exactly once; this flag is what keeps "exactly once"
+     * true across restarts.
+     */
+    fun isInsightParityBackfillDone(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_INSIGHT_PARITY_BACKFILL_DONE, false)
+    }
+
+    fun setInsightParityBackfillDone(context: Context, done: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_INSIGHT_PARITY_BACKFILL_DONE, done)
             .apply()
     }
 

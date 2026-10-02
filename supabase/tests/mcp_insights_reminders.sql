@@ -6,7 +6,7 @@
 --
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/mcp_insights_reminders.sql
 --
--- Requires migrations 01-07.
+-- Requires migrations 01-08.
 -- ==============================================================================
 
 BEGIN;
@@ -56,11 +56,11 @@ INSERT INTO public.notes (id, user_id, title, is_private) VALUES
 -- 1. Grants: these are read tools, callable by anon (the key-hash credential),
 --    same as every other MCP RPC.
 -- ------------------------------------------------------------------------------
-SELECT t.ok(has_function_privilege('anon', 'public.mcp_list_insights(text,text,integer)', 'EXECUTE'),
+SELECT t.ok(has_function_privilege('anon', 'public.mcp_list_insights(text,text,boolean,integer)', 'EXECUTE'),
             'anon can call mcp_list_insights');
 SELECT t.ok(has_function_privilege('anon', 'public.mcp_list_reminders(text,boolean,integer)', 'EXECUTE'),
             'anon can call mcp_list_reminders');
-SELECT t.ok(NOT has_function_privilege('authenticated', 'public.mcp_list_insights(text,text,integer)', 'EXECUTE'),
+SELECT t.ok(NOT has_function_privilege('authenticated', 'public.mcp_list_insights(text,text,boolean,integer)', 'EXECUTE'),
             'authenticated (the phone JWT) is not a valid MCP caller for list_insights');
 SELECT t.ok(
     (SELECT bool_and(EXISTS (SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%'))
@@ -80,25 +80,25 @@ INSERT INTO public.note_insights (note_id, user_id, client_insight_id, kind, tex
 SET LOCAL ROLE anon;
 
 SELECT t.ok(
-    (SELECT array_agg(text ORDER BY text) FROM public.mcp_list_insights(t.h('keyA'), 'all', 20))
+    (SELECT array_agg(text ORDER BY text) FROM public.mcp_list_insights(t.h('keyA'), 'all', false, 20))
         = ARRAY['Alpha decision public', 'Alpha idea public'],
     'key A sees only its own public-note insights (not its private note, not Bob''s)');
 
 SELECT t.ok(
-    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyA'), 'idea', 20)) = ARRAY['Alpha idea public'],
+    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyA'), 'idea', false, 20)) = ARRAY['Alpha idea public'],
     'kind=idea filters to ideas only');
 
 SELECT t.ok(
-    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyA'), 'decision', 20)) = ARRAY['Alpha decision public'],
+    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyA'), 'decision', false, 20)) = ARRAY['Alpha decision public'],
     'kind=decision filters to decisions only');
 
 SELECT t.ok(
-    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyB'), 'all', 20)) = ARRAY['Bob idea'],
+    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyB'), 'all', false, 20)) = ARRAY['Bob idea'],
     'key B sees only Bob''s insight, never Alpha''s');
 
-SELECT t.raises(format('SELECT * FROM public.mcp_list_insights(%L, ''bogus'', 20)', t.h('keyA')),
+SELECT t.raises(format('SELECT * FROM public.mcp_list_insights(%L, ''bogus'', false, 20)', t.h('keyA')),
                 '22023', 'an invalid kind is rejected');
-SELECT t.raises('SELECT * FROM public.mcp_list_insights(''not-a-hash'', ''all'', 20)',
+SELECT t.raises('SELECT * FROM public.mcp_list_insights(''not-a-hash'', ''all'', false, 20)',
                 '28000', 'an unknown key is rejected');
 
 RESET ROLE;
@@ -210,6 +210,103 @@ SELECT t.ok(
     (SELECT count(*) FROM public.reminders WHERE client_reminder_id = 'rem-x') = 1
         AND (SELECT title FROM public.reminders WHERE client_reminder_id = 'rem-x') = 'v2 - edited',
     'reminders upserts in place too');
+
+-- ------------------------------------------------------------------------------
+-- 5. Migration 08 field parity.
+--
+--    These cover the three things that made reminders and decisions invisible or
+--    untrustworthy to an agent: whole categories dropped by the upcoming filter,
+--    review state that never left the device, and archived insights that still
+--    read as open.
+-- ------------------------------------------------------------------------------
+
+-- 5a. An undated MILESTONE is a live commitment, not noise. The pre-08 predicate
+--     required event_time IS NOT NULL and erased every target date without a clock
+--     time - exactly the rows the user could see in the app but no agent could.
+INSERT INTO public.reminders (note_id, user_id, client_reminder_id, title, event_time, type, status, needs_review)
+    VALUES ('a1000000-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000001',
+            'r-undated', 'Undated profit target', NULL, 'MILESTONE', 'ACTIVE', false);
+
+SET LOCAL ROLE anon;
+
+SELECT t.ok(
+    'Undated profit target' = ANY (SELECT title FROM public.mcp_list_reminders(t.h('keyA'), true, 20)),
+    'an undated milestone IS returned under upcoming_only (migration 08 fix)');
+
+SELECT t.ok(
+    NOT ('Past meeting' = ANY (SELECT title FROM public.mcp_list_reminders(t.h('keyA'), true, 20))),
+    'a past-dated reminder is still excluded under upcoming_only');
+
+SELECT t.ok(
+    NOT ('Dismissed future' = ANY (SELECT title FROM public.mcp_list_reminders(t.h('keyA'), true, 20))),
+    'a dismissed future reminder is still excluded under upcoming_only');
+
+-- 5b. Review state round-trips as three states, and NULL stays NULL. Defaulting
+--     it either way would assert something untrue about pre-08 rows.
+SELECT t.ok(
+    (SELECT needs_review FROM public.mcp_list_reminders(t.h('keyA'), true, 20)
+      WHERE title = 'Undated profit target') IS FALSE,
+    'needs_review = false round-trips through the RPC');
+
+SELECT t.ok(
+    (SELECT needs_review FROM public.mcp_list_reminders(t.h('keyA'), false, 20)
+      WHERE title = 'Future meeting') IS NULL,
+    'a pre-parity reminder keeps needs_review = NULL (unknown, not confirmed)');
+
+RESET ROLE;
+
+UPDATE public.reminders
+   SET needs_review = true, time_precision = 'UNKNOWN', local_date = '2026-11-20', linked_task_id = 'task-7'
+ WHERE client_reminder_id = 'r-undated';
+
+SET LOCAL ROLE anon;
+
+SELECT t.ok(
+    (SELECT needs_review AND time_precision = 'UNKNOWN' AND local_date = '2026-11-20' AND linked_task_id = 'task-7'
+       FROM public.mcp_list_reminders(t.h('keyA'), true, 20) WHERE title = 'Undated profit target'),
+    'needs_review/time_precision/local_date/linked_task_id all surface through the RPC');
+
+RESET ROLE;
+
+-- 5c. Insight lifecycle: archived is hidden by default, visible on request, and
+--     the provenance links survive the round trip.
+UPDATE public.note_insights SET status = 'ARCHIVED', archived_at = now()
+ WHERE client_insight_id = 'i1';
+UPDATE public.note_insights SET source_insight_id = 'src-idea', source_reminder_id = 'src-rem'
+ WHERE client_insight_id = 'i2';
+
+SET LOCAL ROLE anon;
+
+SELECT t.ok(
+    (SELECT array_agg(text) FROM public.mcp_list_insights(t.h('keyA'), 'all', false, 20)) = ARRAY['Alpha decision public'],
+    'an archived insight is hidden by default');
+
+SELECT t.ok(
+    (SELECT array_agg(text ORDER BY text) FROM public.mcp_list_insights(t.h('keyA'), 'all', true, 20))
+        = ARRAY['Alpha decision public', 'Alpha idea public'],
+    'include_archived = true brings the archived insight back');
+
+SELECT t.ok(
+    (SELECT status FROM public.mcp_list_insights(t.h('keyA'), 'all', true, 20) WHERE text = 'Alpha idea public') = 'ARCHIVED',
+    'insight status surfaces through the RPC');
+
+SELECT t.ok(
+    (SELECT source_insight_id = 'src-idea' AND source_reminder_id = 'src-rem'
+       FROM public.mcp_list_insights(t.h('keyA'), 'all', false, 20) WHERE text = 'Alpha decision public'),
+    'provenance links surface so a derived task can be tied back to its source');
+
+-- Cross-tenant isolation must still hold on every new column.
+SELECT t.ok(
+    (SELECT count(*) FROM public.mcp_list_insights(t.h('keyB'), 'all', true, 20)) = 1,
+    'include_archived does not leak another user''s insights');
+
+RESET ROLE;
+
+-- 5d. status is constrained, so a typo cannot become a silent third state.
+SELECT t.raises(
+    $q$INSERT INTO public.note_insights (note_id, user_id, client_insight_id, kind, text, status)
+       VALUES ('a1000000-0000-4000-8000-000000000001', 'aaaaaaaa-0000-4000-8000-000000000001', 'i-bad', 'idea', 'x', 'NOPE')$q$,
+    '23514', 'an unknown insight status is rejected by the CHECK constraint');
 
 ROLLBACK;
 

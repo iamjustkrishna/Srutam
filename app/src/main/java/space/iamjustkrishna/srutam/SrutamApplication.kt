@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.service.InsightLifecycleManager
+import space.iamjustkrishna.srutam.service.InsightParityBackfill
 import space.iamjustkrishna.srutam.utils.AudioFileReader
 
 class SrutamApplication : Application() {
@@ -28,6 +29,12 @@ class SrutamApplication : Application() {
                     insightDao = database.insightDao(),
                     reminderDao = database.reminderDao(),
                     context = this@SrutamApplication
+                )
+                // Recovers notes whose insights and reminders were stranded in the
+                // cloud by the old silent-failure sync. Runs at most once.
+                InsightParityBackfill.runIfNeeded(
+                    context = this@SrutamApplication,
+                    recordingDao = database.recordingDao()
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -57,4 +57,14 @@ interface RecordingDao {
 
     @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus != 'SYNCED' AND aiStatus = 'READY'")
     suspend fun markAllUnsyncedForSync()
+
+    /**
+     * Marks ALREADY-SYNCED notes dirty again. Unlike [markAllUnsyncedForSync] this
+     * deliberately targets `syncStatus = 'SYNCED'`, because those are exactly the
+     * notes stranded by the old behaviour: their insights and reminders either
+     * never uploaded or uploaded without the fields migration 08 added, and
+     * nothing would ever re-send them. Used once by the parity backfill.
+     */
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus = 'SYNCED' AND aiStatus = 'READY'")
+    suspend fun markSyncedForReupload(): Int
 }

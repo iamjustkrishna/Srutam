@@ -196,6 +196,9 @@ dependencies {
     testImplementation(libs.roborazzi.junit.rule)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.ui.test.junit4)
+    // Matches the okhttp version declared above; used to prove a failed child
+    // upload now fails the note sync instead of being silently discarded.
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
