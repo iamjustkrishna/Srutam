@@ -1,8 +1,11 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -24,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +48,37 @@ import space.iamjustkrishna.srutam.ui.components.DialogBadgeType
 import space.iamjustkrishna.srutam.ui.components.SrutamStandardDialog
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
+
+/**
+ * Where an account-deletion request goes. Satisfies Google Play's requirement for an
+ * in-app deletion path (the in-app part may simply link out to the handling channel -
+ * it does not need to self-execute). Swap to the published web deletion page's URL via
+ * [Intent.ACTION_VIEW] once that page exists; a mailto is an explicitly accepted
+ * mechanism in the meantime per Google's own account-deletion FAQ.
+ */
+private const val ACCOUNT_DELETION_EMAIL = "hlo.krsna@gmail.com"
+
+private fun requestAccountDeletion(context: Context, accountEmail: String?) {
+    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).apply {
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(ACCOUNT_DELETION_EMAIL))
+        putExtra(Intent.EXTRA_SUBJECT, "Delete my Srutam account")
+        putExtra(
+            Intent.EXTRA_TEXT,
+            "Please delete my Srutam account and all associated cloud data." +
+                (accountEmail?.let { "\n\nAccount email: $it" } ?: "")
+        )
+    }
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        // No email app resolves ACTION_SENDTO (rare, but real on some custom ROMs/emulators).
+        Toast.makeText(
+            context,
+            "No email app found. Email $ACCOUNT_DELETION_EMAIL to request deletion.",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+}
 
 @Composable
 fun DeveloperMcpSection(
@@ -505,6 +540,38 @@ fun DeveloperMcpSection(
                             contentDescription = "Copy command",
                             modifier = Modifier.size(13.dp),
                             tint = if (isDark) TextOnDarkSecondary else TextSecondary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+                    HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Last item in the card, centered: discoverable but deliberately unhurried,
+                    // matching Google's own account-deletion UX guidance to keep this reachable
+                    // without making it compete with the actions someone actually uses daily.
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { requestAccountDeletion(context, userEmail) }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFEF4444).copy(alpha = 0.85f)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Request account & data deletion",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            color = Color(0xFFEF4444).copy(alpha = 0.85f)
                         )
                     }
                 }
