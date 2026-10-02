@@ -225,6 +225,16 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun updatePrivacy(recordingId: Long, isPrivate: Boolean) {
+        viewModelScope.launch {
+            database.recordingDao().updatePrivacy(recordingId, isPrivate)
+            _recording.value = _recording.value?.copy(isPrivate = isPrivate)
+            space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSyncForRecording(
+                getApplication<Application>().applicationContext,
+                recordingId
+            )
+        }
+    }
     override fun onCleared() {
         super.onCleared()
         audioPlayer.release()

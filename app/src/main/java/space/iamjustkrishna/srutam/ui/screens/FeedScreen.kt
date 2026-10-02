@@ -20,6 +20,8 @@ import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.cloud.CloudSyncManager
+import androidx.compose.ui.graphics.graphicsLayer
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.ui.components.*
@@ -537,6 +539,28 @@ fun FeedScreenContent(
     viewModel: AudioFilesViewModel? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isCloudSignedIn by remember { mutableStateOf(AppPreferences.isCloudSignedIn(context)) }
+    val syncWorkInfos by remember(context) {
+        CloudSyncManager.getSyncWorkInfoFlow(context)
+    }.collectAsState(initial = emptyList())
+    val isSyncing = remember(syncWorkInfos) {
+        syncWorkInfos.any { it.state == androidx.work.WorkInfo.State.RUNNING }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isCloudSignedIn = AppPreferences.isCloudSignedIn(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -754,6 +778,27 @@ fun FeedScreenContent(
                             contentDescription = "Search",
                             onClick = { isSearchActive = true }
                         )
+                        if (isCloudSignedIn) {
+                            val syncRotation by rememberInfiniteTransition(label = "SyncRotation").animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "SyncRotationAngle"
+                            )
+                            SquircleActionButton(
+                                icon = if (isSyncing) Icons.Default.Sync else Icons.Default.CloudDone,
+                                contentDescription = if (isSyncing) "Syncing with Srutam Cloud" else "Synced with Srutam Cloud",
+                                tint = if (isSyncing) Color(0xFF60A5FA) else Color(0xFF10B981),
+                                iconModifier = if (isSyncing) Modifier.graphicsLayer { rotationZ = syncRotation } else Modifier,
+                                onClick = {
+                                    CloudSyncManager.enqueueSync(context, forceAll = true)
+                                    Toast.makeText(context, "Syncing notes to Srutam Cloud...", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
                         SquircleActionButton(
                             icon = Icons.Default.Settings,
                             contentDescription = "Settings",

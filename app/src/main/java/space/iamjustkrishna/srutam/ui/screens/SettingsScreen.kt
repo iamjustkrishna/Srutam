@@ -716,6 +716,13 @@ fun SettingsScreen(
             }
 
             // =========================================================
+            // Section 3.5: Cloud Sync & Developer Brain (MCP)
+            // =========================================================
+            SettingsSection(title = "CLOUD SYNC & DEVELOPER BRAIN (MCP)") {
+                DeveloperMcpSection(isDark = isDark)
+            }
+
+            // =========================================================
             // Section 4: Build & App Info
             // =========================================================
             val recordingsDir = remember { AudioFileReader.getRecordingsDirectory() }

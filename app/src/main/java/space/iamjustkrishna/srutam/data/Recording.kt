@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.data
+package space.iamjustkrishna.srutam.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -20,6 +20,10 @@ data class Recording(
     val aiStatus: String = RecordingAiStatus.NOT_REQUESTED,
     val isProcessing: Boolean = false,
     val processingError: String? = null,
+    val syncStatus: String = SyncStatus.NOT_SYNCED,
+    val isPrivate: Boolean = false,
+    val cloudId: String? = null,
+    val lastSyncedAt: Long? = null,
     val recordedZoneId: String? = java.time.ZoneId.systemDefault().id,
     @ColumnInfo(defaultValue = "0") val insightsImported: Boolean = false
 )

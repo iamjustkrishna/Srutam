@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(this)
         cleanUpStaleRecordingNotification()
     }
 

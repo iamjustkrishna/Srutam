@@ -17,6 +17,9 @@ interface InsightDao {
     @Query("SELECT * FROM insight_items ORDER BY createdAt DESC")
     fun getAllInsightsFlow(): Flow<List<InsightEntity>>
 
+    @Query("SELECT * FROM insight_items ORDER BY createdAt DESC")
+    suspend fun getAllInsights(): List<InsightEntity>
+
     @Query("SELECT * FROM insight_items WHERE kind = :kind ORDER BY createdAt DESC")
     fun getInsightsByKindFlow(kind: String): Flow<List<InsightEntity>>
 

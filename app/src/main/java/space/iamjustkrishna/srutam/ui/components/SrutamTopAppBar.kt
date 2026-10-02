@@ -28,6 +28,7 @@ fun SquircleActionButton(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconModifier: Modifier = Modifier,
     tint: Color? = null,
     size: androidx.compose.ui.unit.Dp = 40.dp
 ) {
@@ -46,7 +47,7 @@ fun SquircleActionButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = resolvedTint,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp).then(iconModifier)
             )
         }
     }

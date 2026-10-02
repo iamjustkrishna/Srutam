@@ -35,8 +35,8 @@ android {
         applicationId = "space.iamjustkrishna.srutam"
         minSdk = 29
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.3.1"
+        versionCode = 14
+        versionName = "2.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -47,6 +47,13 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "GEMINI_API_KEY2", "\"$geminiApiKey2\"")
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: "https://bnahuqxvpbtzaupyumeo.supabase.co"
+        val supabaseAnonKey = localProperties.getProperty("SUPABASE_ANON_KEY") ?: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJuYWh1cXh2cGJ0emF1cHl1bWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1ODM3NDQsImV4cCI6MjEwNTE1OTc0NH0.2GNtlaNyVSYy77FSYQ2mReZuzxbl4XSlZGQ-SJ-p7Ag"
+        val googleWebClientId = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         ndk {
             abiFilters.add("arm64-v8a")
@@ -168,12 +175,30 @@ dependencies {
     // WorkManager for background AI processing and constraints
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
+    // OkHttp for resilient cloud sync & Supabase REST client
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Credential Manager for 1-Tap Google Sign-In
+    implementation("androidx.credentials:credentials:1.3.0")
+    // QR pairing: Google's Code Scanner renders its own camera UI in Play Services, so the app
+    // needs no CAMERA permission and ships no camera code. Devices without it fall back to
+    // typing the code (see PairingSheet).
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    // Confirming a pairing grants long-lived access to notes, so it is gated behind device auth.
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
     testImplementation(libs.junit)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit.rule)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.ui.test.junit4)
+    // Matches the okhttp version declared above; used to prove a failed child
+    // upload now fails the note sync instead of being silently discarded.
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

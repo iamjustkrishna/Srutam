@@ -1,4 +1,4 @@
-﻿package space.iamjustkrishna.srutam.data
+package space.iamjustkrishna.srutam.data
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -42,4 +42,29 @@ interface RecordingDao {
 
     @Query("SELECT COUNT(*) FROM recordings")
     suspend fun getRecordingCount(): Int
+
+    @Query("SELECT * FROM recordings WHERE syncStatus != 'SYNCED' AND aiStatus = 'READY'")
+    suspend fun getPendingSyncRecordings(): List<Recording>
+
+    @Query("UPDATE recordings SET syncStatus = :status, cloudId = :cloudId, lastSyncedAt = :syncedAt WHERE id = :id")
+    suspend fun updateSyncStatus(id: Long, status: String, cloudId: String?, syncedAt: Long)
+
+    @Query("UPDATE recordings SET isPrivate = :isPrivate WHERE id = :id")
+    suspend fun updatePrivacy(id: Long, isPrivate: Boolean)
+
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE id = :id")
+    suspend fun markForSync(id: Long)
+
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus != 'SYNCED' AND aiStatus = 'READY'")
+    suspend fun markAllUnsyncedForSync()
+
+    /**
+     * Marks ALREADY-SYNCED notes dirty again. Unlike [markAllUnsyncedForSync] this
+     * deliberately targets `syncStatus = 'SYNCED'`, because those are exactly the
+     * notes stranded by the old behaviour: their insights and reminders either
+     * never uploaded or uploaded without the fields migration 08 added, and
+     * nothing would ever re-send them. Used once by the parity backfill.
+     */
+    @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus = 'SYNCED' AND aiStatus = 'READY'")
+    suspend fun markSyncedForReupload(): Int
 }

@@ -9,6 +9,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import space.iamjustkrishna.srutam.ai.AIProcessor
 import space.iamjustkrishna.srutam.ai.ResolvedReminderTime
+import space.iamjustkrishna.srutam.cloud.CloudSyncTrigger
+import space.iamjustkrishna.srutam.cloud.WorkManagerSyncTrigger
 import space.iamjustkrishna.srutam.data.*
 import space.iamjustkrishna.srutam.service.*
 import java.security.MessageDigest
@@ -20,13 +22,30 @@ import java.util.UUID
 class InsightsRepository(
     val database: AppDatabase,
     private val alarms: ReminderAlarmService,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    private val syncTrigger: CloudSyncTrigger = CloudSyncTrigger.None
 ) {
     val insights = database.insightDao().getAllInsightsFlow()
     val reminders = database.reminderDao().getAllFlow()
     val recordings = database.recordingDao().getAllRecordings()
 
-    suspend fun merge(recordingId: Long, result: AIProcessor.AIInsights) = database.withTransaction {
+    /**
+     * Marks the note that owns a changed insight or reminder as needing re-upload.
+     *
+     * Call this from inside the same transaction as the mutation so the dirty flag
+     * and the change commit together - a crash between the two would otherwise
+     * leave an edit that never syncs, which is the exact failure this fixes.
+     *
+     * Chat-sourced rows ([SourceIds.CHAT]) are skipped: they have no parent
+     * recording and therefore no cloud note to attach to.
+     */
+    private suspend fun markDirty(recordingId: Long) {
+        if (SourceIds.isChat(recordingId)) return
+        database.recordingDao().markForSync(recordingId)
+    }
+
+    suspend fun merge(recordingId: Long, result: AIProcessor.AIInsights) {
+        database.withTransaction {
         val recording = database.recordingDao().getRecordingById(recordingId) ?: return@withTransaction
         val dao = database.insightDao()
         val existing = dao.getInsightsByRecordingId(recordingId).toMutableList()
@@ -68,6 +87,9 @@ class InsightsRepository(
             old.add(entity)
         }
         database.recordingDao().markInsightsImported(recordingId)
+        markDirty(recordingId)
+        }
+        syncTrigger.requestSync()
     }
 
     suspend fun importLegacy() {
@@ -101,15 +123,33 @@ class InsightsRepository(
                         alarms.cancel(reminder)
                     }
             }
+            markDirty(item.recordingId)
         }
+        syncTrigger.requestSync()
     }
 
-    suspend fun archiveCompleted() = database.insightDao().archiveCompletedActions(clock.millis())
+    suspend fun archiveCompleted() {
+        database.withTransaction {
+            // Collect the owners before the bulk UPDATE: an @Query UPDATE cannot report
+            // which rows it touched, so read them first or they can never be marked dirty.
+            val affected = database.insightDao().getAllInsights()
+                .filter { it.kind == InsightKind.ACTION && it.status == InsightStatus.COMPLETED }
+                .map { it.recordingId }
+                .distinct()
+            database.insightDao().archiveCompletedActions(clock.millis())
+            affected.forEach { markDirty(it) }
+        }
+        syncTrigger.requestSync()
+    }
 
-    suspend fun restoreTask(id: String) = database.withTransaction {
-        val dao = database.insightDao()
-        val item = dao.getById(id) ?: return@withTransaction
-        dao.updateInsight(item.copy(status = InsightStatus.COMPLETED, archivedAt = null, completedAt = clock.millis()))
+    suspend fun restoreTask(id: String) {
+        database.withTransaction {
+            val dao = database.insightDao()
+            val item = dao.getById(id) ?: return@withTransaction
+            dao.updateInsight(item.copy(status = InsightStatus.COMPLETED, archivedAt = null, completedAt = clock.millis()))
+            markDirty(item.recordingId)
+        }
+        syncTrigger.requestSync()
     }
 
     suspend fun deleteTask(id: String) = reminderWrites.withLock {
@@ -132,7 +172,9 @@ class InsightsRepository(
                     alarms.cancel(it)
                 }
             dao.deleteInsight(item)
+            markDirty(item.recordingId)
         }
+        syncTrigger.requestSync()
     }
 
     /** Called only from explicit user actions; validates the final edited value, never AI consent. */
@@ -158,11 +200,12 @@ class InsightsRepository(
                 scheduleRevision = old.scheduleRevision + 1,
                 scheduleError = if (edited.notificationEnabled && !notificationsAvailable)
                     "Saved without notifications. Enable notification permission, then review again." else null
-            ).also { dao.update(it) }
+            ).also { dao.update(it); markDirty(it.recordingId) }
         }
         alarms.cancel(saved)
         val result = if (saved.notificationEnabled) saved.copy(scheduleError = alarms.schedule(saved)) else saved
         database.reminderDao().update(result)
+        syncTrigger.requestSync()
         result
     }
 
@@ -186,7 +229,9 @@ class InsightsRepository(
                 }
             }
             alarms.cancel(item)
+            markDirty(item.recordingId)
         }
+        syncTrigger.requestSync()
     }
 
     /** Reopens a reminder that was marked done or dismissed within the last day, re-arming its alert when still upcoming. */
@@ -212,7 +257,9 @@ class InsightsRepository(
                 }
             }
             if (rearm) database.reminderDao().update(restored.copy(scheduleError = alarms.schedule(restored)))
+            markDirty(item.recordingId)
         }
+        syncTrigger.requestSync()
     }
 
     suspend fun disableReminder(id: String) = reminderWrites.withLock {
@@ -221,7 +268,10 @@ class InsightsRepository(
             notificationEnabled = false, confirmedAt = null,
             scheduleRevision = item.scheduleRevision + 1, scheduleError = null
         ))
+        // confirmedAt is a synced field, so clearing it is a cloud-visible change.
+        markDirty(item.recordingId)
         alarms.cancel(item)
+        syncTrigger.requestSync()
     }
 
     suspend fun deleteReminder(id: String) = reminderWrites.withLock {
@@ -232,7 +282,9 @@ class InsightsRepository(
             ))
             database.reminderDao().delete(item)
             alarms.cancel(item)
+            markDirty(item.recordingId)
         }
+        syncTrigger.requestSync()
     }
 
     suspend fun clearReminderHistory() = reminderWrites.withLock {
@@ -244,8 +296,10 @@ class InsightsRepository(
             }.forEach { item ->
                 database.reminderDao().delete(item)
                 alarms.cancel(item)
+                markDirty(item.recordingId)
             }
         }
+        syncTrigger.requestSync()
     }
 
     suspend fun createTask(sourceId: String, fromReminder: Boolean, text: String, reminder: ReminderEntity? = null): String =
@@ -280,6 +334,7 @@ class InsightsRepository(
                     require(ReminderPolicy.canSchedule(reminder, clock.millis())) { "Choose a future reminder time." }
                     database.reminderDao().insertReminders(listOf(reminder.copy(recordingId = recordingId, linkedTaskId = id)))
                 }
+                markDirty(recordingId)
                 id
             }
             if (fromReminder) database.reminderDao().getReminderById(sourceId)?.let { alarms.cancel(it) }
@@ -287,6 +342,7 @@ class InsightsRepository(
                 alarms.cancel(it)
                 database.reminderDao().update(it.copy(scheduleError = alarms.schedule(it)))
             }
+            syncTrigger.requestSync()
             result
         }
 
@@ -330,6 +386,8 @@ class InsightsRepository(
         val dao = database.insightDao()
         val item = dao.getById(id) ?: return@withLock
         dao.updateInsight(item.copy(text = text.trim(), extractionFingerprint = fingerprint(item.kind, text)))
+        markDirty(item.recordingId)
+        syncTrigger.requestSync()
     }
 
     suspend fun setInsightStatus(id: String, status: String) = reminderWrites.withLock {
@@ -339,12 +397,16 @@ class InsightsRepository(
             status = status, archivedAt = if (status == InsightStatus.ARCHIVED) clock.millis() else null,
             completedAt = if (status == InsightStatus.COMPLETED) (item.completedAt ?: clock.millis()) else null
         ))
+        markDirty(item.recordingId)
+        syncTrigger.requestSync()
     }
 
     suspend fun archiveTask(id: String) = reminderWrites.withLock {
         val dao = database.insightDao()
         val item = dao.getById(id) ?: return@withLock
         dao.updateInsight(item.copy(status = InsightStatus.ARCHIVED, archivedAt = clock.millis()))
+        markDirty(item.recordingId)
+        syncTrigger.requestSync()
     }
 
     suspend fun getReminder(id: String): ReminderEntity? = database.reminderDao().getReminderById(id)
@@ -353,7 +415,19 @@ class InsightsRepository(
     suspend fun allInsights(): List<InsightEntity> = database.insightDao().getAllInsightsFlow().first()
 
     suspend fun reconcile() = reminderWrites.withLock {
-        database.insightDao().autoArchiveStaleCompleted(clock.millis() - 3 * 24 * 60 * 60 * 1000L, clock.millis())
+        // reconcile() runs on every app start, so it marks ONLY what it actually
+        // changed. Marking unconditionally here would re-upload the whole library
+        // on every launch. Alarm rescheduling and scheduleError are deliberately
+        // excluded: neither field is synced, so they are not cloud-visible changes.
+        val dirty = mutableSetOf<Long>()
+        val cutoff = clock.millis() - 3 * 24 * 60 * 60 * 1000L
+        dirty += database.insightDao().getAllInsights()
+            .filter {
+                it.kind == InsightKind.ACTION && it.status == InsightStatus.COMPLETED &&
+                    it.completedAt != null && it.completedAt < cutoff
+            }
+            .map { it.recordingId }
+        database.insightDao().autoArchiveStaleCompleted(cutoff, clock.millis())
         for (item in database.reminderDao().getAll()) {
             alarms.cancel(item) // Also cancels old payloads without the new URI identity.
             if (sourceExists(item.recordingId) && ReminderPolicy.canSchedule(item, clock.millis())) {
@@ -366,9 +440,12 @@ class InsightsRepository(
                         status = InsightStatus.COMPLETED,
                         completedAt = item.confirmedAt ?: clock.millis()
                     ))
+                    dirty += task.recordingId
                 }
             }
         }
+        dirty.forEach { markDirty(it) }
+        if (dirty.isNotEmpty()) syncTrigger.requestSync()
     }
 
     /** Invoked after audio deletion succeeds, before deleting its source metadata. */
@@ -385,7 +462,11 @@ class InsightsRepository(
     companion object {
         private val reminderWrites = Mutex()
         private const val UNDO_WINDOW_MS = 24L * 60 * 60 * 1000
-        fun from(context: Context) = InsightsRepository(AppDatabase.getDatabase(context), AndroidReminderAlarms(context.applicationContext))
+        fun from(context: Context) = InsightsRepository(
+            AppDatabase.getDatabase(context),
+            AndroidReminderAlarms(context.applicationContext),
+            syncTrigger = WorkManagerSyncTrigger(context)
+        )
         fun fingerprint(kind: String, text: String): String {
             val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).trim()
                 .lowercase(Locale.ROOT).replace(Regex("\\s+"), " ")

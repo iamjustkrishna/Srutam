@@ -55,6 +55,8 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import space.iamjustkrishna.srutam.data.InsightEntity
@@ -207,7 +209,8 @@ fun DetailScreen(
                 Toast.makeText(context, "Queued for fresh AI processing when internet connects.", Toast.LENGTH_LONG).show()
             }
         },
-        onActionToggle = { viewModel.toggleActionComplete(it) }
+        onActionToggle = { viewModel.toggleActionComplete(it) },
+        onPrivacyToggle = { isPrivate -> viewModel.updatePrivacy(recordingId, isPrivate) }
     )
 }
 
@@ -230,8 +233,10 @@ fun DetailScreenContent(
     onRetryProcessing: () -> Unit = {},
     onReprocess: () -> Unit = {},
     onActionToggle: (InsightEntity) -> Unit = {},
+    onPrivacyToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val askQuestionsEnabled = recording?.let {
         !it.isProcessing && !it.transcript.isNullOrBlank()
     } == true
@@ -308,6 +313,27 @@ fun DetailScreenContent(
                     }
                 },
                 actions = {
+                    recording?.let { rec ->
+                        IconButton(
+                            onClick = {
+                                val newPrivate = !rec.isPrivate
+                                onPrivacyToggle(newPrivate)
+                                Toast.makeText(
+                                    context,
+                                    if (newPrivate) "Note marked Private (Hidden from MCP agents)" else "Note is now accessible to MCP agents",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (rec.isPrivate) Icons.Default.Lock else Icons.Default.LockOpen,
+                                contentDescription = if (rec.isPrivate) "Private Note" else "Agent Accessible",
+                                tint = if (rec.isPrivate) Color(0xFFEF4444) else Color(0xFF64748B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Sem.textSecondary)
                     }

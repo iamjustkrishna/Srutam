@@ -213,9 +213,11 @@ class AiProcessingWorker(
                         wiifm = insights.wiifm,
                         isProcessing = false,
                         aiStatus = RecordingAiStatus.READY,
+                        syncStatus = space.iamjustkrishna.srutam.data.SyncStatus.PENDING,
                         processingError = null
                     )
                     recordingDao.updateRecording(finishedRecording)
+                    space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(applicationContext)
 
                     completedCount++
                     lastCompletedRecording = finishedRecording
@@ -240,9 +242,11 @@ class AiProcessingWorker(
                             wiifm = fallback.wiifm,
                             isProcessing = false,
                             aiStatus = RecordingAiStatus.READY,
+                            syncStatus = space.iamjustkrishna.srutam.data.SyncStatus.PENDING,
                             processingError = null
                         )
                         recordingDao.updateRecording(fallbackRecording)
+                        space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(applicationContext)
                         completedCount++
                         lastCompletedRecording = fallbackRecording
                         Log.d(TAG, "Fallback offline insights saved for note $recordingId")
