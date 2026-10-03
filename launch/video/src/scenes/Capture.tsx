@@ -20,7 +20,7 @@ const Side: React.FC<{t: number; dur: number; kicker: string; parts: Array<[stri
 const phonePos = (pt: boolean, w: number): React.CSSProperties => (pt ? {left: w / 2 - 205, top: 700} : {left: 1175, top: 110});
 
 // a third-party app, to show the dock works anywhere
-const OtherApp: React.FC = () => (
+export const OtherApp: React.FC = () => (
 	<div style={{position: 'absolute', inset: 0, paddingTop: 52, padding: '52px 18px 0', background: '#FFFBF5', fontFamily: 'Roboto'}}>
 		<div style={{display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 18}}>
 			<div style={{width: 40, height: 40, borderRadius: 12, background: '#F97316'}} />

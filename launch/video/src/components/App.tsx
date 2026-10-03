@@ -195,7 +195,7 @@ export const FeedScreen: React.FC<{sync?: 'syncing' | 'synced' | null; spin?: nu
 );
 
 // ---------- note details ----------
-export const DetailScreen: React.FC<{tab: 'transcript' | 'summary'; transcript: string; caret?: boolean}> = ({tab, transcript, caret}) => (
+export const DetailScreen: React.FC<{tab: 'transcript' | 'summary'; transcript: string; caret?: boolean; title?: string}> = ({tab, transcript, caret, title = 'Product thoughts'}) => (
 	<Screen>
 		<div style={{height: 56, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 6px', background: 'rgba(244,245,248,.85)', borderBottom: '1px solid rgba(226,232,240,.6)'}}>
 			<MI n="back" s={28} c={K.ink} />
@@ -206,7 +206,7 @@ export const DetailScreen: React.FC<{tab: 'transcript' | 'summary'; transcript: 
 		<div style={{padding: 16, display: 'flex', flexDirection: 'column', gap: 16}}>
 			<div style={{background: '#fff', border: '0.5px solid #E2E8F0', borderRadius: 16, padding: 16}}>
 				<div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-					<span style={{fontSize: 18, fontWeight: 700, color: K.ink}}>Product thoughts</span>
+					<span style={{fontSize: 18, fontWeight: 700, color: K.ink}}>{title}</span>
 					<div style={{width: 36, height: 36, display: 'grid', placeItems: 'center'}}><MI n="edit" s={20} c={K.cobalt} /></div>
 				</div>
 				<div style={{display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 13, color: K.muted}}>Oct 03, 09:12 <span>•</span><MI n="schedule" s={13} c={K.muted} /> 0:42</div>

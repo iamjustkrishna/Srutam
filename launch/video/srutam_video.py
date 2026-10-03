@@ -14,6 +14,7 @@ loudness checks and review contact sheets.
     python3 srutam_video.py music previews               # 32s previews of every sample -> ../music/
     python3 srutam_video.py stills [--fmt 16x9] [--at 10,20,30 | --scenes]   # contact sheet for review
     python3 srutam_video.py render [--fmt 16x9,9x16] [--audio-only] [--suffix -funk]         # final MP4s in launch/
+    python3 srutam_video.py social [x ig linkedin]       # ~20s platform cuts -> launch/social/
     python3 srutam_video.py check                        # duration + loudness of the final files
     python3 srutam_video.py timeline                     # scene start times (seconds)
 
@@ -317,6 +318,25 @@ def cmd_render(a):
     cmd_check(a)
 
 
+SOCIAL = {"x": ("SocialX", "srutam-2.5-x-16x9.mp4"), "ig": ("SocialIG", "srutam-2.5-instagram-9x16.mp4"), "linkedin": ("SocialLinkedIn", "srutam-2.5-linkedin-4x5.mp4")}
+
+
+def cmd_social(a):
+    """Render the ~20s social cuts (src/social/*) with audio, normalised to the platform loudness."""
+    dest = (ROOT / ".." / "social").resolve()
+    dest.mkdir(exist_ok=True)
+    OUT.mkdir(exist_ok=True)
+    for k in (a.which or list(SOCIAL)):
+        comp, name = SOCIAL[k]
+        raw = OUT / f"{comp}.mp4"
+        print(f"{k}: rendering {comp}...")
+        sh(["npx", "remotion", "render", comp, str(raw), f"--concurrency={CFG['render']['concurrency']}", "--log=error"])
+        mix = CFG["mix"]
+        sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(raw), "-c:v", "copy", "-af", f"loudnorm=I={mix['loudness_lufs']}:TP={mix['true_peak']}:LRA=9",
+            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", str(dest / name)])
+        print(f"{k}: -> {dest / name} ({duration(dest / name):.1f}s)")
+
+
 def cmd_check(a):
     for f in CFG["render"]["formats"]:
         final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f).replace(".mp4", f"{getattr(a, 'suffix', '')}.mp4")).resolve()
@@ -360,6 +380,9 @@ def main():
     r.add_argument("--audio-only", action="store_true", help="keep the last picture render, only remix/remux audio")
     r.add_argument("--suffix", default="", help="variation tag for the output file, e.g. -funk")
     r.set_defaults(fn=cmd_render)
+    so = sub.add_parser("social")
+    so.add_argument("which", nargs="*", help="x, ig, linkedin (default: all)")
+    so.set_defaults(fn=cmd_social)
     c = sub.add_parser("check")
     c.add_argument("--suffix", default="")
     c.set_defaults(fn=cmd_check)

@@ -1,6 +1,9 @@
 import {loadFont} from '@remotion/fonts';
 import {Composition, type CalculateMetadataFunction, staticFile} from 'remotion';
 import {Launch, type LaunchProps} from './Launch';
+import {IGReel} from './social/IGReel';
+import {LinkedIn} from './social/LinkedIn';
+import {XLaunch} from './social/XLaunch';
 import {FPS} from './lib';
 import {type Manifest, totalDur} from './timeline';
 
@@ -29,6 +32,9 @@ const calc: CalculateMetadataFunction<LaunchProps> = async ({props}) => {
 export const RemotionRoot = () => (
 	<>
 		<Composition id="Launch16x9" component={Launch} width={1920} height={1080} fps={FPS} durationInFrames={1800} defaultProps={{manifest: null}} calculateMetadata={calc} />
+		<Composition id="SocialX" component={XLaunch} width={1920} height={1080} fps={FPS} durationInFrames={20 * FPS} />
+		<Composition id="SocialIG" component={IGReel} width={1080} height={1920} fps={FPS} durationInFrames={21 * FPS} />
+		<Composition id="SocialLinkedIn" component={LinkedIn} width={1080} height={1350} fps={FPS} durationInFrames={20 * FPS} />
 		<Composition id="Launch9x16" component={Launch} width={1080} height={1920} fps={FPS} durationInFrames={1800} defaultProps={{manifest: null}} calculateMetadata={calc} />
 	</>
 );
