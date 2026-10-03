@@ -10,6 +10,7 @@ import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Decodes M4A audio files to 16kHz mono PCM float array for speech recognition.
@@ -20,6 +21,7 @@ class AudioDecoder {
         private const val TAG = "AudioDecoder"
         private const val TARGET_SAMPLE_RATE = 16000
         private const val BUFFER_SIZE = 4096
+        private const val MAX_IDLE_POLLS_AFTER_INPUT = 300
     }
 
     /**
@@ -133,8 +135,9 @@ class AudioDecoder {
         targetSampleRate: Int = TARGET_SAMPLE_RATE,
         onChunk: (FloatArray) -> Unit,
     ): Boolean {
+        val extractor = MediaExtractor()
+        var startedCodec: MediaCodec? = null
         try {
-            val extractor = MediaExtractor()
             extractor.setDataSource(audioFile.absolutePath)
 
             val trackIndex = findAudioTrack(extractor)
@@ -152,6 +155,7 @@ class AudioDecoder {
 
             val mimeType = format.getString(MediaFormat.KEY_MIME) ?: "audio/mp4a-latm"
             val codec = MediaCodec.createDecoderByType(mimeType)
+            startedCodec = codec
             codec.configure(format, null, null, 0)
             codec.start()
 
@@ -164,30 +168,42 @@ class AudioDecoder {
                 null
             }
 
+            // Output keeps being drained after end-of-stream is queued: the codec still holds
+            // decoded frames then, and stopping early drops the end of the recording.
+            var inputDone = false
             var decodingComplete = false
+            var idlePollsAfterInput = 0
 
             while (!decodingComplete) {
-                val inputIndex = codec.dequeueInputBuffer(10000)
-                if (inputIndex >= 0) {
-                    val inputBuffer = inputBuffers[inputIndex]
-                    val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                if (!inputDone) {
+                    val inputIndex = codec.dequeueInputBuffer(10000)
+                    if (inputIndex >= 0) {
+                        val inputBuffer = inputBuffers[inputIndex]
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
 
-                    if (sampleSize < 0) {
-                        codec.queueInputBuffer(
-                            inputIndex,
-                            0,
-                            0,
-                            0,
-                            MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                        )
-                        decodingComplete = true
-                    } else {
-                        codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
-                        extractor.advance()
+                        if (sampleSize < 0) {
+                            codec.queueInputBuffer(
+                                inputIndex,
+                                0,
+                                0,
+                                0,
+                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                            )
+                            inputDone = true
+                        } else {
+                            codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
                     }
                 }
 
                 val outputIndex = codec.dequeueOutputBuffer(info, 10000)
+                if (inputDone && outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    // Safety net for a codec that never reports its own end-of-stream.
+                    if (++idlePollsAfterInput >= MAX_IDLE_POLLS_AFTER_INPUT) decodingComplete = true
+                } else {
+                    idlePollsAfterInput = 0
+                }
                 if (outputIndex >= 0) {
                     val outputBuffer = outputBuffers[outputIndex]
                     val pcmSamples = ByteArray(info.size)
@@ -220,13 +236,18 @@ class AudioDecoder {
 
             resampler?.flush()?.takeIf { it.isNotEmpty() }?.let(onChunk)
 
-            codec.stop()
-            codec.release()
-            extractor.release()
             return true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error decoding audio file in chunks: ${e.message}", e)
             return false
+        } finally {
+            startedCodec?.let {
+                runCatching { it.stop() }
+                runCatching { it.release() }
+            }
+            extractor.release()
         }
     }
 
