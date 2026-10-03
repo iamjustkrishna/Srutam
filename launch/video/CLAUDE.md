@@ -56,6 +56,10 @@ The goal is to make video changes cheaply. Use `srutam_video.py` for every mecha
 - The ElevenLabs Music API returns 402 on the free tier; use `music gen` (sound-effects loops).
 - `create-video` scaffolds a nested `.git`; delete it if you ever re-scaffold.
 
+## Music approach
+- Prefer `music arrange <preset>` over `music use`. It automates filter and level per scene (the `ARRANGEMENT` table in `srutam_video.py`), so the music follows the video's energy, and it costs no credits.
+- Edit the table, not the code, to re-score.
+
 ## User preferences so far
 - **No mascot.** It was tried and rejected.
 - **No captions** (the latest request).

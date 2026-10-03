@@ -10,6 +10,7 @@ loudness checks and review contact sheets.
     python3 srutam_video.py sfx [name ...]               # sound effects from video.config.json
     python3 srutam_video.py music gen <preset> [--seconds 20]   # new seamless loop -> public/music-samples/
     python3 srutam_video.py music use <preset>           # loop it to the video length -> public/music.wav
+    python3 srutam_video.py music arrange <preset>       # score it to the edit (drop, breakdown, build) -> public/music.wav
     python3 srutam_video.py music previews               # 32s previews of every sample -> ../music/
     python3 srutam_video.py stills [--fmt 16x9] [--at 10,20,30 | --scenes]   # contact sheet for review
     python3 srutam_video.py render [--fmt 16x9,9x16] [--audio-only] [--suffix -funk]         # final MP4s in launch/
@@ -185,6 +186,8 @@ def cmd_music(a):
         m["music"] = "music.wav"
         save_manifest(m)
         print(f"music bed: {a.name} looped to {total:.1f}s -> public/music.wav")
+    elif a.action == "arrange":
+        arrange(a.name)
     elif a.action == "previews":
         dest = ROOT / ".." / "music"
         dest.mkdir(exist_ok=True)
@@ -193,6 +196,76 @@ def cmd_music(a):
             sh(["ffmpeg", "-loglevel", "error", "-y", "-stream_loop", "1", "-i", str(f), "-t", f"{ln:.2f}", "-af",
                 f"afade=t=in:d=0.5,afade=t=out:st={ln - 2:.2f}:d=2,loudnorm=I=-16:TP=-1.5", "-b:a", "192k", str(dest / f"{i}-{f.stem}.mp3")])
             print("preview", f"{i}-{f.stem}.mp3")
+
+
+# Section plan for `music arrange`: (scene, brightness 0..1, level 0..1) applied from that scene's start.
+# brightness blends a dark low-passed copy with the full mix; values ramp smoothly between sections.
+ARRANGEMENT = [
+    ("hook", 0.0, 0.55),        # muffled, distant
+    ("title", 1.0, 1.0),        # opens on the logo hit
+    ("dock", 0.55, 0.85),       # warm groove under narration
+    ("organize", 0.75, 0.9),    # lifts as Insights pop
+    ("newin", None, 0.0),       # drop: silence so the braam lands alone
+    ("cloud", 1.0, 1.0),        # payoff section, brightest
+    ("trust", 0.15, 0.6),       # breakdown, calm and serious
+    ("end", 1.0, 1.0),          # full return, then ring out
+]
+
+
+def arrange(name: str) -> None:
+    """Score a loop to the edit: per-scene filter + level automation (0 credits)."""
+    import numpy as np
+    src = PUB / "music-samples" / f"{name}.mp3"
+    if not src.exists():
+        sys.exit(f"{src} missing; run `music gen {name}` first")
+    t = timeline()
+    total, starts = t["total"], {s["id"]: s["start"] for s in t["tl"]}
+    sr, n = 44100, int(t["total"] * 44100)
+    loops = int(total // duration(src)) + 1
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-stream_loop", str(loops), "-i", str(src), "-t", f"{total:.3f}",
+                          "-f", "f32le", "-ac", "2", "-ar", str(sr), "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, dtype=np.float32).reshape(-1, 2)[:n].astype(np.float64)
+    n = len(x)
+    # dark copy: FFT low-pass at 450 Hz
+    X = np.fft.rfft(x, axis=0)
+    f = np.fft.rfftfreq(n, 1 / sr)
+    X[f > 450] *= np.exp(-((f[f > 450] - 450) / 250))[:, None]
+    dark = np.fft.irfft(X, n, axis=0)
+    # automation curves (sample-accurate, 0.35s ramps; hook opens slowly into the title)
+    tt = np.arange(n) / sr
+    bright, level = np.zeros(n), np.zeros(n)
+    prev_b = 0.0
+    for i, (sid, b, lv) in enumerate(ARRANGEMENT):
+        a0 = starts[sid]
+        a1 = starts[ARRANGEMENT[i + 1][0]] if i + 1 < len(ARRANGEMENT) else total
+        seg = (tt >= a0) & (tt < a1)
+        ramp = 0.06 if sid == "newin" else 0.35
+        k = np.clip((tt[seg] - a0) / ramp, 0, 1)
+        bb = prev_b if b is None else b
+        bright[seg] = prev_b + (bb - prev_b) * k
+        level[seg] = lv
+        prev_b = bb
+    hook = tt < starts["title"]
+    bright[hook] = np.clip(tt[hook] / starts["title"], 0, 1) ** 2 * 0.6  # slow filter sweep up
+    # smooth level changes except the hard drop into "newin"
+    win = int(0.25 * sr)
+    sm = np.convolve(level, np.ones(win) / win, mode="same")
+    drop = (tt >= starts["newin"]) & (tt < starts["cloud"])
+    sm[drop] = level[drop]
+    sm[(tt >= starts["newin"] - 0.05) & (tt < starts["newin"])] *= np.linspace(1, 0, ((tt >= starts["newin"] - 0.05) & (tt < starts["newin"])).sum())
+    y = (dark * (1 - bright)[:, None] + x * bright[:, None]) * sm[:, None]
+    y *= np.clip((total - tt) / 2.7, 0, 1)[:, None] * np.clip(tt / 0.6, 0, 1)[:, None]
+    y = (y / (np.abs(y).max() + 1e-9) * 0.9).astype(np.float32)
+    tmp = OUT / "arranged.f32"
+    OUT.mkdir(exist_ok=True)
+    tmp.write_bytes(y.tobytes())
+    sh(["ffmpeg", "-loglevel", "error", "-y", "-f", "f32le", "-ac", "2", "-ar", str(sr), "-i", str(tmp),
+        "-af", "loudnorm=I=-16:TP=-1.5", "-ar", "44100", str(PUB / "music.wav")])
+    tmp.unlink()
+    m = manifest()
+    m["music"] = "music.wav"
+    save_manifest(m)
+    print(f"music bed: {name} arranged to the edit ({total:.1f}s) -> public/music.wav")
 
 
 def cmd_stills(a):
@@ -273,7 +346,7 @@ def main():
     s.add_argument("names", nargs="*")
     s.set_defaults(fn=cmd_sfx)
     m = sub.add_parser("music")
-    m.add_argument("action", choices=["gen", "use", "previews"])
+    m.add_argument("action", choices=["gen", "use", "arrange", "previews"])
     m.add_argument("name", nargs="?", default=CFG["music"]["current"])
     m.add_argument("--seconds", type=float, default=20)
     m.add_argument("--prompt")

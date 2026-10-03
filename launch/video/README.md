@@ -28,6 +28,7 @@ Requirements:
 | `sfx [name ...]` | Sound effects defined in `video.config.json`. | 30s | 40/second (~450 for all) |
 | `music gen <preset> [--seconds 20]` | A new seamless music loop. | 20s | 40/second (800 for 20s) |
 | `music use <preset>` | Loops a sample to the video length with fades. | 2s | 0 |
+| `music arrange <preset>` | Scores a loop to the edit, following `ARRANGEMENT` in `srutam_video.py`: muffled intro, open on the title, a drop at "New in 2.5", a breakdown at Trust, a full ending. | 5s | 0 |
 | `music previews` | 32-second previews of every sample, written to `launch/music/`. | 5s | 0 |
 | `stills [--fmt 9x16] [--at 10,20]` | Contact sheet for review; by default one frame per scene. | ~1 min | 0 |
 | `render --audio-only [--suffix=-funk]` | Remixes the audio onto the last picture render. `--suffix` names a variation so it doesn't overwrite the main files. | ~1 min | 0 |
