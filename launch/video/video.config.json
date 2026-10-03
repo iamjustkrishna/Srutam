@@ -1,0 +1,42 @@
+{
+  "voice": {
+    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "voice_name": "George",
+    "model_id": "eleven_multilingual_v2",
+    "settings": {"stability": 0.55, "similarity_boost": 0.8, "style": 0.25, "use_speaker_boost": true},
+    "auditions": {"george": "JBFqnCBsd6RMkjVDRZzb", "brian": "nPczCjzI2devNBz1zQrb", "sarah": "EXAVITQu4vr4xnAyxNcz"}
+  },
+  "sfx": {
+    "whoosh": ["Fast airy cinematic whoosh transition, clean, modern, no hiss tail", 0.8],
+    "impact": ["Deep soft sub bass impact with a bright shimmering tail, cinematic logo hit", 2.0],
+    "impact_soft": ["Subtle soft muted thump, gentle UI confirmation hit, warm", 0.7],
+    "braam": ["Short modern cinematic braam swell, warm synth, epic reveal, polished", 2.0],
+    "riser": ["Smooth rising airy synth swell building up, 1 second, clean ending", 1.1],
+    "tap": ["Crisp soft smartphone screen tap click, UI sound", 0.5],
+    "recstart": ["Friendly two-note rising digital chime, recording started, minimal UI", 0.7],
+    "success": ["Bright pleasant success chime, three ascending notes, soft bell, app notification", 1.0],
+    "pop": ["Soft bubbly pop, playful UI card appearing", 0.5],
+    "scan": ["Short high pitched QR code scanner beep, clean digital", 0.5],
+    "typing": ["Fast quiet mechanical keyboard typing burst", 1.4]
+  },
+  "music": {
+    "current": "old-school-funk",
+    "presets": {
+      "old-school-funk": "Cool old school 70s funk groove, tight syncopated drum break, slap bass line, wah-wah rhythm guitar, warm Rhodes stabs, short brass hits, laid-back confident swagger with a modern clean mix, 104 bpm, instrumental, no vocals",
+      "upbeat-electronic": "Uplifting modern electronic tech product launch loop, bright plucked synth arpeggio, airy warm pads, punchy soft kick and claps, light shimmering percussion, 118 bpm, optimistic, polished, instrumental, no vocals",
+      "lofi-electric-piano": "Warm lo-fi electric piano chord loop with soft vinyl texture, mellow sub bass and gentle brushed drums, 90 bpm, calm, hopeful, premium, instrumental, no vocals",
+      "cinematic-piano": "Cinematic emotional piano melody with soft swelling strings and subtle pulsing synth, inspiring tech keynote reveal, 90 bpm, hopeful, premium, instrumental, no vocals",
+      "chill-house": "Smooth deep house groove, warm Rhodes chords, round bassline, crisp hi-hats and soft four-on-the-floor kick, 120 bpm, modern and confident, instrumental, no vocals",
+      "ambient-glow": "Minimal ambient electronic bed, glowing evolving synth pads, gentle glassy plucks, soft sub pulse, dreamy and calm, Apple-style product film, 80 bpm, instrumental, no vocals",
+      "future-pop": "Bright energetic future-pop beat, sparkling chopped synth chords, bouncy bass, snappy claps, feel-good startup launch energy, 126 bpm, instrumental, no vocals"
+    }
+  },
+  "mix": {"loudness_lufs": -14, "true_peak": -1.0, "music_fade_in": 1.0, "music_fade_out": 2.7},
+  "render": {
+    "formats": {"16x9": "Launch16x9", "9x16": "Launch9x16"},
+    "output_dir": "..",
+    "output_name": "srutam-2.5-launch-{fmt}.mp4",
+    "concurrency": 4,
+    "browser": "/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell"
+  }
+}
