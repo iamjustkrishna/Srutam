@@ -30,7 +30,7 @@ Requirements:
 | `music use <preset>` | Loops a sample to the video length with fades. | 2s | 0 |
 | `music previews` | 32-second previews of every sample, written to `launch/music/`. | 5s | 0 |
 | `stills [--fmt 9x16] [--at 10,20]` | Contact sheet for review; by default one frame per scene. | ~1 min | 0 |
-| `render --audio-only` | Remixes the audio onto the last picture render. | ~1 min | 0 |
+| `render --audio-only [--suffix=-funk]` | Remixes the audio onto the last picture render. `--suffix` names a variation so it doesn't overwrite the main files. | ~1 min | 0 |
 | `render [--fmt 16x9]` | Full render: picture, audio mix, -14 LUFS, mux. | ~5 min per format | 0 |
 | `check` | Duration, loudness and size of the final files. | 5s | 0 |
 

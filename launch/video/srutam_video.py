@@ -12,7 +12,7 @@ loudness checks and review contact sheets.
     python3 srutam_video.py music use <preset>           # loop it to the video length -> public/music.wav
     python3 srutam_video.py music previews               # 32s previews of every sample -> ../music/
     python3 srutam_video.py stills [--fmt 16x9] [--at 10,20,30 | --scenes]   # contact sheet for review
-    python3 srutam_video.py render [--fmt 16x9,9x16] [--audio-only]          # final MP4s in launch/
+    python3 srutam_video.py render [--fmt 16x9,9x16] [--audio-only] [--suffix -funk]         # final MP4s in launch/
     python3 srutam_video.py check                        # duration + loudness of the final files
     python3 srutam_video.py timeline                     # scene start times (seconds)
 
@@ -237,7 +237,7 @@ def cmd_render(a):
         else:
             print(f"{f}: rendering picture (several minutes)...")
             sh(["npx", "remotion", "render", comp, str(video), f"--concurrency={CFG['render']['concurrency']}", "--muted", "--log=error"])
-        final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f)).resolve()
+        final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f).replace(".mp4", f"{getattr(a, 'suffix', '')}.mp4")).resolve()
         sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(video), "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
             "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(final)])
         print(f"{f}: -> {final}")
@@ -246,7 +246,7 @@ def cmd_render(a):
 
 def cmd_check(a):
     for f in CFG["render"]["formats"]:
-        final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f)).resolve()
+        final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f).replace(".mp4", f"{getattr(a, 'suffix', '')}.mp4")).resolve()
         if not final.exists():
             continue
         r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(final), "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True)
@@ -285,8 +285,11 @@ def main():
     r = sub.add_parser("render")
     r.add_argument("--fmt", default=",".join(CFG["render"]["formats"]))
     r.add_argument("--audio-only", action="store_true", help="keep the last picture render, only remix/remux audio")
+    r.add_argument("--suffix", default="", help="variation tag for the output file, e.g. -funk")
     r.set_defaults(fn=cmd_render)
-    sub.add_parser("check").set_defaults(fn=cmd_check)
+    c = sub.add_parser("check")
+    c.add_argument("--suffix", default="")
+    c.set_defaults(fn=cmd_check)
     sub.add_parser("timeline").set_defaults(fn=cmd_timeline)
     a = p.parse_args()
     a.fn(a)
