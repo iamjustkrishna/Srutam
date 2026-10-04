@@ -162,3 +162,6 @@ screenshots/
 visuals/
 art/
 design_docs/
+
+# Private outreach lists (contain third-party handles; keep out of the public repo)
+outreach/
