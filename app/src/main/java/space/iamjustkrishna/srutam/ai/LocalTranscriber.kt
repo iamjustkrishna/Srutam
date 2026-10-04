@@ -24,14 +24,15 @@ class LocalTranscriber(private val context: Context) {
     @Volatile
     private var recognizer: OfflineRecognizer? = null
 
-    suspend fun transcribe(audioFile: File): String {
+    /** [onProgress] receives how many ms of audio have been fully transcribed so far. */
+    suspend fun transcribe(audioFile: File, onProgress: ((audioMs: Long) -> Unit)? = null): String {
         verifyModelAssets()
         val job = currentCoroutineContext()[Job]
         val recognizer = getOrCreateRecognizer()
         val vad = createVad()
         val startNanos = System.nanoTime()
 
-        val session = Session(recognizer, vad, job)
+        val session = Session(recognizer, vad, job, onProgress)
         try {
             val decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE, session::accept)
             job?.ensureActive()
@@ -62,7 +63,8 @@ class LocalTranscriber(private val context: Context) {
     private class Session(
         private val recognizer: OfflineRecognizer,
         private val vad: Vad,
-        private val job: Job?
+        private val job: Job?,
+        private val onProgress: ((audioMs: Long) -> Unit)?
     ) {
         val texts = ArrayList<String>()
         var totalSamples = 0L
@@ -90,6 +92,7 @@ class LocalTranscriber(private val context: Context) {
                 vad.pop()
                 val text = recognize(withPreRoll(segment))
                 if (text.isNotBlank()) texts.add(text)
+                onProgress?.invoke((segment.start.toLong() + segment.samples.size) * 1000 / SAMPLE_RATE)
             }
         }
 
