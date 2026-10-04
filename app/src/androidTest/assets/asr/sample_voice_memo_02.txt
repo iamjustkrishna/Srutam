@@ -1,0 +1,1 @@
+Idea for the local voice engine architecture. We should investigate replacing our seventy megabyte streaming zipformer with an offline quantized whisper model or moonshine. The offline model has bidirectional cross attention, which should drastically cut word error rate on long audio memos while reducing APK size by over thirty megabytes.

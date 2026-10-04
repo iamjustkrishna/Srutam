@@ -1,0 +1,1 @@
+Good morning team. Here are the three action items for today. First, we need to finish the offline speech recognition benchmarks and confirm memory usage. Second, sync with Krishna regarding the Play Store feature graphic design. Third, ship the release build to internal testers by five PM. Let me know if you run into any blockers.
