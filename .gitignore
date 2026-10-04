@@ -86,6 +86,12 @@ models/
 *.bin
 *.pt
 *.safetensors
+# Bundled speech assets (these must come after the *.onnx rule above). The small VAD model is
+# tracked; the speech model is over GitHub's 100 MB file limit, so scripts/fetch-asr-model.* installs it.
+!app/src/main/assets/silero_vad.onnx
+app/src/main/assets/parakeet-110m*
+# Speech clips used by the on-device transcription test
+!app/src/androidTest/assets/asr/*.wav
 *.wav
 *.mp3
 *.m4a

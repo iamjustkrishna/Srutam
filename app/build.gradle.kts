@@ -115,6 +115,12 @@ android {
         noCompress += "bin"
         noCompress += "xml"
     }
+    packaging {
+        jniLibs {
+            // libsherpa-onnx-jni.so links only libonnxruntime.so; these are for non-JNI users.
+            excludes += listOf("**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
+        }
+    }
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -207,3 +213,21 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+// The speech model is not committed to git (too large for GitHub); fail packaging early with a
+// clear message instead of shipping an app that cannot transcribe.
+val asrModelFiles = listOf("parakeet-110m.int8.onnx", "parakeet-110m-tokens.txt")
+    .map { file("src/main/assets/$it") }
+val checkAsrModel = tasks.register("checkAsrModel") {
+    doLast {
+        val missing = asrModelFiles.filterNot { it.exists() }.map { it.name }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Speech model files missing from app/src/main/assets: ${missing.joinToString()}. " +
+                    "Run scripts/fetch-asr-model.ps1 (Windows) or scripts/fetch-asr-model.sh."
+            )
+        }
+    }
+}
+tasks.matching { it.name.matches(Regex("(package|bundle)(Debug|Release)")) }
+    .configureEach { dependsOn(checkAsrModel) }
