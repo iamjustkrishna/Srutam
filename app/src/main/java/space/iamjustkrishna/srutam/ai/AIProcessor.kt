@@ -31,6 +31,8 @@ class AIProcessor(private val context: Context) {
 
     private val gson = Gson()
     private val localTranscriber = LocalTranscriber(context)
+
+    fun close() = localTranscriber.release()
     private val cacheDao by lazy { AppDatabase.getDatabase(context).aiQueryCacheDao() }
 
     suspend fun processRecording(audioFile: File): AIProcessingResult = withContext(Dispatchers.IO) {

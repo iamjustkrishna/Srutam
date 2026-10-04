@@ -18,6 +18,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.google.gson.Gson
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.ai.AIProcessor
@@ -70,6 +72,8 @@ class AiProcessingWorker(
         val insightDao = database.insightDao()
         val reminderDao = database.reminderDao()
         val aiProcessor = AIProcessor(applicationContext)
+        // Frees the speech model's native memory when this worker ends, however it ends.
+        currentCoroutineContext()[Job]?.invokeOnCompletion { aiProcessor.close() }
 
         val totalCount = recordingIds.size
         var completedCount = 0

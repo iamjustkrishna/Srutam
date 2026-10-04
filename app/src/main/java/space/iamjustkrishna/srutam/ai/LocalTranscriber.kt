@@ -1,102 +1,217 @@
-﻿package space.iamjustkrishna.srutam.ai
+package space.iamjustkrishna.srutam.ai
 
 import android.content.Context
-import space.iamjustkrishna.srutam.utils.AudioDecoder
+import android.util.Log
 import com.k2fsa.sherpa.onnx.FeatureConfig
-import com.k2fsa.sherpa.onnx.OnlineModelConfig
-import com.k2fsa.sherpa.onnx.OnlineRecognizer
-import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
-import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
+import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineNemoEncDecCtcModelConfig
+import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.SileroVadModelConfig
+import com.k2fsa.sherpa.onnx.SpeechSegment
+import com.k2fsa.sherpa.onnx.Vad
+import com.k2fsa.sherpa.onnx.VadModelConfig
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import space.iamjustkrishna.srutam.utils.AudioDecoder
 import java.io.File
+import java.io.IOException
 
 class LocalTranscriber(private val context: Context) {
     private val audioDecoder = AudioDecoder()
 
     @Volatile
-    private var recognizer: OnlineRecognizer? = null
+    private var recognizer: OfflineRecognizer? = null
 
     suspend fun transcribe(audioFile: File): String {
+        verifyModelAssets()
+        val job = currentCoroutineContext()[Job]
         val recognizer = getOrCreateRecognizer()
-        val stream = recognizer.createStream()
+        val vad = createVad()
+        val startNanos = System.nanoTime()
 
+        val session = Session(recognizer, vad, job)
         try {
-            stream.acceptWaveform(FloatArray((LEFT_PADDING_SECONDS * SAMPLE_RATE).toInt()), SAMPLE_RATE)
+            val decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE, session::accept)
+            job?.ensureActive()
+            require(decoded && session.totalSamples > 0) { "Failed to decode audio file for local transcription" }
 
-            var hadSamples = false
-            val decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE) { chunk ->
-                hadSamples = true
-                var offset = 0
-                while (offset < chunk.size) {
-                    val end = minOf(offset + CHUNK_SIZE_SAMPLES, chunk.size)
-                    stream.acceptWaveform(chunk.copyOfRange(offset, end), SAMPLE_RATE)
-                    while (recognizer.isReady(stream)) {
-                        recognizer.decode(stream)
-                    }
-                    offset = end
-                }
-            }
-
-            require(decoded && hadSamples) { "Failed to decode audio file for local transcription" }
-
-            stream.acceptWaveform(FloatArray((TAIL_PADDING_SECONDS * SAMPLE_RATE).toInt()), SAMPLE_RATE)
-            stream.inputFinished()
-
-            while (recognizer.isReady(stream)) {
-                recognizer.decode(stream)
-            }
-
-            return recognizer.getResult(stream).text.trim()
+            session.finish()
         } finally {
-            stream.release()
+            vad.release()
         }
+
+        Log.d(
+            TAG,
+            "Transcribed ${session.totalSamples * 1000 / SAMPLE_RATE} ms of audio in " +
+                "${(System.nanoTime() - startNanos) / 1_000_000} ms (${session.texts.size} speech segments)"
+        )
+        // No speech segments means no text, which lets the caller report a silent recording
+        // instead of the model inventing words for noise.
+        return session.texts.joinToString(" ")
     }
 
     @Synchronized
-    private fun getOrCreateRecognizer(): OnlineRecognizer {
+    fun release() {
+        recognizer?.release()
+        recognizer = null
+    }
+
+    /** State for one transcription: feeds audio to the VAD and recognizes each speech segment. */
+    private class Session(
+        private val recognizer: OfflineRecognizer,
+        private val vad: Vad,
+        private val job: Job?
+    ) {
+        val texts = ArrayList<String>()
+        var totalSamples = 0L
+            private set
+
+        private val recentAudio = RecentAudio(RECENT_AUDIO_SECONDS * SAMPLE_RATE)
+        private var previousSegmentEnd = 0L
+
+        fun accept(chunk: FloatArray) {
+            totalSamples += chunk.size
+            recentAudio.append(chunk)
+            vad.acceptWaveform(chunk)
+            recognizeReadySegments()
+        }
+
+        fun finish() {
+            vad.flush()
+            recognizeReadySegments()
+        }
+
+        private fun recognizeReadySegments() {
+            while (!vad.empty()) {
+                job?.ensureActive()
+                val segment = vad.front()
+                vad.pop()
+                val text = recognize(withPreRoll(segment))
+                if (text.isNotBlank()) texts.add(text)
+            }
+        }
+
+        // The VAD reports speech slightly after it begins, which clips the first word. Prepend a
+        // little of the audio before the segment, without reaching back into the previous one.
+        private fun withPreRoll(segment: SpeechSegment): FloatArray {
+            val start = segment.start.toLong()
+            val preRollStart = maxOf(start - PRE_ROLL_SAMPLES, previousSegmentEnd)
+            previousSegmentEnd = start + segment.samples.size
+            return recentAudio.slice(preRollStart, start) + segment.samples
+        }
+
+        private fun recognize(samples: FloatArray): String {
+            val stream = recognizer.createStream()
+            try {
+                stream.acceptWaveform(samples, SAMPLE_RATE)
+                recognizer.decode(stream)
+                return recognizer.getResult(stream).text.trim()
+            } finally {
+                stream.release()
+            }
+        }
+    }
+
+    /** Ring buffer of the most recent samples, addressed by their absolute position in the stream. */
+    private class RecentAudio(private val capacity: Int) {
+        private val samples = FloatArray(capacity)
+        private var total = 0L
+
+        fun append(chunk: FloatArray) {
+            var offset = 0
+            while (offset < chunk.size) {
+                val position = (total % capacity).toInt()
+                val count = minOf(chunk.size - offset, capacity - position)
+                System.arraycopy(chunk, offset, samples, position, count)
+                offset += count
+                total += count
+            }
+        }
+
+        fun slice(from: Long, to: Long): FloatArray {
+            val begin = maxOf(from, total - capacity, 0L)
+            val end = minOf(to, total)
+            if (end <= begin) return FloatArray(0)
+            return FloatArray((end - begin).toInt()) { samples[((begin + it) % capacity).toInt()] }
+        }
+    }
+
+    // sherpa-onnx hard-exits the whole process when a model file is missing, so check first and
+    // fail with a normal exception that the worker can turn into an ERROR state.
+    private fun verifyModelAssets() {
+        for (name in REQUIRED_ASSETS) {
+            try {
+                context.assets.open(name).close()
+            } catch (e: IOException) {
+                throw IllegalStateException("Speech model file missing from app assets: $name", e)
+            }
+        }
+    }
+
+    private fun createVad(): Vad = Vad(
+        assetManager = context.assets,
+        config = VadModelConfig(
+            sileroVadModelConfig = SileroVadModelConfig(
+                model = VAD_ASSET,
+                threshold = VAD_THRESHOLD,
+                minSilenceDuration = VAD_MIN_SILENCE_SECONDS,
+                minSpeechDuration = VAD_MIN_SPEECH_SECONDS,
+                maxSpeechDuration = MAX_SEGMENT_SECONDS
+            ),
+            sampleRate = SAMPLE_RATE,
+            numThreads = 1,
+            provider = "cpu"
+        )
+    )
+
+    @Synchronized
+    private fun getOrCreateRecognizer(): OfflineRecognizer {
         recognizer?.let { return it }
 
-        val config = OnlineRecognizerConfig(
+        val config = OfflineRecognizerConfig(
             featConfig = FeatureConfig(
                 sampleRate = SAMPLE_RATE,
-                featureDim = FEATURE_DIM,
-                dither = 0.0f
+                featureDim = FEATURE_DIM
             ),
-            modelConfig = OnlineModelConfig(
-                transducer = OnlineTransducerModelConfig(
-                    encoder = ENCODER_ASSET,
-                    decoder = DECODER_ASSET,
-                    joiner = JOINER_ASSET
-                ),
+            modelConfig = OfflineModelConfig(
+                nemo = OfflineNemoEncDecCtcModelConfig(model = MODEL_ASSET),
                 tokens = TOKENS_ASSET,
                 numThreads = NUM_THREADS,
                 debug = false,
-                provider = "cpu",
-                modelType = "zipformer2"
+                provider = "cpu"
             ),
-            enableEndpoint = false,
-            decodingMethod = "greedy_search",
-            maxActivePaths = 4,
-            blankPenalty = 0.0f
+            decodingMethod = "greedy_search"
         )
 
-        return OnlineRecognizer(
+        return OfflineRecognizer(
             assetManager = context.assets,
             config = config
         ).also { recognizer = it }
     }
 
     companion object {
+        private const val TAG = "LocalTranscriber"
+
         private const val SAMPLE_RATE = 16000
         private const val FEATURE_DIM = 80
-        private const val NUM_THREADS = 2
-        private const val LEFT_PADDING_SECONDS = 0.3f
-        private const val TAIL_PADDING_SECONDS = 0.6f
-        private const val CHUNK_SECONDS = 0.5f
-        private const val CHUNK_SIZE_SAMPLES = (SAMPLE_RATE * CHUNK_SECONDS).toInt()
+        private const val NUM_THREADS = 4
 
-        private const val ENCODER_ASSET = "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx"
-        private const val DECODER_ASSET = "decoder-epoch-99-avg-1-chunk-16-left-128.onnx"
-        private const val JOINER_ASSET = "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx"
-        private const val TOKENS_ASSET = "tokens.txt"
+        // Cap on one decode so its memory stays bounded however long the recording is.
+        // The library default (5 s) would split continuous speech far too often.
+        private const val MAX_SEGMENT_SECONDS = 25f
+        private const val VAD_THRESHOLD = 0.5f
+        private const val VAD_MIN_SILENCE_SECONDS = 0.4f
+        // Short, so single-word utterances are not dropped.
+        private const val VAD_MIN_SPEECH_SECONDS = 0.1f
+        private const val PRE_ROLL_SAMPLES = (0.4f * SAMPLE_RATE).toInt()
+        // Must outlast the longest segment plus the silence the VAD waits for before reporting it.
+        private const val RECENT_AUDIO_SECONDS = 40
+
+        private const val MODEL_ASSET = "parakeet-110m.int8.onnx"
+        private const val TOKENS_ASSET = "parakeet-110m-tokens.txt"
+        private const val VAD_ASSET = "silero_vad.onnx"
+        private val REQUIRED_ASSETS = listOf(MODEL_ASSET, TOKENS_ASSET, VAD_ASSET)
     }
 }
