@@ -3,14 +3,14 @@
 import React from 'react';
 import {CloudCard, DecisionCard, FeedScreen, Phone, ReminderRow, TaskRow} from '../components/App';
 import {E, L, P, cl, tf} from '../lib';
-import {Cue, Logo, PlayBadge, Pop, Sc, Shell, Tag} from './kit';
+import {Cue, Logo, PlayBadge, Pop, Sc, Shell, Tag, whooshes} from './kit';
 
 const TRUST = ['Transcribed on your phone', 'Private notes stay private', 'Agents can’t edit or delete notes', 'Account deletion on request'];
 
 export const LinkedIn: React.FC = () => {
 	const cues: Cue[] = [
-		['whoosh', 3.7, 0.07], ['pop', 5.0, 0.12], ['pop', 5.6, 0.12], ['pop', 6.2, 0.12], ['whoosh', 8.9, 0.07],
-		['success', 10.6, 0.16], ['whoosh', 12.9, 0.07], ...[0, 1, 2, 3].map((i) => ['impact_soft', 13.6 + i * 0.6, 0.14] as Cue), ['impact', 17.1, 0.16],
+		['pop', 5.0, 0.12], ['pop', 5.6, 0.12], ['pop', 6.2, 0.12], 
+		['success', 10.6, 0.16], ...[0, 1, 2, 3].map((i) => ['impact_soft', 13.6 + i * 0.6, 0.14] as Cue), ['impact', 17.1, 0.16], ...whooshes([3.7, 8.9, 12.9, 17.1], 0.3),
 	];
 	return (
 		<Shell music="ambient-glow" musicVol={0.6} cues={cues} energy={() => 0.5}>

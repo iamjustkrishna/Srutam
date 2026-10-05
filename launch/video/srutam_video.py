@@ -14,7 +14,7 @@ loudness checks and review contact sheets.
     python3 srutam_video.py music previews               # 32s previews of every sample -> ../music/
     python3 srutam_video.py stills [--fmt 16x9] [--at 10,20,30 | --scenes]   # contact sheet for review
     python3 srutam_video.py render [--fmt 16x9,9x16] [--audio-only] [--suffix -funk]         # final MP4s in launch/
-    python3 srutam_video.py social [x ig linkedin]       # ~20s platform cuts -> launch/social/
+    python3 srutam_video.py social [x ig linkedin] [--audio-only]  # ~20s platform cuts -> launch/social/
     python3 srutam_video.py check                        # duration + loudness of the final files
     python3 srutam_video.py timeline                     # scene start times (seconds)
 
@@ -329,11 +329,19 @@ def cmd_social(a):
     for k in (a.which or list(SOCIAL)):
         comp, name = SOCIAL[k]
         raw = OUT / f"{comp}.mp4"
-        print(f"{k}: rendering {comp}...")
-        sh(["npx", "remotion", "render", comp, str(raw), f"--concurrency={CFG['render']['concurrency']}", "--log=error"])
         mix = CFG["mix"]
-        sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(raw), "-c:v", "copy", "-af", f"loudnorm=I={mix['loudness_lufs']}:TP={mix['true_peak']}:LRA=9",
-            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", str(dest / name)])
+        norm = f"loudnorm=I={mix['loudness_lufs']}:TP={mix['true_peak']}:LRA=9"
+        if a.audio_only and raw.exists():
+            print(f"{k}: remixing audio only (picture reused)...")
+            wav = OUT / f"{comp}.wav"
+            sh(["npx", "remotion", "render", comp, str(wav), "--codec=wav", "--log=error"])
+            sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(raw), "-i", str(wav), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", norm,
+                "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart", str(dest / name)])
+        else:
+            print(f"{k}: rendering {comp}...")
+            sh(["npx", "remotion", "render", comp, str(raw), f"--concurrency={CFG['render']['concurrency']}", "--log=error"])
+            sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(raw), "-c:v", "copy", "-af", norm,
+                "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", str(dest / name)])
         print(f"{k}: -> {dest / name} ({duration(dest / name):.1f}s)")
 
 
@@ -382,6 +390,7 @@ def main():
     r.set_defaults(fn=cmd_render)
     so = sub.add_parser("social")
     so.add_argument("which", nargs="*", help="x, ig, linkedin (default: all)")
+    so.add_argument("--audio-only", action="store_true", help="reuse the last picture render, only remix audio")
     so.set_defaults(fn=cmd_social)
     c = sub.add_parser("check")
     c.add_argument("--suffix", default="")

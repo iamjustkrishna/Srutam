@@ -84,6 +84,11 @@ export const PlayBadge: React.FC<{size?: number}> = ({size = 26}) => (
 
 export type Cue = [string, number, number]; // sfx file (in public/sfx), time, volume
 
+// Transition whooshes, timed so the whoosh's peak (0.16s into whoosh_soft.mp3) lands on the
+// moment the next scene is mid-fade-in. One per cut, all at the same soft level.
+const WHOOSH_PEAK = 0.16;
+export const whooshes = (cuts: number[], fade: number, vol = 0.12): Cue[] => cuts.map((c) => ['whoosh_soft', c + fade / 2 - WHOOSH_PEAK, vol]);
+
 // Frame shell: background, content, music bed (looped, faded), sfx cues.
 export const Shell: React.FC<{music: string; musicVol?: number; cues: Cue[]; energy?: (t: number) => number; children: (t: number) => React.ReactNode}> = ({music, musicVol = 0.55, cues, energy = () => 0.7, children}) => {
 	const frame = useCurrentFrame();

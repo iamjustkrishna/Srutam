@@ -5,15 +5,15 @@ import {DetailScreen, FeedScreen, IdeaCard, Phone, ReminderRow, TaskRow, Decisio
 import {Tap} from '../components/ui';
 import {E, L, P, cl, tf} from '../lib';
 import {OtherApp} from '../scenes/Capture';
-import {Cue, DockPill, Logo, PlayBadge, Pop, Sc, Shell} from './kit';
+import {Cue, DockPill, Logo, PlayBadge, Pop, Sc, Shell, whooshes} from './kit';
 
 const T = "Okay idea: a weekly 'brain dump' video series. Film Sundays, post Monday 9 AM. Ask Maya to do the thumbnails. Decided: keep it under 60 seconds.";
 
 export const IGReel: React.FC = () => {
 	const cues: Cue[] = [
-		['tap', 2.55, 0.3], ['recstart', 2.75, 0.3], ['whoosh', 5.85, 0.1], ['typing', 6.3, 0.12],
-		['whoosh', 9.0, 0.1], ['pop', 9.7, 0.2], ['pop', 10.4, 0.2], ['pop', 11.1, 0.2], ['pop', 11.8, 0.2],
-		['whoosh', 14.3, 0.1], ['success', 15.6, 0.22], ['impact', 17.6, 0.2],
+		['tap', 2.55, 0.3], ['recstart', 2.75, 0.3], ['typing', 6.3, 0.12],
+		['pop', 9.7, 0.2], ['pop', 10.4, 0.2], ['pop', 11.1, 0.2], ['pop', 11.8, 0.2],
+		['success', 15.6, 0.22], ['impact', 17.6, 0.2], ...whooshes([2.4, 5.9, 9.0, 14.3, 17.5], 0.15),
 	];
 	const ph = (extra: React.CSSProperties = {}): React.CSSProperties => ({left: 540 - 205, top: 760, ...extra});
 	return (

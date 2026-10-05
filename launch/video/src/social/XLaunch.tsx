@@ -6,7 +6,7 @@ import {QR, Tap, typed} from '../components/ui';
 import {E, L, P, cl, tf} from '../lib';
 import {OtherApp} from '../scenes/Capture';
 import {TermLines} from '../scenes/NewFeatures';
-import {Cue, DockPill, Logo, Pop, Sc, Shell, Tag, Term} from './kit';
+import {Cue, DockPill, Logo, Pop, Sc, Shell, Tag, Term, whooshes} from './kit';
 
 const ASK: Array<[number, React.ReactNode, number?, string?]> = [
 	[0.25, <span className="p">&gt;</span>, 0.9, 'what did I say about the sync bug?'],
@@ -31,9 +31,9 @@ const CLIENTS = ['Claude Code', 'Cursor', 'Codex', 'Gemini CLI', 'VS Code', 'Win
 
 export const XLaunch: React.FC = () => {
 	const cues: Cue[] = [
-		['typing', 0.3, 0.14], ['pop', 1.35, 0.12], ['whoosh', 3.9, 0.08], ['recstart', 4.9, 0.25], ['whoosh', 7.9, 0.08],
-		['typing', 8.2, 0.14], ['success', 10.4, 0.22], ['whoosh', 12.4, 0.08], ['typing', 12.9, 0.12], ['scan', 14.0, 0.16],
-		['success', 15.4, 0.2], ['impact', 16.6, 0.18],
+		['typing', 0.3, 0.14], ['pop', 1.35, 0.12], ['recstart', 4.9, 0.25],
+		['typing', 8.2, 0.14], ['success', 10.4, 0.22], ['typing', 12.9, 0.12], ['scan', 14.0, 0.16],
+		['success', 15.4, 0.2], ['impact', 16.6, 0.18], ...whooshes([4.1, 8.0, 12.4, 16.6], 0.3),
 	];
 	return (
 		<Shell music="chill-house" musicVol={0.6} cues={cues} energy={(t) => (t < 16.5 ? 0.6 : 0.95)}>
