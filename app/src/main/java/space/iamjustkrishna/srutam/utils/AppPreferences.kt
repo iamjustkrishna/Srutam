@@ -18,6 +18,7 @@ object AppPreferences {
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
+    private const val KEY_LIVE_TRANSCRIPTION_ENABLED = "live_transcription_enabled"
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
@@ -154,6 +155,19 @@ object AppPreferences {
             .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
             .apply()
         _autoAiEnabledFlow.value = enabled
+    }
+
+    /** Whether notes are transcribed on-device while they are being recorded. On by default. */
+    fun isLiveTranscriptionEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_LIVE_TRANSCRIPTION_ENABLED, true)
+    }
+
+    fun setLiveTranscriptionEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_LIVE_TRANSCRIPTION_ENABLED, enabled)
+            .apply()
     }
 
     fun isByokOnboardingCompleted(context: Context): Boolean {

@@ -84,6 +84,9 @@ fun SettingsScreen(
     var isAutoAiEnabled by remember {
         mutableStateOf(AppPreferences.isAutoAiEnabled(context))
     }
+    var isLiveTranscriptionEnabled by remember {
+        mutableStateOf(AppPreferences.isLiveTranscriptionEnabled(context))
+    }
 
     Scaffold(
         topBar = {
@@ -394,6 +397,19 @@ fun SettingsScreen(
                         )
                     }
                 }
+
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
+
+                SettingsToggleRow(
+                    icon = Icons.Default.Mic,
+                    title = "Transcribe while recording",
+                    subtitle = "Srutam Voice writes your note as you speak, so the transcript is ready as soon as you stop. Uses a little more battery while recording.",
+                    checked = isLiveTranscriptionEnabled,
+                    onCheckedChange = { enabled ->
+                        isLiveTranscriptionEnabled = enabled
+                        AppPreferences.setLiveTranscriptionEnabled(context, enabled)
+                    }
+                )
             }
 
             // =========================================================

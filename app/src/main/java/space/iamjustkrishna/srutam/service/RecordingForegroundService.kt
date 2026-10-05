@@ -21,6 +21,8 @@ import androidx.core.app.NotificationCompat
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.SrutamApplication
+import space.iamjustkrishna.srutam.ai.LiveTranscription
+import space.iamjustkrishna.srutam.ai.LocalTranscriber
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.repository.RecordingRepository
@@ -37,12 +39,23 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
 
 class RecordingForegroundService : Service() {
 
     private var mediaRecorder: MediaRecorder? = null
+
+    // Records through the microphone directly so speech can be transcribed while the user talks;
+    // MediaRecorder stays as the fallback if that cannot be opened.
+    private var pipeline: AacRecordingPipeline? = null
+    private var liveSession: LiveSession? = null
+    private val pendingFinalizations = AtomicInteger(0)
+
+    /** The speech model and live transcription of the note being recorded. */
+    private class LiveSession(val transcriber: LocalTranscriber, val live: LiveTranscription)
     private var currentRecordingFile: File? = null
     private var accumulatedDurationMs = 0L
     private var lastResumeTimeMs = 0L
@@ -193,37 +206,72 @@ class RecordingForegroundService : Service() {
 
             currentRecordingFile = createAudioFile()
 
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(this)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(128000)
-                setAudioSamplingRate(44100)
-                setOutputFile(currentRecordingFile?.absolutePath)
-
-                try {
-                    prepare()
-                    start()
-                    Log.d(TAG, "Recording started: ${currentRecordingFile?.absolutePath}")
-
-                    RecordingCoordinator.notifyRecordingStarted(
-                        lastResumeTimeMs,
-                        currentRecordingFile?.absolutePath ?: ""
-                    )
-                    startDurationUpdates()
-                } catch (e: IOException) {
-                    Log.e(TAG, "Failed to start recording", e)
-                    cleanUpStaleNotification()
-                }
+            val file = currentRecordingFile!!
+            if (!startPipelineRecording(file)) {
+                startMediaRecorderRecording(file)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
             cleanUpStaleNotification()
+        }
+    }
+
+    /** Records through the microphone directly, transcribing live. Returns false if that is unavailable. */
+    private fun startPipelineRecording(file: File): Boolean {
+        var session: LiveSession? = null
+        try {
+            if (AppPreferences.isLiveTranscriptionEnabled(applicationContext)) {
+                val transcriber = LocalTranscriber(applicationContext)
+                session = LiveSession(transcriber, LiveTranscription(transcriber))
+            }
+            val newPipeline = AacRecordingPipeline(file, pcmSourceFactory(), session?.live)
+            newPipeline.start()
+            pipeline = newPipeline
+            liveSession = session
+            Log.d(TAG, "Recording started (live transcription: ${session != null}): ${file.absolutePath}")
+
+            RecordingCoordinator.notifyRecordingStarted(lastResumeTimeMs, file.absolutePath)
+            startDurationUpdates()
+            return true
+        } catch (e: Throwable) {
+            Log.w(TAG, "Direct recording unavailable, falling back to MediaRecorder", e)
+            session?.live?.cancel()
+            session?.transcriber?.release()
+            pipeline = null
+            liveSession = null
+            file.delete()
+            return false
+        }
+    }
+
+    private fun startMediaRecorderRecording(file: File) {
+        mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            MediaRecorder(this)
+        } else {
+            @Suppress("DEPRECATION")
+            MediaRecorder()
+        }.apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioEncodingBitRate(128000)
+            setAudioSamplingRate(44100)
+            setOutputFile(file.absolutePath)
+
+            try {
+                prepare()
+                start()
+                Log.d(TAG, "Recording started: ${file.absolutePath}")
+
+                RecordingCoordinator.notifyRecordingStarted(
+                    lastResumeTimeMs,
+                    file.absolutePath
+                )
+                startDurationUpdates()
+            } catch (e: IOException) {
+                Log.e(TAG, "Failed to start recording", e)
+                cleanUpStaleNotification()
+            }
         }
     }
 
@@ -254,7 +302,8 @@ class RecordingForegroundService : Service() {
         }
 
         try {
-            mediaRecorder?.pause()
+            val activePipeline = pipeline
+            if (activePipeline != null) activePipeline.pause() else mediaRecorder?.pause()
             accumulatedDurationMs = currentRecordedDurationMs()
             elapsedDurationMs = accumulatedDurationMs
             isPaused = true
@@ -275,7 +324,8 @@ class RecordingForegroundService : Service() {
         }
 
         try {
-            mediaRecorder?.resume()
+            val activePipeline = pipeline
+            if (activePipeline != null) activePipeline.resume() else mediaRecorder?.resume()
             lastResumeTimeMs = System.currentTimeMillis()
             isPaused = false
             RecordingCoordinator.notifyRecordingResumed(
@@ -296,13 +346,23 @@ class RecordingForegroundService : Service() {
             return
         }
 
+        var orphanedLive: LiveSession? = null
         try {
-            val duration = currentRecordedDurationMs()
-            elapsedDurationMs = duration
-            mediaRecorder?.apply {
-                stop()
-                release()
+            var duration = currentRecordedDurationMs()
+            val finishedPipeline = pipeline
+            val finishedLive = liveSession
+            orphanedLive = finishedLive
+            pipeline = null
+            liveSession = null
+            if (finishedPipeline != null) {
+                finishedPipeline.stop()?.let { duration = it }
+            } else {
+                mediaRecorder?.apply {
+                    stop()
+                    release()
+                }
             }
+            elapsedDurationMs = duration
             mediaRecorder = null
             isRecording = false
             isPaused = false
@@ -317,6 +377,7 @@ class RecordingForegroundService : Service() {
             }
 
             val file = currentRecordingFile
+            var liveHandedOff = false
 
             if (file != null && file.exists()) {
                 if (deleteAfterStop) {
@@ -326,11 +387,21 @@ class RecordingForegroundService : Service() {
                     Log.d(TAG, "Recording stopped: ${file.absolutePath}, duration: $duration ms")
                     saveRecordingToDatabase(file, duration)
                     _recordingSavedEvents.tryEmit(file)
-                    if (!deferAutoAi && AppPreferences.isAutoAiEnabled(applicationContext)) {
+                    val runAutoAi = !deferAutoAi && AppPreferences.isAutoAiEnabled(applicationContext)
+                    if (finishedLive != null) {
+                        // The transcript is nearly done; store it first so auto-AI can skip transcribing.
+                        finalizeLiveTranscription(finishedLive, file, duration, runAutoAi)
+                        liveHandedOff = true
+                    } else if (runAutoAi) {
                         triggerAutoAiForFile(file, duration)
                     }
                 }
             }
+            if (!liveHandedOff && finishedLive != null) {
+                finishedLive.live.cancel()
+                finishedLive.transcriber.release()
+            }
+            orphanedLive = null
 
             currentRecordingFile = null
             accumulatedDurationMs = 0L
@@ -338,56 +409,137 @@ class RecordingForegroundService : Service() {
             elapsedDurationMs = 0L
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping recording", e)
-        } finally {
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                stopForeground(true)
+            orphanedLive?.let {
+                it.live.cancel()
+                it.transcriber.release()
             }
-            notificationManager?.cancel(NOTIFICATION_ID)
-            RecordingCoordinator.notifyRecordingEnded()
-            stopSelf()
+        } finally {
+            if (pendingFinalizations.get() > 0 && !isRecording) {
+                // Stay a foreground service until the transcript is stored, or the system may freeze us mid-way.
+                notificationManager?.notify(NOTIFICATION_ID, createFinalizingNotification())
+                RecordingCoordinator.notifyRecordingEnded()
+            } else {
+                stopForegroundAndService()
+                RecordingCoordinator.notifyRecordingEnded()
+            }
         }
     }
+
+    private fun stopForegroundAndService() {
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
+        notificationManager?.cancel(NOTIFICATION_ID)
+        stopSelf()
+    }
+
+    /**
+     * Waits for the live transcript to finish (usually about a second: only the last phrase is left),
+     * stores it on the note so the AI step can skip transcribing, then starts auto-AI if it is on.
+     * If live transcription gave up or failed, nothing is stored and the saved file is transcribed
+     * later exactly as before.
+     */
+    private fun finalizeLiveTranscription(session: LiveSession, file: File, duration: Long, runAutoAi: Boolean) {
+        pendingFinalizations.incrementAndGet()
+        serviceScope.launch(Dispatchers.Default) {
+            try {
+                val text = session.live.finish(LIVE_FINISH_TIMEOUT_MS)?.text?.trim().orEmpty()
+                if (text.isNotEmpty()) {
+                    storeLiveTranscript(file, duration, text)
+                    Log.d(TAG, "Stored live transcript for ${file.name} (${text.length} chars)")
+                } else {
+                    Log.d(TAG, "No live transcript for ${file.name}; it will be transcribed from the file when needed")
+                }
+            } finally {
+                session.live.cancel()
+                session.transcriber.release()
+            }
+            if (runAutoAi) withContext(Dispatchers.IO) { enqueueAutoAi(file, duration) }
+            if (pendingFinalizations.decrementAndGet() == 0) {
+                withContext(Dispatchers.Main) {
+                    if (!isRecording) stopForegroundAndService()
+                }
+            }
+        }
+    }
+
+    private suspend fun storeLiveTranscript(file: File, duration: Long, text: String) {
+        withContext(Dispatchers.IO) {
+            val repository = RecordingRepository(applicationContext, SrutamApplication.getInstance().database.recordingDao())
+            val existing = repository.getRecordingByPath(file.absolutePath)
+            if (existing == null) {
+                repository.insertRecording(
+                    Recording(
+                        audioFilePath = file.absolutePath,
+                        duration = duration,
+                        name = RecordingNameFormatter.displayName(fileName = file.name, timestamp = file.lastModified()),
+                        transcript = text
+                    )
+                )
+            } else if (existing.transcript.isNullOrBlank()) {
+                repository.updateRecording(existing.copy(transcript = text))
+            }
+        }
+    }
+
+    private fun createFinalizingNotification(): Notification =
+        NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(getActivityPendingIntent())
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            .setContentTitle("Finishing transcript")
+            .setContentText("Tap to open Srutam")
+            .build()
 
     private fun saveRecordingToDatabase(file: File, duration: Long) {
         Log.d(TAG, "Recording saved to file: ${file.absolutePath}")
     }
 
     private fun triggerAutoAiForFile(file: File, duration: Long) {
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val database = SrutamApplication.getInstance().database
-                val repository = RecordingRepository(applicationContext, database.recordingDao())
-                var recording = repository.getRecordingByPath(file.absolutePath)
-                if (recording == null) {
-                    val newRecording = Recording(
-                        audioFilePath = file.absolutePath,
-                        duration = duration,
-                        name = RecordingNameFormatter.displayName(
-                            fileName = file.name,
-                            timestamp = file.lastModified()
-                        ),
+        serviceScope.launch(Dispatchers.IO) { enqueueAutoAi(file, duration) }
+    }
+
+    private suspend fun enqueueAutoAi(file: File, duration: Long) {
+        try {
+            val database = SrutamApplication.getInstance().database
+            val repository = RecordingRepository(applicationContext, database.recordingDao())
+            var recording = repository.getRecordingByPath(file.absolutePath)
+            if (recording == null) {
+                val newRecording = Recording(
+                    audioFilePath = file.absolutePath,
+                    duration = duration,
+                    name = RecordingNameFormatter.displayName(
+                        fileName = file.name,
+                        timestamp = file.lastModified()
+                    ),
+                    isProcessing = true,
+                    aiStatus = RecordingAiStatus.TRANSCRIBING
+                )
+                val id = repository.insertRecording(newRecording)
+                recording = newRecording.copy(id = id)
+            } else {
+                repository.updateRecording(
+                    recording.copy(
                         isProcessing = true,
-                        aiStatus = RecordingAiStatus.TRANSCRIBING
+                        aiStatus = if (recording.transcript.isNullOrBlank()) {
+                            RecordingAiStatus.TRANSCRIBING
+                        } else {
+                            RecordingAiStatus.SUMMARY_PROCESSING
+                        },
+                        processingError = null
                     )
-                    val id = repository.insertRecording(newRecording)
-                    recording = newRecording.copy(id = id)
-                } else {
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = true,
-                            aiStatus = RecordingAiStatus.TRANSCRIBING,
-                            processingError = null
-                        )
-                    )
-                }
-                AiProcessingWorker.enqueueProcessing(applicationContext, listOf(recording.id))
-                Log.d(TAG, "Auto-AI enqueued for recording ID: ${recording.id}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error triggering auto-AI in RecordingForegroundService", e)
+                )
             }
+            AiProcessingWorker.enqueueProcessing(applicationContext, listOf(recording.id))
+            Log.d(TAG, "Auto-AI enqueued for recording ID: ${recording.id}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error triggering auto-AI in RecordingForegroundService", e)
         }
     }
 
@@ -546,14 +698,25 @@ class RecordingForegroundService : Service() {
 
         if (isRecording) {
             try {
-                mediaRecorder?.apply {
-                    stop()
-                    release()
+                val activePipeline = pipeline
+                if (activePipeline != null) {
+                    activePipeline.stop()
+                } else {
+                    mediaRecorder?.apply {
+                        stop()
+                        release()
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error releasing media recorder", e)
+                Log.e(TAG, "Error releasing recorder", e)
             }
         }
+        pipeline = null
+        liveSession?.let {
+            it.live.cancel()
+            it.transcriber.release()
+        }
+        liveSession = null
         mediaRecorder = null
         isRecording = false
         isPaused = false
@@ -582,6 +745,11 @@ class RecordingForegroundService : Service() {
     companion object {
         private const val TAG = "RecordingService"
         private const val CHANNEL_ID = "recording_channel"
+        private const val LIVE_FINISH_TIMEOUT_MS = 30_000L
+
+        /** Where the recording pipeline gets its audio. Tests replace it with a recorded clip. */
+        @Volatile
+        internal var pcmSourceFactory: () -> PcmSource = { AudioRecordPcmSource() }
         const val NOTIFICATION_ID = 1001
 
         const val ACTION_START_RECORDING = "space.iamjustkrishna.srutam.START_RECORDING"

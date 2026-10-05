@@ -268,7 +268,7 @@ fun PermissionsOnboardingContent(
                     iconTint = Sem.accent,
                     iconBg = Sem.accentContainer,
                     title = "Microphone Access",
-                    subtitle = "Required to capture audio notes and meetings with on-device Whisper transcription.",
+                    subtitle = "Required to capture audio notes and meetings, transcribed on your device by Srutam Voice.",
                     isGranted = isMicGranted,
                     isRequired = true
                 )
