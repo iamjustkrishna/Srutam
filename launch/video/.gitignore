@@ -9,3 +9,5 @@ public/music.wav
 !public/logo.png
 plan.backup.json
 !editor/screenshot.png
+# third-party music supplied by the user; do not commit
+public/music-samples/documentary-score.mp3

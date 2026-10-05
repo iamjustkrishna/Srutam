@@ -99,8 +99,8 @@ def validate_plan(p: dict) -> None:
     for c in p.get("cues", []):
         assert c["sfx"] and isinstance(c["at"], (int, float)) and 0 <= float(c["vol"]) <= 1.5, f"bad cue {c}"
     m = p["music"]
-    assert m["mode"] in ("loop", "arrange"), "music.mode must be loop or arrange"
-    assert (sv.PUB / "music-samples" / f"{m['track']}.mp3").exists(), f"music track '{m['track']}' not found"
+    assert m["mode"] in ("loop", "arrange", "track"), "music.mode must be loop, arrange or track"
+    assert isinstance(m["track"], str) and m["track"].replace("-", "").replace("_", "").isalnum(), "bad track name"
 
 
 class H(BaseHTTPRequestHandler):

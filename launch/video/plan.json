@@ -59,14 +59,26 @@
   }
  ],
  "music": {
-  "track": "product-launch",
-  "mode": "arrange",
+  "track": "documentary-score",
+  "mode": "track",
   "volume": 0.32,
   "duck_volume": 0.16,
   "fade_in": 1.0,
   "fade_out": 2.7,
   "loudness": -16,
-  "seam": 0.012
+  "seam": 0.012,
+  "start": 0.0,
+  "joins": [
+   {
+    "at": 15.7,
+    "to": 22.07
+   },
+   {
+    "at": 53.45,
+    "to": 138.53
+   }
+  ],
+  "xfade": 1.2
  },
  "arrangement": [
   {

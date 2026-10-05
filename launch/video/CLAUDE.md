@@ -59,6 +59,7 @@ The goal is to make video changes cheaply. Use `srutam_video.py` for every mecha
 - The user finds bright or loud whooshes distracting. Keep them at ≤0.12 of `whoosh_soft`.
 
 ## Music rules
+- `music.mode` is `loop` (steady), `arrange` (scored to the edit) or `track` (a full composition cut with `start` + `joins`). For `track`, pick joins by matching chroma and beat, and land the music's biggest arrival on the `newin` scene (~23.7s) and its natural ending on the end card.
 - Loops are tiled from the decoded audio with a ~12 ms overlap (`tile_loop`). **Never** use `ffmpeg -stream_loop` on the mp3s: it repeats the encoder padding, leaving a gap and shifting the beat at every seam.
 - The "drop" before "New in 2.5" is a dip to about 22% (`level` 0.22 on the `newin` arrangement entry), not silence.
 

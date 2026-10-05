@@ -234,6 +234,36 @@ def tile_loop(x, n: int, seam: float):
     return out[:n]
 
 
+def splice_track(x, start: float, joins: list, n: int, xf: float):
+    """Play a full composition from `start`, jumping at each join (`at` = source time to leave, `to` = source time to
+    continue from) with an equal-power crossfade of `xf` seconds centred on the cut. Time after the source ends is silent."""
+    import numpy as np
+    sr = 44100
+    o = start
+    segs, vt_prev = [], 0.0
+    for j in joins:
+        vt = j["at"] - o
+        segs.append((o, vt_prev, vt))
+        o += j["to"] - j["at"]
+        vt_prev = vt
+    segs.append((o, vt_prev, n / sr))
+    out = np.zeros((n, 2))
+    for i, (off, a, b) in enumerate(segs):
+        a_ = max(0.0, a - xf / 2) if i > 0 else 0.0
+        b_ = b + xf / 2 if i < len(segs) - 1 else n / sr
+        t = np.arange(int(a_ * sr), min(n, int(b_ * sr))) / sr
+        idx = np.round((t + off) * sr).astype(int)
+        ok = (idx >= 0) & (idx < len(x))
+        w = np.ones(len(t))
+        if i > 0:
+            w *= np.sin(np.pi / 2 * np.clip((t - a_) / xf, 0, 1))
+        if i < len(segs) - 1:
+            w *= np.cos(np.pi / 2 * np.clip((t - (b_ - xf)) / xf, 0, 1))
+        sel = np.arange(int(a_ * sr), min(n, int(b_ * sr)))[ok]
+        out[sel] += x[idx[ok]] * w[ok][:, None]
+    return out
+
+
 def build_music() -> None:
     """Build public/music.wav from plan.json: loop the chosen track to the video length, optionally scored
     to the edit (filter + level automation per scene). Costs no credits."""
@@ -242,12 +272,20 @@ def build_music() -> None:
     mu = plan["music"]
     src = PUB / "music-samples" / f"{mu['track']}.mp3"
     if not src.exists():
-        sys.exit(f"{src} missing; run `music gen {mu['track']}` first")
+        fb = PUB / "music-samples" / "product-launch.mp3"
+        if not fb.exists():
+            sys.exit(f"{src} missing; run `music gen {mu['track']}` first")
+        print(f"   ! music track '{mu['track']}' is not on this machine (third-party tracks are not committed): using 'product-launch' instead.\n"
+              f"     Copy the file to {src.relative_to(ROOT)} to use it.")
+        src, mu = fb, {**mu, "track": "product-launch", "mode": "arrange"}
     t = timeline()
     total, starts = t["total"], {s["id"]: s["start"] for s in t["tl"]}
     sr = 44100
     n = int(total * sr)
-    x = tile_loop(decode_loop(src), n, mu.get("seam", 0.012))
+    if mu["mode"] == "track":  # a full composition, cut to fit (not a loop)
+        x = splice_track(decode_loop(src), mu.get("start", 0.0), mu.get("joins", []), n, mu.get("xfade", 1.2))
+    else:
+        x = tile_loop(decode_loop(src), n, mu.get("seam", 0.012))
     tt = np.arange(n) / sr
     if mu["mode"] == "arrange":
         # dark copy: FFT low-pass around 450 Hz, blended in/out per scene ("brightness")

@@ -137,6 +137,7 @@ function musicSvg(L,T,x,W,H){
   const m=plan.music;let svg=`<svg class="arrsvg" width="${W}" height="${H}" style="left:0">`;
   svg+=`<rect x="${x(0)}" y="14" width="${T*pps}" height="${H-20}" rx="7" fill="#162450" stroke="#2c4aa8"/>`;
   svg+=`<text x="${x(0)+8}" y="11" fill="#8D9BC7" font-size="10">${esc(m.track)} · ${m.mode}</text>`;
+  if(m.mode==='track'){trackSegs(T).slice(0,-1).forEach((sg,i)=>{svg+=`<line x1="${x(sg.b)}" x2="${x(sg.b)}" y1="14" y2="${H-6}" stroke="#FBBF24" stroke-dasharray="4 3"/><text x="${x(sg.b)+4}" y="${H-10}" fill="#FBBF24" font-size="10">✂ cut ${i+1}</text>`})}
   if(m.mode==='arrange'){const {pts,secs,st}=arrCurve(L);const y=l=>14+(H-20)*(1-Math.min(1,l));
     svg+=`<polygon fill="rgba(59,130,246,.35)" points="${x(0)},${H-6} ${pts.map(p=>`${x(p.t)},${y(p.l)}`).join(' ')} ${x(T)},${H-6}"/>`;
     svg+=`<polyline fill="none" stroke="#FBBF24" stroke-dasharray="4 3" stroke-width="1.5" points="${pts.map(p=>`${x(p.t)},${y(p.b)}`).join(' ')}"/>`;
@@ -199,7 +200,8 @@ function renderPane(){
     P.innerHTML=`<p class="hint">Click a scene, a sound-effect pill, or a music section on the timeline to edit it here.<br><br>
     <b>Quick tour</b><br>• <b>Space</b> plays with <i>Live preview</i>: the picture plus your narration, sound effects and music, instantly, no render.<br>• Drag sound pills to retime them; <kbd>Del</kbd> removes one; double-click the Sound FX row to add.<br>• <b>Remix audio</b> (~1 min) builds the exact final mix. <b>Full render</b> (~10 min) is only needed after changing scenes or captions.</p>`;return}
   if(tab==='music'){const m=plan.music;P.innerHTML=`<label>Track</label><select id="m_track">${S.music.map(n=>`<option ${n===m.track?'selected':''}>${n}</option>`).join('')}</select>
-    <label>Style</label><select id="m_mode"><option value="arrange" ${m.mode==='arrange'?'selected':''}>Arranged to the edit (drop, breakdown, build)</option><option value="loop" ${m.mode==='loop'?'selected':''}>Plain loop (steady)</option></select>
+    <label>Style</label><select id="m_mode"><option value="arrange" ${m.mode==='arrange'?'selected':''}>Arranged to the edit (drop, breakdown, build)</option><option value="loop" ${m.mode==='loop'?'selected':''}>Plain loop (steady)</option><option value="track" ${m.mode==='track'?'selected':''}>Full track, cut to fit (not a loop)</option></select>
+    ${m.mode==='track'?`<label>Start playing at (seconds into the track)</label><input type="number" id="m_start" step="0.05" value="${m.start||0}"><label>Cuts: one per line, "leave at → continue from" (seconds in the track)</label><textarea id="m_joins" spellcheck="false">${(m.joins||[]).map(j=>j.at+" -> "+j.to).join("\n")}</textarea><label>Crossfade at cuts (s)</label><input type="number" id="m_xf" step="0.1" value="${m.xfade||1.2}"><div class="hint">A cut skips ahead in the track. Pick moments where the music feels similar. Press Remix to hear the exact result.</div>`:''}
     <label>Level when no one is speaking <span id="mv1">${m.volume.toFixed(2)}</span></label><input type="range" id="m_vol" min="0" max="0.8" step="0.01" value="${m.volume}">
     <label>Level under the narrator <span id="mv2">${m.duck_volume.toFixed(2)}</span></label><input type="range" id="m_duck" min="0" max="0.6" step="0.01" value="${m.duck_volume}">
     <label>Fade in (s)</label><input type="number" id="m_fi" step="0.1" value="${m.fade_in}"><label>Fade out (s)</label><input type="number" id="m_fo" step="0.1" value="${m.fade_out}">
@@ -208,7 +210,8 @@ function renderPane(){
     <label>Name</label><input type="text" id="g_name" placeholder="my-track"><label>Describe the music</label><textarea id="g_prompt" placeholder="Warm funk groove, slap bass, wah guitar, 104 bpm, instrumental"></textarea>
     <label>Length (seconds, max 30)</label><input type="number" id="g_len" value="20"><button id="g_go" style="margin-top:8px;width:100%">Generate loop (costs ~40 credits per second)</button>`;
     const set=(k,key,el)=>{$(el).oninput=e=>{m[k]=key?+e.target.value:e.target.value;ch(true,false,true)}};
-    $('#m_track').onchange=e=>{m.track=e.target.value;ch(true,false,true)};$('#m_mode').onchange=e=>{m.mode=e.target.value;ch(true,false,true)};
+    $('#m_track').onchange=e=>{m.track=e.target.value;ch(true,false,true)};$('#m_mode').onchange=e=>{m.mode=e.target.value;if(m.mode==='track'){m.start??=0;m.joins??=[];m.xfade??=1.2}ch(true,false,true);renderPane()};
+    if($('#m_start')){$('#m_start').oninput=e=>{m.start=+e.target.value;ch(true,false,true)};$('#m_xf').oninput=e=>{m.xfade=+e.target.value;ch(true,false,true)};$('#m_joins').oninput=e=>{m.joins=e.target.value.split('\n').map(l=>l.split(/->|→/).map(v=>parseFloat(v))).filter(a=>a.length===2&&a.every(isFinite)).map(a=>({at:a[0],to:a[1]}));ch(true,false,true)}}
     $('#m_vol').oninput=e=>{m.volume=+e.target.value;$('#mv1').textContent=m.volume.toFixed(2);ch(true,false,true)};$('#m_duck').oninput=e=>{m.duck_volume=+e.target.value;$('#mv2').textContent=m.duck_volume.toFixed(2);ch(true,false,true)};
     ['fi:fade_in','fo:fade_out','seam:seam'].forEach(p=>{const [id,k]=p.split(':');$('#m_'+id).oninput=e=>{m[k]=+e.target.value;ch(true,false,true)}});
     $('#g_go').onclick=()=>runAct({action:'music_gen',name:$('#g_name').value,prompt:$('#g_prompt').value,seconds:+$('#g_len').value},true);return}
@@ -255,6 +258,7 @@ const A={ctx:null,buf:{},nodes:[],playing:false};
 async function ensureCtx(){if(!A.ctx)A.ctx=new (window.AudioContext||window.webkitAudioContext)();await A.ctx.resume()}
 async function getBuf(url){if(A.buf[url])return A.buf[url];const r=await fetch(url);if(!r.ok)return null;A.buf[url]=await A.ctx.decodeAudioData(await r.arrayBuffer());return A.buf[url]}
 function stopAudio(){A.nodes.forEach(n=>{try{n.stop()}catch(e){}try{n.disconnect()}catch(e){}});A.nodes=[]}
+function trackSegs(Tsec){const m=plan.music;let o=m.start||0,vp=0;const segs=[];(m.joins||[]).forEach(j=>{const vt=j.at-o;segs.push({o,a:vp,b:vt});o+=j.to-j.at;vp=vt});segs.push({o,a:vp,b:Tsec});return segs}
 function curve(L){const {pts}=arrCurve(L);return t=>{if(t<=pts[0].t)return pts[0];for(let i=1;i<pts.length;i++){if(t<=pts[i].t){const a=pts[i-1],b=pts[i],k=(t-a.t)/Math.max(1e-6,b.t-a.t);return {l:a.l+(b.l-a.l)*k,b:a.b+(b.b-a.b)*k}}}return pts[pts.length-1]}}
 async function startAudio(t0){await ensureCtx();stopAudio();const ctx=A.ctx,L=layout(),T=total(),base=ctx.currentTime+.12,at=t=>base+(t-t0);const m=plan.music;
   const master=ctx.createGain();master.connect(ctx.destination);A.nodes.push(master);
@@ -268,7 +272,7 @@ async function startAudio(t0){await ensureCtx();stopAudio();const ctx=A.ctx,L=la
   // music: loop -> filter(brightness) -> level -> duck/fades
   const mb=await getBuf(`/media/video/public/music-samples/${m.track}.mp3`);if(mb){
     let sum=0,n=0;const d=mb.getChannelData(0);for(let i=0;i<d.length;i+=7){sum+=d[i]*d[i];n++}const rmsDb=20*Math.log10(Math.sqrt(sum/n)+1e-9);const comp=Math.pow(10,((-16)-(rmsDb-.7))/20);
-    const s=ctx.createBufferSource(),lp=ctx.createBiquadFilter(),lv=ctx.createGain(),dk=ctx.createGain();s.buffer=mb;s.loop=true;lp.type='lowpass';lp.Q.value=.5;s.connect(lp).connect(lv).connect(dk).connect(master);A.nodes.push(s);
+    const bus=ctx.createGain(),lp=ctx.createBiquadFilter(),lv=ctx.createGain(),dk=ctx.createGain();lp.type='lowpass';lp.Q.value=.5;bus.connect(lp).connect(lv).connect(dk).connect(master);A.nodes.push(bus);
     const fq=b=>450*Math.pow(20000/450,Math.min(1,Math.max(0,b)));
     if(m.mode==='arrange'){const cv=curve(L);const c0=cv(t0);lv.gain.setValueAtTime(c0.l*comp,base);lp.frequency.setValueAtTime(fq(c0.b),base);
       const {pts}=arrCurve(L);pts.forEach(p=>{if(p.t>t0){lv.gain.linearRampToValueAtTime(p.l*comp,at(p.t));lp.frequency.exponentialRampToValueAtTime(fq(p.b),at(p.t))}})}
@@ -279,7 +283,15 @@ async function startAudio(t0){await ensureCtx();stopAudio();const ctx=A.ctx,L=la
     [...pts2].sort((a,b)=>a-b).forEach(t=>{if(t>t0)dk.gain.setTargetAtTime(duck(t+.01)*fade(t),at(t),.08)});
     if(t0<m.fade_in)dk.gain.linearRampToValueAtTime(duck(m.fade_in)*fade(m.fade_in),at(m.fade_in));
     dk.gain.setValueAtTime(duck(T-m.fade_out)*fade(T-m.fade_out),at(Math.max(t0,T-m.fade_out)));dk.gain.linearRampToValueAtTime(0,at(T));
-    s.start(base,(t0%mb.duration));}
+    if(m.mode==='track'){const xf=m.xfade||1.2,segs=trackSegs(T);segs.forEach((sg,i)=>{const a_=i>0?Math.max(0,sg.a-xf/2):0,b_=i<segs.length-1?sg.b+xf/2:T;if(b_<=t0)return;
+        const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=mb;s.connect(g).connect(bus);A.nodes.push(s);
+        const from=Math.max(a_,t0);g.gain.setValueAtTime(1,base);
+        const ramp=(t1,up)=>{if(t1+xf<=t0)return;const st=Math.max(t1,t0),cur=ctx.currentTime;const arr=new Float32Array(24).map((_,k)=>{const u=(k/23);return up?Math.sin(Math.PI/2*u):Math.cos(Math.PI/2*u)});
+          const when=Math.max(at(st),cur+.001),dur=Math.max(.05,t1+xf-st);try{g.gain.setValueCurveAtTime(arr,when,dur)}catch(e){}};
+        if(i>0&&t0<a_+xf){g.gain.setValueAtTime(0,base);ramp(a_,true)}
+        if(i<segs.length-1)ramp(b_-xf,false);
+        s.start(Math.max(base,at(from)),Math.max(0,from+sg.o));s.stop(Math.max(base,at(b_))+.05)})}
+    else{const s=ctx.createBufferSource();s.buffer=mb;s.loop=true;s.connect(bus);A.nodes.push(s);s.start(base,(t0%mb.duration))}}
   A.playing=true}
 function restartAudio(){if(!A.playing)return;startAudio($('#vid').currentTime)}
 const vid=$('#vid');

@@ -30,7 +30,7 @@ The editor runs only on your machine; your ElevenLabs key stays on the server an
   - Click a scene or a music section to edit it in the panel on the right.
 - **Live preview** (`Space`): plays the picture together with your narration, sound effects and music straight away, with no render. It is an approximation; **Remix audio** builds the exact result.
 - **Remix audio** (~1 min) rebuilds the music and re-mixes the audio onto the existing picture. **Full render** (~10 min) is only needed after changing scenes, narration length or captions.
-- **Music tab:** pick a track, choose a steady loop or one scored to the edit, set levels (louder when no one speaks, quieter under the narrator), or generate a new loop (costs credits).
+- **Music tab:** pick a track, choose a steady loop, one scored to the edit, or **full track cut to fit** (for a long composition: set where to start and where to jump, e.g. `15.70 -> 22.07`),  set levels (louder when no one speaks, quieter under the narrator), or generate a new loop (costs credits).
 - **Scenes tab / panel:** reorder, remove and re-add scenes, change their length, edit and regenerate the narration (costs credits).
 - **Settings tab:** captions on/off, and the whoosh on every scene change.
 
@@ -85,3 +85,10 @@ The outputs are `launch/srutam-2.5-launch-16x9.mp4` and `launch/srutam-2.5-launc
 - ElevenLabs' **Music API needs a paid plan**. On the free tier, music comes from the Sound Effects model with `loop: true`, at most 30 seconds, and is looped to length.
 - `gen/music.py` is a free synthesized fallback bed: `python3 gen/music.py <seconds> '<scene-starts json>'`.
 - Generated audio is committed (`public/vo`, `public/sfx`, `public/music-samples`), so nobody pays for it twice. `public/music.wav`, `out/` and the `.mp4` files are regenerated.
+
+## Using your own music
+
+Put an mp3 in `public/music-samples/<name>.mp3` and pick it in the editor's Music tab (or set `music.track` in `plan.json`).
+- A short seamless **loop** works with the "loop" or "arrange" styles.
+- A **full composition** works with the "track" style: it starts at `music.start`, and each entry in `music.joins` skips ahead (`at` = where to leave, `to` = where to continue; both in seconds of the track) with a short crossfade. Cut where the music sounds alike and on the beat; the previous cuts were found by matching chords and tempo.
+- Third-party tracks are git-ignored (check the licence before committing one). If the track file is missing, the build falls back to `product-launch`.
