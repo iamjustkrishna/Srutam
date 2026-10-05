@@ -4193,7 +4193,7 @@ private fun TabletSummaryTabContent(recording: Recording?) {
     val isDark = LocalIsCosmicDark.current
     val textPrimary = if (isDark) TextOnDarkPrimary else TextPrimary
     val textSecondary = if (isDark) TextOnDarkSecondary else TextSecondary
-    val summary = recording?.summary ?: "No summary generated yet. Tap 'Generate Insights' or enable Auto-AI in Settings to summarize automatically."
+    val summary = recording?.summary ?: "No summary generated yet. Tap 'AI Insights' or enable Auto-AI in Settings to summarize automatically."
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {

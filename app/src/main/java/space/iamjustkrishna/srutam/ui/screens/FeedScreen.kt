@@ -1992,41 +1992,6 @@ fun AudioFileCard(
                                 }
                             }
                         }
-                        recording?.transcript?.isNotBlank() == true -> {
-                            Surface(
-                                shape = CircleShape,
-                                color = Sem.accentContainer,
-                                border = BorderStroke(1.dp, Sem.accentBorder.copy(alpha = 0.4f)),
-                                modifier = Modifier
-                                    .shadow(
-                                        elevation = 3.dp,
-                                        shape = CircleShape,
-                                        ambientColor = CobaltBlue.copy(alpha = 0.25f),
-                                        spotColor = CobaltBlue.copy(alpha = 0.35f)
-                                    )
-                                    .clickable(
-                                        enabled = !isSelectionMode,
-                                        onClick = onProcessAI
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "✨",
-                                        fontSize = 11.sp
-                                    )
-                                    Text(
-                                        text = "Generate Insights",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Sem.accent
-                                    )
-                                }
-                            }
-                        }
                         else -> {
                             Surface(
                                 shape = CircleShape,

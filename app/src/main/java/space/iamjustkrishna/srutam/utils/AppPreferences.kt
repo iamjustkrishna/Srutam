@@ -18,7 +18,7 @@ object AppPreferences {
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
-    private const val KEY_LIVE_TRANSCRIPTION_ENABLED = "live_transcription_enabled"
+    private const val FRESH_INSTALL_WINDOW_MS = 60_000L
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
@@ -141,13 +141,28 @@ object AppPreferences {
     val autoAiEnabledFlow: StateFlow<Boolean?> = _autoAiEnabledFlow.asStateFlow()
 
     fun isAutoAiEnabled(context: Context): Boolean {
-        val enabled = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_AUTO_AI_ENABLED, false)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val enabled = if (prefs.contains(KEY_AUTO_AI_ENABLED)) {
+            prefs.getBoolean(KEY_AUTO_AI_ENABLED, false)
+        } else {
+            // Not chosen yet: decide once and remember it, so a later app update cannot change it.
+            isFreshInstall(context).also { prefs.edit().putBoolean(KEY_AUTO_AI_ENABLED, it).apply() }
+        }
         if (_autoAiEnabledFlow.value == null) {
             _autoAiEnabledFlow.value = enabled
         }
         return enabled
     }
+
+    /**
+     * Auto AI starts on for a new install, so insights run right after you stop recording. An install
+     * that predates this never chose a value and keeps it off: turning it on would make the app process
+     * every older note it finds, which nobody asked for.
+     */
+    private fun isFreshInstall(context: Context): Boolean = runCatching {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.lastUpdateTime - info.firstInstallTime < FRESH_INSTALL_WINDOW_MS
+    }.getOrDefault(true)
 
     fun setAutoAiEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -155,19 +170,6 @@ object AppPreferences {
             .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
             .apply()
         _autoAiEnabledFlow.value = enabled
-    }
-
-    /** Whether notes are transcribed on-device while they are being recorded. On by default. */
-    fun isLiveTranscriptionEnabled(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_LIVE_TRANSCRIPTION_ENABLED, true)
-    }
-
-    fun setLiveTranscriptionEnabled(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_LIVE_TRANSCRIPTION_ENABLED, enabled)
-            .apply()
     }
 
     fun isByokOnboardingCompleted(context: Context): Boolean {

@@ -220,15 +220,13 @@ class RecordingForegroundService : Service() {
     private fun startPipelineRecording(file: File): Boolean {
         var session: LiveSession? = null
         try {
-            if (AppPreferences.isLiveTranscriptionEnabled(applicationContext)) {
-                val transcriber = LocalTranscriber(applicationContext)
-                session = LiveSession(transcriber, LiveTranscription(transcriber))
-            }
+            val transcriber = LocalTranscriber(applicationContext)
+            session = LiveSession(transcriber, LiveTranscription(transcriber))
             val newPipeline = AacRecordingPipeline(file, pcmSourceFactory(), session?.live)
             newPipeline.start()
             pipeline = newPipeline
             liveSession = session
-            Log.d(TAG, "Recording started (live transcription: ${session != null}): ${file.absolutePath}")
+            Log.d(TAG, "Recording started with live transcription: ${file.absolutePath}")
 
             RecordingCoordinator.notifyRecordingStarted(lastResumeTimeMs, file.absolutePath)
             startDurationUpdates()

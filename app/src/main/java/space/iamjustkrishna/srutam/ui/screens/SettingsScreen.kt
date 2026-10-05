@@ -84,9 +84,6 @@ fun SettingsScreen(
     var isAutoAiEnabled by remember {
         mutableStateOf(AppPreferences.isAutoAiEnabled(context))
     }
-    var isLiveTranscriptionEnabled by remember {
-        mutableStateOf(AppPreferences.isLiveTranscriptionEnabled(context))
-    }
 
     Scaffold(
         topBar = {
@@ -397,19 +394,6 @@ fun SettingsScreen(
                         )
                     }
                 }
-
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-
-                SettingsToggleRow(
-                    icon = Icons.Default.Mic,
-                    title = "Transcribe while recording",
-                    subtitle = "Srutam Voice writes your note as you speak, so the transcript is ready as soon as you stop. Uses a little more battery while recording.",
-                    checked = isLiveTranscriptionEnabled,
-                    onCheckedChange = { enabled ->
-                        isLiveTranscriptionEnabled = enabled
-                        AppPreferences.setLiveTranscriptionEnabled(context, enabled)
-                    }
-                )
             }
 
             // =========================================================
@@ -422,7 +406,7 @@ fun SettingsScreen(
                     iconBg = Color(0xFFF3E8FF),
                     iconTint = Color(0xFF7C3AED),
                     title = "Auto AI Processing",
-                    subtitle = "Automatically transcribe and generate insights for newly saved notes",
+                    subtitle = "Get insights as soon as you stop recording. Your note is transcribed on your device while you speak.",
                     checked = isAutoAiEnabled,
                     onCheckedChange = { enabled ->
                         isAutoAiEnabled = enabled
