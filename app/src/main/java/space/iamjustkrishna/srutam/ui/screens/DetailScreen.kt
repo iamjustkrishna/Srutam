@@ -184,7 +184,11 @@ fun DetailScreen(
         onPlayPause = { viewModel.togglePlayPause() },
         onSeek = { viewModel.seekTo(it) },
         onSpeedChange = { viewModel.setPlaybackSpeed(it) },
-        onRename = { viewModel.renameRecording(it) },
+        onRename = { newName ->
+            viewModel.renameRecording(newName) { message ->
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        },
         onGenerateSummary = {
             viewModel.generateAiSummary()
             if (NetworkUtils.isInternetAvailable(context)) {
@@ -392,6 +396,7 @@ fun RecordingDetails(
     isOnline: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val playbackState by viewModel.playbackState.collectAsState()
     val noteInsights by viewModel.noteInsights.collectAsState()
     RecordingDetailsContent(
@@ -402,7 +407,11 @@ fun RecordingDetails(
         onPlayPause = { viewModel.togglePlayPause() },
         onSeek = { viewModel.seekTo(it) },
         onSpeedChange = { viewModel.setPlaybackSpeed(it) },
-        onRename = { viewModel.renameRecording(it) },
+        onRename = { newName ->
+            viewModel.renameRecording(newName) { message ->
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        },
         onGenerateSummary = { viewModel.generateAiSummary() },
         onRetryProcessing = { viewModel.retryAiProcessing() },
         onReprocess = { viewModel.reprocessWithAi() },
@@ -446,7 +455,8 @@ fun RecordingDetailsContent(
                 onRename(newName)
                 showRenameDialog = false
             },
-            onDismiss = { showRenameDialog = false }
+            onDismiss = { showRenameDialog = false },
+            currentFilePath = recording.audioFilePath
         )
     }
 

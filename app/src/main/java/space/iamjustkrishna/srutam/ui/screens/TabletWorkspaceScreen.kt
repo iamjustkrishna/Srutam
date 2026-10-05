@@ -1437,7 +1437,8 @@ fun TabletExecutiveDetailWorkspace(
                 onRename(it)
                 showRenameDialog = false
             },
-            onDismiss = { showRenameDialog = false }
+            onDismiss = { showRenameDialog = false },
+            currentFilePath = audioFile.filePath
         )
     }
 

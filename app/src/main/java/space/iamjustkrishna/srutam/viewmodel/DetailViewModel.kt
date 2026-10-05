@@ -9,6 +9,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.player.AudioPlayer
 import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.repository.RenameResult
 import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import com.google.gson.Gson
@@ -97,13 +98,15 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     fun seekTo(position: Int) = audioPlayer.seekTo(position)
     fun setPlaybackSpeed(speed: Float) = audioPlayer.setPlaybackSpeed(speed)
 
-    fun renameRecording(newName: String) {
+    /** Renames the file and the title together; [onError] gets a message to show if that was not possible. */
+    fun renameRecording(newName: String, onError: (String) -> Unit = {}) {
         val current = _recording.value ?: return
-        if (newName.isNotBlank()) {
-            viewModelScope.launch {
-                val updated = current.copy(name = newName.trim())
-                repository.updateRecording(updated)
-                _recording.value = updated
+        viewModelScope.launch {
+            when (val result = repository.renameRecording(current.audioFilePath, newName, current.duration, current.timestamp)) {
+                is RenameResult.Renamed ->
+                    _recording.value = current.copy(name = result.title, audioFilePath = result.newPath)
+                is RenameResult.Rejected -> onError(result.message)
+                RenameResult.Failed -> onError("Could not rename the file. Please try again.")
             }
         }
     }

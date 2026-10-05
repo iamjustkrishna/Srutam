@@ -18,6 +18,7 @@ import space.iamjustkrishna.srutam.data.InsightStatus
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.repository.RecordingRepository
+import space.iamjustkrishna.srutam.repository.RenameResult
 import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
 import space.iamjustkrishna.srutam.ui.screens.formatDate
@@ -216,75 +217,33 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     fun renameRecording(audioFile: AudioFileInfo, newName: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val trimmedName = newName.trim()
-                if (trimmedName.isBlank()) {
-                    _processingError.value = "Failed to rename: name cannot be empty"
-                    return@launch
-                }
-
-                val currentFile = File(audioFile.filePath)
-                if (!currentFile.exists()) {
-                    _processingError.value = "Failed to rename: file not found"
-                    return@launch
-                }
-
-                val newFileName = if (trimmedName.endsWith(".m4a", ignoreCase = true)) {
-                    trimmedName
-                } else {
-                    "$trimmedName.m4a"
-                }
-                val newFile = File(currentFile.parentFile, newFileName)
-                if (newFile.exists()) {
-                    _processingError.value = "Failed to rename: a file with that name already exists"
-                    return@launch
-                }
-
-                val renamed = try {
-                    if (!newFile.exists()) currentFile.renameTo(newFile) else false
-                } catch (e: Exception) {
-                    false
-                }
-
-                val targetFile = if (renamed) newFile else currentFile
-                val targetPath = targetFile.absolutePath
-                val targetName = targetFile.name
-
-                // Update DB record if present, or create one with custom user name
-                val recording = repository.getRecordingByPath(audioFile.filePath)
-                if (recording != null) {
-                    repository.updateRecording(
-                        recording.copy(
-                            name = trimmedName,
-                            audioFilePath = targetPath
-                        )
-                    )
-                } else {
-                    repository.insertRecording(
-                        Recording(
-                            audioFilePath = targetPath,
-                            name = trimmedName,
-                            duration = audioFile.duration,
-                            timestamp = audioFile.timestamp
-                        )
-                    )
-                }
-
-                // Optimistic UI update for immediate feedback
-                _audioFiles.value = _audioFiles.value.map { file ->
-                    if (file.filePath == audioFile.filePath) {
-                        file.copy(
-                            filePath = targetPath,
-                            fileName = targetName,
-                            timestamp = targetFile.lastModified().takeIf { it > 0 } ?: file.timestamp,
-                            sizeBytes = targetFile.length().takeIf { it > 0 } ?: file.sizeBytes
-                        )
-                    } else {
-                        file
+                when (val result = repository.renameRecording(
+                    currentPath = audioFile.filePath,
+                    newTitle = newName,
+                    duration = audioFile.duration,
+                    timestamp = audioFile.timestamp
+                )) {
+                    is RenameResult.Renamed -> {
+                        // Optimistic UI update for immediate feedback
+                        val renamed = File(result.newPath)
+                        _audioFiles.value = _audioFiles.value.map { file ->
+                            if (file.filePath == audioFile.filePath) {
+                                file.copy(
+                                    filePath = result.newPath,
+                                    fileName = renamed.name,
+                                    timestamp = renamed.lastModified().takeIf { it > 0 } ?: file.timestamp,
+                                    sizeBytes = renamed.length().takeIf { it > 0 } ?: file.sizeBytes
+                                )
+                            } else {
+                                file
+                            }
+                        }
+                        // Reload to ensure consistency with storage
+                        loadAudioFiles()
                     }
+                    is RenameResult.Rejected -> _processingError.value = "Failed to rename: ${result.message}"
+                    RenameResult.Failed -> _processingError.value = "Failed to rename file. Please try again."
                 }
-
-                // Reload to ensure consistency with storage
-                loadAudioFiles()
             } catch (e: Exception) {
                 Log.e(TAG, "Error renaming recording", e)
                 _processingError.value = "Failed to rename file. Please try again."

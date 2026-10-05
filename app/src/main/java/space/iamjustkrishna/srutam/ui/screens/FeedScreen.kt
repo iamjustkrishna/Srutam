@@ -1773,7 +1773,8 @@ fun AudioFileCard(
                 onRenameClick(newName)
                 showRenameDialog = false
             },
-            onDismiss = { showRenameDialog = false }
+            onDismiss = { showRenameDialog = false },
+            currentFilePath = audioFile.filePath
         )
     }
 
@@ -1792,6 +1793,7 @@ fun AudioFileCard(
         AudioInfoDialog(
             displayName = displayName,
             audioFile = audioFile,
+            recording = recording,
             onDismiss = { showInfoDialog = false }
         )
     }

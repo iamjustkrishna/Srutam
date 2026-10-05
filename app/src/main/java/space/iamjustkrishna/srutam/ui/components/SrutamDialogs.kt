@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,6 +71,11 @@ import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
 import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.utils.RecordingFileNames
+import space.iamjustkrishna.srutam.utils.RecordingStatusText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkSecondary
 
@@ -659,13 +668,26 @@ fun SaveRecordingDialog(
     )
 }
 
+/**
+ * With [currentFilePath] the dialog reads the folder once and says, while you type, when another note
+ * already has the name (the rename itself checks again), and Rename stays off until the name is usable.
+ */
 @Composable
 fun RenameDialog(
     currentName: String,
     onRename: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    currentFilePath: String? = null
 ) {
     var text by remember { mutableStateOf(currentName) }
+    val existingNames by produceState<List<String>?>(initialValue = null, currentFilePath) {
+        value = currentFilePath?.let { withContext(Dispatchers.IO) { RecordingFileNames.namesIn(File(it).parentFile) } }
+    }
+    val ownFileName = currentFilePath?.let { File(it).name }
+    val nameError: String? = when {
+        text.trim() == currentName.trim() -> null
+        else -> RecordingFileNames.validate(text, existingNames.orEmpty(), ownFileName)
+    }
     val isDark = LocalIsCosmicDark.current
     val fieldBackground = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
     val fieldBorder = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
@@ -679,6 +701,7 @@ fun RenameDialog(
         badgeType = DialogBadgeType.PRIMARY,
         confirmText = "Rename",
         dismissText = "Cancel",
+        confirmEnabled = nameError == null,
         onConfirm = {
             onRename(text.takeIf { it.isNotBlank() } ?: currentName)
         },
@@ -688,6 +711,8 @@ fun RenameDialog(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
+                isError = nameError != null,
+                supportingText = nameError?.let { message -> { Text(message) } },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 leadingIcon = {
@@ -748,14 +773,7 @@ fun AudioInfoDialog(
         audioFile.filePath
     }
 
-    val aiStatusText = when {
-        recording == null -> "Not processed"
-        recording.isProcessing || recording.aiStatus == RecordingAiStatus.TRANSCRIBING -> "Transcribing audio..."
-        recording.aiStatus == RecordingAiStatus.SUMMARY_PROCESSING -> "Analyzing insights..."
-        recording.aiStatus == RecordingAiStatus.ERROR -> "Error processing"
-        !recording.summary.isNullOrBlank() -> "Summarized (AI Insights ready)"
-        else -> "Ready"
-    }
+    val aiStatusText = RecordingStatusText.label(recording)
 
     SrutamCustomDialog(
         onDismissRequest = onDismiss,
@@ -776,21 +794,17 @@ fun AudioInfoDialog(
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     DialogInfoRow(label = "Title", value = displayName)
-                    HorizontalDivider(color = dividerColor)
                     DialogInfoRow(label = "Duration", value = formatDuration(audioFile.duration))
-                    HorizontalDivider(color = dividerColor)
-                    DialogInfoRow(label = "Recorded Date", value = formatDate(audioFile.timestamp))
-                    HorizontalDivider(color = dividerColor)
+                    DialogInfoRow(label = "Recorded", value = formatDate(audioFile.timestamp))
                     DialogInfoRow(label = "File Size", value = formatFileSize(audioFile.sizeBytes))
-                    HorizontalDivider(color = dividerColor)
                     DialogInfoRow(label = "AI Status", value = aiStatusText)
-                    HorizontalDivider(color = dividerColor)
-                    DialogInfoRow(label = "File Location", value = locationText)
+                    DialogInfoRow(label = "Location", value = locationText, smallValue = true)
                 }
             }
         },
@@ -823,24 +837,32 @@ fun ArchiveTasksDialog(
 }
 
 @Composable
-private fun DialogInfoRow(label: String, value: String) {
+private fun DialogInfoRow(label: String, value: String, smallValue: Boolean = false) {
     val isDark = LocalIsCosmicDark.current
     val labelColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
     val valueColor = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
 
-    Column {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = labelColor
+            color = labelColor,
+            modifier = Modifier.width(76.dp)
         )
-        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
-            fontSize = 13.sp,
+            fontSize = if (smallValue) 11.sp else 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = valueColor
+            color = valueColor,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            maxLines = if (smallValue) 2 else 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
     }
 }
