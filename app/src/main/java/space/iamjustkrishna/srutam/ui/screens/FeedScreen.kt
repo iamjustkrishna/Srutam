@@ -1808,457 +1808,497 @@ fun AudioFileCard(
     val isPlaybackActive = isPlaying && playerState.currentFilePath == audioFile.filePath
 
     val isDark = LocalIsCosmicDark.current
-    Card(
-        shape = RoundedCornerShape(26.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDark) {
-                if (isProcessing) Color(0xFF131D38) else CosmicVoidCard
-            } else {
-                if (isProcessing) Color(0xFFF4F8FF) else Color.White
-            },
-            contentColor = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
-        ),
-        border = if (isSelected) {
-            BorderStroke(2.dp, if (isDark) CosmicGlowBlue else Color(0xFF0066FF))
-        } else if (isProcessing) {
-            BorderStroke(1.dp, if (isDark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFF0066FF).copy(alpha = 0.4f))
-        } else {
-            BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFE8EAEF))
-        },
+    // Drag the card to the right to delete it. The dialog asks first, then the card snaps back.
+    SwipeToDismissBox(
+        state = dismissState,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .combinedClickable(
-                onClick = {
-                    if (isSelectionMode) {
-                        onSelectionToggle()
-                    } else {
-                        if (viewModel != null) {
-                            viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
-                                onRecordingClick(recordingId)
-                            }
-                        } else {
-                            onRecordingClick(recording?.id ?: 1L)
-                        }
-                    }
-                },
-                onLongClick = {
-                    onSelectionToggle()
-                }
-            )
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            if (isProcessing) {
-                val shimmerTransition = rememberInfiniteTransition(label = "ai_processing_shimmer")
-                val shimmerOffset by shimmerTransition.animateFloat(
-                    initialValue = -400f,
-                    targetValue = 900f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1600, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "shimmer_offset"
-                )
-                val shimmerBrush = Brush.linearGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            Color(0xFF0C1225),
-                            Color(0xFF1E3A8A).copy(alpha = 0.35f),
-                            Color(0xFF3B82F6).copy(alpha = 0.25f),
-                            Color(0xFF0C1225)
-                        )
-                    } else {
-                        listOf(
-                            Color(0xFFF4F8FF),
-                            Color(0xFF0066FF).copy(alpha = 0.12f),
-                            Color(0xFF64D2FF).copy(alpha = 0.22f),
-                            Color(0xFFF4F8FF)
-                        )
-                    },
-                    start = Offset(shimmerOffset, 0f),
-                    end = Offset(shimmerOffset + 400f, 200f)
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(shimmerBrush)
-                )
-            }
-
-            Column(
+            .padding(vertical = 4.dp),
+        enableDismissFromStartToEnd = !isSelectionMode,
+        enableDismissFromEndToStart = false,
+        backgroundContent = {
+            val swiping = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(if (swiping) Color(0xFFEF4444) else Color.Transparent)
+                    .padding(start = 24.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                // Row 1: Title (left) and AI Status/Action Pill (right)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = displayName,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    when {
-                        isProcessing -> {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isDark) Color(0xFF1E293B) else Color(0xFFEBF3FF),
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (isDark) CosmicGlowBlue.copy(alpha = 0.4f) else Color(0xFF2563EB).copy(alpha = 0.2f)
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(11.dp),
-                                        strokeWidth = 1.8.dp,
-                                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
-                                    )
-                                    Text(
-                                        text = "Analyzing...",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
-                                    )
-                                }
-                            }
-                        }
-                        isAiProcessed -> {
-                            Surface(
-                                shape = CircleShape,
-                                color = Sem.accentContainer
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "✦",
-                                        fontSize = 12.sp,
-                                        color = Sem.accent,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Summarized",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Sem.accent
-                                    )
-                                }
-                            }
-                        }
-                        recording?.aiStatus == RecordingAiStatus.ERROR -> {
-                            Surface(
-                                shape = CircleShape,
-                                color = Sem.errorContainer,
-                                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
-                                modifier = Modifier
-                                    .shadow(elevation = 2.dp, shape = CircleShape)
-                                    .clickable(
-                                        enabled = !isSelectionMode,
-                                        onClick = onProcessAI
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Retry AI",
-                                        tint = Sem.error,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Text(
-                                        text = "Retry AI",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Sem.error
-                                    )
-                                }
-                            }
-                        }
-                        else -> {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFBACFFC),
-                                modifier = Modifier
-                                    .shadow(
-                                        elevation = 4.dp,
-                                        shape = CircleShape,
-                                        ambientColor = Color(0xFF3B82F6).copy(alpha = 0.3f),
-                                        spotColor = Color(0xFF2563EB).copy(alpha = 0.4f)
-                                    )
-                                    .clickable(
-                                        enabled = !isSelectionMode,
-                                        onClick = onProcessAI
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "✨",
-                                        fontSize = 11.sp
-                                    )
-                                    Text(
-                                        text = "AI Insights",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isDark) CosmicGlowBlue else Color(0xFF1E40AF)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Row 2: Human-readable relative date & Insight Indicators
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatHumanRelativeDate(audioFile.timestamp),
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
-                    )
-                    if (!recording?.actionItems.isNullOrBlank() && recording?.actionItems != "[]") {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isDark) CosmicAuroraGreen.copy(alpha = 0.15f) else EmeraldSuccess.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, if (isDark) CosmicAuroraGreen.copy(alpha = 0.3f) else EmeraldSuccess.copy(alpha = 0.25f))
-                        ) {
-                            Text(
-                                text = "✦ Next steps",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Row 2.5: Summary Preview (Content-first 2-line preview)
-                if (isProcessing) {
-                    Text(
-                        text = "Transcribing audio and extracting insights...",
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp,
-                        color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB),
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else if (isAiProcessed && !recording?.summary.isNullOrBlank()) {
-                    Text(
-                        text = recording!!.summary!!.trim(),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Row 3: Audio Player Strip with Circular Blue Play button, Waveform Bars, Timestamp, and MoreVert Options
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Circular Ultramarine Blue Play Button
-                    Surface(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = CircleShape,
-                                spotColor = Color(0xFF0066FF).copy(alpha = 0.4f)
-                            )
-                            .clip(CircleShape)
-                            .clickable(enabled = !isSelectionMode, onClick = onPlayClick),
-                        shape = CircleShape,
-                        color = Color(0xFF0066FF)
+                if (swiping) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Delete",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
-
-                    // Inline Audio Waveform Bars
-                    val totalDur = if (isPlaybackActive && playerState.duration > 0) {
-                        playerState.duration.toLong()
-                    } else {
-                        audioFile.duration.coerceAtLeast(1)
-                    }
-                    val currentPos = if (isPlaybackActive) playerState.currentPosition else 0
-                    val playbackProgress = (currentPos.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
-
-                    CardWaveformVisualizer(
-                        progress = playbackProgress,
-                        isPlaying = isPlaybackActive,
-                        onSeekFraction = { fraction ->
-                            val targetMs = (fraction * totalDur).toInt()
-                            if (isPlaybackActive) {
-                                viewModel?.audioPlayer?.seekTo(targetMs)
-                            } else {
-                                viewModel?.playAudio(audioFile)
-                                viewModel?.audioPlayer?.seekTo(targetMs)
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Current Timestamp or Total Duration
-                    Text(
-                        text = if (isPlaybackActive) {
-                            formatDuration(currentPos.toLong())
+                }
+            }
+        }
+    ) {
+        Card(
+            shape = RoundedCornerShape(26.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 2.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) {
+                    if (isProcessing) Color(0xFF131D38) else CosmicVoidCard
+                } else {
+                    if (isProcessing) Color(0xFFF4F8FF) else Color.White
+                },
+                contentColor = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+            ),
+            border = if (isSelected) {
+                BorderStroke(2.dp, if (isDark) CosmicGlowBlue else Color(0xFF0066FF))
+            } else if (isProcessing) {
+                BorderStroke(1.dp, if (isDark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFF0066FF).copy(alpha = 0.4f))
+            } else {
+                BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else Color(0xFFE8EAEF))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(26.dp))
+                .combinedClickable(
+                    onClick = {
+                        if (isSelectionMode) {
+                            onSelectionToggle()
                         } else {
-                            formatDuration(audioFile.duration)
-                        },
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+                            if (viewModel != null) {
+                                viewModel.getOrCreateRecordingId(audioFile) { recordingId ->
+                                    onRecordingClick(recordingId)
+                                }
+                            } else {
+                                onRecordingClick(recording?.id ?: 1L)
+                            }
+                        }
+                    },
+                    onLongClick = {
+                        onSelectionToggle()
+                    }
+                )
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                if (isProcessing) {
+                    val shimmerTransition = rememberInfiniteTransition(label = "ai_processing_shimmer")
+                    val shimmerOffset by shimmerTransition.animateFloat(
+                        initialValue = -400f,
+                        targetValue = 900f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1600, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "shimmer_offset"
                     )
-
-                    // MoreVert button with custom redesigned dropdown menu in the last row
-                    Box {
-                        IconButton(
-                            onClick = { showDropdown = true },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Options",
-                                tint = Color(0xFF64748B),
-                                modifier = Modifier.size(20.dp)
+                    val shimmerBrush = Brush.linearGradient(
+                        colors = if (isDark) {
+                            listOf(
+                                Color(0xFF0C1225),
+                                Color(0xFF1E3A8A).copy(alpha = 0.35f),
+                                Color(0xFF3B82F6).copy(alpha = 0.25f),
+                                Color(0xFF0C1225)
                             )
+                        } else {
+                            listOf(
+                                Color(0xFFF4F8FF),
+                                Color(0xFF0066FF).copy(alpha = 0.12f),
+                                Color(0xFF64D2FF).copy(alpha = 0.22f),
+                                Color(0xFFF4F8FF)
+                            )
+                        },
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 400f, 200f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(shimmerBrush)
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Row 1: Title (left) and AI Status/Action Pill (right)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = displayName,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        when {
+                            isProcessing -> {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isDark) Color(0xFF1E293B) else Color(0xFFEBF3FF),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isDark) CosmicGlowBlue.copy(alpha = 0.4f) else Color(0xFF2563EB).copy(alpha = 0.2f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(11.dp),
+                                            strokeWidth = 1.8.dp,
+                                            color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
+                                        )
+                                        Text(
+                                            text = "Analyzing...",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB)
+                                        )
+                                    }
+                                }
+                            }
+                            isAiProcessed -> {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Sem.accentContainer
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "✦",
+                                            fontSize = 12.sp,
+                                            color = Sem.accent,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Summarized",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Sem.accent
+                                        )
+                                    }
+                                }
+                            }
+                            recording?.aiStatus == RecordingAiStatus.ERROR -> {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Sem.errorContainer,
+                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
+                                    modifier = Modifier
+                                        .shadow(elevation = 2.dp, shape = CircleShape)
+                                        .clickable(
+                                            enabled = !isSelectionMode,
+                                            onClick = onProcessAI
+                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Retry AI",
+                                            tint = Sem.error,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Retry AI",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Sem.error
+                                        )
+                                    }
+                                }
+                            }
+                            else -> {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFFBACFFC),
+                                    modifier = Modifier
+                                        .shadow(
+                                            elevation = 4.dp,
+                                            shape = CircleShape,
+                                            ambientColor = Color(0xFF3B82F6).copy(alpha = 0.3f),
+                                            spotColor = Color(0xFF2563EB).copy(alpha = 0.4f)
+                                        )
+                                        .clickable(
+                                            enabled = !isSelectionMode,
+                                            onClick = onProcessAI
+                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "✨",
+                                            fontSize = 11.sp
+                                        )
+                                        Text(
+                                            text = "AI Insights",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isDark) CosmicGlowBlue else Color(0xFF1E40AF)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Row 2: Human-readable relative date & Insight Indicators
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatHumanRelativeDate(audioFile.timestamp),
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
+                        )
+                        if (!recording?.actionItems.isNullOrBlank() && recording?.actionItems != "[]") {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isDark) CosmicAuroraGreen.copy(alpha = 0.15f) else EmeraldSuccess.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, if (isDark) CosmicAuroraGreen.copy(alpha = 0.3f) else EmeraldSuccess.copy(alpha = 0.25f))
+                            ) {
+                                Text(
+                                    text = "✦ Next steps",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) CosmicAuroraGreen else EmeraldSuccess,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Row 2.5: Summary Preview (Content-first 2-line preview)
+                    if (isProcessing) {
+                        Text(
+                            text = "Transcribing audio and extracting insights...",
+                            fontSize = 12.5.sp,
+                            lineHeight = 17.sp,
+                            color = if (isDark) CosmicGlowBlue else Color(0xFF2563EB),
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (isAiProcessed && !recording?.summary.isNullOrBlank()) {
+                        Text(
+                            text = recording!!.summary!!.trim(),
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Row 3: Audio Player Strip with Circular Blue Play button, Waveform Bars, Timestamp, and MoreVert Options
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Circular Ultramarine Blue Play Button
+                        Surface(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .shadow(
+                                    elevation = 4.dp,
+                                    shape = CircleShape,
+                                    spotColor = Color(0xFF0066FF).copy(alpha = 0.4f)
+                                )
+                                .clip(CircleShape)
+                                .clickable(enabled = !isSelectionMode, onClick = onPlayClick),
+                            shape = CircleShape,
+                            color = Color(0xFF0066FF)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
                         }
 
-                        MaterialTheme(
-                            shapes = MaterialTheme.shapes.copy(
-                                extraSmall = RoundedCornerShape(20.dp),
-                                small = RoundedCornerShape(20.dp),
-                                medium = RoundedCornerShape(20.dp)
-                            )
-                        ) {
-                            DropdownMenu(
-                                expanded = showDropdown,
-                                onDismissRequest = { showDropdown = false },
-                                modifier = Modifier
-                                    .background(Sem.card, RoundedCornerShape(20.dp))
-                                    .border(BorderStroke(1.dp, Sem.border), RoundedCornerShape(20.dp))
-                                    .width(180.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                containerColor = Sem.card,
-                                shadowElevation = 10.dp
+                        // Inline Audio Waveform Bars
+                        val totalDur = if (isPlaybackActive && playerState.duration > 0) {
+                            playerState.duration.toLong()
+                        } else {
+                            audioFile.duration.coerceAtLeast(1)
+                        }
+                        val currentPos = if (isPlaybackActive) playerState.currentPosition else 0
+                        val playbackProgress = (currentPos.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
+
+                        CardWaveformVisualizer(
+                            progress = playbackProgress,
+                            isPlaying = isPlaybackActive,
+                            onSeekFraction = { fraction ->
+                                val targetMs = (fraction * totalDur).toInt()
+                                if (isPlaybackActive) {
+                                    viewModel?.audioPlayer?.seekTo(targetMs)
+                                } else {
+                                    viewModel?.playAudio(audioFile)
+                                    viewModel?.audioPlayer?.seekTo(targetMs)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Current Timestamp or Total Duration
+                        Text(
+                            text = if (isPlaybackActive) {
+                                formatDuration(currentPos.toLong())
+                            } else {
+                                formatDuration(audioFile.duration)
+                            },
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+                        )
+
+                        // MoreVert button with custom redesigned dropdown menu in the last row
+                        Box {
+                            IconButton(
+                                onClick = { showDropdown = true },
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "Rename",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Sem.text
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Edit,
-                                            contentDescription = null,
-                                            tint = Sem.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        showDropdown = false
-                                        showRenameDialog = true
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Options",
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "File Info",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Sem.text
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Info,
-                                            contentDescription = null,
-                                            tint = Sem.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        showDropdown = false
-                                        showInfoDialog = true
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                            }
+
+                            MaterialTheme(
+                                shapes = MaterialTheme.shapes.copy(
+                                    extraSmall = RoundedCornerShape(20.dp),
+                                    small = RoundedCornerShape(20.dp),
+                                    medium = RoundedCornerShape(20.dp)
                                 )
-                                HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "Delete",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFFFF3B30)
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Delete,
-                                            contentDescription = null,
-                                            tint = Color(0xFFFF3B30),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        showDropdown = false
-                                        showDeleteConfirm = true
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-                                )
+                            ) {
+                                DropdownMenu(
+                                    expanded = showDropdown,
+                                    onDismissRequest = { showDropdown = false },
+                                    modifier = Modifier
+                                        .background(Sem.card, RoundedCornerShape(20.dp))
+                                        .border(BorderStroke(1.dp, Sem.border), RoundedCornerShape(20.dp))
+                                        .width(180.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    containerColor = Sem.card,
+                                    shadowElevation = 10.dp
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "Rename",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Sem.text
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Edit,
+                                                contentDescription = null,
+                                                tint = Sem.textSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            showDropdown = false
+                                            showRenameDialog = true
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                    )
+                                    HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "File Info",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Sem.text
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Info,
+                                                contentDescription = null,
+                                                tint = Sem.textSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            showDropdown = false
+                                            showInfoDialog = true
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                    )
+                                    HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "Delete",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFFFF3B30)
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Delete,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF3B30),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            showDropdown = false
+                                            showDeleteConfirm = true
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                    )
+                                }
                             }
                         }
                     }
