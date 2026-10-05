@@ -468,10 +468,16 @@ class RecordingForegroundService : Service() {
 
     private suspend fun storeLiveTranscript(file: File, duration: Long, text: String) {
         withContext(Dispatchers.IO) {
+            // The in-app Save dialog may already have renamed or discarded the file; then the transcript
+            // is dropped and the AI step simply transcribes the saved file, as it always did.
+            if (!file.exists()) {
+                Log.d(TAG, "${file.name} was renamed or discarded first; not storing its live transcript")
+                return@withContext
+            }
             val repository = RecordingRepository(applicationContext, SrutamApplication.getInstance().database.recordingDao())
             val existing = repository.getRecordingByPath(file.absolutePath)
             if (existing == null) {
-                repository.insertRecording(
+                val id = repository.insertRecording(
                     Recording(
                         audioFilePath = file.absolutePath,
                         duration = duration,
@@ -479,8 +485,10 @@ class RecordingForegroundService : Service() {
                         transcript = text
                     )
                 )
-            } else if (existing.transcript.isNullOrBlank()) {
-                repository.updateRecording(existing.copy(transcript = text))
+                // Renamed or discarded while we were inserting: do not leave a note for a file that is gone.
+                if (!file.exists()) repository.deleteRecordingById(id)
+            } else {
+                repository.setTranscriptIfBlank(existing.id, text)
             }
         }
     }

@@ -21,6 +21,7 @@ import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -34,9 +35,13 @@ class RecordingServiceLiveTranscriptTest {
     private val dao by lazy { AppDatabase.getDatabase(appContext).recordingDao() }
     private var activity: Activity? = null
     private val createdPaths = ArrayList<String>()
+    private var autoAiBefore = false
 
     @Before
     fun setUp() {
+        // Auto AI is on for new installs; these tests are about the transcript, not the AI step.
+        autoAiBefore = AppPreferences.isAutoAiEnabled(appContext)
+        AppPreferences.setAutoAiEnabled(appContext, false)
         for (permission in listOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.READ_MEDIA_AUDIO,
@@ -61,6 +66,7 @@ class RecordingServiceLiveTranscriptTest {
             }
         }
         activity?.finish()
+        AppPreferences.setAutoAiEnabled(appContext, autoAiBefore)
     }
 
     @Test
@@ -87,12 +93,50 @@ class RecordingServiceLiveTranscriptTest {
         Log.i(TAG, "stop_to_stored_transcript_ms=$stopToTranscriptMs transcript=${note!!.transcript}")
 
         assertTrue("recall ${recall(MEMO_1_TEXT, note!!.transcript!!)}", recall(MEMO_1_TEXT, note!!.transcript!!) >= 0.85)
-        assertEquals("the AI step must stay opt-in", RecordingAiStatus.NOT_REQUESTED, note!!.aiStatus)
+        assertEquals("auto-AI is off in this test, so no AI step runs", RecordingAiStatus.NOT_REQUESTED, note!!.aiStatus)
         assertEquals(24.6, note!!.duration / 1000.0, 0.5)
         assertEquals(24.6, durationOf(File(path)) / 1000.0, 0.5)
 
         assertTrue("the service did not shut itself down", waitFor(30_000) { !isRecordingServiceRunning() })
         assertTrue(RecordingCoordinator.isIdle)
+    }
+
+    @Test
+    fun renamingTheFileInTheSaveDialogMovesTheStoredTranscriptWithIt() {
+        val path = recordClipUntilDrained()
+        RecordingCoordinator.requestStop(appContext, deferAutoAi = true)
+        assertTrue("no transcript was stored on the note", waitFor(90_000) {
+            !runBlocking { dao.getRecordingByPath(path) }?.transcript.isNullOrBlank()
+        })
+        val idBefore = runBlocking { dao.getRecordingByPath(path) }!!.id
+
+        // What the in-app Save dialog does when the user types a name.
+        val renamed = renameLikeTheSaveDialog(path, "Standup notes")
+        assertEquals(1, runBlocking { dao.movePath(path, renamed, "Standup notes") })
+
+        assertEquals("nothing may be left under the old name", null, runBlocking { dao.getRecordingByPath(path) })
+        val moved = runBlocking { dao.getRecordingByPath(renamed) }!!
+        assertEquals(idBefore, moved.id)
+        assertEquals("Standup notes", moved.name)
+        assertTrue("the transcript must follow the note", recall(MEMO_1_TEXT, moved.transcript!!) >= 0.85)
+        assertTrue("the service did not shut itself down", waitFor(30_000) { !isRecordingServiceRunning() })
+    }
+
+    @Test
+    fun renamingTheFileBeforeTheTranscriptArrivesLeavesNoGhostNote() {
+        val path = recordClipUntilDrained()
+        RecordingCoordinator.requestStop(appContext, deferAutoAi = true)
+        // The recording is handed off at once; the last phrase is still being transcribed for about a second.
+        assertTrue("recording did not stop", waitFor(30_000) { RecordingCoordinator.isIdle })
+
+        val renamed = renameLikeTheSaveDialog(path, "Quick rename")
+        runBlocking { dao.movePath(path, renamed, "Quick rename") }
+
+        assertTrue("the service did not shut itself down", waitFor(60_000) { !isRecordingServiceRunning() })
+        assertEquals("a renamed note must never leave a row under its old name", null, runBlocking { dao.getRecordingByPath(path) })
+        // Either the transcript arrived first and moved with the note, or it was dropped; never a transcript-less ghost.
+        val atNewName = runBlocking { dao.getRecordingByPath(renamed) }
+        assertTrue("unexpected row: $atNewName", atNewName == null || !atNewName.transcript.isNullOrBlank())
     }
 
     @Test
@@ -115,6 +159,26 @@ class RecordingServiceLiveTranscriptTest {
             assertTrue("service stuck after a failed start", waitFor(30_000) { RecordingCoordinator.isIdle })
         }
         assertNotNull(RecordingCoordinator.state.value)
+    }
+
+    /** Records the whole sample clip through the real service and returns the file's path. */
+    private fun recordClipUntilDrained(): String {
+        val source = FilePcmSource(upsample(readWavPcm(MEMO_1), 16000, RECORDING_SAMPLE_RATE), RECORDING_SAMPLE_RATE, realTime = true)
+        RecordingForegroundService.pcmSourceFactory = { source }
+        assertTrue(RecordingCoordinator.requestStart(appContext))
+        assertTrue("recording did not start", waitFor(30_000) { RecordingCoordinator.state.value is RecordingCoordinator.RecordingSessionState.Recording })
+        val path = (RecordingCoordinator.state.value as RecordingCoordinator.RecordingSessionState.Recording).filePath
+        createdPaths += path
+        assertTrue("clip never finished playing", waitFor(60_000) { source.drained })
+        Thread.sleep(300)
+        return path
+    }
+
+    private fun renameLikeTheSaveDialog(path: String, name: String): String {
+        val target = File(File(path).parentFile, "$name.m4a")
+        assertTrue("could not rename $path", File(path).renameTo(target))
+        createdPaths += target.absolutePath
+        return target.absolutePath
     }
 
     private fun waitFor(timeoutMs: Long, condition: () -> Boolean): Boolean {

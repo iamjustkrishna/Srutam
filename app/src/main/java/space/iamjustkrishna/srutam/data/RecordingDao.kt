@@ -40,6 +40,14 @@ interface RecordingDao {
     @Query("SELECT * FROM recordings WHERE audioFilePath = :audioFilePath")
     suspend fun getRecordingByPath(audioFilePath: String): Recording?
 
+    /** Sets the transcript only if there is none yet; atomic, so it never overwrites a concurrent update. */
+    @Query("UPDATE recordings SET transcript = :text WHERE id = :id AND (transcript IS NULL OR transcript = '')")
+    suspend fun setTranscriptIfBlank(id: Long, text: String): Int
+
+    /** Points a note at its renamed audio file. Returns how many notes were moved (0 or 1). */
+    @Query("UPDATE recordings SET audioFilePath = :newPath, name = :name WHERE audioFilePath = :oldPath")
+    suspend fun movePath(oldPath: String, newPath: String, name: String): Int
+
     @Query("SELECT COUNT(*) FROM recordings")
     suspend fun getRecordingCount(): Int
 

@@ -288,42 +288,89 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
      * Process a recording with AI using background WorkManager pipeline.
      */
     fun processRecordingForAI(audioFile: AudioFileInfo) {
+        viewModelScope.launch(Dispatchers.IO) { startAiProcessing(audioFile) }
+    }
+
+    private suspend fun startAiProcessing(audioFile: AudioFileInfo) {
+        try {
+            Log.d(TAG, "Queueing AI processing for: ${audioFile.fileName}")
+            var recording = repository.getRecordingByPath(audioFile.filePath)
+            if (recording == null) {
+                val newRecording = Recording(
+                    audioFilePath = audioFile.filePath,
+                    duration = audioFile.duration,
+                    name = RecordingNameFormatter.displayName(
+                        fileName = audioFile.fileName,
+                        timestamp = audioFile.timestamp
+                    ),
+                    isProcessing = true,
+                    aiStatus = RecordingAiStatus.TRANSCRIBING
+                )
+                val recordingId = repository.insertRecording(newRecording)
+                recording = newRecording.copy(id = recordingId)
+            } else {
+                repository.updateRecording(
+                    recording.copy(
+                        isProcessing = true,
+                        aiStatus = if (recording.transcript.isNullOrBlank()) {
+                            RecordingAiStatus.TRANSCRIBING
+                        } else {
+                            RecordingAiStatus.SUMMARY_PROCESSING
+                        },
+                        processingError = null
+                    )
+                )
+            }
+
+            AiProcessingWorker.enqueueProcessing(getApplication(), listOf(recording.id))
+            loadAudioFiles()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initiating AI processing", e)
+            _processingError.value = "Failed to start AI processing. Please try again."
+        }
+    }
+
+    /**
+     * The in-app Save dialog is finished with a new note. If it renamed the file, carry the stored note
+     * over to the new path (it may already hold the live transcript), then start AI when auto-AI is on.
+     * One sequential call, so the AI step always finds the moved note.
+     */
+    fun onNewRecordingSaved(originalPath: String, savedFile: java.io.File, startAi: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Queueing AI processing for: ${audioFile.fileName}")
-                var recording = repository.getRecordingByPath(audioFile.filePath)
-                if (recording == null) {
-                    val newRecording = Recording(
-                        audioFilePath = audioFile.filePath,
-                        duration = audioFile.duration,
-                        name = RecordingNameFormatter.displayName(
-                            fileName = audioFile.fileName,
-                            timestamp = audioFile.timestamp
-                        ),
-                        isProcessing = true,
-                        aiStatus = RecordingAiStatus.TRANSCRIBING
-                    )
-                    val recordingId = repository.insertRecording(newRecording)
-                    recording = newRecording.copy(id = recordingId)
-                } else {
-                    repository.updateRecording(
-                        recording.copy(
-                            isProcessing = true,
-                            aiStatus = if (recording.transcript.isNullOrBlank()) {
-                                RecordingAiStatus.TRANSCRIBING
-                            } else {
-                                RecordingAiStatus.SUMMARY_PROCESSING
-                            },
-                            processingError = null
-                        )
+                if (originalPath != savedFile.absolutePath) {
+                    repository.moveRecordingPath(
+                        originalPath,
+                        savedFile.absolutePath,
+                        RecordingNameFormatter.displayName(fileName = savedFile.name, timestamp = savedFile.lastModified())
                     )
                 }
-
-                AiProcessingWorker.enqueueProcessing(getApplication(), listOf(recording.id))
-                loadAudioFiles()
             } catch (e: Exception) {
-                Log.e(TAG, "Error initiating AI processing", e)
-                _processingError.value = "Failed to start AI processing. Please try again."
+                Log.e(TAG, "Could not move the saved note to its renamed file", e)
+            }
+            if (startAi) {
+                startAiProcessing(
+                    AudioFileInfo(
+                        filePath = savedFile.absolutePath,
+                        fileName = savedFile.name,
+                        duration = 0L,
+                        timestamp = savedFile.lastModified(),
+                        sizeBytes = savedFile.length()
+                    )
+                )
+            } else {
+                loadAudioFiles()
+            }
+        }
+    }
+
+    /** The Save dialog's Discard: drop the note that may already hold the live transcript. */
+    fun onNewRecordingDiscarded(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.getRecordingByPath(path)?.let { repository.deleteRecording(it) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not remove the discarded note", e)
             }
         }
     }

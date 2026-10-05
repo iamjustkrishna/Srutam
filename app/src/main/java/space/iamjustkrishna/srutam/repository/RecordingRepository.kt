@@ -60,4 +60,13 @@ class RecordingRepository(
     suspend fun getRecordingByPath(audioFilePath: String): Recording? {
         return recordingDao.getRecordingByPath(audioFilePath)
     }
+
+    suspend fun setTranscriptIfBlank(id: Long, text: String) {
+        recordingDao.setTranscriptIfBlank(id, text)
+    }
+
+    /** Points a note at its renamed file. Returns whether a note existed for [oldPath]. */
+    suspend fun moveRecordingPath(oldPath: String, newPath: String, name: String): Boolean {
+        return recordingDao.movePath(oldPath, newPath, name) > 0
+    }
 }

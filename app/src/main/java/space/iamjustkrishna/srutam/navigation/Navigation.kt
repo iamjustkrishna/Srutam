@@ -497,15 +497,12 @@ private fun RootScreen(
                 showAboveToast("Voice note saved")
                 viewModel.loadAudioFiles()
 
-                if (savedFile != null && savedFile.exists() && AppPreferences.isAutoAiEnabled(context)) {
-                    val audioFileInfo = AudioFileInfo(
-                        filePath = savedFile.absolutePath,
-                        fileName = savedFile.name,
-                        duration = 0L,
-                        timestamp = savedFile.lastModified(),
-                        sizeBytes = savedFile.length()
+                if (savedFile != null && savedFile.exists()) {
+                    viewModel.onNewRecordingSaved(
+                        originalPath = newest?.absolutePath ?: savedFile.absolutePath,
+                        savedFile = savedFile,
+                        startAi = AppPreferences.isAutoAiEnabled(context)
                     )
-                    viewModel.processRecordingForAI(audioFileInfo)
                 }
             },
             onDiscard = {
@@ -515,6 +512,7 @@ private fun RootScreen(
                     ?.maxByOrNull { f -> f.lastModified() }
                 if (newest != null && newest.exists()) {
                     AudioStorage.deleteAudioFile(context, newest.absolutePath)
+                    viewModel.onNewRecordingDiscarded(newest.absolutePath)
                 }
                 showAboveToast("Recording discarded")
                 viewModel.loadAudioFiles()
