@@ -11,9 +11,14 @@ import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.SpeechSegment
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import space.iamjustkrishna.srutam.utils.AudioDecoder
 import java.io.File
 import java.io.IOException
@@ -23,6 +28,10 @@ class LocalTranscriber(private val context: Context) {
 
     @Volatile
     private var recognizer: OfflineRecognizer? = null
+
+    /** Tests flip this to compare against decoding and transcribing one after the other. */
+    @Volatile
+    internal var pipelineDecoding = true
 
     /** [onProgress] receives how many ms of audio have been fully transcribed so far. */
     suspend fun transcribe(audioFile: File, onProgress: ((audioMs: Long) -> Unit)? = null): String {
@@ -34,10 +43,7 @@ class LocalTranscriber(private val context: Context) {
 
         val session = Session(recognizer, vad, job, onProgress)
         try {
-            val decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE, session::accept)
-            job?.ensureActive()
-            require(decoded && session.totalSamples > 0) { "Failed to decode audio file for local transcription" }
-
+            if (pipelineDecoding) decodeAndTranscribeInParallel(audioFile, session) else decodeThenTranscribe(audioFile, session)
             session.finish()
         } finally {
             vad.release()
@@ -51,6 +57,47 @@ class LocalTranscriber(private val context: Context) {
         // No speech segments means no text, which lets the caller report a silent recording
         // instead of the model inventing words for noise.
         return session.texts.joinToString(" ")
+    }
+
+    private fun decodeThenTranscribe(audioFile: File, session: Session) {
+        val decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE, session::accept)
+        require(decoded && session.totalSamples > 0) { "Failed to decode audio file for local transcription" }
+    }
+
+    // Android's AAC decoder costs about 4 ms per 23 ms frame on a mid-range phone and the speech model
+    // is just as slow, so doing them one after the other roughly doubles the wait. The decoder fills a
+    // small queue on another thread while this one runs the VAD and the model.
+    private suspend fun decodeAndTranscribeInParallel(audioFile: File, session: Session) = coroutineScope {
+        val batches = Channel<FloatArray>(DECODED_QUEUE_BATCHES)
+        var decoded = false
+        launch(Dispatchers.IO) {
+            try {
+                val batch = FloatArray(DECODED_BATCH_SAMPLES)
+                var filled = 0
+                decoded = audioDecoder.decodeAudioFileInChunks(audioFile, SAMPLE_RATE) { chunk ->
+                    var offset = 0
+                    while (offset < chunk.size) {
+                        val count = minOf(chunk.size - offset, batch.size - filled)
+                        System.arraycopy(chunk, offset, batch, filled, count)
+                        offset += count
+                        filled += count
+                        if (filled == batch.size) {
+                            runBlocking { batches.send(batch.copyOf()) }
+                            filled = 0
+                        }
+                    }
+                }
+                if (filled > 0) runBlocking { batches.send(batch.copyOf(filled)) }
+            } finally {
+                batches.close()
+            }
+        }
+        try {
+            for (batch in batches) session.accept(batch)
+        } finally {
+            batches.cancel() // frees the decoder thread if we stop early (cancelled or failed)
+        }
+        require(decoded && session.totalSamples > 0) { "Failed to decode audio file for local transcription" }
     }
 
     @Synchronized
@@ -200,6 +247,10 @@ class LocalTranscriber(private val context: Context) {
         private const val SAMPLE_RATE = 16000
         private const val FEATURE_DIM = 80
         private const val NUM_THREADS = 4
+
+        // Decoded audio is handed to the model in blocks of ~0.25 s, with about 2 s queued at most.
+        private const val DECODED_BATCH_SAMPLES = SAMPLE_RATE / 4
+        private const val DECODED_QUEUE_BATCHES = 8
 
         // Cap on one decode so its memory stays bounded however long the recording is.
         // The library default (5 s) would split continuous speech far too often.

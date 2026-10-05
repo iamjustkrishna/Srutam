@@ -3,6 +3,9 @@ package space.iamjustkrishna.srutam.ai
 import android.app.Activity
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.os.BatteryManager
 import android.os.Debug
@@ -24,6 +27,7 @@ import org.junit.runner.RunWith
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.utils.AudioDecoder
 import java.io.File
+import kotlin.math.abs
 
 /**
  * Stress test for long recordings. Not part of the normal run: it needs `stress_<name>.m4a` plus a
@@ -117,9 +121,185 @@ class LongAudioStressTest {
         log("decode_only_audio_s", audioMs / 1000)
         log("decode_only_elapsed_s", elapsedMs / 1000)
         log("decode_only_rtf", "%.3f".format(elapsedMs.toDouble() / audioMs))
+
+        // Same decode without the 44.1 kHz -> 16 kHz conversion, to separate codec time from resampling time.
+        val nativeStart = System.nanoTime()
+        AudioDecoder().decodeAudioFileInChunks(file, 44100) { }
+        log("decode_only_no_resample_rtf", "%.3f".format(elapsedMs(nativeStart).toDouble() / audioMs))
         assertTrue("decoder failed", ok)
         val decodedMs = decodedSamples * 1000 / 16000
         assertTrue("decoded $decodedMs ms of $audioMs ms", decodedMs >= audioMs * 0.98)
+    }
+
+    @Test
+    fun decodingBesideTranscribingIsFasterAndKeepsTheWords() {
+        val file = stressFile()
+        val audioMs = durationMs(file)
+        fun run(pipelined: Boolean): Pair<Double, String> {
+            transcriber.pipelineDecoding = pipelined
+            val start = System.nanoTime()
+            val text = runBlocking { transcriber.transcribe(file) }
+            return elapsedMs(start).toDouble() / audioMs to text
+        }
+
+        val (serialRtf, serialText) = run(pipelined = false)
+        val (parallelRtf, parallelText) = run(pipelined = true)
+        log("pipeline_ab", "serial rtf=%.3f | side-by-side rtf=%.3f | speedup %.2fx"
+            .format(serialRtf, parallelRtf, serialRtf / parallelRtf))
+        val reference = words(File(inputDir, file.nameWithoutExtension + ".txt").readText())
+        val serialWords = words(serialText)
+        val parallelWords = words(parallelText)
+        log("pipeline_ab_words", "ref=${reference.size} serial=${serialWords.size} side-by-side=${parallelWords.size}")
+        log("pipeline_ab_recall", "serial=%.3f side-by-side=%.3f".format(recall(reference, serialWords), recall(reference, parallelWords)))
+        if (serialText != parallelText) {
+            val at = serialText.zip(parallelText).indexOfFirst { it.first != it.second }.let { if (it < 0) minOf(serialText.length, parallelText.length) else it }
+            log("pipeline_ab_first_difference_at", "$at serial='${serialText.drop(maxOf(0, at - 30)).take(80)}' side-by-side='${parallelText.drop(maxOf(0, at - 30)).take(80)}'")
+        }
+        // Punctuation at segment edges can shift with how the audio is grouped, so compare the words.
+        val serialRecall = recall(reference, serialWords)
+        val parallelRecall = recall(reference, parallelWords)
+        assertTrue("serial recall $serialRecall", serialRecall >= 0.9)
+        assertTrue("side-by-side recall $parallelRecall", parallelRecall >= 0.9)
+        assertTrue("recall differs: $serialRecall vs $parallelRecall", abs(serialRecall - parallelRecall) < 0.03)
+        assertTrue("word count differs", abs(serialWords.size - parallelWords.size) <= serialWords.size / 50 + 1)
+    }
+
+    @Test
+    fun whereDecodeTimeGoes() {
+        val file = stressFile()
+        val audioMs = durationMs(file)
+
+        fun audioTrack(extractor: MediaExtractor): Int =
+            (0 until extractor.trackCount).first { extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)!!.startsWith("audio/") }
+
+        // (a) only reading compressed frames from the file
+        run {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(file.absolutePath)
+            extractor.selectTrack(audioTrack(extractor))
+            val buffer = java.nio.ByteBuffer.allocate(1 shl 16)
+            var frames = 0
+            val start = System.nanoTime()
+            while (extractor.readSampleData(buffer, 0) >= 0) {
+                extractor.advance()
+                frames++
+            }
+            log("a_extractor_only", "rtf=%.4f frames=%d".format(elapsedMs(start).toDouble() / audioMs, frames))
+            extractor.release()
+        }
+
+        // (b) extractor + codec, output thrown away
+        run {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(file.absolutePath)
+            val track = audioTrack(extractor)
+            extractor.selectTrack(track)
+            val format = extractor.getTrackFormat(track)
+            val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            codec.configure(format, null, null, 0)
+            codec.start()
+            val info = MediaCodec.BufferInfo()
+            var inputDone = false
+            var outputDone = false
+            var fed = 0
+            var taken = 0
+            var maxInFlight = 0
+            var blockingWaits = 0
+            var timedOutWaits = 0
+            val start = System.nanoTime()
+            while (!outputDone) {
+                var progressed = false
+                while (!inputDone) {
+                    val index = codec.dequeueInputBuffer(0)
+                    if (index < 0) break
+                    val buffer = codec.getInputBuffer(index)!!
+                    val size = extractor.readSampleData(buffer, 0)
+                    if (size < 0) {
+                        codec.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        inputDone = true
+                    } else {
+                        codec.queueInputBuffer(index, 0, size, extractor.sampleTime, 0)
+                        extractor.advance()
+                        fed++
+                    }
+                    progressed = true
+                    maxInFlight = maxOf(maxInFlight, fed - taken)
+                }
+                while (!outputDone) {
+                    val index = codec.dequeueOutputBuffer(info, 0)
+                    if (index < 0) break
+                    codec.releaseOutputBuffer(index, false)
+                    taken++
+                    progressed = true
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+                }
+                if (!progressed && !outputDone) {
+                    blockingWaits++
+                    val index = codec.dequeueOutputBuffer(info, 10_000)
+                    if (index >= 0) {
+                        codec.releaseOutputBuffer(index, false)
+                        taken++
+                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+                    } else {
+                        timedOutWaits++
+                    }
+                }
+            }
+            log(
+                "b_extractor_plus_codec",
+                "rtf=%.4f fed=%d outputs=%d maxInFlight=%d blockingWaits=%d timedOut=%d codec=%s"
+                    .format(elapsedMs(start).toDouble() / audioMs, fed, taken, maxInFlight, blockingWaits, timedOutWaits, codec.name)
+            )
+            codec.stop()
+            codec.release()
+            extractor.release()
+        }
+
+        // (c) the same, but with MediaCodec's asynchronous callback mode
+        run {
+            val extractor = MediaExtractor()
+            extractor.setDataSource(file.absolutePath)
+            val track = audioTrack(extractor)
+            extractor.selectTrack(track)
+            val format = extractor.getTrackFormat(track)
+            val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            val done = java.util.concurrent.CountDownLatch(1)
+            var inputDone = false
+            var taken = 0
+            val thread = android.os.HandlerThread("codec-callbacks").also { it.start() }
+            codec.setCallback(object : MediaCodec.Callback() {
+                override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
+                    if (inputDone) return
+                    val buffer = codec.getInputBuffer(index)!!
+                    val size = extractor.readSampleData(buffer, 0)
+                    if (size < 0) {
+                        codec.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        inputDone = true
+                    } else {
+                        codec.queueInputBuffer(index, 0, size, extractor.sampleTime, 0)
+                        extractor.advance()
+                    }
+                }
+
+                override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
+                    codec.releaseOutputBuffer(index, false)
+                    taken++
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) done.countDown()
+                }
+
+                override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) = done.countDown()
+                override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {}
+            }, android.os.Handler(thread.looper))
+            codec.configure(format, null, null, 0)
+            val start = System.nanoTime()
+            codec.start()
+            done.await()
+            log("c_async_mode", "rtf=%.4f outputs=%d".format(elapsedMs(start).toDouble() / audioMs, taken))
+            codec.stop()
+            codec.release()
+            extractor.release()
+            thread.quit()
+        }
     }
 
     @Test
