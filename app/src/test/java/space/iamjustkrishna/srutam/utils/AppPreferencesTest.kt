@@ -79,6 +79,20 @@ class AppPreferencesTest {
     }
 
     @Test
+    fun askNameAfterRecording_isOffByDefaultSoNotesSaveRightAway() {
+        assertFalse(AppPreferences.isAskNameAfterRecording(context))
+    }
+
+    @Test
+    fun askNameAfterRecording_updatesStateProperly() {
+        AppPreferences.setAskNameAfterRecording(context, true)
+        assertTrue(AppPreferences.isAskNameAfterRecording(context))
+
+        AppPreferences.setAskNameAfterRecording(context, false)
+        assertFalse(AppPreferences.isAskNameAfterRecording(context))
+    }
+
+    @Test
     fun byokOnboardingCompleted_defaultsToFalse() {
         assertFalse(AppPreferences.isByokOnboardingCompleted(context))
     }

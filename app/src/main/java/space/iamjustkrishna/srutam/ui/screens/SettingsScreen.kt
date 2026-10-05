@@ -84,6 +84,9 @@ fun SettingsScreen(
     var isAutoAiEnabled by remember {
         mutableStateOf(AppPreferences.isAutoAiEnabled(context))
     }
+    var askNameAfterRecording by remember {
+        mutableStateOf(AppPreferences.isAskNameAfterRecording(context))
+    }
 
     Scaffold(
         topBar = {
@@ -275,6 +278,22 @@ fun SettingsScreen(
                         } else {
                             context.startService(intent)
                         }
+                    }
+                )
+            }
+
+            // =========================================================
+            // Recording
+            // =========================================================
+            SettingsSection(title = "RECORDING") {
+                SettingsToggleRow(
+                    icon = Icons.Default.Edit,
+                    title = "Ask for a name after recording",
+                    subtitle = "Off: notes are saved right away. You can rename any note later from its menu.",
+                    checked = askNameAfterRecording,
+                    onCheckedChange = { enabled ->
+                        askNameAfterRecording = enabled
+                        AppPreferences.setAskNameAfterRecording(context, enabled)
                     }
                 )
             }

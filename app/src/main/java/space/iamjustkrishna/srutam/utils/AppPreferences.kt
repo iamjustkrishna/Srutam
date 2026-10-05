@@ -18,6 +18,7 @@ object AppPreferences {
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
+    private const val KEY_ASK_NAME_AFTER_RECORDING = "ask_name_after_recording"
     private const val FRESH_INSTALL_WINDOW_MS = 60_000L
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
@@ -163,6 +164,19 @@ object AppPreferences {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         info.lastUpdateTime - info.firstInstallTime < FRESH_INSTALL_WINDOW_MS
     }.getOrDefault(true)
+
+    /** Whether stopping a recording in the app opens the "name this note" dialog. Off: notes are saved right away. */
+    fun isAskNameAfterRecording(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ASK_NAME_AFTER_RECORDING, false)
+    }
+
+    fun setAskNameAfterRecording(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ASK_NAME_AFTER_RECORDING, enabled)
+            .apply()
+    }
 
     fun setAutoAiEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

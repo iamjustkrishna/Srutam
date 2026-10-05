@@ -213,6 +213,22 @@ private fun RootScreen(
         toastMessage = msg
     }
 
+    // Stopping from the app: the note is saved as it is (it can be renamed from its menu). With
+    // "Ask for a name after recording" on, the Save dialog opens first and auto-AI waits for it.
+    val finishRecording: () -> Unit = {
+        val askForName = AppPreferences.isAskNameAfterRecording(context)
+        sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = askForName)
+        if (askForName) {
+            val newest = AudioFileReader.getRecordingsDirectory()
+                .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
+                ?.maxByOrNull { f -> f.lastModified() }
+            pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
+            showSaveDialog = true
+        } else {
+            showAboveToast("Voice note saved")
+        }
+    }
+
     LaunchedEffect(toastMessage) {
         if (toastMessage != null) {
             delay(2200)
@@ -287,14 +303,7 @@ private fun RootScreen(
                         showAboveToast("Recording paused")
                     }
                 },
-                onFinishRecording = {
-                    sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
-                    val newest = AudioFileReader.getRecordingsDirectory()
-                        .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
-                        ?.maxByOrNull { f -> f.lastModified() }
-                    pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
-                    showSaveDialog = true
-                },
+                onFinishRecording = finishRecording,
                 onCancelRecording = {
                     sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
                     showAboveToast("Recording discarded")
@@ -432,14 +441,7 @@ private fun RootScreen(
                                 showAboveToast("Recording paused")
                             }
                         },
-                        onFinishRecording = {
-                            sendRecordingAction(context, RecordingForegroundService.ACTION_STOP_RECORDING, deferAutoAi = true)
-                            val newest = AudioFileReader.getRecordingsDirectory()
-                                .listFiles { f -> f.isFile && f.extension.lowercase() == "m4a" }
-                                ?.maxByOrNull { f -> f.lastModified() }
-                            pendingSavedFileName = newest?.nameWithoutExtension ?: "recording_${System.currentTimeMillis()}"
-                            showSaveDialog = true
-                        },
+                        onFinishRecording = finishRecording,
                         onCancelRecording = {
                             sendRecordingAction(context, RecordingForegroundService.ACTION_DELETE_RECORDING)
                             showAboveToast("Recording discarded")
