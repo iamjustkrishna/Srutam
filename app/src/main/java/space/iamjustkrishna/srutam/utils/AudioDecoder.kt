@@ -21,7 +21,8 @@ class AudioDecoder {
         private const val TAG = "AudioDecoder"
         private const val TARGET_SAMPLE_RATE = 16000
         private const val BUFFER_SIZE = 4096
-        private const val MAX_IDLE_POLLS_AFTER_INPUT = 300
+        private const val CODEC_WAIT_US = 10_000L
+        private const val MAX_IDLE_WAITS_AFTER_INPUT = 300
     }
 
     /**
@@ -130,6 +131,17 @@ class AudioDecoder {
         }
     }
 
+    /**
+     * Streams the file's audio to [onChunk] as mono float samples at [targetSampleRate].
+     *
+     * The codec is driven without blocking: every free input buffer is filled, every finished
+     * output buffer is drained, and the thread only waits when there is nothing to feed or take.
+     *
+     * Speed is limited by Android's AAC decoder, not this loop: it costs a few ms of framework overhead
+     * per 23 ms frame (about 0.18x real time on a Realme with a Helio G95; reading the frames from the
+     * file takes under 1%), and neither a non-blocking loop nor async callbacks changed that. Callers
+     * should therefore overlap decoding with other work (see LocalTranscriber) rather than wait for it.
+     */
     fun decodeAudioFileInChunks(
         audioFile: File,
         targetSampleRate: Int = TARGET_SAMPLE_RATE,
@@ -148,8 +160,8 @@ class AudioDecoder {
 
             extractor.selectTrack(trackIndex)
             val format = extractor.getTrackFormat(trackIndex)
-            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            var channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 
             Log.d(TAG, "Audio format - Sample Rate: $sampleRate Hz, Channels: $channelCount")
 
@@ -159,78 +171,81 @@ class AudioDecoder {
             codec.configure(format, null, null, 0)
             codec.start()
 
-            val inputBuffers = codec.inputBuffers
-            val outputBuffers = codec.outputBuffers
             val info = MediaCodec.BufferInfo()
-            val resampler = if (sampleRate != targetSampleRate) {
-                StreamingResampler(sampleRate, targetSampleRate)
-            } else {
-                null
+            var resampler = resamplerFor(sampleRate, targetSampleRate)
+            var inputDone = false
+            var outputDone = false
+
+            // Takes one finished output buffer (or a format change) if there is one; returns whether it did.
+            fun drainOutput(timeoutUs: Long): Boolean {
+                val outputIndex = codec.dequeueOutputBuffer(info, timeoutUs)
+                if (outputIndex >= 0) {
+                    val buffer = codec.getOutputBuffer(outputIndex)
+                    if (buffer != null && info.size > 0) {
+                        buffer.position(info.offset)
+                        buffer.limit(info.offset + info.size)
+                        val chunk = pcm16ToMonoFloat(buffer, channelCount)
+                        val converted = resampler?.process(chunk) ?: chunk
+                        if (converted.isNotEmpty()) onChunk(converted)
+                    }
+                    codec.releaseOutputBuffer(outputIndex, false)
+                    if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outputDone = true
+                    return true
+                }
+                if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    // The decoder can output a different rate or channel count than the container declares
+                    // (e.g. Opus is always decoded at 48 kHz).
+                    val outputFormat = codec.outputFormat
+                    val newRate = if (outputFormat.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                        outputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                    } else {
+                        sampleRate
+                    }
+                    if (outputFormat.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                        channelCount = outputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    }
+                    if (newRate != sampleRate) {
+                        resampler?.flush()?.takeIf { it.isNotEmpty() }?.let(onChunk)
+                        sampleRate = newRate
+                        resampler = resamplerFor(sampleRate, targetSampleRate)
+                    }
+                    return true
+                }
+                return false
             }
 
-            // Output keeps being drained after end-of-stream is queued: the codec still holds
-            // decoded frames then, and stopping early drops the end of the recording.
-            var inputDone = false
-            var decodingComplete = false
-            var idlePollsAfterInput = 0
+            var idleWaits = 0
+            while (!outputDone) {
+                var progressed = false
 
-            while (!decodingComplete) {
-                if (!inputDone) {
-                    val inputIndex = codec.dequeueInputBuffer(10000)
-                    if (inputIndex >= 0) {
-                        val inputBuffer = inputBuffers[inputIndex]
-                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
-
-                        if (sampleSize < 0) {
-                            codec.queueInputBuffer(
-                                inputIndex,
-                                0,
-                                0,
-                                0,
-                                MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                            )
-                            inputDone = true
-                        } else {
-                            codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
-                            extractor.advance()
-                        }
+                while (!inputDone) {
+                    val inputIndex = codec.dequeueInputBuffer(0)
+                    if (inputIndex < 0) break
+                    val inputBuffer = codec.getInputBuffer(inputIndex)!!
+                    val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                    if (sampleSize < 0) {
+                        codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        inputDone = true
+                    } else {
+                        codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
+                        extractor.advance()
                     }
+                    progressed = true
                 }
 
-                val outputIndex = codec.dequeueOutputBuffer(info, 10000)
-                if (inputDone && outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    // Safety net for a codec that never reports its own end-of-stream.
-                    if (++idlePollsAfterInput >= MAX_IDLE_POLLS_AFTER_INPUT) decodingComplete = true
-                } else {
-                    idlePollsAfterInput = 0
-                }
-                if (outputIndex >= 0) {
-                    val outputBuffer = outputBuffers[outputIndex]
-                    val pcmSamples = ByteArray(info.size)
-                    outputBuffer.get(pcmSamples)
-                    outputBuffer.clear()
+                // Output keeps being drained after end-of-stream is queued: the codec still holds
+                // decoded frames then, and stopping early drops the end of the recording.
+                while (!outputDone && drainOutput(0)) progressed = true
 
-                    var chunk = bytesToFloatSamples(pcmSamples)
-                    if (channelCount > 1) {
-                        chunk = stereoToMono(chunk, channelCount)
+                if (progressed) {
+                    idleWaits = 0
+                } else if (!outputDone) {
+                    // Nothing to feed or take right now: let the codec work instead of spinning.
+                    if (drainOutput(CODEC_WAIT_US)) {
+                        idleWaits = 0
+                    } else if (inputDone && ++idleWaits >= MAX_IDLE_WAITS_AFTER_INPUT) {
+                        break // safety net for a codec that never reports its own end-of-stream
                     }
-
-                    if (chunk.isNotEmpty()) {
-                        val outputChunk = resampler?.process(chunk) ?: chunk
-                        if (outputChunk.isNotEmpty()) {
-                            onChunk(outputChunk)
-                        }
-                    }
-
-                    codec.releaseOutputBuffer(outputIndex, false)
-
-                    if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                        decodingComplete = true
-                    }
-                } else if (outputIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                    // Ignore
-                } else if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    // Ignore
                 }
             }
 
@@ -251,16 +266,25 @@ class AudioDecoder {
         }
     }
 
-    private fun bytesToFloatSamples(pcmSamples: ByteArray): FloatArray {
-        val shorts = ByteBuffer.wrap(pcmSamples)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .asShortBuffer()
+    private fun resamplerFor(inputRate: Int, outputRate: Int): StreamingResampler? =
+        if (inputRate == outputRate) null else StreamingResampler(inputRate, outputRate)
 
-        val samples = FloatArray(shorts.limit())
-        for (i in 0 until shorts.limit()) {
-            samples[i] = shorts[i].toFloat() / 32768.0f
+    private fun pcm16ToMonoFloat(buffer: ByteBuffer, channelCount: Int): FloatArray {
+        val shorts = ShortArray(buffer.remaining() / 2)
+        buffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+
+        val frames = shorts.size / channelCount
+        val mono = FloatArray(frames)
+        if (channelCount == 1) {
+            for (i in 0 until frames) mono[i] = shorts[i] / 32768.0f
+        } else {
+            for (i in 0 until frames) {
+                var sum = 0
+                for (channel in 0 until channelCount) sum += shorts[i * channelCount + channel]
+                mono[i] = sum / channelCount / 32768.0f
+            }
         }
-        return samples
+        return mono
     }
 
     private fun findAudioTrack(extractor: MediaExtractor): Int {
@@ -313,75 +337,5 @@ class AudioDecoder {
         }
 
         return mono
-    }
-
-    private class StreamingResampler(
-        private val inputRate: Int,
-        private val outputRate: Int,
-    ) {
-        private val step = inputRate.toDouble() / outputRate.toDouble()
-        private val source = ArrayList<Float>(TARGET_SAMPLE_RATE)
-        private var baseIndex = 0
-        private var nextPos = 0.0
-
-        fun process(samples: FloatArray): FloatArray {
-            for (sample in samples) {
-                source.add(sample)
-            }
-
-            return drain(false)
-        }
-
-        fun flush(): FloatArray {
-            return drain(true)
-        }
-
-        private fun drain(flush: Boolean): FloatArray {
-            if (source.isEmpty()) {
-                return FloatArray(0)
-            }
-
-            val output = ArrayList<Float>()
-
-            while (true) {
-                val relativePos = nextPos - baseIndex
-                val leftIndex = relativePos.toInt()
-                val rightIndex = leftIndex + 1
-
-                if (leftIndex < 0) {
-                    break
-                }
-
-                if (rightIndex >= source.size) {
-                    if (flush && leftIndex < source.size) {
-                        output.add(source[leftIndex])
-                        nextPos += step
-                        trimBuffer()
-                        continue
-                    }
-                    break
-                }
-
-                val frac = relativePos - leftIndex
-                val value = source[leftIndex] * (1 - frac).toFloat() + source[rightIndex] * frac.toFloat()
-                output.add(value)
-                nextPos += step
-                trimBuffer()
-            }
-
-            return output.toFloatArray()
-        }
-
-        private fun trimBuffer() {
-            val keepFrom = maxOf(0, nextPos.toInt() - baseIndex - 1)
-            if (keepFrom > 0) {
-                repeat(keepFrom) {
-                    if (source.isNotEmpty()) {
-                        source.removeAt(0)
-                        baseIndex++
-                    }
-                }
-            }
-        }
     }
 }
