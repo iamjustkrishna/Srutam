@@ -2009,7 +2009,8 @@
   "success": "sfx/success.mp3",
   "pop": "sfx/pop.mp3",
   "scan": "sfx/scan.mp3",
-  "typing": "sfx/typing.mp3"
+  "typing": "sfx/typing.mp3",
+  "whoosh_soft": "sfx/whoosh_soft.mp3"
  },
  "music": "music.wav"
 }

@@ -50,6 +50,12 @@ The goal is to make video changes cheaply. Use `srutam_video.py` for every mecha
 - **MCP tools:** `search_notes`, `list_recent_notes`, `get_note_detail`, `list_action_items`, `update_action_item`, `append_agent_work_log`, `list_insights`, `list_reminders`. Agents cannot delete or edit notes. 16+ clients are supported.
 - **Website:** srutam.iamjustkrishna.space (not srutam.space). The app is on Google Play.
 
+## Sound design rules
+- Transitions use `whoosh_soft` (filtered, -6 dB). Time it so the **peak** lands mid fade-in.
+  - The peak is 0.16s into the file, so the cue starts at `cut + fade/2 - 0.16`. Use `whooshes()` in `src/social/kit.tsx`.
+  - Never start a whoosh at, or before, the cut.
+- The user finds bright or loud whooshes distracting. Keep them at ≤0.12 of `whoosh_soft`.
+
 ## Environment gotchas
 - Node's `fetch` ignores HTTPS_PROXY unless you set `NODE_USE_ENV_PROXY=1`. The Python script uses urllib, which honours the proxy.
 - `dl.google.com` is blocked by default, so the Android SDK and Roborazzi renders aren't possible unless the user allows it.

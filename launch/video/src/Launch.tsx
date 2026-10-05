@@ -35,11 +35,12 @@ const SceneWrap: React.FC<{id: SceneId; dur: number}> = ({id, dur}) => {
 const cues = (tl: ReturnType<typeof layoutTimeline>) => {
 	const at = (id: SceneId) => tl.find((s) => s.id === id)!.start;
 	const c: Array<[string, number, number]> = []; // [sfx, time, volume]
-	tl.forEach((s, i) => i > 0 && s.id !== 'newin' && c.push(['whoosh', s.start - 0.3, 0.1]));
+	// soft whoosh per cut; its peak (0.16s into the file) lands mid fade-in (scenes fade in over 0.35s)
+	tl.forEach((s, i) => i > 0 && s.id !== 'newin' && c.push(['whoosh_soft', s.start + 0.175 - 0.16, 0.12]));
 	c.push(['impact', at('title') + 0.45, 0.2], ['tap', at('dock') + 1.15, 0.28], ['tap', at('dock') + 2.3, 0.28], ['recstart', at('dock') + 2.5, 0.28],
 		['tap', at('dock') + 5.8, 0.28], ['success', at('dock') + 6.25, 0.2], ['typing', at('transcribe') + 0.5, 0.1],
 		...[0, 1, 2, 3, 4].map((i) => ['pop', at('organize') + 1.05 + i * 0.45, 0.16] as [string, number, number]),
-		['riser', at('newin') - 1.1, 0.22], ['braam', at('newin') + 0.02, 0.24], ['whoosh', at('cloud') + 0.85, 0.08], ['success', at('cloud') + 3.1, 0.2],
+		['riser', at('newin') - 1.1, 0.22], ['braam', at('newin') + 0.02, 0.24], ['success', at('cloud') + 3.1, 0.2],
 		['typing', at('connect') + 0.55, 0.14], ['scan', at('connect') + 2.6, 0.18], ['tap', at('connect') + 4.05, 0.28], ['success', at('connect') + 4.3, 0.22],
 		['typing', at('agent') + 0.45, 0.14], ['typing', at('agent') + 3.65, 0.14], ['success', at('agent') + 5.65, 0.24], ['pop', at('agent') + 6.3, 0.16],
 		...[0, 1, 2, 3].map((i) => ['impact_soft', at('trust') + 0.35 + i * 0.75, 0.18] as [string, number, number]),
