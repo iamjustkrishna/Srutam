@@ -46,6 +46,14 @@ class RecordingRepository(
         InsightsRepository.from(context).deleteRecordingData(recording.id)
     }
 
+    /** Deletes only the audio. The note's transcript, insights, tasks and reminders stay. */
+    fun deleteAudioKeepingContent(audioFilePath: String) {
+        if (!deleteAudio(context, audioFilePath)) {
+            Log.w(TAG, "Failed to delete audio file: $audioFilePath")
+            throw IOException("Could not delete audio file")
+        }
+    }
+
     suspend fun deleteRecordingById(recordingId: Long) {
         // Get recording first to delete the audio file
         val recording = recordingDao.getRecordingById(recordingId)

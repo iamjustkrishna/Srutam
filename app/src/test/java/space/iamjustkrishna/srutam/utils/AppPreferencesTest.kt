@@ -93,6 +93,21 @@ class AppPreferencesTest {
     }
 
     @Test
+    fun deleteContentWithRecording_isOffUntilSomeoneTicksIt() {
+        assertFalse(AppPreferences.shouldDeleteContentWithRecording(context))
+    }
+
+    @Test
+    fun deleteContentWithRecording_staysTickedOnceTickedAndUntickedOnceUnticked() {
+        AppPreferences.setDeleteContentWithRecording(context, true)
+        assertTrue(AppPreferences.shouldDeleteContentWithRecording(context))
+        assertTrue("it stays for the next delete", AppPreferences.shouldDeleteContentWithRecording(context))
+
+        AppPreferences.setDeleteContentWithRecording(context, false)
+        assertFalse(AppPreferences.shouldDeleteContentWithRecording(context))
+    }
+
+    @Test
     fun byokOnboardingCompleted_defaultsToFalse() {
         assertFalse(AppPreferences.isByokOnboardingCompleted(context))
     }

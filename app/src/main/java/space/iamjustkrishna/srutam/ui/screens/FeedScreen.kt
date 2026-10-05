@@ -172,6 +172,7 @@ fun FeedScreen(
     var showDeleteToast by remember { mutableStateOf(false) }
     var deleteToastCount by remember { mutableStateOf(0) }
     var pendingScopedDeleteFiles by remember { mutableStateOf<List<AudioFileInfo>>(emptyList()) }
+    var pendingDeleteContent by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     var isFloatingDockEnabled by remember {
@@ -228,6 +229,7 @@ fun FeedScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         val filesToDelete = pendingScopedDeleteFiles
+        val deleteContent = pendingDeleteContent
         pendingScopedDeleteFiles = emptyList()
         if (result.resultCode == Activity.RESULT_OK && filesToDelete.isNotEmpty()) {
             deleteToastCount = filesToDelete.size
@@ -241,9 +243,9 @@ fun FeedScreen(
                 }
                 delay(140)
                 if (filesToDelete.size == 1) {
-                    viewModel.deleteAudioFile(filesToDelete.first())
+                    viewModel.deleteAudioFile(filesToDelete.first(), deleteContent)
                 } else {
-                    viewModel.deleteMultipleAudioFiles(filesToDelete)
+                    viewModel.deleteMultipleAudioFiles(filesToDelete, deleteContent)
                 }
                 removingFilePaths = emptySet()
             }
@@ -330,6 +332,8 @@ fun FeedScreen(
     }
 
     fun deleteFiles(filesToDelete: List<AudioFileInfo>) {
+        // The delete dialog has just stored the state of its "also delete insights" box.
+        val deleteContent = AppPreferences.shouldDeleteContentWithRecording(context)
         scope.launch {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val intentSender = AudioStorage.createDeleteRequest(
@@ -338,13 +342,14 @@ fun FeedScreen(
                 )
                 if (intentSender != null) {
                     pendingScopedDeleteFiles = filesToDelete
+                    pendingDeleteContent = deleteContent
                     deleteLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
                 }
             } else {
                 deleteToastCount = filesToDelete.size
                 showDeleteToast = true
                 if (filesToDelete.size == 1) {
-                    viewModel.deleteAudioFile(filesToDelete.first())
+                    viewModel.deleteAudioFile(filesToDelete.first(), deleteContent)
                 } else {
                     var current = removingFilePaths
                     for (file in filesToDelete) {
@@ -353,7 +358,7 @@ fun FeedScreen(
                         delay(60)
                     }
                     delay(140)
-                    viewModel.deleteMultipleAudioFiles(filesToDelete)
+                    viewModel.deleteMultipleAudioFiles(filesToDelete, deleteContent)
                     removingFilePaths = emptySet()
                 }
             }

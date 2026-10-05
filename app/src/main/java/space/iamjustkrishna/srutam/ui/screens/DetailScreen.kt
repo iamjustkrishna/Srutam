@@ -255,7 +255,8 @@ fun DetailScreenContent(
                 showDeleteDialog = false
                 onDelete()
             },
-            onDismiss = { showDeleteDialog = false }
+            onDismiss = { showDeleteDialog = false },
+            showContentOption = false
         )
     }
 

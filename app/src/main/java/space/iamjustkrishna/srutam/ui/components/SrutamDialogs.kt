@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +66,7 @@ import space.iamjustkrishna.srutam.ui.screens.formatFileSize
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCard
 import space.iamjustkrishna.srutam.ui.theme.CosmicVoidCardBorder
 import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
+import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkSecondary
 
@@ -439,23 +443,71 @@ fun SrutamStandardDialog(
     )
 }
 
+/**
+ * With [showContentOption] the box "Also delete insights, tasks and reminders" starts from the last choice
+ * (off until someone ticks it) and the new choice is remembered when Delete is pressed, so the caller
+ * reads it back from [AppPreferences.shouldDeleteContentWithRecording]. Off where the note itself is
+ * being deleted, which always removes everything.
+ */
 @Composable
 fun DeleteConfirmationDialog(
     recordingName: String,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    showContentOption: Boolean = true
 ) {
+    val context = LocalContext.current
+    var deleteContent by remember { mutableStateOf(AppPreferences.shouldDeleteContentWithRecording(context)) }
+    val everything = !showContentOption || deleteContent
+
     SrutamStandardDialog(
         onDismissRequest = onDismiss,
         title = "Delete Recording?",
-        subtitle = "Permanently delete \"$recordingName\" and its linked insights, tasks, and reminders? Notifications will be cancelled. This cannot be undone.",
+        subtitle = if (everything) {
+            "Permanently delete \"$recordingName\" and its linked insights, tasks, and reminders? Notifications will be cancelled. This cannot be undone."
+        } else {
+            "Delete the audio of \"$recordingName\"? Its transcript, insights, tasks, and reminders are kept. This cannot be undone."
+        },
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
         confirmText = "Delete",
         dismissText = "Cancel",
-        onConfirm = onConfirm,
-        onDismiss = onDismiss
+        onConfirm = {
+            if (showContentOption) AppPreferences.setDeleteContentWithRecording(context, deleteContent)
+            onConfirm()
+        },
+        onDismiss = onDismiss,
+        content = {
+            if (showContentOption) {
+                DeleteContentCheckbox(checked = deleteContent, onCheckedChange = { deleteContent = it })
+            }
+        }
     )
+}
+
+@Composable
+private fun DeleteContentCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val isDark = LocalIsCosmicDark.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = null,
+            colors = CheckboxDefaults.colors(checkedColor = Color(0xFFEF4444))
+        )
+        Text(
+            text = "Also delete insights, tasks and reminders",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A),
+            modifier = Modifier.padding(start = 12.dp)
+        )
+    }
 }
 
 @Composable
@@ -464,6 +516,8 @@ fun MultiDeleteConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var deleteContent by remember { mutableStateOf(AppPreferences.shouldDeleteContentWithRecording(context)) }
     val isDark = LocalIsCosmicDark.current
     val listCardBackground = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
     val listCardBorder = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
@@ -472,12 +526,19 @@ fun MultiDeleteConfirmationDialog(
     SrutamStandardDialog(
         onDismissRequest = onDismiss,
         title = "Delete ${recordingNames.size} Recording${if (recordingNames.size > 1) "s" else ""}?",
-        subtitle = "Permanently delete these recordings and their linked insights, tasks, and reminders. Their notifications will be cancelled:",
+        subtitle = if (deleteContent) {
+            "Permanently delete these recordings and their linked insights, tasks, and reminders. Their notifications will be cancelled:"
+        } else {
+            "Delete the audio of these recordings? Their transcripts, insights, tasks, and reminders are kept:"
+        },
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
         confirmText = "Delete All",
         dismissText = "Cancel",
-        onConfirm = onConfirm,
+        onConfirm = {
+            AppPreferences.setDeleteContentWithRecording(context, deleteContent)
+            onConfirm()
+        },
         onDismiss = onDismiss,
         content = {
             Surface(

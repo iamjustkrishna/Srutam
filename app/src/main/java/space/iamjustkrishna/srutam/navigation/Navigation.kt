@@ -325,7 +325,7 @@ private fun RootScreen(
                     }
                 },
                 onDeleteFile = { audioFile ->
-                    viewModel.deleteAudioFile(audioFile)
+                    viewModel.deleteAudioFile(audioFile, AppPreferences.shouldDeleteContentWithRecording(context))
                     showAboveToast("Note deleted")
                 },
                 onRenameFile = { audioFile, newName ->

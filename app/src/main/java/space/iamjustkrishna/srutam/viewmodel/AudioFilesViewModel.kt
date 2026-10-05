@@ -164,7 +164,8 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         syncExistingRecordingsToInsights()
     }
 
-    fun deleteAudioFile(audioFile: AudioFileInfo) {
+    /** [deleteContent] false deletes only the audio; the note's transcript, insights, tasks and reminders stay. */
+    fun deleteAudioFile(audioFile: AudioFileInfo, deleteContent: Boolean = true) {
         // Optimistic UI update to remove item immediately
         _audioFiles.value = _audioFiles.value.filterNot { it.filePath == audioFile.filePath }
         viewModelScope.launch(Dispatchers.IO) {
@@ -177,7 +178,14 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
                 // Delete storage and associated DB record together
                 val recording = repository.getRecordingByPath(audioFile.filePath)
-                if (recording != null) {
+                if (!deleteContent) {
+                    try {
+                        repository.deleteAudioKeepingContent(audioFile.filePath)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting audio file: ${audioFile.filePath}", e)
+                        _processingError.value = "Failed to delete file. Try again."
+                    }
+                } else if (recording != null) {
                     try {
 
 
@@ -558,7 +566,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun deleteMultipleAudioFiles(audioFiles: List<AudioFileInfo>) {
+    fun deleteMultipleAudioFiles(audioFiles: List<AudioFileInfo>, deleteContent: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 for (audioFile in audioFiles) {
@@ -571,7 +579,9 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
                         // Delete storage and associated DB record together
                         val recording = repository.getRecordingByPath(audioFile.filePath)
-                        if (recording != null) {
+                        if (!deleteContent) {
+                            repository.deleteAudioKeepingContent(audioFile.filePath)
+                        } else if (recording != null) {
 
 
                             repository.deleteRecording(recording)

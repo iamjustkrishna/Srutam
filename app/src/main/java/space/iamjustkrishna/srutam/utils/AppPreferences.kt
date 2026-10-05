@@ -19,6 +19,7 @@ object AppPreferences {
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
     private const val KEY_ASK_NAME_AFTER_RECORDING = "ask_name_after_recording"
+    private const val KEY_DELETE_CONTENT_WITH_RECORDING = "delete_content_with_recording"
     private const val FRESH_INSTALL_WINDOW_MS = 60_000L
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
@@ -175,6 +176,22 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ASK_NAME_AFTER_RECORDING, enabled)
+            .apply()
+    }
+
+    /**
+     * The last choice made on the delete dialog's "also delete insights" box, used as the box's starting
+     * state next time. Off until someone ticks it: by default only the audio goes.
+     */
+    fun shouldDeleteContentWithRecording(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DELETE_CONTENT_WITH_RECORDING, false)
+    }
+
+    fun setDeleteContentWithRecording(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_DELETE_CONTENT_WITH_RECORDING, enabled)
             .apply()
     }
 
