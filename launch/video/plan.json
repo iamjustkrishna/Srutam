@@ -1,0 +1,292 @@
+{
+ "_help": "Single source of truth for the launch film. Edit by hand or with the editor (python3 srutam_video.py editor). Cue times are seconds from the start of their scene.",
+ "captions": false,
+ "scenes": [
+  {
+   "id": "hook",
+   "min": 3.6,
+   "vo": "Your best ideas never wait for a good moment."
+  },
+  {
+   "id": "title",
+   "min": 3.2,
+   "vo": "Meet Srutam two point five."
+  },
+  {
+   "id": "dock",
+   "min": 7.4,
+   "vo": "A floating dock lives on the edge of your screen. One tap, and you're recording, from any app."
+  },
+  {
+   "id": "transcribe",
+   "min": 4.8,
+   "vo": "Your words are transcribed right on your phone."
+  },
+  {
+   "id": "organize",
+   "min": 6.2,
+   "vo": "Then Srutam sorts the ramble into ideas, next steps, decisions and reminders."
+  },
+  {
+   "id": "newin",
+   "min": 2.0,
+   "vo": ""
+  },
+  {
+   "id": "cloud",
+   "min": 5.0,
+   "vo": "New in two point five: Cloud Sync keeps every note with you."
+  },
+  {
+   "id": "connect",
+   "min": 6.6,
+   "vo": "And with Srutam MCP, your voice notes live inside your AI coding agent. Scan once. No keys to paste."
+  },
+  {
+   "id": "agent",
+   "min": 7.6,
+   "vo": "Ask what's on your plate. Your agent fixes it, and checks it off on your phone."
+  },
+  {
+   "id": "trust",
+   "min": 4.6,
+   "vo": "Private notes stay private. And agents can't delete a thing."
+  },
+  {
+   "id": "end",
+   "min": 6.4,
+   "vo": "Srutam two point five. Say it once. Use it everywhere. Get it on Google Play."
+  }
+ ],
+ "music": {
+  "track": "product-launch",
+  "mode": "arrange",
+  "volume": 0.32,
+  "duck_volume": 0.16,
+  "fade_in": 1.0,
+  "fade_out": 2.7,
+  "loudness": -16,
+  "seam": 0.012
+ },
+ "arrangement": [
+  {
+   "scene": "hook",
+   "brightness": 0.0,
+   "level": 0.55,
+   "sweep_to": 0.6
+  },
+  {
+   "scene": "title",
+   "brightness": 1.0,
+   "level": 1.0
+  },
+  {
+   "scene": "dock",
+   "brightness": 0.55,
+   "level": 0.85
+  },
+  {
+   "scene": "organize",
+   "brightness": 0.75,
+   "level": 0.9
+  },
+  {
+   "scene": "newin",
+   "brightness": null,
+   "level": 0.22,
+   "ramp": 0.12
+  },
+  {
+   "scene": "cloud",
+   "brightness": 1.0,
+   "level": 1.0
+  },
+  {
+   "scene": "trust",
+   "brightness": 0.15,
+   "level": 0.6
+  },
+  {
+   "scene": "end",
+   "brightness": 1.0,
+   "level": 1.0
+  }
+ ],
+ "whoosh": {
+  "on": true,
+  "volume": 0.12,
+  "skip": [
+   "newin"
+  ]
+ },
+ "cues": [
+  {
+   "sfx": "impact",
+   "scene": "title",
+   "at": 0.45,
+   "vol": 0.2
+  },
+  {
+   "sfx": "tap",
+   "scene": "dock",
+   "at": 1.15,
+   "vol": 0.28
+  },
+  {
+   "sfx": "tap",
+   "scene": "dock",
+   "at": 2.3,
+   "vol": 0.28
+  },
+  {
+   "sfx": "recstart",
+   "scene": "dock",
+   "at": 2.5,
+   "vol": 0.28
+  },
+  {
+   "sfx": "tap",
+   "scene": "dock",
+   "at": 5.8,
+   "vol": 0.28
+  },
+  {
+   "sfx": "success",
+   "scene": "dock",
+   "at": 6.25,
+   "vol": 0.2
+  },
+  {
+   "sfx": "typing",
+   "scene": "transcribe",
+   "at": 0.5,
+   "vol": 0.1
+  },
+  {
+   "sfx": "pop",
+   "scene": "organize",
+   "at": 1.05,
+   "vol": 0.16
+  },
+  {
+   "sfx": "pop",
+   "scene": "organize",
+   "at": 1.5,
+   "vol": 0.16
+  },
+  {
+   "sfx": "pop",
+   "scene": "organize",
+   "at": 1.95,
+   "vol": 0.16
+  },
+  {
+   "sfx": "pop",
+   "scene": "organize",
+   "at": 2.4,
+   "vol": 0.16
+  },
+  {
+   "sfx": "pop",
+   "scene": "organize",
+   "at": 2.85,
+   "vol": 0.16
+  },
+  {
+   "sfx": "riser",
+   "scene": "newin",
+   "at": -1.1,
+   "vol": 0.22
+  },
+  {
+   "sfx": "braam",
+   "scene": "newin",
+   "at": 0.02,
+   "vol": 0.24
+  },
+  {
+   "sfx": "success",
+   "scene": "cloud",
+   "at": 3.1,
+   "vol": 0.2
+  },
+  {
+   "sfx": "typing",
+   "scene": "connect",
+   "at": 0.55,
+   "vol": 0.14
+  },
+  {
+   "sfx": "scan",
+   "scene": "connect",
+   "at": 2.6,
+   "vol": 0.18
+  },
+  {
+   "sfx": "tap",
+   "scene": "connect",
+   "at": 4.05,
+   "vol": 0.28
+  },
+  {
+   "sfx": "success",
+   "scene": "connect",
+   "at": 4.3,
+   "vol": 0.22
+  },
+  {
+   "sfx": "typing",
+   "scene": "agent",
+   "at": 0.45,
+   "vol": 0.14
+  },
+  {
+   "sfx": "typing",
+   "scene": "agent",
+   "at": 3.65,
+   "vol": 0.14
+  },
+  {
+   "sfx": "success",
+   "scene": "agent",
+   "at": 5.65,
+   "vol": 0.24
+  },
+  {
+   "sfx": "pop",
+   "scene": "agent",
+   "at": 6.3,
+   "vol": 0.16
+  },
+  {
+   "sfx": "impact_soft",
+   "scene": "trust",
+   "at": 0.35,
+   "vol": 0.18
+  },
+  {
+   "sfx": "impact_soft",
+   "scene": "trust",
+   "at": 1.1,
+   "vol": 0.18
+  },
+  {
+   "sfx": "impact_soft",
+   "scene": "trust",
+   "at": 1.85,
+   "vol": 0.18
+  },
+  {
+   "sfx": "impact_soft",
+   "scene": "trust",
+   "at": 2.6,
+   "vol": 0.18
+  },
+  {
+   "sfx": "impact",
+   "scene": "end",
+   "at": 0.15,
+   "vol": 0.2
+  }
+ ]
+}

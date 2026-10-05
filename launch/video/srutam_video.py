@@ -17,6 +17,7 @@ loudness checks and review contact sheets.
     python3 srutam_video.py social [x ig linkedin] [--audio-only]  # ~20s platform cuts -> launch/social/
     python3 srutam_video.py check                        # duration + loudness of the final files
     python3 srutam_video.py timeline                     # scene start times (seconds)
+    python3 srutam_video.py editor                       # visual editor (timeline, cues, music, narration) in your browser
 
 The API key comes from $ELEVENLABS_API_KEY or launch/video/.env (never committed).
 """
@@ -90,10 +91,23 @@ def duration(f: Path) -> float:
     return float(sh(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)]).strip())
 
 
+PLAN_PATH = ROOT / "plan.json"
+
+
+def load_plan() -> dict:
+    return json.loads(PLAN_PATH.read_text())
+
+
+def save_plan(plan: dict) -> None:
+    """Write plan.json (keeps one backup so a bad edit is never fatal)."""
+    if PLAN_PATH.exists():
+        (ROOT / "plan.backup.json").write_text(PLAN_PATH.read_text())
+    PLAN_PATH.write_text(json.dumps(plan, indent=1, ensure_ascii=False) + "\n")
+
+
 def scenes() -> list[dict]:
-    """Scene ids + narration, parsed from src/timeline.ts (single source of truth)."""
-    src = (ROOT / "src" / "timeline.ts").read_text()
-    return [{"id": m[0], "vo": m[2].replace("\\'", "'")} for m in re.findall(r"\{id: '(\w+)', min: [\d.]+, vo: (['\"])(.*?)\2\}", src)]
+    """Scene ids + narration from plan.json (the single source of truth)."""
+    return [{"id": s["id"], "vo": s["vo"]} for s in load_plan()["scenes"]]
 
 
 def timeline() -> list[dict]:
@@ -143,7 +157,7 @@ def cmd_voice(a):
         r = eleven(f"/text-to-speech/{v['voice_id']}/with-timestamps?output_format=mp3_44100_128", body(s["vo"]), want_json=True)
         f = PUB / "vo" / f"{s['id']}.mp3"
         f.write_bytes(base64.b64decode(r["audio_base64"]))
-        m["scenes"][s["id"]] = {"file": f"vo/{s['id']}.mp3", "dur": round(duration(f), 3), "words": words_from_alignment(r["alignment"])}
+        m["scenes"][s["id"]] = {"file": f"vo/{s['id']}.mp3", "dur": round(duration(f), 3), "words": words_from_alignment(r["alignment"]), "text": s["vo"]}
         print(f"vo {s['id']:<11} {m['scenes'][s['id']]['dur']:.2f}s")
     save_manifest(m)
     print("narration lengths changed -> run `music use <preset>` again, then `render`")
@@ -173,22 +187,13 @@ def cmd_music(a):
         (samples / f"{a.name}.mp3").write_bytes(eleven("/sound-generation?output_format=mp3_44100_128",
                                                        {"text": prompt, "duration_seconds": a.seconds, "loop": True, "prompt_influence": 0.55, "model_id": "eleven_text_to_sound_v2"}))
         print(f"music loop -> public/music-samples/{a.name}.mp3 (~{int(a.seconds * 40)} credits)")
-    elif a.action == "use":
-        src = samples / f"{a.name}.mp3"
-        if not src.exists():
-            sys.exit(f"{src} missing; run `music gen {a.name}` first")
-        total = timeline()["total"]
-        mix = CFG["mix"]
-        loops = int(total // duration(src)) + 1
-        sh(["ffmpeg", "-loglevel", "error", "-y", "-stream_loop", str(loops), "-i", str(src), "-t", f"{total:.2f}", "-af",
-            f"afade=t=in:d={mix['music_fade_in']},afade=t=out:st={total - mix['music_fade_out']:.2f}:d={mix['music_fade_out']},loudnorm=I=-16:TP=-1.5",
-            "-ar", "44100", str(PUB / "music.wav")])
-        m = manifest()
-        m["music"] = "music.wav"
-        save_manifest(m)
-        print(f"music bed: {a.name} looped to {total:.1f}s -> public/music.wav")
-    elif a.action == "arrange":
-        arrange(a.name)
+    elif a.action in ("use", "arrange", "build"):
+        plan = load_plan()
+        if a.action != "build":
+            plan["music"]["track"] = a.name
+            plan["music"]["mode"] = "loop" if a.action == "use" else "arrange"
+            save_plan(plan)
+        build_music()
     elif a.action == "previews":
         dest = ROOT / ".." / "music"
         dest.mkdir(exist_ok=True)
@@ -199,74 +204,87 @@ def cmd_music(a):
             print("preview", f"{i}-{f.stem}.mp3")
 
 
-# Section plan for `music arrange`: (scene, brightness 0..1, level 0..1) applied from that scene's start.
-# brightness blends a dark low-passed copy with the full mix; values ramp smoothly between sections.
-ARRANGEMENT = [
-    ("hook", 0.0, 0.55),        # muffled, distant
-    ("title", 1.0, 1.0),        # opens on the logo hit
-    ("dock", 0.55, 0.85),       # warm groove under narration
-    ("organize", 0.75, 0.9),    # lifts as Insights pop
-    ("newin", None, 0.0),       # drop: silence so the braam lands alone
-    ("cloud", 1.0, 1.0),        # payoff section, brightest
-    ("trust", 0.15, 0.6),       # breakdown, calm and serious
-    ("end", 1.0, 1.0),          # full return, then ring out
-]
-
-
-def arrange(name: str) -> None:
-    """Score a loop to the edit: per-scene filter + level automation (0 credits)."""
+def decode_loop(path: Path):
+    """Decode a loop to stereo float PCM at 44.1 kHz. Uses the real audio length (not the mp3's padded
+    duration), which is what keeps the beat in time when the loop repeats."""
     import numpy as np
-    src = PUB / "music-samples" / f"{name}.mp3"
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(path), "-f", "f32le", "-ac", "2", "-ar", "44100", "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, dtype=np.float32).reshape(-1, 2).astype(np.float64)
+    lead = np.argmax(np.abs(x).max(axis=1) > 1e-3)  # drop any encoder-priming silence
+    return x[lead:] if 0 < lead < 4410 else x
+
+
+def tile_loop(x, n: int, seam: float):
+    """Repeat the loop to n samples with a short equal-power overlap at every seam (no gap, no click)."""
+    import numpy as np
+    sr = 44100
+    cf = max(2, int(seam * sr))
+    L = len(x)
+    fade_in = np.sin(np.linspace(0, np.pi / 2, cf))[:, None]
+    fade_out = np.cos(np.linspace(0, np.pi / 2, cf))[:, None]
+    out = np.zeros((n + L + cf, 2))
+    pos = 0
+    while pos < n:
+        seg = x.copy()
+        if pos > 0:
+            seg[:cf] *= fade_in
+        seg[-cf:] *= fade_out
+        out[pos:pos + L] += seg
+        pos += L - cf
+    return out[:n]
+
+
+def build_music() -> None:
+    """Build public/music.wav from plan.json: loop the chosen track to the video length, optionally scored
+    to the edit (filter + level automation per scene). Costs no credits."""
+    import numpy as np
+    plan = load_plan()
+    mu = plan["music"]
+    src = PUB / "music-samples" / f"{mu['track']}.mp3"
     if not src.exists():
-        sys.exit(f"{src} missing; run `music gen {name}` first")
+        sys.exit(f"{src} missing; run `music gen {mu['track']}` first")
     t = timeline()
     total, starts = t["total"], {s["id"]: s["start"] for s in t["tl"]}
-    sr, n = 44100, int(t["total"] * 44100)
-    loops = int(total // duration(src)) + 1
-    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-stream_loop", str(loops), "-i", str(src), "-t", f"{total:.3f}",
-                          "-f", "f32le", "-ac", "2", "-ar", str(sr), "-"], capture_output=True).stdout
-    x = np.frombuffer(raw, dtype=np.float32).reshape(-1, 2)[:n].astype(np.float64)
-    n = len(x)
-    # dark copy: FFT low-pass at 450 Hz
-    X = np.fft.rfft(x, axis=0)
-    f = np.fft.rfftfreq(n, 1 / sr)
-    X[f > 450] *= np.exp(-((f[f > 450] - 450) / 250))[:, None]
-    dark = np.fft.irfft(X, n, axis=0)
-    # automation curves (sample-accurate, 0.35s ramps; hook opens slowly into the title)
+    sr = 44100
+    n = int(total * sr)
+    x = tile_loop(decode_loop(src), n, mu.get("seam", 0.012))
     tt = np.arange(n) / sr
-    bright, level = np.zeros(n), np.zeros(n)
-    prev_b = 0.0
-    for i, (sid, b, lv) in enumerate(ARRANGEMENT):
-        a0 = starts[sid]
-        a1 = starts[ARRANGEMENT[i + 1][0]] if i + 1 < len(ARRANGEMENT) else total
-        seg = (tt >= a0) & (tt < a1)
-        ramp = 0.06 if sid == "newin" else 0.35
-        k = np.clip((tt[seg] - a0) / ramp, 0, 1)
-        bb = prev_b if b is None else b
-        bright[seg] = prev_b + (bb - prev_b) * k
-        level[seg] = lv
-        prev_b = bb
-    hook = tt < starts["title"]
-    bright[hook] = np.clip(tt[hook] / starts["title"], 0, 1) ** 2 * 0.6  # slow filter sweep up
-    # smooth level changes except the hard drop into "newin"
-    win = int(0.25 * sr)
-    sm = np.convolve(level, np.ones(win) / win, mode="same")
-    drop = (tt >= starts["newin"]) & (tt < starts["cloud"])
-    sm[drop] = level[drop]
-    sm[(tt >= starts["newin"] - 0.05) & (tt < starts["newin"])] *= np.linspace(1, 0, ((tt >= starts["newin"] - 0.05) & (tt < starts["newin"])).sum())
-    y = (dark * (1 - bright)[:, None] + x * bright[:, None]) * sm[:, None]
-    y *= np.clip((total - tt) / 2.7, 0, 1)[:, None] * np.clip(tt / 0.6, 0, 1)[:, None]
-    y = (y / (np.abs(y).max() + 1e-9) * 0.9).astype(np.float32)
-    tmp = OUT / "arranged.f32"
+    if mu["mode"] == "arrange":
+        # dark copy: FFT low-pass around 450 Hz, blended in/out per scene ("brightness")
+        X = np.fft.rfft(x, axis=0)
+        f = np.fft.rfftfreq(n, 1 / sr)
+        X[f > 450] *= np.exp(-((f[f > 450] - 450) / 250))[:, None]
+        dark = np.fft.irfft(X, n, axis=0)
+        bright, level = np.zeros(n), np.ones(n)
+        prev_b, prev_l = 0.0, 1.0
+        sections = [e for e in plan["arrangement"] if e["scene"] in starts]
+        for i, e in enumerate(sections):
+            a0 = starts[e["scene"]]
+            a1 = starts[sections[i + 1]["scene"]] if i + 1 < len(sections) else total
+            seg = (tt >= a0) & (tt < a1)
+            k = np.clip((tt[seg] - a0) / max(0.02, e.get("ramp", 0.35)), 0, 1)
+            nb = prev_b if e.get("brightness") is None else e["brightness"]
+            bright[seg] = prev_b + (nb - prev_b) * k
+            level[seg] = prev_l + (e["level"] - prev_l) * k
+            prev_b, prev_l = nb, e["level"]
+        if sections and sections[0].get("sweep_to") is not None:  # slow filter sweep through the first section
+            first = sections[0]["scene"]
+            end = starts[sections[1]["scene"]] if len(sections) > 1 else total
+            m = (tt >= starts[first]) & (tt < end)
+            bright[m] = np.clip((tt[m] - starts[first]) / max(0.1, end - starts[first]), 0, 1) ** 2 * sections[0]["sweep_to"]
+        x = (dark * (1 - bright)[:, None] + x * bright[:, None]) * level[:, None]
+    x *= np.clip((total - tt) / mu["fade_out"], 0, 1)[:, None] * np.clip(tt / mu["fade_in"], 0, 1)[:, None]
+    x = (x / (np.abs(x).max() + 1e-9) * 0.9).astype(np.float32)
+    tmp = OUT / "bed.f32"
     OUT.mkdir(exist_ok=True)
-    tmp.write_bytes(y.tobytes())
+    tmp.write_bytes(x.tobytes())
     sh(["ffmpeg", "-loglevel", "error", "-y", "-f", "f32le", "-ac", "2", "-ar", str(sr), "-i", str(tmp),
-        "-af", "loudnorm=I=-16:TP=-1.5", "-ar", "44100", str(PUB / "music.wav")])
+        "-af", f"loudnorm=I={mu.get('loudness', -16)}:TP=-1.5", "-ar", "44100", str(PUB / "music.wav")])
     tmp.unlink()
     m = manifest()
     m["music"] = "music.wav"
     save_manifest(m)
-    print(f"music bed: {name} arranged to the edit ({total:.1f}s) -> public/music.wav")
+    print(f"music bed: {mu['track']} ({mu['mode']}) built for {total:.1f}s -> public/music.wav")
 
 
 def cmd_stills(a):
@@ -298,9 +316,29 @@ def mix_audio() -> Path:
     return norm
 
 
+def picture_hash() -> str:
+    """What the rendered picture depends on: scene list/lengths, voice lengths, captions."""
+    import hashlib
+    plan, man = load_plan(), manifest()
+    key = {"scenes": [(s["id"], s["min"]) for s in plan["scenes"]], "captions": plan["captions"],
+           "vo": {k: v.get("dur") for k, v in man.get("scenes", {}).items()}}
+    return hashlib.sha1(json.dumps(key, sort_keys=True).encode()).hexdigest()[:12]
+
+
+def stamp_picture() -> None:
+    (OUT / "picture.hash").write_text(picture_hash())
+
+
+def picture_stale() -> bool:
+    f = OUT / "picture.hash"
+    return (not f.exists()) or f.read_text().strip() != picture_hash()
+
+
 def cmd_render(a):
     OUT.mkdir(exist_ok=True)
     fmts = a.fmt.split(",")
+    print("building music bed from plan.json...")
+    build_music()
     print("mixing audio (narration + sfx + music)...")
     audio = mix_audio()
     for f in fmts:
@@ -308,9 +346,12 @@ def cmd_render(a):
         video = OUT / f"{comp}.mp4"
         if a.audio_only and video.exists():
             print(f"{f}: reusing existing picture ({video.name})")
+            if picture_stale():
+                print("   ! scenes, narration timing or captions changed since the last picture render: run a Full render to update the visuals")
         else:
             print(f"{f}: rendering picture (several minutes)...")
             sh(["npx", "remotion", "render", comp, str(video), f"--concurrency={CFG['render']['concurrency']}", "--muted", "--log=error"])
+            stamp_picture()
         final = (ROOT / CFG["render"]["output_dir"] / CFG["render"]["output_name"].format(fmt=f).replace(".mp4", f"{getattr(a, 'suffix', '')}.mp4")).resolve()
         sh(["ffmpeg", "-loglevel", "error", "-y", "-i", str(video), "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
             "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(final)])
@@ -355,6 +396,12 @@ def cmd_check(a):
         print(f"{final.name}: {duration(final):.1f}s, {lufs[-1] if lufs else '?'} LUFS, {final.stat().st_size / 1e6:.1f} MB")
 
 
+def cmd_editor(a):
+    sys.path.insert(0, str(ROOT))
+    from editor.server import serve
+    serve(a.port)
+
+
 def cmd_timeline(_):
     t = timeline()
     for s in t["tl"]:
@@ -374,7 +421,7 @@ def main():
     s.add_argument("names", nargs="*")
     s.set_defaults(fn=cmd_sfx)
     m = sub.add_parser("music")
-    m.add_argument("action", choices=["gen", "use", "arrange", "previews"])
+    m.add_argument("action", choices=["gen", "use", "arrange", "build", "previews"])
     m.add_argument("name", nargs="?", default=CFG["music"]["current"])
     m.add_argument("--seconds", type=float, default=20)
     m.add_argument("--prompt")
@@ -396,6 +443,9 @@ def main():
     c.add_argument("--suffix", default="")
     c.set_defaults(fn=cmd_check)
     sub.add_parser("timeline").set_defaults(fn=cmd_timeline)
+    ed = sub.add_parser("editor", help="open the visual editor at http://127.0.0.1:8765")
+    ed.add_argument("--port", type=int, default=8765)
+    ed.set_defaults(fn=cmd_editor)
     a = p.parse_args()
     a.fn(a)
 

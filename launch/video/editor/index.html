@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Srutam Video Editor</title>
+<style>
+:root{--bg:#070A1A;--panel:#0E1330;--panel2:#141A3D;--line:#243060;--ink:#E8EEFF;--mut:#8D9BC7;--blue:#3B82F6;--cobalt:#2563EB;--purple:#8B5CF6;--green:#34D399;--red:#F87171;--amber:#FBBF24;--pink:#F472B6}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 Inter,system-ui,Segoe UI,Roboto,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--blue)}button.pri{background:var(--cobalt);border-color:var(--cobalt);font-weight:600}button.warn{border-color:var(--red);color:var(--red)}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input[type=number],input[type=text],textarea{background:#0A0F28;border:1px solid var(--line);border-radius:7px;padding:5px 8px;width:100%}
+textarea{resize:vertical;min-height:84px}label{display:block;color:var(--mut);font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin:10px 0 4px}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.app{display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);height:100vh;width:100vw;overflow:hidden}
+.app>*{min-width:0}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:15px;margin:0 8px 0 0}header .sp{flex:1}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px}.dot.dirty{background:var(--amber)}
+.top{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+.stage{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+.vwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#02040D;position:relative}
+video{max-width:100%;max-height:100%}
+.banner{position:absolute;left:10px;right:10px;top:10px;background:#3b2a05;border:1px solid var(--amber);color:#ffe3a1;border-radius:8px;padding:6px 10px;display:none}
+.transport{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-top:1px solid var(--line)}
+.transport .t{font-variant-numeric:tabular-nums;color:var(--mut);min-width:96px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}.seg button{border:0;border-radius:0;background:transparent}.seg button.on{background:var(--cobalt)}
+.side{overflow:auto;background:var(--panel);min-height:0}
+.tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:10px 4px;color:var(--mut)}.tabs button.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--blue)}
+.pane{padding:4px 14px 18px}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.hint{color:var(--mut);font-size:12px}.chip{display:inline-block;padding:1px 7px;border-radius:99px;background:#1b2350;font-size:11px;color:var(--mut)}
+.tlwrap{border-top:1px solid var(--line);background:var(--panel);overflow:auto;height:292px;position:relative;max-width:100%}
+.tl{position:relative;min-width:100%}.rulerrow{position:sticky;top:0;height:24px;background:#0b1030;border-bottom:1px solid var(--line);z-index:4;cursor:pointer}
+.tick{position:absolute;top:0;height:100%;border-left:1px solid #26336b;padding-left:4px;font-size:10px;color:var(--mut)}
+.trk{position:relative;border-bottom:1px solid #1a2350}.trk .lab{position:sticky;left:0;z-index:3;width:70px;height:100%;padding:3px 8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);background:linear-gradient(90deg,#0E1330 70%,transparent);pointer-events:none}
+.blk{position:absolute;top:4px;bottom:4px;border-radius:7px;padding:3px 7px;overflow:hidden;white-space:nowrap;font-size:11px;cursor:pointer;border:1px solid transparent}
+.blk.sc{background:#1d2c6b;border-color:#3a53b8}.blk.vo{background:#0f4f48;border-color:#1f8f84}.blk.vo.dirty{background:#5a4208;border-color:var(--amber)}.blk.sel{outline:2px solid #fff}
+.cue{position:absolute;height:18px;border-radius:9px;padding:0 8px 0 6px;font-size:10px;line-height:16px;background:#5b2d86;border:1px solid #a56cdc;cursor:grab;white-space:nowrap;user-select:none}.cue.sel{outline:2px solid #fff}.cue.wh{background:#243060;border-color:#3b4b8f;opacity:.6;cursor:default;pointer-events:none}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:5;pointer-events:none}.playhead:before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:var(--red)}
+.arrsvg{position:absolute;left:0;top:0}
+.log{background:#02040D;border-top:1px solid var(--line);font:11px/1.45 ui-monospace,Menlo,monospace;color:#9fb2ea;max-height:140px;overflow:auto;padding:6px 12px;white-space:pre-wrap;display:none}
+.log.show{display:block}.log .err{color:var(--red)}
+.addbar{display:flex;gap:8px;align-items:center;padding:6px 12px;background:var(--panel);border-top:1px solid var(--line)}.addbar select{width:auto}
+kbd{background:#1b2350;border-radius:4px;padding:0 5px;font-size:11px}
+</style></head><body>
+<div class="app">
+<header>
+  <h1>Srutam <span style="color:var(--blue);font-style:italic">Video Editor</span></h1>
+  <span id="dirty"><span class="dot"></span><span id="dirtyTxt">saved</span></span>
+  <span class="sp"></span>
+  <span class="hint" id="credits"></span>
+  <button id="bCredits">credits</button>
+  <button id="bSave">Save</button>
+  <button id="bRemix" class="pri" title="Rebuild music + mix audio onto the existing picture (~1 min)">Remix audio</button>
+  <button id="bRender" title="Re-render the picture and audio (~10 min). Needed after changing scenes or captions.">Full render</button>
+</header>
+
+<div class="top">
+  <div class="stage">
+    <div class="vwrap"><video id="vid" playsinline muted></video><div class="banner" id="stale">The picture is out of date (scenes, narration timing or captions changed). Live preview shows the old visuals; run <b>Full render</b> to update them.</div></div>
+    <div class="transport">
+      <button id="bPlay" class="pri" style="width:72px">▶ Play</button>
+      <span class="t" id="time">0.0 / 0.0 s</span>
+      <div class="seg" id="mode"><button data-m="live" class="on">Live preview</button><button data-m="file">Rendered file</button></div>
+      <select id="picSel" style="width:auto"></select>
+      <span class="sp" style="flex:1"></span>
+      <span class="hint">Space = play · Del = remove · drag cues</span>
+    </div>
+  </div>
+  <div class="side">
+    <div class="tabs" id="tabs"><button data-p="sel" class="on">Selected</button><button data-p="music">Music</button><button data-p="scenes">Scenes</button><button data-p="gen">Settings</button></div>
+    <div class="pane" id="pane"></div>
+  </div>
+</div>
+
+<div>
+  <div class="addbar">
+    <span class="hint">Sound effects:</span>
+    <select id="addSfx"></select><button id="bAddCue">+ Add at playhead</button>
+    <button id="bPrevCue">▶ hear it</button>
+    <span class="hint" style="margin-left:auto">zoom</span><input id="zoom" type="range" min="20" max="120" value="52" style="width:120px">
+  </div>
+  <div class="tlwrap" id="tlwrap"><div class="tl" id="tl"></div></div>
+  <div class="log" id="log"></div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const VO_DELAY=.35, OVERLAP=.4;
+let S=null, plan=null, dirty=false, sel=null, tab='sel', pps=52, mode='live', voiceTxt={};
+const api=async(p,body)=>{const r=await fetch(p,body?{method:'POST',headers:{'Content-Type':'application/json','X-Srutam':'1'},body:JSON.stringify(body)}:{});const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);return j};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const est=v=>(v||'').split(/\s+/).filter(Boolean).length/2.7;
+const fmt=t=>t.toFixed(1);
+
+function layout(){let t=0;const n=plan.scenes.length;return plan.scenes.map((s,i)=>{const v=S.vo[s.id]?.dur??est(s.vo);const vo=s.vo.trim()?v:0;const dur=Math.max(s.min,vo?vo+VO_DELAY+.7:0);const o={...s,start:t,dur,voDur:vo,dirty:!!s.vo.trim()&&S.vo[s.id]?.text!==undefined&&S.vo[s.id].text!==s.vo||(!!s.vo.trim()&&!S.vo[s.id])};t+=dur-(i<n-1?OVERLAP:0);return o});}
+const total=()=>{const L=layout();const l=L[L.length-1];return l?l.start+l.dur:0};
+const sceneAt=id=>layout().find(s=>s.id===id);
+
+function markDirty(on=true){dirty=on;$('#dirty').innerHTML=`<span class="dot ${on?'dirty':''}"></span>${on?'unsaved changes':'saved'}`}
+
+// ---------------------------------------------------------------- load
+async function load(keepSel){S=await api('/api/state');plan=JSON.parse(JSON.stringify(S.plan));if(!keepSel)sel=null;
+  const anyPic=Object.values(S.pictures).some(Boolean);
+  $('#stale').innerHTML=anyPic?'The picture is out of date (scenes, narration timing or captions changed). Live preview shows the old visuals; run <b>Full render</b> to update them.':'No picture has been rendered on this machine yet. Run <b>Full render</b> once (about 10 minutes); after that, audio edits take about a minute.';
+  $('#stale').style.display=(S.stale||!anyPic)?'block':'none';
+  $('#addSfx').innerHTML=S.sfx.map(n=>`<option>${n}</option>`).join('');
+  $('#picSel').innerHTML=Object.keys(S.pictures).filter(k=>S.pictures[k]).map(k=>`<option value="pic:${k}">picture ${k}</option>`).join('')+S.outputs.map(o=>`<option value="out:${o.path}">${esc(o.name)} (${o.mb} MB)</option>`).join('');
+  setSource();renderAll();markDirty(false)}
+function setSource(){const v=$('#vid');const val=$('#picSel').value;if(!val){return}
+  if(val.startsWith('pic:')){v.src=`/media/video/out/${S.pictures&&val==='pic:9x16'?'Launch9x16':'Launch16x9'}.mp4?${Date.now()}`;}else{v.src=`/media/${val.slice(4)}?${Date.now()}`;}
+  v.muted=(mode==='live'||val.startsWith('pic:'));}
+$('#picSel').onchange=()=>{stopAudio();setSource()};
+$('#mode').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.m;[...$('#mode').children].forEach(x=>x.classList.toggle('on',x===b));stopAudio();
+  const sel2=$('#picSel');const want=mode==='live'?[...sel2.options].find(o=>o.value.startsWith('pic:')):[...sel2.options].find(o=>o.value.startsWith('out:'));if(want)sel2.value=want.value;setSource()};
+
+// ---------------------------------------------------------------- timeline
+function renderAll(){renderTimeline();renderPane();$('#time').textContent=`${fmt($('#vid').currentTime||0)} / ${fmt(total())} s`}
+function renderTimeline(){
+  const L=layout(),T=total(),W=Math.max(T*pps+120,$('#tlwrap').clientWidth),LB=70;const x=t=>LB+t*pps;
+  let h=`<div class="rulerrow" id="ruler" style="width:${W}px">`;for(let s=0;s<=Math.ceil(T);s+=(pps>=60?1:2))h+=`<div class="tick" style="left:${x(s)}px">${s}s</div>`;h+='</div>';
+  h+=`<div class="trk" style="height:38px;width:${W}px"><div class="lab">Scenes</div>${L.map((s,i)=>`<div class="blk sc ${sel?.t==='scene'&&sel.id===s.id?'sel':''}" data-scene="${s.id}" style="left:${x(s.start)}px;width:${s.dur*pps}px"><b>${i+1}. ${s.id}</b> <span class="chip">${fmt(s.dur)}s</span></div>`).join('')}</div>`;
+  h+=`<div class="trk" style="height:34px;width:${W}px"><div class="lab">Voice</div>${L.filter(s=>s.voDur).map(s=>`<div class="blk vo ${s.dirty?'dirty':''}" data-scene="${s.id}" style="left:${x(s.start+VO_DELAY)}px;width:${s.voDur*pps}px" title="${esc(s.vo)}">${s.dirty?'⚠ regenerate · ':''}${esc(s.vo)}</div>`).join('')}</div>`;
+  // sfx lanes
+  const items=[];if(plan.whoosh.on)L.forEach((s,i)=>{if(i>0&&!plan.whoosh.skip.includes(s.id))items.push({t:s.start+.015,name:'whoosh',auto:true})});
+  plan.cues.forEach((c,i)=>{const sc=sceneAt(c.scene);if(sc)items.push({t:sc.start+c.at,name:c.sfx,i,vol:c.vol})});
+  items.sort((a,b)=>a.t-b.t);const lanes=[];items.forEach(it=>{const w=it.name.length*6+22;let l=0;while(lanes[l]!==undefined&&lanes[l]>x(it.t)-2)l++;it.lane=l;lanes[l]=x(it.t)+w});
+  const nl=Math.max(3,lanes.length);
+  h+=`<div class="trk" id="sfxTrk" style="height:${nl*22+10}px;width:${W}px"><div class="lab">Sound FX</div>${items.map(it=>`<div class="cue ${it.auto?'wh':''} ${sel?.t==='cue'&&sel.i===it.i?'sel':''}" ${it.auto?'':`data-cue="${it.i}"`} style="left:${x(it.t)}px;top:${5+it.lane*22}px;opacity:${it.auto?.6:Math.max(.55,Math.min(1,.5+(it.vol||.2)*2))}">${it.name}</div>`).join('')}</div>`;
+  // music
+  const mh=70;h+=`<div class="trk" style="height:${mh}px;width:${W}px"><div class="lab">Music</div>${musicSvg(L,T,x,W,mh)}</div>`;
+  $('#tl').style.width=W+'px';$('#tl').innerHTML=h+`<div class="playhead" id="ph" style="left:${x($('#vid').currentTime||0)}px"></div>`;
+}
+function arrCurve(L){const st=Object.fromEntries(L.map(s=>[s.id,s.start]));const T=total();const pts=[];let pl=1,pb=0;
+  const secs=plan.arrangement.filter(e=>st[e.scene]!==undefined);
+  secs.forEach((e,i)=>{const a0=st[e.scene],r=Math.max(.02,e.ramp??.35);const nb=e.brightness??pb;pts.push({t:a0,l:pl,b:pb});pts.push({t:a0+r,l:e.level,b:nb});pl=e.level;pb=nb});pts.push({t:T,l:pl,b:pb});return {pts,secs,st}}
+function musicSvg(L,T,x,W,H){
+  const m=plan.music;let svg=`<svg class="arrsvg" width="${W}" height="${H}" style="left:0">`;
+  svg+=`<rect x="${x(0)}" y="14" width="${T*pps}" height="${H-20}" rx="7" fill="#162450" stroke="#2c4aa8"/>`;
+  svg+=`<text x="${x(0)+8}" y="11" fill="#8D9BC7" font-size="10">${esc(m.track)} · ${m.mode}</text>`;
+  if(m.mode==='arrange'){const {pts,secs,st}=arrCurve(L);const y=l=>14+(H-20)*(1-Math.min(1,l));
+    svg+=`<polygon fill="rgba(59,130,246,.35)" points="${x(0)},${H-6} ${pts.map(p=>`${x(p.t)},${y(p.l)}`).join(' ')} ${x(T)},${H-6}"/>`;
+    svg+=`<polyline fill="none" stroke="#FBBF24" stroke-dasharray="4 3" stroke-width="1.5" points="${pts.map(p=>`${x(p.t)},${y(p.b)}`).join(' ')}"/>`;
+    secs.forEach((e,i)=>{const a0=st[e.scene];const a1=i+1<secs.length?st[secs[i+1].scene]:T;svg+=`<rect data-arr="${plan.arrangement.indexOf(e)}" x="${x(a0)}" y="14" width="${(a1-a0)*pps}" height="${H-20}" fill="${sel?.t==='arr'&&sel.i===plan.arrangement.indexOf(e)?'rgba(255,255,255,.12)':'transparent'}" stroke="rgba(255,255,255,.07)" style="cursor:pointer"/>`})}
+  return svg+'</svg>'}
+
+// ---------------------------------------------------------------- selection & dragging
+$('#tl').addEventListener('pointerdown',e=>{
+  const ru=e.target.closest('#ruler');if(ru){seekTo((e.clientX-$('#tl').getBoundingClientRect().left-70)/pps);return}
+  const cue=e.target.closest('[data-cue]');
+  if(cue){const i=+cue.dataset.cue;sel={t:'cue',i};tab='sel';const c=plan.cues[i];const startX=e.clientX,orig=c.at;
+    document.querySelectorAll('.cue.sel').forEach(x=>x.classList.remove('sel'));cue.classList.add('sel');renderPane();e.preventDefault();
+    const mv=ev=>{let at=orig+(ev.clientX-startX)/pps;if(!ev.shiftKey)at=Math.round(at*20)/20;at=+at.toFixed(2);if(at!==c.at){c.at=at;markDirty();renderTimeline();document.querySelector(`[data-cue="${i}"]`)?.classList.add('sel');paneValues()}};
+    const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);renderTimeline()};addEventListener('pointermove',mv);addEventListener('pointerup',up);return}
+  const arr=e.target.closest('[data-arr]');if(arr){sel={t:'arr',i:+arr.dataset.arr};tab='sel';renderAll();return}
+  const sc=e.target.closest('[data-scene]');if(sc){sel={t:'scene',id:sc.dataset.scene};tab='sel';renderAll();return}
+  const t=(e.clientX-$('#tl').getBoundingClientRect().left-70)/pps;if(t>=0)seekTo(t);
+});
+$('#tl').addEventListener('dblclick',e=>{ if(e.target.closest('#sfxTrk')&&!e.target.closest('.cue')){const t=(e.clientX-$('#tl').getBoundingClientRect().left-70)/pps;addCueAt(t)}});
+function addCueAt(t){const L=layout();let sc=[...L].reverse().find(s=>s.start<=t)||L[0];if(!sc)return;plan.cues.push({sfx:$('#addSfx').value,scene:sc.id,at:+(Math.round((t-sc.start)*20)/20).toFixed(2),vol:.2});sel={t:'cue',i:plan.cues.length-1};markDirty();renderAll()}
+$('#bAddCue').onclick=()=>addCueAt($('#vid').currentTime||0);
+$('#bPrevCue').onclick=async()=>{const n=sel?.t==='cue'?plan.cues[sel.i].sfx:$('#addSfx').value;const v=sel?.t==='cue'?plan.cues[sel.i].vol:.4;await ensureCtx();const b=await getBuf(`/media/video/public/sfx/${n}.mp3`);const s=A.ctx.createBufferSource(),g=A.ctx.createGain();g.gain.value=Math.min(1,v*2.5);s.buffer=b;s.connect(g).connect(A.ctx.destination);s.start()};
+$('#zoom').oninput=e=>{pps=+e.target.value;renderTimeline()};
+addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  if(e.code==='Space'){e.preventDefault();togglePlay()}
+  if((e.key==='Delete'||e.key==='Backspace')&&sel?.t==='cue'){plan.cues.splice(sel.i,1);sel=null;markDirty();renderAll()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();save()}});
+
+// ---------------------------------------------------------------- inspector
+function renderPane(){
+  $('#tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===tab));
+  const P=$('#pane');
+  if(tab==='sel'){
+    if(sel?.t==='cue'){const c=plan.cues[sel.i];if(!c){P.innerHTML='<p class="hint">Nothing selected.</p>';return}
+      P.innerHTML=`<label>Sound</label><select id="f_sfx">${S.sfx.map(n=>`<option ${n===c.sfx?'selected':''}>${n}</option>`).join('')}</select>
+      <label>Scene</label><select id="f_scene">${plan.scenes.map(s=>`<option ${s.id===c.scene?'selected':''}>${s.id}</option>`).join('')}</select>
+      <label>Offset in scene (seconds)</label><input type="number" step="0.05" id="f_at" value="${c.at}">
+      <label>Volume <span id="v_vol">${c.vol.toFixed(2)}</span></label><input type="range" id="f_vol" min="0" max="0.6" step="0.01" value="${c.vol}">
+      <div class="row" style="margin-top:12px"><button id="f_hear">▶ hear it</button><button id="f_del" class="warn">Delete</button></div>
+      <p class="hint">Drag the pill on the timeline to move it (hold Shift for fine control). Double-click the Sound FX track to add one.</p>`;
+      $('#f_sfx').onchange=e=>{c.sfx=e.target.value;ch()};$('#f_scene').onchange=e=>{const old=sceneAt(c.scene);const abs=old.start+c.at;c.scene=e.target.value;c.at=+(abs-sceneAt(c.scene).start).toFixed(2);ch();renderPane()};
+      $('#f_at').oninput=e=>{c.at=+e.target.value;ch(true)};$('#f_vol').oninput=e=>{c.vol=+e.target.value;$('#v_vol').textContent=c.vol.toFixed(2);ch(true)};
+      $('#f_hear').onclick=$('#bPrevCue').onclick;$('#f_del').onclick=()=>{plan.cues.splice(sel.i,1);sel=null;markDirty();renderAll()};return}
+    if(sel?.t==='scene'){const L=layout();const i=plan.scenes.findIndex(s=>s.id===sel.id);const s=plan.scenes[i];const l=L[i];if(!s){P.innerHTML='';return}
+      const cost=s.vo.length;const needs=l.dirty;
+      P.innerHTML=`<b>${i+1}. ${s.id}</b> <span class="chip">${fmt(l.dur)}s on screen</span>
+      <label>Minimum length (seconds)</label><input type="number" step="0.1" min="1" id="f_min" value="${s.min}">
+      <label>Narration ${needs?'<span class="chip" style="color:var(--amber)">changed: regenerate</span>':''}</label><textarea id="f_vo">${esc(s.vo)}</textarea>
+      <div class="hint">Write numbers as words ("two point five") so the voice says them right. ${cost} characters ≈ ${cost} credits.</div>
+      <div class="row" style="margin-top:8px"><button id="f_regen">Regenerate narration</button></div>
+      <label>Order</label><div class="row"><button id="f_up">↑ earlier</button><button id="f_dn">↓ later</button><button id="f_rm" class="warn">Remove scene</button></div>
+      <label>Music for this scene</label>${arrForm(s.id)}
+      <p class="hint">Scene visuals are fixed components; you can reorder, remove and re-add them, edit their length and narration. Changing scenes needs a Full render.</p>`;
+      $('#f_min').oninput=e=>{s.min=+e.target.value;ch(true,true)};$('#f_vo').oninput=e=>{s.vo=e.target.value;ch(true,true)};
+      $('#f_regen').onclick=()=>runAct({action:'voice',scenes:[s.id]},true);
+      $('#f_up').onclick=()=>{if(i>0){[plan.scenes[i-1],plan.scenes[i]]=[plan.scenes[i],plan.scenes[i-1]];ch(false,true)}};$('#f_dn').onclick=()=>{if(i<plan.scenes.length-1){[plan.scenes[i+1],plan.scenes[i]]=[plan.scenes[i],plan.scenes[i+1]];ch(false,true)}};
+      $('#f_rm').onclick=()=>{if(plan.scenes.length<2||!confirm(`Remove scene "${s.id}" and its sound cues?`))return;plan.scenes.splice(i,1);plan.cues=plan.cues.filter(c=>c.scene!==s.id);plan.arrangement=plan.arrangement.filter(a=>a.scene!==s.id);sel=null;markDirty();renderAll()};
+      bindArr(s.id);return}
+    if(sel?.t==='arr'){const e=plan.arrangement[sel.i];if(!e){P.innerHTML='';return}P.innerHTML=`<b>Music at "${e.scene}"</b>${arrForm(e.scene)}`;bindArr(e.scene);return}
+    P.innerHTML=`<p class="hint">Click a scene, a sound-effect pill, or a music section on the timeline to edit it here.<br><br>
+    <b>Quick tour</b><br>• <b>Space</b> plays with <i>Live preview</i>: the picture plus your narration, sound effects and music, instantly, no render.<br>• Drag sound pills to retime them; <kbd>Del</kbd> removes one; double-click the Sound FX row to add.<br>• <b>Remix audio</b> (~1 min) builds the exact final mix. <b>Full render</b> (~10 min) is only needed after changing scenes or captions.</p>`;return}
+  if(tab==='music'){const m=plan.music;P.innerHTML=`<label>Track</label><select id="m_track">${S.music.map(n=>`<option ${n===m.track?'selected':''}>${n}</option>`).join('')}</select>
+    <label>Style</label><select id="m_mode"><option value="arrange" ${m.mode==='arrange'?'selected':''}>Arranged to the edit (drop, breakdown, build)</option><option value="loop" ${m.mode==='loop'?'selected':''}>Plain loop (steady)</option></select>
+    <label>Level when no one is speaking <span id="mv1">${m.volume.toFixed(2)}</span></label><input type="range" id="m_vol" min="0" max="0.8" step="0.01" value="${m.volume}">
+    <label>Level under the narrator <span id="mv2">${m.duck_volume.toFixed(2)}</span></label><input type="range" id="m_duck" min="0" max="0.6" step="0.01" value="${m.duck_volume}">
+    <label>Fade in (s)</label><input type="number" id="m_fi" step="0.1" value="${m.fade_in}"><label>Fade out (s)</label><input type="number" id="m_fo" step="0.1" value="${m.fade_out}">
+    <label>Seam overlap (s)</label><input type="number" id="m_seam" step="0.005" value="${m.seam}"><div class="hint">Short overlap where the loop repeats, so there is no gap or click.</div>
+    <hr style="border-color:var(--line);margin:14px 0"><b>Make a new track</b>
+    <label>Name</label><input type="text" id="g_name" placeholder="my-track"><label>Describe the music</label><textarea id="g_prompt" placeholder="Warm funk groove, slap bass, wah guitar, 104 bpm, instrumental"></textarea>
+    <label>Length (seconds, max 30)</label><input type="number" id="g_len" value="20"><button id="g_go" style="margin-top:8px;width:100%">Generate loop (costs ~40 credits per second)</button>`;
+    const set=(k,key,el)=>{$(el).oninput=e=>{m[k]=key?+e.target.value:e.target.value;ch(true,false,true)}};
+    $('#m_track').onchange=e=>{m.track=e.target.value;ch(true,false,true)};$('#m_mode').onchange=e=>{m.mode=e.target.value;ch(true,false,true)};
+    $('#m_vol').oninput=e=>{m.volume=+e.target.value;$('#mv1').textContent=m.volume.toFixed(2);ch(true,false,true)};$('#m_duck').oninput=e=>{m.duck_volume=+e.target.value;$('#mv2').textContent=m.duck_volume.toFixed(2);ch(true,false,true)};
+    ['fi:fade_in','fo:fade_out','seam:seam'].forEach(p=>{const [id,k]=p.split(':');$('#m_'+id).oninput=e=>{m[k]=+e.target.value;ch(true,false,true)}});
+    $('#g_go').onclick=()=>runAct({action:'music_gen',name:$('#g_name').value,prompt:$('#g_prompt').value,seconds:+$('#g_len').value},true);return}
+  if(tab==='scenes'){const have=new Set(plan.scenes.map(s=>s.id));const missing=Object.keys(S.known_scenes).filter(k=>!have.has(k));
+    P.innerHTML=`<label>Scene order</label>${plan.scenes.map((s,i)=>`<div class="row" style="margin:3px 0"><button data-pick="${s.id}" style="text-align:left">${i+1}. ${s.id} <span class="chip">${fmt(layout()[i].dur)}s</span></button></div>`).join('')}
+    <label>Add a removed scene back</label>${missing.length?`<div class="row"><select id="s_add">${missing.map(k=>`<option>${k}</option>`).join('')}</select><button id="s_go" style="flex:none">Add</button></div>`:'<p class="hint">All scenes are in the film.</p>'}`;
+    P.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{sel={t:'scene',id:b.dataset.pick};tab='sel';renderAll()});
+    if(missing.length)$('#s_go').onclick=()=>{const k=$('#s_add').value,d=S.known_scenes[k];const at=sel?.t==='scene'?plan.scenes.findIndex(s=>s.id===sel.id)+1:plan.scenes.length;plan.scenes.splice(at,0,{id:k,min:d.min,vo:d.vo});sel={t:'scene',id:k};tab='sel';markDirty();renderAll()};return}
+  if(tab==='gen'){const w=plan.whoosh;P.innerHTML=`<label>Captions</label><div class="row"><label style="margin:0;text-transform:none;color:var(--ink);font-size:13px"><input type="checkbox" id="c_cap" ${plan.captions?'checked':''} style="width:auto"> Burn word-by-word captions into the video</label></div><div class="hint">Needs a Full render.</div>
+    <label>Transition whoosh</label><div class="row"><label style="margin:0;text-transform:none;color:var(--ink);font-size:13px"><input type="checkbox" id="w_on" ${w.on?'checked':''} style="width:auto"> On at every scene change</label></div>
+    <label>Whoosh volume <span id="wv">${w.volume.toFixed(2)}</span></label><input type="range" id="w_vol" min="0" max="0.4" step="0.01" value="${w.volume}">
+    <label>No whoosh into these scenes</label><input type="text" id="w_skip" value="${w.skip.join(', ')}">
+    <hr style="border-color:var(--line);margin:14px 0"><b>Voice</b><div class="hint">Narrator: ${esc(S.plan.voice_name||'George (ElevenLabs)')}. Regenerate lines from a scene's panel; ElevenLabs credits are used only when you click that.</div>
+    <button id="v_all" style="width:100%;margin-top:8px">Regenerate ALL narration</button>`;
+    $('#c_cap').onchange=e=>{plan.captions=e.target.checked;ch(false,true)};$('#w_on').onchange=e=>{w.on=e.target.checked;ch()};$('#w_vol').oninput=e=>{w.volume=+e.target.value;$('#wv').textContent=w.volume.toFixed(2);ch(true)};
+    $('#w_skip').onchange=e=>{w.skip=e.target.value.split(',').map(x=>x.trim()).filter(Boolean);ch()};$('#v_all').onclick=()=>runAct({action:'voice',scenes:[]},true)}
+}
+function arrForm(sc){const i=plan.arrangement.findIndex(a=>a.scene===sc);if(i<0)return `<p class="hint">No music change at this scene.</p><button id="a_add">Add a music change here</button>`;const a=plan.arrangement[i];
+  return `<div class="hint">Only used in "Arranged" style.</div><label>Loudness <span id="al">${a.level.toFixed(2)}</span></label><input type="range" id="a_lv" min="0" max="1" step="0.01" value="${a.level}">
+  <label>Brightness <span id="ab">${a.brightness==null?'keep':a.brightness.toFixed(2)}</span> (0 = muffled · 1 = full)</label><input type="range" id="a_br" min="0" max="1" step="0.01" value="${a.brightness??0.5}">
+  <label>Change over (seconds)</label><input type="number" id="a_rm" step="0.05" value="${a.ramp??0.35}"><button id="a_del" class="warn" style="margin-top:8px">Remove this music change</button>`}
+function bindArr(sc){const i=plan.arrangement.findIndex(a=>a.scene===sc);
+  if($('#a_add'))$('#a_add').onclick=()=>{const L=layout();const order=L.map(s=>s.id);const idx=order.indexOf(sc);const e={scene:sc,brightness:1,level:1};let pos=plan.arrangement.findIndex(a=>order.indexOf(a.scene)>idx);if(pos<0)pos=plan.arrangement.length;plan.arrangement.splice(pos,0,e);sel={t:'arr',i:pos};markDirty();renderAll()};
+  if(i<0)return;const a=plan.arrangement[i];
+  $('#a_lv').oninput=e=>{a.level=+e.target.value;$('#al').textContent=a.level.toFixed(2);ch(true,false,true)};$('#a_br').oninput=e=>{a.brightness=+e.target.value;$('#ab').textContent=a.brightness.toFixed(2);ch(true,false,true)};
+  $('#a_rm').oninput=e=>{a.ramp=+e.target.value;ch(true,false,true)};$('#a_del').onclick=()=>{plan.arrangement.splice(i,1);sel=null;markDirty();renderAll()}}
+function paneValues(){if(sel?.t==='cue'&&$('#f_at')){$('#f_at').value=plan.cues[sel.i].at}}
+function ch(light=false,scenes=false,musicChanged=false){markDirty();if(scenes)$('#stale').style.display='block';if(light){renderTimeline()}else renderAll();if(musicChanged&&A.playing)restartAudio()}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.p;renderPane()};
+
+// ---------------------------------------------------------------- save & jobs
+async function save(){try{await api('/api/plan',plan);markDirty(false);S.plan=JSON.parse(JSON.stringify(plan));return true}catch(e){alert('Could not save: '+e.message);return false}}
+$('#bSave').onclick=save;
+function logLine(t){const l=$('#log');l.classList.add('show');const d=document.createElement('div');if(/\[failed\]|error|Error|!/.test(t))d.className='err';d.textContent=t;l.appendChild(d);l.scrollTop=l.scrollHeight}
+async function runAct(body,askCredits){if(askCredits&&!confirm('This uses ElevenLabs credits. Continue?'))return;if(dirty&&!(await save()))return;
+  $('#log').innerHTML='';let j;try{j=(await api('/api/run',body)).job}catch(e){logLine('! '+e.message);return}
+  busy(true);let since=0;const poll=async()=>{const r=await api(`/api/job?id=${j}&since=${since}`);r.log.forEach(logLine);since=r.next;if(r.status==='running')return setTimeout(poll,700);busy(false);if(r.status==='done'){await load(true);if(body.action==='remix'||body.action==='render'){const o=[...$('#picSel').options].find(o=>o.value.startsWith('out:'));logLine('Done. Choose "Rendered file" to watch the result.')}}};poll()}
+function busy(on){['bRemix','bRender','bSave'].forEach(i=>$('#'+i).disabled=on);$('#bRemix').textContent=on?'Working…':'Remix audio'}
+$('#bRemix').onclick=()=>runAct({action:'remix'});$('#bRender').onclick=()=>{if(confirm('A full render takes about 10 minutes. Continue?'))runAct({action:'render'})};
+$('#bCredits').onclick=async()=>{try{const c=await api('/api/credits');$('#credits').textContent=`${c.left} ElevenLabs credits left`}catch(e){$('#credits').textContent='credits unavailable'}};
+
+// ---------------------------------------------------------------- live audio preview (approximate; Remix builds the exact mix)
+const A={ctx:null,buf:{},nodes:[],playing:false};
+async function ensureCtx(){if(!A.ctx)A.ctx=new (window.AudioContext||window.webkitAudioContext)();await A.ctx.resume()}
+async function getBuf(url){if(A.buf[url])return A.buf[url];const r=await fetch(url);if(!r.ok)return null;A.buf[url]=await A.ctx.decodeAudioData(await r.arrayBuffer());return A.buf[url]}
+function stopAudio(){A.nodes.forEach(n=>{try{n.stop()}catch(e){}try{n.disconnect()}catch(e){}});A.nodes=[]}
+function curve(L){const {pts}=arrCurve(L);return t=>{if(t<=pts[0].t)return pts[0];for(let i=1;i<pts.length;i++){if(t<=pts[i].t){const a=pts[i-1],b=pts[i],k=(t-a.t)/Math.max(1e-6,b.t-a.t);return {l:a.l+(b.l-a.l)*k,b:a.b+(b.b-a.b)*k}}}return pts[pts.length-1]}}
+async function startAudio(t0){await ensureCtx();stopAudio();const ctx=A.ctx,L=layout(),T=total(),base=ctx.currentTime+.12,at=t=>base+(t-t0);const m=plan.music;
+  const master=ctx.createGain();master.connect(ctx.destination);A.nodes.push(master);
+  const mk=(buf,when,off,gain)=>{const s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=buf;g.gain.value=gain;s.connect(g).connect(master);A.nodes.push(s);s.start(when,off);return s};
+  // narration
+  for(const s of L){if(!s.voDur||!S.vo[s.id])continue;const b=await getBuf(`/media/video/public/vo/${s.id}.mp3`);if(!b)continue;const st=s.start+VO_DELAY,en=st+b.duration;if(en<t0)continue;mk(b,Math.max(base,at(st)),Math.max(0,t0-st),1)}
+  // sfx
+  const ev=[];if(plan.whoosh.on)L.forEach((s,i)=>{if(i>0&&!plan.whoosh.skip.includes(s.id))ev.push(['whoosh_soft',s.start+.015,plan.whoosh.volume])});
+  plan.cues.forEach(c=>{const sc=sceneAt(c.scene);if(sc)ev.push([c.sfx,sc.start+c.at,c.vol])});
+  for(const [n,t,v] of ev){if(t<t0-.02)continue;const b=await getBuf(`/media/video/public/sfx/${n}.mp3`);if(b)mk(b,Math.max(base,at(t)),0,Math.min(1.5,v*1.0))}
+  // music: loop -> filter(brightness) -> level -> duck/fades
+  const mb=await getBuf(`/media/video/public/music-samples/${m.track}.mp3`);if(mb){
+    let sum=0,n=0;const d=mb.getChannelData(0);for(let i=0;i<d.length;i+=7){sum+=d[i]*d[i];n++}const rmsDb=20*Math.log10(Math.sqrt(sum/n)+1e-9);const comp=Math.pow(10,((-16)-(rmsDb-.7))/20);
+    const s=ctx.createBufferSource(),lp=ctx.createBiquadFilter(),lv=ctx.createGain(),dk=ctx.createGain();s.buffer=mb;s.loop=true;lp.type='lowpass';lp.Q.value=.5;s.connect(lp).connect(lv).connect(dk).connect(master);A.nodes.push(s);
+    const fq=b=>450*Math.pow(20000/450,Math.min(1,Math.max(0,b)));
+    if(m.mode==='arrange'){const cv=curve(L);const c0=cv(t0);lv.gain.setValueAtTime(c0.l*comp,base);lp.frequency.setValueAtTime(fq(c0.b),base);
+      const {pts}=arrCurve(L);pts.forEach(p=>{if(p.t>t0){lv.gain.linearRampToValueAtTime(p.l*comp,at(p.t));lp.frequency.exponentialRampToValueAtTime(fq(p.b),at(p.t))}})}
+    else{lv.gain.value=comp;lp.frequency.value=20000}
+    const wins=L.filter(s=>s.voDur).map(s=>[s.start+VO_DELAY-.15,s.start+VO_DELAY+s.voDur+.2]);const duck=t=>wins.some(w=>t>=w[0]&&t<w[1])?m.duck_volume:m.volume;
+    const fade=t=>Math.min(1,t/m.fade_in)*Math.min(1,Math.max(0,(T-t)/m.fade_out));
+    dk.gain.setValueAtTime(duck(t0)*fade(t0),base);const pts2=new Set([0]);wins.forEach(w=>{pts2.add(w[0]);pts2.add(w[1])});
+    [...pts2].sort((a,b)=>a-b).forEach(t=>{if(t>t0)dk.gain.setTargetAtTime(duck(t+.01)*fade(t),at(t),.08)});
+    if(t0<m.fade_in)dk.gain.linearRampToValueAtTime(duck(m.fade_in)*fade(m.fade_in),at(m.fade_in));
+    dk.gain.setValueAtTime(duck(T-m.fade_out)*fade(T-m.fade_out),at(Math.max(t0,T-m.fade_out)));dk.gain.linearRampToValueAtTime(0,at(T));
+    s.start(base,(t0%mb.duration));}
+  A.playing=true}
+function restartAudio(){if(!A.playing)return;startAudio($('#vid').currentTime)}
+const vid=$('#vid');
+async function togglePlay(){if(vid.paused){try{await vid.play()}catch(e){logLine('! This browser cannot play the picture ('+e.message+'). Use Chrome, Edge or Safari, or open the rendered .mp4 directly.');return}
+  if(mode==='live'){await startAudio(vid.currentTime)}}else{vid.pause();stopAudio();A.playing=false}}
+$('#bPlay').onclick=togglePlay;
+vid.addEventListener('play',()=>$('#bPlay').textContent='❚❚ Pause');vid.addEventListener('pause',()=>{$('#bPlay').textContent='▶ Play';stopAudio();A.playing=false});
+vid.addEventListener('seeked',()=>{if(!vid.paused&&mode==='live')startAudio(vid.currentTime)});
+vid.addEventListener('ended',()=>{stopAudio();A.playing=false});
+function seekTo(t){vid.currentTime=Math.max(0,Math.min(total()||vid.duration||0,t));tick()}
+function tick(){if(!plan)return;const t=vid.currentTime||0;$('#time').textContent=`${fmt(t)} / ${fmt(Math.max(total(),0))} s`;const ph=$('#ph');if(ph){ph.style.left=(70+t*pps)+'px';if(!vid.paused){const w=$('#tlwrap'),x=70+t*pps;if(x>w.scrollLeft+w.clientWidth-60||x<w.scrollLeft)w.scrollLeft=x-120}}}
+(function loop(){tick();requestAnimationFrame(loop)})();
+load().then(()=>{$('#bCredits').click()});
+</script></body></html>

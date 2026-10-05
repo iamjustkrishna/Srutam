@@ -11,12 +11,14 @@ The goal is to make video changes cheaply. Use `srutam_video.py` for every mecha
 6. **Background renders:** run the command itself with `run_in_background`. Never wait with `while pgrep -f render ...`, because the pattern matches its own shell and loops forever.
 
 ## Architecture
-- **`src/timeline.ts`** holds the single source of truth: scene ids, minimum lengths and narration text. Each scene lasts `max(min, voice length + 1.05s)` and overlaps the next by 0.4s. `public/vo/manifest.json` (written by `voice`) holds the real voice lengths, word timings, SFX paths and the music file.
+- **`plan.json` is the single source of truth** for scenes (id, minimum length, narration), sound cues, music settings, the music arrangement, whoosh settings and the captions flag. Remotion (`src/timeline.ts`, `src/Launch.tsx`) and `srutam_video.py` both read it. Never hard-code cues in the TSX; edit `plan.json`, or tell the user to use the editor.
+- **`editor/`** is a zero-dependency local web editor (`python3 srutam_video.py editor`): `server.py` (stdlib HTTP, 127.0.0.1 only, POSTs need an `X-Srutam` header) and `index.html` (timeline, inspector, live WebAudio preview). If you add a plan field, add it to the editor too.
+- **`src/timeline.ts`** lays the scenes out from `plan.json` (ids, minimum lengths, narration text). Each scene lasts `max(min, voice length + 1.05s)` and overlaps the next by 0.4s. `public/vo/manifest.json` (written by `voice`) holds the real voice lengths, word timings, SFX paths and the music file.
 - **`src/Launch.tsx`** contains:
   - the background;
   - a `<Sequence>` per scene, wrapped in `SceneWrap` (zoom/blur in and out);
   - captions (`SHOW_CAPTIONS`, currently false);
-  - all audio: music ducked to 0.16 while the voice plays (0.32 otherwise), narration, and SFX cues in `cues()` (name, time, volume) relative to scene starts.
+  - all audio: music ducked to 0.16 while the voice plays (0.32 otherwise), narration, and SFX cues from `plan.json` (`cues`: sfx, scene, offset, volume).
 - **`src/scenes/`:**
   - `Simple.tsx`: hook, title, newin, trust, end.
   - `Capture.tsx`: dock, transcribe, organize.
@@ -56,7 +58,13 @@ The goal is to make video changes cheaply. Use `srutam_video.py` for every mecha
   - Never start a whoosh at, or before, the cut.
 - The user finds bright or loud whooshes distracting. Keep them at ≤0.12 of `whoosh_soft`.
 
+## Music rules
+- Loops are tiled from the decoded audio with a ~12 ms overlap (`tile_loop`). **Never** use `ffmpeg -stream_loop` on the mp3s: it repeats the encoder padding, leaving a gap and shifting the beat at every seam.
+- The "drop" before "New in 2.5" is a dip to about 22% (`level` 0.22 on the `newin` arrangement entry), not silence.
+
 ## Environment gotchas
+- Never run `pkill -f` / `pgrep -f` with a pattern that appears in your own command line; it kills the shell (exit 144). Use a bracket trick like `srutam_video[.]py edi[t]or`.
+- To run the editor server for tests, start it in the background (`run_in_background`) and probe it with curl.
 - Node's `fetch` ignores HTTPS_PROXY unless you set `NODE_USE_ENV_PROXY=1`. The Python script uses urllib, which honours the proxy.
 - `dl.google.com` is blocked by default, so the Android SDK and Roborazzi renders aren't possible unless the user allows it.
 - The ElevenLabs Music API returns 402 on the free tier; use `music gen` (sound-effects loops).

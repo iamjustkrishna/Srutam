@@ -7,3 +7,5 @@ public/music.wav
 # keep the paid ElevenLabs assets + logo (the repo root ignores *.mp3/*.png)
 !public/**/*.mp3
 !public/logo.png
+plan.backup.json
+!editor/screenshot.png

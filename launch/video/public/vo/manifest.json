@@ -137,7 +137,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Your best ideas never wait for a good moment."
   },
   "title": {
    "file": "vo/title.mp3",
@@ -227,7 +228,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Meet Srutam two point five."
   },
   "dock": {
    "file": "vo/dock.mp3",
@@ -497,7 +499,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "A floating dock lives on the edge of your screen. One tap, and you're recording, from any app."
   },
   "transcribe": {
    "file": "vo/transcribe.mp3",
@@ -624,7 +627,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Your words are transcribed right on your phone."
   },
   "organize": {
    "file": "vo/organize.mp3",
@@ -848,7 +852,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Then Srutam sorts the ramble into ideas, next steps, decisions and reminders."
   },
   "cloud": {
    "file": "vo/cloud.mp3",
@@ -1033,7 +1038,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "New in two point five: Cloud Sync keeps every note with you."
   },
   "connect": {
    "file": "vo/connect.mp3",
@@ -1360,7 +1366,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "And with Srutam MCP, your voice notes live inside your AI coding agent. Scan once. No keys to paste."
   },
   "agent": {
    "file": "vo/agent.mp3",
@@ -1584,7 +1591,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Ask what's on your plate. Your agent fixes it, and checks it off on your phone."
   },
   "trust": {
    "file": "vo/trust.mp3",
@@ -1753,7 +1761,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Private notes stay private. And agents can't delete a thing."
   },
   "end": {
    "file": "vo/end.mp3",
@@ -1994,7 +2003,8 @@
     0,
     0,
     0
-   ]
+   ],
+   "text": "Srutam two point five. Say it once. Use it everywhere. Get it on Google Play."
   }
  },
  "voice": "JBFqnCBsd6RMkjVDRZzb",
