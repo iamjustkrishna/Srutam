@@ -39,6 +39,9 @@ class AudioPlayer(private val context: Context) {
 
     private var currentFilePath: String? = null
 
+    // The chosen speed outlives each prepare/release, so picking it never needs a playing player.
+    private var playbackSpeed = 1.0f
+
     fun prepare(audioFile: File) {
         prepareInternal(audioFile, autoPlay = false)
     }
@@ -56,7 +59,8 @@ class AudioPlayer(private val context: Context) {
             _playbackState.value = PlaybackState(
                 isLoading = true,
                 error = null,
-                currentFilePath = currentFilePath
+                currentFilePath = currentFilePath,
+                speed = playbackSpeed
             )
 
             mediaPlayer = MediaPlayer().apply {
@@ -150,6 +154,7 @@ class AudioPlayer(private val context: Context) {
                         _playbackState.value = _playbackState.value.copy(currentPosition = 0)
                     }
                     player.start()
+                    applySpeed(player)
                     _playbackState.value = _playbackState.value.copy(isPlaying = true)
                     startProgressUpdates()
                     Log.d(TAG, "Playback started")
@@ -209,20 +214,24 @@ class AudioPlayer(private val context: Context) {
         }
     }
 
+    /** Changing the speed never starts playback: while paused it is only remembered and applied by [play]. */
     fun setPlaybackSpeed(speed: Float) {
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                mediaPlayer?.let { player ->
-                    val params = player.playbackParams
-                    params.speed = speed
-                    player.playbackParams = params
-                }
-            }
+            playbackSpeed = speed
+            // MediaPlayer starts playing when its playback params are set while paused.
+            mediaPlayer?.takeIf { it.isPlaying }?.let { applySpeed(it) }
             _playbackState.value = _playbackState.value.copy(speed = speed)
             Log.d(TAG, "Playback speed set to: $speed")
         } catch (e: Exception) {
             Log.e(TAG, "Error setting playback speed", e)
         }
+    }
+
+    private fun applySpeed(player: MediaPlayer) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) return
+        val params = player.playbackParams
+        params.speed = playbackSpeed
+        player.playbackParams = params
     }
 
     fun togglePlayPause() {
@@ -287,7 +296,7 @@ class AudioPlayer(private val context: Context) {
                 release()
             }
             mediaPlayer = null
-            _playbackState.value = PlaybackState()
+            _playbackState.value = PlaybackState(speed = playbackSpeed)
             Log.d(TAG, "AudioPlayer released")
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing player", e)
