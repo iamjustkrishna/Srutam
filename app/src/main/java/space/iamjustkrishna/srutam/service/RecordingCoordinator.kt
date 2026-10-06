@@ -32,6 +32,20 @@ object RecordingCoordinator {
 
     private val sessionLock = Any()
 
+    /**
+     * The file being recorded right now, from the moment it exists until it is finished. It is half
+     * written (an m4a only becomes readable when the recording stops), so lists and background AI must
+     * not treat it as a note.
+     */
+    @Volatile
+    var activeFilePath: String? = null
+        private set
+
+    /** The recording file is finished: from here it is an ordinary note. */
+    internal fun clearActiveFile() {
+        activeFilePath = null
+    }
+
     private fun logD(msg: String) {
         try {
             Log.d(TAG, msg)
@@ -183,6 +197,7 @@ object RecordingCoordinator {
 
     internal fun notifyRecordingStarted(startTimeMs: Long, filePath: String) {
         synchronized(sessionLock) {
+            activeFilePath = filePath
             _state.value = RecordingSessionState.Recording(startTimeMs, filePath)
             logD("State transition -> Recording (file: $filePath)")
         }
@@ -190,6 +205,7 @@ object RecordingCoordinator {
 
     internal fun notifyRecordingPaused(durationMs: Long, filePath: String) {
         synchronized(sessionLock) {
+            activeFilePath = filePath
             _state.value = RecordingSessionState.Paused(durationMs, filePath)
             logD("State transition -> Paused (duration: $durationMs ms)")
         }
@@ -197,6 +213,7 @@ object RecordingCoordinator {
 
     internal fun notifyRecordingResumed(startTimeMs: Long, filePath: String) {
         synchronized(sessionLock) {
+            activeFilePath = filePath
             _state.value = RecordingSessionState.Recording(startTimeMs, filePath)
             logD("State transition -> Recording (resumed)")
         }
@@ -204,6 +221,7 @@ object RecordingCoordinator {
 
     internal fun notifyRecordingEnded() {
         synchronized(sessionLock) {
+            activeFilePath = null
             _state.value = RecordingSessionState.Idle
             logD("State transition -> Idle")
         }

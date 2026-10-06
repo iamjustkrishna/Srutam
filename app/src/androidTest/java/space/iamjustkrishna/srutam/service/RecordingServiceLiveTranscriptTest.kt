@@ -140,6 +140,20 @@ class RecordingServiceLiveTranscriptTest {
     }
 
     @Test
+    fun theFileBeingRecordedIsNotListedAsANoteUntilItIsFinished() {
+        val path = recordClipUntilDrained()
+
+        val whileRecording = space.iamjustkrishna.srutam.utils.AudioFileReader.getAudioFiles().map { it.filePath }
+        assertTrue("an unfinished recording must not look like a note", path !in whileRecording)
+
+        RecordingCoordinator.requestStop(appContext, deferAutoAi = true)
+        assertTrue("recording did not stop", waitFor(30_000) { RecordingCoordinator.isIdle })
+
+        val afterStop = space.iamjustkrishna.srutam.utils.AudioFileReader.getAudioFiles().map { it.filePath }
+        assertTrue("the finished recording must be listed", path in afterStop)
+    }
+
+    @Test
     fun fallsBackToMediaRecorderWhenThePipelineCannotStart() {
         RecordingForegroundService.pcmSourceFactory = { throw IllegalStateException("no microphone pipeline") }
 

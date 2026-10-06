@@ -384,6 +384,7 @@ class RecordingForegroundService : Service() {
                 } else {
                     Log.d(TAG, "Recording stopped: ${file.absolutePath}, duration: $duration ms")
                     saveRecordingToDatabase(file, duration)
+                    RecordingCoordinator.clearActiveFile()
                     _recordingSavedEvents.tryEmit(file)
                     val runAutoAi = !deferAutoAi && AppPreferences.isAutoAiEnabled(applicationContext)
                     if (finishedLive != null) {
@@ -497,6 +498,8 @@ class RecordingForegroundService : Service() {
             .setContentIntent(getActivityPendingIntent())
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setContentTitle("Finishing transcript")
@@ -566,15 +569,17 @@ class RecordingForegroundService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             getString(R.string.recording_notification_channel_name),
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = getString(R.string.recording_notification_channel_desc)
             setShowBadge(true)
             enableVibration(false)
             setSound(null, null)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
 
         val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.deleteNotificationChannel(OLD_CHANNEL_ID)
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -654,6 +659,8 @@ class RecordingForegroundService : Service() {
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setOnlyAlertOnce(true)
 
         if (isPaused) {
@@ -750,7 +757,9 @@ class RecordingForegroundService : Service() {
 
     companion object {
         private const val TAG = "RecordingService"
-        private const val CHANNEL_ID = "recording_channel"
+        // v2: a channel's importance cannot change once created, and the old one was low (hidden on many lock screens).
+        private const val CHANNEL_ID = "recording_channel_v2"
+        private const val OLD_CHANNEL_ID = "recording_channel"
         private const val LIVE_FINISH_TIMEOUT_MS = 30_000L
 
         /** Where the recording pipeline gets its audio. Tests replace it with a recorded clip. */

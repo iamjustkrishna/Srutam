@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.os.Environment
 import android.util.Log
+import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import java.io.File
 
 data class AudioFileInfo(
@@ -22,6 +23,10 @@ object AudioFileReader {
     fun init(context: Context) {
         this.context = context.applicationContext
     }
+
+    /** The files that are finished notes: everything except the recording still in progress. */
+    internal fun withoutActiveRecording(files: Array<File>, activePath: String?): List<File> =
+        if (activePath == null) files.asList() else files.filter { it.absolutePath != activePath }
 
     fun getRecordingsDirectory(): File {
         // Points to: /storage/emulated/0/Music/
@@ -47,9 +52,12 @@ object AudioFileReader {
                 return emptyList()
             }
 
-            val audioFiles = recordingsDir.listFiles { file ->
-                file.isFile && file.extension.lowercase() in supportedExtensions
-            } ?: emptyArray()
+            val audioFiles = withoutActiveRecording(
+                recordingsDir.listFiles { file ->
+                    file.isFile && file.extension.lowercase() in supportedExtensions
+                } ?: emptyArray(),
+                RecordingCoordinator.activeFilePath
+            )
 
             Log.d(TAG, "Found ${audioFiles.size} audio files")
 

@@ -9,6 +9,7 @@ import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import java.io.File
 
 object AudioFileScanner {
@@ -27,9 +28,12 @@ object AudioFileScanner {
             }
 
             // Get all audio files
-            val audioFiles = recordingsDir.listFiles { file ->
-                file.isFile && file.extension.lowercase() in listOf("m4a", "mp3", "wav", "aac")
-            } ?: emptyArray()
+            val audioFiles = AudioFileReader.withoutActiveRecording(
+                recordingsDir.listFiles { file ->
+                    file.isFile && file.extension.lowercase() in listOf("m4a", "mp3", "wav", "aac")
+                } ?: emptyArray(),
+                RecordingCoordinator.activeFilePath
+            ).toTypedArray()
 
             Log.d(TAG, "Found ${audioFiles.size} audio files")
 
