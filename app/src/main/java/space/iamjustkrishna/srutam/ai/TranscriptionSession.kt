@@ -32,6 +32,10 @@ internal class TranscriptionSession(
     var totalSamples = 0L
         private set
 
+    /** True while the voice detector hears someone speaking in the audio it was last given. */
+    val isSpeechDetected: Boolean
+        get() = vad.isSpeechDetected()
+
     private val recentAudio = RecentAudio(RECENT_AUDIO_SECONDS * SPEECH_SAMPLE_RATE)
     private var previousSegmentEnd = 0L
 

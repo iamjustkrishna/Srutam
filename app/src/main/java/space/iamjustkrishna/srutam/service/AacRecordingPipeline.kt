@@ -94,6 +94,11 @@ internal class AacRecordingPipeline(
     var captureFailed = false
         private set
 
+    /** When the microphone last picked up real sound (not just room hum), on the [monotonicMs] clock. */
+    @Volatile
+    var lastLoudAtMs = 0L
+        private set
+
     private var samplesEncoded = 0L
 
     fun start() {
@@ -187,11 +192,21 @@ internal class AacRecordingPipeline(
     }
 
     private fun handle(buffer: ShortArray, count: Int) {
+        if (isLoud(buffer, count)) lastLoudAtMs = monotonicMs()
         encode(buffer, count)
         if (live != null && toSpeechRate != null) {
             val floats = FloatArray(count) { buffer[it] / 32768f }
             live.feed(toSpeechRate.process(floats))
         }
+    }
+
+    private fun isLoud(pcm: ShortArray, count: Int): Boolean {
+        var sum = 0.0
+        for (i in 0 until count) {
+            val value = pcm[i].toDouble()
+            sum += value * value
+        }
+        return Math.sqrt(sum / count) > LOUD_RMS
     }
 
     private fun encode(pcm: ShortArray, count: Int) {
@@ -280,5 +295,8 @@ internal class AacRecordingPipeline(
         const val MAX_CODEC_WAITS = 300
         const val MAX_READ_FAILURES = 100
         const val JOIN_TIMEOUT_MS = 5_000L
+
+        // About -38 dBFS: above room hum, below a quiet voice at arm's length.
+        const val LOUD_RMS = 400.0
     }
 }

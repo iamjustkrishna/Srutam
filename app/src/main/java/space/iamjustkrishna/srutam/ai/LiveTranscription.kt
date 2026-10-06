@@ -12,6 +12,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import space.iamjustkrishna.srutam.service.monotonicMs
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -35,6 +36,11 @@ internal class LiveTranscription(private val transcriber: LocalTranscriber) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val messages = Channel<Message>(Channel.UNLIMITED)
     private val queuedSamples = AtomicLong(0)
+
+    /** When the voice detector last heard speech, on the [monotonicMs] clock; 0 if it has not yet. */
+    @Volatile
+    var lastSpeechAtMs = 0L
+        private set
 
     @Volatile
     var gaveUp = false
@@ -98,6 +104,7 @@ internal class LiveTranscription(private val transcriber: LocalTranscriber) {
                 when (message) {
                     is Message.Audio -> {
                         session.accept(message.samples)
+                        if (session.isSpeechDetected) lastSpeechAtMs = monotonicMs()
                         queuedSamples.addAndGet(-message.samples.size.toLong())
                     }
                     Message.Break -> session.finish()

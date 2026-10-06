@@ -31,6 +31,7 @@ import space.iamjustkrishna.srutam.utils.AudioFileReader
 import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -52,6 +53,11 @@ class RecordingForegroundService : Service() {
     // MediaRecorder stays as the fallback if that cannot be opened.
     private var pipeline: AacRecordingPipeline? = null
     private var liveSession: LiveSession? = null
+
+    // Notices a recording nobody is speaking into: asks "still recording?", then stops and saves.
+    private val silenceWatchdog = SilenceWatchdog()
+    private var silenceJob: Job? = null
+    private var mediaRecorderLoudAtMs = 0L
     private val pendingFinalizations = AtomicInteger(0)
 
     /** The speech model and live transcription of the note being recorded. */
@@ -140,6 +146,9 @@ class RecordingForegroundService : Service() {
                     stopRecording(deleteAfterStop = false, deferAutoAi = deferAutoAi)
                 }
             }
+            ACTION_KEEP_RECORDING -> {
+                if (isRecording) keepRecording() else cleanUpStaleNotification()
+            }
             ACTION_DELETE_RECORDING -> {
                 if (!isRecording) {
                     cleanUpStaleNotification()
@@ -210,6 +219,7 @@ class RecordingForegroundService : Service() {
             if (!startPipelineRecording(file)) {
                 startMediaRecorderRecording(file)
             }
+            startSilenceWatch()
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
             cleanUpStaleNotification()
@@ -305,6 +315,7 @@ class RecordingForegroundService : Service() {
             accumulatedDurationMs = currentRecordedDurationMs()
             elapsedDurationMs = accumulatedDurationMs
             isPaused = true
+            silenceWatchdog.onPaused()
             RecordingCoordinator.notifyRecordingPaused(
                 elapsedDurationMs,
                 currentRecordingFile?.absolutePath ?: ""
@@ -326,6 +337,7 @@ class RecordingForegroundService : Service() {
             if (activePipeline != null) activePipeline.resume() else mediaRecorder?.resume()
             lastResumeTimeMs = System.currentTimeMillis()
             isPaused = false
+            silenceWatchdog.onResumed(monotonicMs())
             RecordingCoordinator.notifyRecordingResumed(
                 lastResumeTimeMs,
                 currentRecordingFile?.absolutePath ?: ""
@@ -344,6 +356,7 @@ class RecordingForegroundService : Service() {
             return
         }
 
+        stopSilenceWatch()
         var orphanedLive: LiveSession? = null
         try {
             var duration = currentRecordedDurationMs()
@@ -422,6 +435,99 @@ class RecordingForegroundService : Service() {
                 RecordingCoordinator.notifyRecordingEnded()
             }
         }
+    }
+
+    /** Checks every few seconds whether anyone is speaking; see [SilenceWatchdog] for the rules. */
+    private fun startSilenceWatch() {
+        silenceWatchdog.start(monotonicMs())
+        mediaRecorderLoudAtMs = 0L
+        silenceJob?.cancel()
+        silenceJob = serviceScope.launch {
+            while (isRecording) {
+                delay(SILENCE_CHECK_INTERVAL_MS)
+                if (isPaused) continue
+                val now = monotonicMs()
+                val heardAt = lastSpeechHeardAtMs(now)
+                if (heardAt > 0 && silenceWatchdog.onSpeech(heardAt)) cancelStillRecordingPrompt()
+                when (silenceWatchdog.check(now)) {
+                    SilenceWatchdog.Action.ASK -> postStillRecordingPrompt(silenceWatchdog.quietMinutes(now))
+                    SilenceWatchdog.Action.STOP -> {
+                        stopBecauseNobodySpoke(silenceWatchdog.quietMinutes(now))
+                        return@launch
+                    }
+                    SilenceWatchdog.Action.NONE -> Unit
+                }
+            }
+        }
+    }
+
+    private fun stopSilenceWatch() {
+        silenceJob?.cancel()
+        silenceJob = null
+        cancelStillRecordingPrompt()
+    }
+
+    /** The time speech was last heard: from the voice detector, or from loudness if there is no detector. */
+    private fun lastSpeechHeardAtMs(now: Long): Long {
+        val live = liveSession?.live
+        if (live != null && !live.gaveUp) return live.lastSpeechAtMs
+        pipeline?.let { return it.lastLoudAtMs }
+        val amplitude = try {
+            mediaRecorder?.maxAmplitude ?: 0
+        } catch (e: Exception) {
+            0
+        }
+        if (amplitude > LOUD_AMPLITUDE) mediaRecorderLoudAtMs = now
+        return mediaRecorderLoudAtMs
+    }
+
+    private fun keepRecording() {
+        silenceWatchdog.onKeep(monotonicMs())
+        cancelStillRecordingPrompt()
+        Log.d(TAG, "Keeping the recording after the still-recording question")
+    }
+
+    private fun postStillRecordingPrompt(quietMinutes: Long) {
+        val keepIntent = PendingIntent.getService(
+            this,
+            REQUEST_KEEP_RECORDING,
+            Intent(this, RecordingForegroundService::class.java).apply { action = ACTION_KEEP_RECORDING },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Still recording?")
+            .setContentText("No speech for $quietMinutes min. Srutam will stop and save in 5 minutes unless you keep going.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setTimeoutAfter(5 * SilenceWatchdog.MINUTE)
+            .setContentIntent(getActivityPendingIntent())
+            .addAction(android.R.drawable.ic_media_play, "Keep recording", keepIntent)
+            .addAction(android.R.drawable.ic_menu_save, "Stop & save", getStopPendingIntent())
+            .build()
+        notificationManager?.notify(ALERT_NOTIFICATION_ID, notification)
+        Log.d(TAG, "Asked whether to keep recording after $quietMinutes quiet minutes")
+    }
+
+    private fun cancelStillRecordingPrompt() {
+        notificationManager?.cancel(ALERT_NOTIFICATION_ID)
+    }
+
+    /** Nobody answered: save the note as usual (auto-AI included) and say what happened. */
+    private fun stopBecauseNobodySpoke(quietMinutes: Long) {
+        Log.d(TAG, "No speech for $quietMinutes minutes and no answer; stopping and saving")
+        stopRecording(deleteAfterStop = false)
+        val notice = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Recording saved")
+            .setContentText("Stopped after $quietMinutes minutes without speech. Your note was saved.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(getActivityPendingIntent())
+            .build()
+        notificationManager?.notify(ALERT_NOTIFICATION_ID, notice)
     }
 
     private fun stopForegroundAndService() {
@@ -578,9 +684,19 @@ class RecordingForegroundService : Service() {
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
 
+        val alerts = NotificationChannel(
+            ALERT_CHANNEL_ID,
+            "Recording reminders",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Asks whether a recording with no speech should keep going"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.deleteNotificationChannel(OLD_CHANNEL_ID)
         notificationManager.createNotificationChannel(channel)
+        notificationManager.createNotificationChannel(alerts)
     }
 
     private fun getActivityPendingIntent(): PendingIntent {
@@ -766,12 +882,20 @@ class RecordingForegroundService : Service() {
         @Volatile
         internal var pcmSourceFactory: () -> PcmSource = { AudioRecordPcmSource() }
         const val NOTIFICATION_ID = 1001
+        private const val ALERT_NOTIFICATION_ID = 1003
+        private const val ALERT_CHANNEL_ID = "recording_alert_channel"
+        private const val REQUEST_KEEP_RECORDING = 10
+        private const val SILENCE_CHECK_INTERVAL_MS = 5_000L
+
+        // MediaRecorder.getMaxAmplitude is 0..32767; this is a clearly audible voice, not room hum.
+        private const val LOUD_AMPLITUDE = 1500
 
         const val ACTION_START_RECORDING = "space.iamjustkrishna.srutam.START_RECORDING"
         const val ACTION_PAUSE_RECORDING = "space.iamjustkrishna.srutam.PAUSE_RECORDING"
         const val ACTION_RESUME_RECORDING = "space.iamjustkrishna.srutam.RESUME_RECORDING"
         const val ACTION_STOP_RECORDING = "space.iamjustkrishna.srutam.STOP_RECORDING"
         const val ACTION_DELETE_RECORDING = "space.iamjustkrishna.srutam.DELETE_RECORDING"
+        const val ACTION_KEEP_RECORDING = "space.iamjustkrishna.srutam.KEEP_RECORDING"
         const val EXTRA_DEFER_AUTO_AI = "space.iamjustkrishna.srutam.DEFER_AUTO_AI"
 
         private val _recordingSavedEvents = MutableSharedFlow<File>(extraBufferCapacity = 1)
