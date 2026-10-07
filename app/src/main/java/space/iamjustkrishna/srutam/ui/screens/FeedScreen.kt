@@ -1345,6 +1345,9 @@ fun SettingsDialog(
     var isPersistentNotificationEnabled by remember {
         mutableStateOf(space.iamjustkrishna.srutam.utils.AppPreferences.isPersistentNotificationEnabled(context))
     }
+    // While the floating dock is on its notification is the same one, so this switch reads ON and is locked.
+    val dockEnabled = space.iamjustkrishna.srutam.utils.AppPreferences.isFloatingDockEnabled(context)
+    val notificationLocked = QuickRecordNotification.switchLocked(dockEnabled)
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -1360,7 +1363,7 @@ fun SettingsDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
+                        .clickable(enabled = !notificationLocked) {
                             val newValue = !isPersistentNotificationEnabled
                             isPersistentNotificationEnabled = newValue
                             space.iamjustkrishna.srutam.utils.AppPreferences.setPersistentNotificationEnabled(context, newValue)
@@ -1392,14 +1395,19 @@ fun SettingsDialog(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Keep a start-recording button in notifications",
+                                text = if (notificationLocked) {
+                                    "On while the floating dock is on"
+                                } else {
+                                    "Keep a start-recording button in notifications"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                     Switch(
-                        checked = isPersistentNotificationEnabled,
+                        checked = QuickRecordNotification.switchChecked(dockEnabled, isPersistentNotificationEnabled),
+                        enabled = !notificationLocked,
                         onCheckedChange = { checked ->
                             isPersistentNotificationEnabled = checked
                             space.iamjustkrishna.srutam.utils.AppPreferences.setPersistentNotificationEnabled(context, checked)

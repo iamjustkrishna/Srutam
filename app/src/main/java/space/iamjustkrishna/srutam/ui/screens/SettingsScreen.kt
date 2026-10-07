@@ -33,6 +33,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -261,12 +262,17 @@ fun SettingsScreen(
                     iconBg = Color(0xFFFEF3C7),
                     iconTint = Color(0xFFD97706),
                     title = "Persistent Recording Notification",
-                    subtitle = "One notification with a Start button, always visible, even on the lock screen. It becomes Pause and Save with the timer while you record.",
-                    checked = isPersistentNotificationEnabled,
+                    subtitle = if (QuickRecordNotification.switchLocked(isFloatingDockEnabled)) {
+                        "On while the floating dock is on. The dock needs this notification to keep running."
+                    } else {
+                        "One notification with a Start button, always visible, even on the lock screen. It becomes Pause and Save with the timer while you record."
+                    },
+                    checked = QuickRecordNotification.switchChecked(isFloatingDockEnabled, isPersistentNotificationEnabled),
                     onCheckedChange = { enabled ->
                         isPersistentNotificationEnabled = enabled
                         QuickRecordNotification.setEnabled(context, enabled)
-                    }
+                    },
+                    enabled = !QuickRecordNotification.switchLocked(isFloatingDockEnabled)
                 )
             }
 
@@ -974,13 +980,15 @@ private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
     val isDark = LocalIsCosmicDark.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .alpha(if (enabled) 1f else 0.6f)
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -1021,7 +1029,8 @@ private fun SettingsToggleRow(
 
         SrutamSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
         )
     }
 }
@@ -1030,7 +1039,8 @@ private fun SettingsToggleRow(
 private fun SrutamSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val isDark = LocalIsCosmicDark.current
     val trackColor by animateColorAsState(
@@ -1057,7 +1067,7 @@ private fun SrutamSwitch(
             .height(26.dp)
             .clip(CircleShape)
             .background(trackColor)
-            .clickable { onCheckedChange(!checked) }
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(vertical = 2.dp),
         contentAlignment = Alignment.CenterStart
     ) {

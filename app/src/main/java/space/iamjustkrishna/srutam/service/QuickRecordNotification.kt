@@ -65,6 +65,15 @@ object QuickRecordNotification {
     /** The Start notification is wanted while the floating dock runs (it needs a notification) or when asked for. */
     fun idleWanted(dockEnabled: Boolean, quickRecordEnabled: Boolean): Boolean = dockEnabled || quickRecordEnabled
 
+    /**
+     * What the "Persistent Recording Notification" switch shows. While the floating dock is on the
+     * notification is on too (Android needs it for the dock), so the switch reads ON and is locked;
+     * the user's own stored choice is untouched and comes back when the dock is turned off.
+     */
+    fun switchChecked(dockEnabled: Boolean, stored: Boolean): Boolean = dockEnabled || stored
+
+    fun switchLocked(dockEnabled: Boolean): Boolean = dockEnabled
+
     fun idleWantedNow(context: Context): Boolean = idleWanted(
         AppPreferences.isFloatingDockEnabled(context),
         AppPreferences.isPersistentNotificationEnabled(context)

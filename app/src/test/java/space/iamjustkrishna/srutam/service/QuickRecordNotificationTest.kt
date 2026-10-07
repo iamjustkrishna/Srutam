@@ -145,4 +145,16 @@ class QuickRecordNotificationTest {
             assertTrue("no text for $state", !notification.extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank())
         }
     }
+
+    @Test fun theNotificationSwitchReadsOnAndLockedWhileTheDockIsOn() {
+        assertTrue(QuickRecordNotification.switchChecked(dockEnabled = true, stored = false))
+        assertTrue(QuickRecordNotification.switchChecked(dockEnabled = true, stored = true))
+        assertTrue(QuickRecordNotification.switchLocked(dockEnabled = true))
+    }
+
+    @Test fun withoutTheDockTheNotificationSwitchShowsTheUsersOwnChoice() {
+        assertFalse(QuickRecordNotification.switchChecked(dockEnabled = false, stored = false))
+        assertTrue(QuickRecordNotification.switchChecked(dockEnabled = false, stored = true))
+        assertFalse(QuickRecordNotification.switchLocked(dockEnabled = false))
+    }
 }
