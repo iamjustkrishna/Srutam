@@ -57,6 +57,7 @@ class FloatingButtonService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "FloatingButtonService created")
+        isRunning = true
         startForegroundWithNotification()
         isDockedLeft = AppPreferences.isFloatingDockOnLeft(this)
         showFloatingButton()
@@ -64,89 +65,26 @@ class FloatingButtonService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP_DOCK -> {
-                Log.d(TAG, "Stopping floating dock from notification action")
-                AppPreferences.setFloatingDockEnabled(this, false)
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return START_NOT_STICKY
-            }
-            else -> {
-                startForegroundWithNotification()
-                if (floatingView == null) {
-                    showFloatingButton()
-                }
-            }
+        // ACTION_SHOW_IDLE (after a recording) and a plain start both re-attach this service to the one
+        // recording notification, drawn for whatever state recording is in.
+        startForegroundWithNotification()
+        if (floatingView == null) {
+            showFloatingButton()
         }
         return START_STICKY
     }
 
     private fun startForegroundWithNotification() {
-        createNotificationChannel()
-        val notification = createNotification()
+        val notification = QuickRecordNotification.buildCurrent(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
-                NOTIFICATION_ID,
+                QuickRecordNotification.NOTIFICATION_ID,
                 notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
         } else {
-            startForeground(NOTIFICATION_ID, notification)
+            startForeground(QuickRecordNotification.NOTIFICATION_ID, notification)
         }
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.floating_dock_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.floating_dock_channel_desc)
-                setShowBadge(false)
-                enableVibration(false)
-                setSound(null, null)
-            }
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
-        }
-    }
-
-    private fun createNotification(): Notification {
-        val openAppIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val openAppPendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            openAppIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val hideIntent = Intent(this, FloatingButtonService::class.java).apply {
-            action = ACTION_STOP_DOCK
-        }
-        val hidePendingIntent = PendingIntent.getService(
-            this,
-            1,
-            hideIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.srutam_final_log)
-            .setContentTitle(getString(R.string.floating_dock_notif_title))
-            .setContentText(getString(R.string.floating_dock_notif_text))
-            .setContentIntent(openAppPendingIntent)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(
-                R.drawable.ic_floating_close,
-                getString(R.string.floating_dock_action_hide),
-                hidePendingIntent
-            )
-            .build()
     }
 
     private fun showFloatingButton() {
@@ -458,7 +396,6 @@ class FloatingButtonService : Service() {
 
     private fun stopRecording() {
         RecordingCoordinator.requestStop(this)
-        getSystemService(NotificationManager::class.java)?.cancel(RecordingForegroundService.NOTIFICATION_ID)
         showElevatedToast("Voice note saved")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -467,7 +404,6 @@ class FloatingButtonService : Service() {
 
     private fun cancelRecording() {
         RecordingCoordinator.requestCancel(this)
-        getSystemService(NotificationManager::class.java)?.cancel(RecordingForegroundService.NOTIFICATION_ID)
         showElevatedToast("Recording discarded")
         isExpanded = false
         adjustPositionForExpandedState()
@@ -532,14 +468,25 @@ class FloatingButtonService : Service() {
                 Log.w(TAG, "Error removing floating view on destroy", e)
             }
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        isRunning = false
+        // A recording that outlives the dock keeps its notification; otherwise the notification goes with
+        // the service, and the Start notification comes back if the quick-record setting is on.
+        if (RecordingForegroundService.isRecording) {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            QuickRecordNotification.restoreIdle(applicationContext)
+        }
         Log.d(TAG, "FloatingButtonService destroyed")
     }
 
     companion object {
         private const val TAG = "FloatingButtonService"
-        private const val NOTIFICATION_ID = 1002
-        private const val CHANNEL_ID = "srutam_floating_dock_channel"
-        const val ACTION_STOP_DOCK = "space.iamjustkrishna.srutam.action.STOP_FLOATING_DOCK"
+        const val ACTION_SHOW_IDLE = "space.iamjustkrishna.srutam.action.SHOW_IDLE_NOTIFICATION"
+
+        /** True while the dock service is alive (it is then the foreground owner of the one notification). */
+        @Volatile
+        var isRunning = false
+            private set
     }
 }

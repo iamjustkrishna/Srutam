@@ -116,7 +116,7 @@ import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
-import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
+import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
 import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
@@ -1510,25 +1510,11 @@ private fun sendRecordingAction(context: Context, action: String) {
 }
 
 private fun startPersistentRecordingNotification(context: Context) {
-    val intent = Intent(context, PersistentRecordingNotificationService::class.java).apply {
-        action = PersistentRecordingNotificationService.ACTION_START_RECORDING
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-    } else {
-        context.startService(intent)
-    }
+    QuickRecordNotification.setEnabled(context, true)
 }
 
 private fun stopPersistentRecordingNotification(context: Context) {
-    val intent = Intent(context, PersistentRecordingNotificationService::class.java).apply {
-        action = PersistentRecordingNotificationService.ACTION_STOP_NOTIFICATION
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-    } else {
-        context.startService(intent)
-    }
+    QuickRecordNotification.setEnabled(context, false)
 }
 
 @Composable

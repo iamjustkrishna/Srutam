@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.service.FloatingButtonService
-import space.iamjustkrishna.srutam.service.PersistentRecordingNotificationService
+import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -261,23 +261,11 @@ fun SettingsScreen(
                     iconBg = Color(0xFFFEF3C7),
                     iconTint = Color(0xFFD97706),
                     title = "Persistent Recording Notification",
-                    subtitle = "Always-accessible one-tap recording notification in status bar",
+                    subtitle = "One notification with a Start button, always visible, even on the lock screen. It becomes Pause and Save with the timer while you record.",
                     checked = isPersistentNotificationEnabled,
                     onCheckedChange = { enabled ->
                         isPersistentNotificationEnabled = enabled
-                        AppPreferences.setPersistentNotificationEnabled(context, enabled)
-                        val intent = Intent(context, PersistentRecordingNotificationService::class.java).apply {
-                            action = if (enabled) {
-                                PersistentRecordingNotificationService.ACTION_START_RECORDING
-                            } else {
-                                PersistentRecordingNotificationService.ACTION_STOP_NOTIFICATION
-                            }
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(intent)
-                        } else {
-                            context.startService(intent)
-                        }
+                        QuickRecordNotification.setEnabled(context, enabled)
                     }
                 )
             }

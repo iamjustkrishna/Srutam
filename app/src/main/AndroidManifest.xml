@@ -53,17 +53,6 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
-        <!-- Persistent Recording Notification Service -->
-        <service
-            android:name=".service.PersistentRecordingNotificationService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Persistent standby recording notification in status bar" />
-        </service>
-
         <!-- Floating Button Overlay Service -->
         <service
             android:name=".service.FloatingButtonService"

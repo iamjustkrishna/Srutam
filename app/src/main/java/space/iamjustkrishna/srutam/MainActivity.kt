@@ -26,6 +26,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import space.iamjustkrishna.srutam.navigation.SrutamNavigation
 import space.iamjustkrishna.srutam.service.FloatingButtonService
+import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.ui.screens.BYOKOnboardingScreen
 import space.iamjustkrishna.srutam.ui.screens.CaptureSetupScreen
 import space.iamjustkrishna.srutam.ui.screens.PermissionsOnboardingScreen
@@ -147,6 +148,14 @@ fun SrutamApp(initialRecordingId: Long? = null, initialReminderId: String? = nul
                 ) == PackageManager.PERMISSION_GRANTED
             }
             mic && storage
+        }
+    }
+
+    LaunchedEffect(appStage) {
+        if (appStage == AppStage.MAIN) {
+            // Earlier versions showed separate quick-record and dock notifications; now there is one.
+            QuickRecordNotification.cleanUpLegacy(context)
+            QuickRecordNotification.restoreIdle(context)
         }
     }
 

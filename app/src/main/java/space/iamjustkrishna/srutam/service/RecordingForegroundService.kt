@@ -76,8 +76,6 @@ class RecordingForegroundService : Service() {
 
     // Cached PendingIntents to avoid recreating on every notification update
     private var cachedActivityPendingIntent: PendingIntent? = null
-    private var cachedPausePendingIntent: PendingIntent? = null
-    private var cachedResumePendingIntent: PendingIntent? = null
     private var cachedStopPendingIntent: PendingIntent? = null
 
     private val powerButtonReceiver = object : BroadcastReceiver() {
@@ -174,6 +172,7 @@ class RecordingForegroundService : Service() {
         }
         notificationManager?.cancel(NOTIFICATION_ID)
         RecordingCoordinator.notifyRecordingEnded()
+        QuickRecordNotification.restoreIdle(applicationContext, force = true)
         stopSelf()
     }
 
@@ -538,6 +537,7 @@ class RecordingForegroundService : Service() {
             stopForeground(true)
         }
         notificationManager?.cancel(NOTIFICATION_ID)
+        QuickRecordNotification.restoreIdle(applicationContext)
         stopSelf()
     }
 
@@ -672,17 +672,7 @@ class RecordingForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.recording_notification_channel_name),
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = getString(R.string.recording_notification_channel_desc)
-            setShowBadge(true)
-            enableVibration(false)
-            setSound(null, null)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        }
+        QuickRecordNotification.ensureChannel(this)
 
         val alerts = NotificationChannel(
             ALERT_CHANNEL_ID,
@@ -692,11 +682,7 @@ class RecordingForegroundService : Service() {
             description = "Asks whether a recording with no speech should keep going"
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.deleteNotificationChannel(OLD_CHANNEL_ID)
-        notificationManager.createNotificationChannel(channel)
-        notificationManager.createNotificationChannel(alerts)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(alerts)
     }
 
     private fun getActivityPendingIntent(): PendingIntent {
@@ -714,36 +700,6 @@ class RecordingForegroundService : Service() {
         return cachedActivityPendingIntent!!
     }
 
-    private fun getPausePendingIntent(): PendingIntent {
-        if (cachedPausePendingIntent == null) {
-            val intent = Intent(this, RecordingForegroundService::class.java).apply {
-                action = ACTION_PAUSE_RECORDING
-            }
-            cachedPausePendingIntent = PendingIntent.getService(
-                this,
-                2,
-                intent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        }
-        return cachedPausePendingIntent!!
-    }
-
-    private fun getResumePendingIntent(): PendingIntent {
-        if (cachedResumePendingIntent == null) {
-            val intent = Intent(this, RecordingForegroundService::class.java).apply {
-                action = ACTION_RESUME_RECORDING
-            }
-            cachedResumePendingIntent = PendingIntent.getService(
-                this,
-                3,
-                intent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        }
-        return cachedResumePendingIntent!!
-    }
-
     private fun getStopPendingIntent(): PendingIntent {
         if (cachedStopPendingIntent == null) {
             val intent = Intent(this, RecordingForegroundService::class.java).apply {
@@ -759,58 +715,10 @@ class RecordingForegroundService : Service() {
         return cachedStopPendingIntent!!
     }
 
-    private fun formatDuration(durationMs: Long): String {
-        val seconds = (durationMs / 1000).toInt()
-        val minutes = seconds / 60
-        val remainingSeconds = seconds % 60
-        return String.format("%d:%02d", minutes, remainingSeconds)
-    }
-
-    private fun createNotification(durationMs: Long): Notification {
-        val pendingIntent = getActivityPendingIntent()
-        val stopPendingIntent = getStopPendingIntent()
-
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setOnlyAlertOnce(true)
-
-        if (isPaused) {
-            val durationText = formatDuration(durationMs)
-            builder.setContentTitle("Recording paused ($durationText)")
-                .setContentText("Resume or save your recording")
-                .setUsesChronometer(false)
-                .setShowWhen(false)
-                .addAction(
-                    android.R.drawable.ic_media_play,
-                    "Resume",
-                    getResumePendingIntent()
-                )
-        } else {
-            builder.setContentTitle("Recording in progress")
-                .setContentText("Tap to open Srutam")
-                .setUsesChronometer(true)
-                .setWhen(System.currentTimeMillis() - durationMs)
-                .setShowWhen(true)
-                .addAction(
-                    android.R.drawable.ic_media_pause,
-                    "Pause",
-                    getPausePendingIntent()
-                )
-        }
-
-        builder.addAction(
-            android.R.drawable.ic_menu_save,
-            "Save",
-            stopPendingIntent
-        )
-
-        return builder.build()
-    }
+    private fun createNotification(durationMs: Long): Notification = QuickRecordNotification.build(
+        this,
+        if (isPaused) QuickRecordNotification.State.Paused(durationMs) else QuickRecordNotification.State.Recording(durationMs)
+    )
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -861,6 +769,7 @@ class RecordingForegroundService : Service() {
         }
         notificationManager?.cancel(NOTIFICATION_ID)
         RecordingCoordinator.notifyRecordingEnded()
+        QuickRecordNotification.restoreIdle(applicationContext)
     }
 
     private fun currentRecordedDurationMs(): Long {
@@ -873,9 +782,7 @@ class RecordingForegroundService : Service() {
 
     companion object {
         private const val TAG = "RecordingService"
-        // v2: a channel's importance cannot change once created, and the old one was low (hidden on many lock screens).
-        private const val CHANNEL_ID = "recording_channel_v2"
-        private const val OLD_CHANNEL_ID = "recording_channel"
+        private const val CHANNEL_ID = QuickRecordNotification.CHANNEL_ID
         private const val LIVE_FINISH_TIMEOUT_MS = 30_000L
 
         /** Where the recording pipeline gets its audio. Tests replace it with a recorded clip. */
