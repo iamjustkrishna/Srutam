@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -29,6 +30,8 @@ class QuickRecordNotificationTest {
         QuickRecordNotification.views(context, state).apply(context, FrameLayout(context))
 
     private fun text(root: View, id: Int) = root.findViewById<TextView>(id)
+
+    @After fun forgetSaved() = QuickRecordNotification.clearSaved()
 
     @Test fun theStartNotificationIsWantedWhenTheDockOrTheSettingIsOn() {
         assertFalse(QuickRecordNotification.idleWanted(dockEnabled = false, quickRecordEnabled = false))
@@ -95,6 +98,51 @@ class QuickRecordNotificationTest {
 
     @Test fun oneIdIsSharedWithTheRecordingService() {
         assertEquals(RecordingForegroundService.NOTIFICATION_ID, QuickRecordNotification.NOTIFICATION_ID)
-        assertEquals("recording_channel_v2", QuickRecordNotification.CHANNEL_ID)
+        assertEquals("recording_channel_v3", QuickRecordNotification.CHANNEL_ID)
+    }
+
+    @Test fun savedShowsAConfirmationWithTheLengthAndStartAgain() {
+        val root = inflate(State.Saved(durationMs = 42_000, finishing = false))
+
+        assertEquals("Saved", text(root, R.id.quick_title).text.toString())
+        assertEquals("Your note is saved (0:42)", text(root, R.id.quick_text).text.toString())
+        assertEquals("Start", text(root, R.id.quick_primary).text.toString())
+        assertEquals(View.VISIBLE, text(root, R.id.quick_primary).visibility)
+        assertEquals(View.GONE, text(root, R.id.quick_secondary).visibility)
+    }
+
+    @Test fun savedWhileTheTranscriptIsStillBeingWrittenSaysSoAndHasNoButton() {
+        val root = inflate(State.Saved(durationMs = 42_000, finishing = true))
+
+        assertEquals("Saved", text(root, R.id.quick_title).text.toString())
+        assertEquals("Finishing transcript...", text(root, R.id.quick_text).text.toString())
+        assertEquals(View.GONE, text(root, R.id.quick_primary).visibility)
+    }
+
+    @Test fun theSavedStateLastsAFewSecondsThenGoesBackToStart() {
+        QuickRecordNotification.markSaved(context, durationMs = 42_000, finishing = false, nowMs = 10_000)
+
+        assertEquals(State.Saved(42_000, false), QuickRecordNotification.currentState(nowMs = 10_000))
+        assertEquals(State.Saved(42_000, false), QuickRecordNotification.currentState(nowMs = 12_999))
+        assertEquals(State.Idle, QuickRecordNotification.currentState(nowMs = 13_000))
+    }
+
+    @Test fun theFinishingStateStaysUntilTheTranscriptIsDone() {
+        QuickRecordNotification.markSaved(context, durationMs = 42_000, finishing = true, nowMs = 10_000)
+
+        assertEquals(State.Saved(42_000, true), QuickRecordNotification.currentState(nowMs = 40_000))
+
+        QuickRecordNotification.markSaved(context, durationMs = 42_000, finishing = false, nowMs = 41_000)
+
+        assertEquals(State.Saved(42_000, false), QuickRecordNotification.currentState(nowMs = 41_500))
+    }
+
+    @Test fun everyStateStillHasATitleAndTextForPhonesThatFoldTheNotification() {
+        for (state in listOf(State.Idle, State.Recording(1_000), State.Paused(1_000), State.Saved(1_000, false))) {
+            val notification = QuickRecordNotification.build(context, state)
+
+            assertTrue("no title for $state", !notification.extras.getCharSequence(Notification.EXTRA_TITLE).isNullOrBlank())
+            assertTrue("no text for $state", !notification.extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank())
+        }
     }
 }

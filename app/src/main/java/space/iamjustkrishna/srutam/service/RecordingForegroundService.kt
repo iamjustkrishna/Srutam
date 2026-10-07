@@ -60,6 +60,9 @@ class RecordingForegroundService : Service() {
     private var mediaRecorderLoudAtMs = 0L
     private val pendingFinalizations = AtomicInteger(0)
 
+    // How long the note just saved is, for the "Saved" notification; null after a discard.
+    private var savedDurationMs: Long? = null
+
     /** The speech model and live transcription of the note being recorded. */
     private class LiveSession(val transcriber: LocalTranscriber, val live: LiveTranscription)
     private var currentRecordingFile: File? = null
@@ -373,6 +376,7 @@ class RecordingForegroundService : Service() {
                 }
             }
             elapsedDurationMs = duration
+            savedDurationMs = if (deleteAfterStop) null else duration
             mediaRecorder = null
             isRecording = false
             isPaused = false
@@ -427,7 +431,8 @@ class RecordingForegroundService : Service() {
         } finally {
             if (pendingFinalizations.get() > 0 && !isRecording) {
                 // Stay a foreground service until the transcript is stored, or the system may freeze us mid-way.
-                notificationManager?.notify(NOTIFICATION_ID, createFinalizingNotification())
+                QuickRecordNotification.markSaved(applicationContext, savedDurationMs ?: 0L, finishing = true)
+                notificationManager?.notify(NOTIFICATION_ID, QuickRecordNotification.buildCurrent(this))
                 RecordingCoordinator.notifyRecordingEnded()
             } else {
                 stopForegroundAndService()
@@ -530,13 +535,16 @@ class RecordingForegroundService : Service() {
     }
 
     private fun stopForegroundAndService() {
-        @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            stopForeground(true)
+        val saved = savedDurationMs
+        savedDurationMs = null
+        // When the Start notification stays, it is updated in place (saved, then Start) instead of being
+        // removed and posted again, so it never flickers or pops up as a new notification.
+        val keepNotification = QuickRecordNotification.idleWantedNow(applicationContext)
+        if (keepNotification && saved != null) {
+            QuickRecordNotification.markSaved(applicationContext, saved, finishing = false)
         }
-        notificationManager?.cancel(NOTIFICATION_ID)
+        stopForeground(if (keepNotification) STOP_FOREGROUND_DETACH else STOP_FOREGROUND_REMOVE)
+        if (!keepNotification) notificationManager?.cancel(NOTIFICATION_ID)
         QuickRecordNotification.restoreIdle(applicationContext)
         stopSelf()
     }
@@ -597,20 +605,6 @@ class RecordingForegroundService : Service() {
             }
         }
     }
-
-    private fun createFinalizingNotification(): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(getActivityPendingIntent())
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setOnlyAlertOnce(true)
-            .setOngoing(true)
-            .setContentTitle("Finishing transcript")
-            .setContentText("Tap to open Srutam")
-            .build()
 
     private fun saveRecordingToDatabase(file: File, duration: Long) {
         Log.d(TAG, "Recording saved to file: ${file.absolutePath}")
