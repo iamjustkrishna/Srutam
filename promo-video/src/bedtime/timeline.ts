@@ -84,5 +84,5 @@ export const BEAT = {
   noteIn: 862, // "it's all there"
   ideaCard: 910, // "the idea"
   stepCard: 935, // "the next step"
-  reminderCard: 974, // "even a reminder"
+  reminderCard: 952, // knock-knock (the app's reminder sound), in the pause before "even a reminder"
 } as const;

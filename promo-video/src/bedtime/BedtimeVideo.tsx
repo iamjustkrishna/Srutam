@@ -94,7 +94,7 @@ const SFX: { file: string; at: number; volume?: number; dur?: number }[] = [
   { file: "sfx/chime.wav", at: 760, volume: 0.75 },
   { file: "sfx/shimmer.wav", at: 908, volume: 0.5 },
   { file: "sfx/pop.wav", at: 933, volume: 0.5 },
-  { file: "sfx/pop.wav", at: 972, volume: 0.5 },
+  { file: "bedtime/reminder-knock.wav", at: 952, volume: 0.9 },
   { file: "bedtime/ding.wav", at: 1088, volume: 0.5 },
 ];
 

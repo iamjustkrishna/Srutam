@@ -11,7 +11,7 @@ drawn in a warm hand-drawn character style:
 | 0:08 | Morning alarm. "I did not remember it in the morning." The idea-bulb pops. |
 | 0:11 | VHS rewind to 2:13 a.m.: "Okay. Let's try that again." |
 | 0:14 | She taps **Start** on Srutam's notification and whispers the idea, a next step and a day; taps **Save**: "Saved / Finishing transcript..." |
-| 0:27 | Morning: the note is transcribed on the phone and titled, with an Idea, a Next Step and a Saturday reminder. |
+| 0:27 | Morning: the note is transcribed on the phone and titled, with an Idea, a Next Step and a Saturday reminder. The reminder card arrives with the app's own reminder sound, the knock-knock (`public/bedtime/reminder-knock.wav`, a copy of `app/src/main/res/raw/srutam_knock.wav`). |
 | 0:33 | Three months later: her rooftop book café is open. End card. |
 
 The notification states and labels are the app's own (`QuickRecordNotification.kt`):

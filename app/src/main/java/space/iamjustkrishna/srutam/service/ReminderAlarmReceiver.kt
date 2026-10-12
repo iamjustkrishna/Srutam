@@ -149,11 +149,12 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     private fun notify(context: Context, reminder: ReminderEntity, headsUp: Boolean) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Clean up legacy channel if present
-        runCatching { manager.deleteNotificationChannel(LEGACY_CHANNEL_ID) }
+        // Clean up older channels: a channel's sound can't change once created
+        OLD_CHANNEL_IDS.forEach { id -> runCatching { manager.deleteNotificationChannel(id) } }
 
-        // Setup sound and attributes pointing to Srutam signature chime
-        val soundUri = Uri.parse("${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/${R.raw.srutam_chime}")
+        // Srutam's knock-knock, addressed by name rather than numeric R id: the channel
+        // keeps this URI for good, and numeric ids can change between builds
+        val soundUri = Uri.parse("${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/raw/$REMINDER_SOUND")
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
@@ -233,8 +234,9 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val CHANNEL_ID = "srutam_reminders_v2"
-        private const val LEGACY_CHANNEL_ID = "srutam_reminders_channel"
+        const val CHANNEL_ID = "srutam_reminders_v3"
+        private val OLD_CHANNEL_IDS = listOf("srutam_reminders_channel", "srutam_reminders_v2")
+        private const val REMINDER_SOUND = "srutam_knock"
         const val EXTRA_REMINDER_ID = "extra_reminder_id"
         const val EXTRA_IS_HEADS_UP = "extra_is_heads_up"
         const val EXTRA_REVISION = "extra_schedule_revision"
