@@ -49,7 +49,7 @@ const SFX: { file: string; at: number; volume?: number }[] = [
   { file: "whoosh", at: C0 + CATCH.dive },
   { file: "pop", at: C0 + CATCH.dive + 30 },
   { file: "tap", at: C0 + CATCH.stop },
-  { file: "chime", at: C0 + CATCH.saved, volume: 0.8 },
+  { file: "knock", at: C0 + CATCH.saved, volume: 1 }, // the app's knock-knock
   { file: "whoosh", at: C0 + 240 },
   // Insights land
   { file: "pop", at: SCENES.insights.from + 56 },

@@ -11,7 +11,7 @@ drawn in a warm hand-drawn character style:
 | 0:08 | Morning alarm. "I did not remember it in the morning." The idea-bulb pops. |
 | 0:11 | VHS rewind to 2:13 a.m.: "Okay. Let's try that again." |
 | 0:14 | She taps **Start** on Srutam's notification and whispers the idea, a next step and a day; taps **Save**: "Saved / Finishing transcript..." |
-| 0:27 | Morning: the note is transcribed on the phone and titled, with an Idea, a Next Step and a Saturday reminder. The reminder card arrives with the app's own reminder sound, the knock-knock (`public/bedtime/reminder-knock.wav`, a copy of `app/src/main/res/raw/srutam_knock.wav`). |
+| 0:27 | Morning: the note is transcribed on the phone and titled, with an Idea, a Next Step and a Saturday reminder. The reminder card arrives with the app's own reminder sound, the knock-knock (`public/sfx/knock.wav`, a copy of `app/src/main/res/raw/srutam_knock.wav`; the "Saved" notification at 0:25 uses it too). |
 | 0:33 | Three months later: her rooftop book café is open. End card. |
 
 The notification states and labels are the app's own (`QuickRecordNotification.kt`):
@@ -38,7 +38,7 @@ The hero is **Spark**, a thought that dies within seconds unless Srutam catches 
 |---|---|---|
 | 0:00 | Hook: "This idea has 4 seconds to live." | - |
 | 0:03.7 | Ideas dying in the shower, driving, mid-meeting | - |
-| 0:06.7 | Tap, tap: the floating dock, from any app | Floating dock (collapsed, expanded, recording), "Transcribed on this device", the "Saved" notification and chime |
+| 0:06.7 | Tap, tap: the floating dock, from any app | Floating dock (collapsed, expanded, recording), "Transcribed on this device", the "Saved" notification with the app's knock-knock |
 | 0:15.7 | The spark splits into the category colors | Insights: Next Steps, Ideas, Decisions, a reminder |
 | 0:21.3 | Night falls: every thought connects; just ask | Mesh, AI with Referenced Notes |
 | 0:26.3 | "Srutam. Catch it before it's gone." Fades into the first frame so it loops | Logo |

@@ -91,10 +91,10 @@ const SFX: { file: string; at: number; volume?: number; dur?: number }[] = [
   { file: "sfx/tap.wav", at: 455, volume: 0.7 },
   { file: "sfx/whoosh.wav", at: 470, volume: 0.5 },
   { file: "sfx/tap.wav", at: 730, volume: 0.7 },
-  { file: "sfx/chime.wav", at: 760, volume: 0.75 },
+  { file: "sfx/knock.wav", at: 760, volume: 1 }, // the app's knock-knock
   { file: "sfx/shimmer.wav", at: 908, volume: 0.5 },
   { file: "sfx/pop.wav", at: 933, volume: 0.5 },
-  { file: "bedtime/reminder-knock.wav", at: 952, volume: 0.9 },
+  { file: "sfx/knock.wav", at: 952, volume: 1 },
   { file: "bedtime/ding.wav", at: 1088, volume: 0.5 },
 ];
 
