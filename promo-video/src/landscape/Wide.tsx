@@ -149,6 +149,37 @@ export const WideCaptions: React.FC<{ cues: CaptionCue[]; f: number; lane?: [num
   );
 };
 
+/** A dark chip at top centre (date stamps and the like), faded over `keys` [in, full, full, out]. */
+export const chip =
+  (text: string, keys: [number, number, number, number]): React.FC<{ f: number }> =>
+  ({ f }) => (
+    <div
+      style={{
+        position: "absolute",
+        top: 40,
+        left: 0,
+        right: 0,
+        display: "flex",
+        justifyContent: "center",
+        opacity: interpolate(f, keys, [0, 1, 1, 0], clamp),
+      }}
+    >
+      <div
+        style={{
+          padding: "12px 30px",
+          borderRadius: 20,
+          background: "rgba(15,23,42,0.78)",
+          color: "#FFFFFF",
+          fontFamily: FONT.sans,
+          fontWeight: 700,
+          fontSize: 40,
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+
 /**
  * A landscape cut: `shots` in timeline frames; `k` render frames per timeline frame
  * (2 for the 60 fps videos). The vertical video's own captions are swapped for

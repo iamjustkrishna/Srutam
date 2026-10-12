@@ -34,6 +34,8 @@ import { SparkWide } from "./landscape/spark";
 import { BedtimeWide } from "./landscape/bedtime";
 import { NaniWide } from "./landscape/nani";
 import { KnockWide } from "./landscape/knock";
+import { WhoWide } from "./landscape/who";
+import { ExamWide } from "./landscape/exam";
 import { WIDE_H, WIDE_W } from "./landscape/Wide";
 
 const calculateMetadata = async () => {
@@ -56,6 +58,8 @@ export const RemotionRoot: React.FC = () => (
       <Composition id="TwoAmIdeaWide" component={BedtimeWide} durationInFrames={BEDTIME_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
       <Composition id="NanisLaddoosWide" component={NaniWide} durationInFrames={NANI_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
       <Composition id="KnockKnockWide" component={KnockWide} durationInFrames={KNOCK_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+      <Composition id="WhoSaidThatWide" component={WhoWide} durationInFrames={WHO_TOTAL * STORY_K} fps={RENDER_FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+      <Composition id="BeforeTheExamWide" component={ExamWide} durationInFrames={EXAM_TOTAL * STORY_K} fps={RENDER_FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
       <Composition id="SparkStoryWide" component={SparkWide} durationInFrames={TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
     </Folder>
     <Composition
