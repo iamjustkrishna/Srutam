@@ -8,6 +8,7 @@ import { Insights } from "./scenes/Insights";
 import { Lost } from "./scenes/Lost";
 import { SparkStory } from "./SparkStory";
 import { StyleBoard } from "./styleboard/StyleBoard";
+import { SpiritBoard } from "./spirit/SpiritBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
 const calculateMetadata = async () => {
@@ -40,6 +41,13 @@ export const RemotionRoot: React.FC = () => (
       component={StyleBoard}
       width={2200}
       height={2660}
+      calculateMetadata={calculateMetadata}
+    />
+    <Still
+      id="ShruBoard"
+      component={SpiritBoard}
+      width={2480}
+      height={2800}
       calculateMetadata={calculateMetadata}
     />
     <Folder name="Scenes">
