@@ -10,6 +10,7 @@ import { SparkStory } from "./SparkStory";
 import { StyleBoard } from "./styleboard/StyleBoard";
 import { OptionsBoard } from "./options/OptionsBoard";
 import { PaintedBoard } from "./painted/PaintedBoard";
+import { SketchSheet } from "./sketch/SketchSheet";
 import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
@@ -83,6 +84,13 @@ export const RemotionRoot: React.FC = () => (
         />
       ))}
     </Folder>
+    <Still
+      id="MeeraSketchSheet"
+      component={SketchSheet}
+      width={1800}
+      height={2400}
+      calculateMetadata={calculateMetadata}
+    />
     <Folder name="Scenes">
       {scenes.map(([id, component, duration]) => (
         <Composition
