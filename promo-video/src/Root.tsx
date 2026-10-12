@@ -11,16 +11,19 @@ import { StyleBoard } from "./styleboard/StyleBoard";
 import { OptionsBoard } from "./options/OptionsBoard";
 import { PaintedBoard } from "./painted/PaintedBoard";
 import { SketchSheet } from "./sketch/SketchSheet";
+import { CastSheet } from "./cast/CastSheet";
 import { BedtimeVideo } from "./bedtime/BedtimeVideo";
 import { KnockVideo } from "./knock/KnockVideo";
 import { TOTAL as KNOCK_TOTAL } from "./knock/timeline";
 import { NaniVideo } from "./nani/NaniVideo";
+import { MeetingTest, TEST_TOTAL } from "./meeting/MeetingTest";
 import { TOTAL as NANI_TOTAL } from "./nani/timeline";
 import { TOTAL as BEDTIME_TOTAL } from "./bedtime/timeline";
 import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
 import { SHEET_H, SHEET_W } from "./storyboards/Board";
-import { IDEA_BOARDS } from "./storyboards/Ideas";
+import { IDEA_BOARDS, PRO_BOARDS } from "./storyboards/Ideas";
+import { PRO_H, PRO_W } from "./storyboards/ProBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
 const calculateMetadata = async () => {
@@ -118,12 +121,28 @@ export const RemotionRoot: React.FC = () => (
       calculateMetadata={calculateMetadata}
     />
     <Composition
+      id="MeetingAnimationTest"
+      component={MeetingTest}
+      durationInFrames={TEST_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
       id="TwoAmIdea"
       component={BedtimeVideo}
       durationInFrames={BEDTIME_TOTAL}
       fps={FPS}
       width={WIDTH}
       height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Still
+      id="CastSheet"
+      component={CastSheet}
+      width={2900}
+      height={1640}
       calculateMetadata={calculateMetadata}
     />
     <Folder name="Ideas">
@@ -134,6 +153,16 @@ export const RemotionRoot: React.FC = () => (
           component={component}
           width={SHEET_W}
           height={SHEET_H}
+          calculateMetadata={calculateMetadata}
+        />
+      ))}
+      {PRO_BOARDS.map(([id, component]) => (
+        <Still
+          key={id}
+          id={id}
+          component={component}
+          width={PRO_W}
+          height={PRO_H}
           calculateMetadata={calculateMetadata}
         />
       ))}

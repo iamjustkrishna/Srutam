@@ -1,5 +1,21 @@
 # Srutam promo videos
 
+## Cast v2: rig, lip-sync and pro storyboards
+
+- `src/cast/Rig.tsx`: `Actor` wraps Meera or any cast member with two-bone IK arms
+  (hand poses: point, open, fist, grip, thumb, phone), head tilt, breathing and
+  squash & stretch. `saccade()` and `blinkAt()` add idle eye life.
+- `src/cast/Mouth.tsx`: the nine Rhubarb mouth shapes (A-H, X) in the sketch style.
+- `scripts/lipsync-rhubarb.py`: runs [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync)
+  (free, MIT) on each voice line and writes one mouth shape per frame to
+  `src/<video>/visemes.ts`. English lines use the dialog text; Hindi lines use the
+  phonetic recognizer. `python scripts/lipsync-rhubarb.py path/to/rhubarb`
+- `src/cast/cast.ts`: Mr. Rao, Arjun, Neha, Prof. Iyer, Riya, Kabir. `CastSheet` still shows them.
+- `src/storyboards/ProBoard.tsx` + `Notation.tsx`: 10-panel boards with shot sizes,
+  camera moves (red), character action (orange), cuts, dialogue, sound and animation notes
+  (`IdeaMeetingV2`, `IdeaExamV2`).
+- `MeetingAnimationTest`: 13.6 s test of the "Who Said That?" climax with the new rig.
+
 ## "Knock Knock" (31 s, 1080x1920): `KnockKnock`
 
 Meera promises Ma a Sunday call, then binges a show. Next time she says it once to

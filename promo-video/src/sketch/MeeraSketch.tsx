@@ -3,6 +3,7 @@
 // blush, sketchy brown line art, cream knit sweater. Local box 600 x 800.
 import { useId } from "react";
 import { rand } from "../anim";
+import { Mouth, type Viseme } from "../cast/Mouth";
 import { quad, ribbon, type Pt } from "../options/shapes";
 
 export type SketchExpr =
@@ -35,6 +36,8 @@ type Props = {
   talk?: number;
   /** Hair sway, -1..1. */
   sway?: number;
+  /** Rhubarb mouth shape while speaking; overrides `talk`. X = the expression's own mouth. */
+  viseme?: Viseme;
 };
 
 export const MeeraSketch: React.FC<Props> = ({
@@ -48,6 +51,7 @@ export const MeeraSketch: React.FC<Props> = ({
   blink = false,
   talk = 0,
   sway = 0,
+  viseme,
 }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = (k: string) => `${k}${id}`;
@@ -693,7 +697,9 @@ export const MeeraSketch: React.FC<Props> = ({
           fill="#C9826A"
           opacity={0.5}
         />
-        {talk > 0.12 && !["drowsy", "sleep", "laugh"].includes(expr) ? (
+        {viseme && viseme !== "X" ? (
+          <Mouth shape={viseme} x={mx} y={452} />
+        ) : talk > 0.12 && !["drowsy", "sleep", "laugh"].includes(expr) ? (
           // Speaking: an open mouth sized by the voice's loudness (lip-sync)
           <g transform={`translate(${mx} 452)`}>
             <ellipse

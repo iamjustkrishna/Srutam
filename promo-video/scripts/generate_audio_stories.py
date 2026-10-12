@@ -316,6 +316,71 @@ def typing(sec, rate=13):
     return out
 
 
+# ---------- Who Said That? (animation test) ----------
+
+M_TEST = 405 * F
+
+
+def bam():
+    t = t_axis(0.8)
+    thump = np.sin(2 * np.pi * np.cumsum(140 * np.exp(-t * 18) + 45) / SR) * np.exp(-t * 7)
+    slap = shape(noise(0.8), 1800, "hp") * np.exp(-t * 60)
+    cups = sum(np.sin(2 * np.pi * f * t) * np.exp(-t * 12) for f in (1870, 2410, 3120)) * 0.15  # cups rattle
+    return thump + slap * 0.6 + cups * (t > 0.03)
+
+
+def boing(f0=330):
+    t = t_axis(0.6)
+    f = f0 * (1 + 0.9 * (1 - np.exp(-t * 8))) * (1 + 0.06 * np.sin(2 * np.pi * 14 * t))
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 5) * np.clip(t / 0.01, 0, 1)
+
+
+def scratch():
+    t = t_axis(0.55)
+    speed = np.sin(2 * np.pi * 3.2 * t) ** 2 * 2.2
+    n = noise(0.55)
+    src = np.interp(np.cumsum(speed) * 40 % len(n), np.arange(len(n)), n)
+    return shape(shape(src, 3500), 400, "hp") * np.clip(t / 0.02, 0, 1) * np.exp(-t * 2)
+
+
+def sting():
+    t = t_axis(2.2)
+    out = np.zeros_like(t)
+    for n in ("C2", "G2", "C3", "D#3", "G3"):
+        ph = 2 * np.pi * hz(n) * t
+        out += sum(np.sin(k * ph) / k for k in range(1, 9))
+    timp = np.sin(2 * np.pi * np.cumsum(90 + 40 * np.exp(-t * 10)) / SR) * np.exp(-t * 3)
+    return shape(out / 5, 2400) * np.exp(-t * 1.6) * np.clip(t / 0.01, 0, 1) + timp * 0.8
+
+
+def meeting_test_music():
+    buf = np.zeros(int((M_TEST + 1) * SR))
+    # Rising tension before the slam
+    t = t_axis(0.6)
+    place(buf, shape(noise(0.6), 300) * np.clip(t / 0.6, 0, 1) ** 2, 0.0, 0.5)
+    # After the shout: a comic pizzicato walk for "Her!" / "Him!"
+    beat = 60 / 132
+    at, i = 5.0, 0
+    for n in ["C3", "D#3", "G3", "F#3", "F3", "D#3", "C3", "G2"]:
+        place(buf, pizz(hz(n), 0.35), at + i * beat / 2, 0.5)
+        i += 1
+    # Meera takes over: a light, clever marimba groove in F
+    at = 7.6
+    notes = ["F5", "A5", "C6", "A5", "G5", "C6", "E6", "C6"]
+    i = 0
+    while at < 12.6:
+        place(buf, marimba(hz(notes[i % len(notes)]), 0.5), at, 0.22)
+        if i % 2 == 0:
+            place(buf, pizz(hz(["F2", "C3", "D3", "A#2"][(i // 4) % 4]), 0.45), at, 0.4)
+        at += beat / 2
+        i += 1
+    end = M_TEST - 12.0
+    res = pad(["F3", "C4", "A4", "G5"], end, 0.6, 0.2)
+    res *= np.linspace(1, 0, len(res)) ** 1.2
+    place(buf, shape(res, 3000), 12.0, 0.4)
+    return buf
+
+
 # ---------- lip-sync ----------
 
 
@@ -361,6 +426,12 @@ if __name__ == "__main__":
     write(PUB / "nani" / "sizzle.wav", sizzle(), 0.5)
     write(PUB / "nani" / "crackers.wav", crackers(), 0.6)
     write(PUB / "nani" / "typing.wav", typing(2.4), 0.5)
+    write(PUB / "meeting" / "bam.wav", bam(), 0.9)
+    write(PUB / "meeting" / "boing.wav", boing(), 0.6)
+    write(PUB / "meeting" / "boing-hi.wav", boing(440), 0.6)
+    write(PUB / "meeting" / "scratch.wav", scratch(), 0.6)
+    write(PUB / "meeting" / "sting.wav", sting(), 0.8)
+    write(PUB / "meeting" / "test-music.wav", meeting_test_music(), 0.6)
     vo = PUB / "voiceover"
     write_lipsync("knock", {
         **{p.stem: p for p in sorted((vo / "knock" / "meera").glob("k*.mp3"))},

@@ -21,6 +21,11 @@ LINES = [
     ("nani/nani/nani-smell", "hf_alpha", 0.86, -2.5, False, "नापना? अरे बेटा, खुशबू से पता चलता है!"),
     ("nani/nani/nani-recipe", "hf_alpha", 0.82, -2.5, True, "एक मुट्ठी गुड़, हर कटोरी बेसन के लिए... और थोड़ा सा प्यार. बस."),
     ("nani/nani/nani-mine", "hf_alpha", 0.88, -2.5, False, "अरे वाह! बिल्कुल मेरे जैसे!"),
+    # Who Said That? (office Hinglish, English captions)
+    ("meeting/rao/rao-who", "hm_omega", 1.0, -1.0, False, "चौदह तारीख? किसने हाँ बोला था चौदह तारीख को?!"),
+    ("meeting/arjun/arjun-her", "hm_psi", 1.05, 0.0, False, "इसने!"),
+    ("meeting/neha/neha-him", "hf_beta", 1.05, 0.0, False, "इसने!"),
+    ("meeting/rao/rao-recording", "hm_omega", 0.95, -1.0, True, "ठीक है, चौदह तारीख फाइनल."),
 ]
 
 
