@@ -7,7 +7,7 @@ normalized to the same loudness so the options compare fairly.
 The "premium" set is stereo and FM-synthesized (bells, electric piano, a
 voice-like hum), with a richer feedback-delay-network reverb.
 
-Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium|pop|iphone]
+Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium|pop|iphone|knock]
 """
 import sys
 from pathlib import Path
@@ -647,6 +647,61 @@ def hello():
     return tight(buf, 0.95)
 
 
+def knuckle(f=430, sec=0.22, soft=1.0):
+    """A knuckle on a wooden door: low, round modes with a soft (not instant) attack."""
+    t = t_axis(sec)
+    modes = ((1.0, 1.0, 26), (1.59, 0.55, 42), (2.31, 0.14 / soft, 70))
+    body = sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-t * d) for r, a, d in modes)
+    thump = 0.5 * np.sin(2 * np.pi * np.cumsum(170 + 90 * np.exp(-t * 60)) / SR) * np.exp(-t * 30)
+    grain = lowpass(np.random.default_rng(10).standard_normal(len(t)), 900) * np.exp(-t * 180) * 0.12 / soft
+    attack = 0.5 - 0.5 * np.cos(np.pi * np.clip(t / (0.0025 * soft), 0, 1))
+    return (body + thump + grain) * attack
+
+
+def felt_block(f=620, sec=0.2):
+    """A felt mallet on a woodblock: two modes, no noise, a slow 4 ms attack."""
+    t = t_axis(sec)
+    body = np.sin(2 * np.pi * f * t) * np.exp(-t * 30) + 0.25 * np.sin(2 * np.pi * f * 2.42 * t) * np.exp(-t * 55)
+    return body * (0.5 - 0.5 * np.cos(np.pi * np.clip(t / 0.004, 0, 1)))
+
+
+def knock_door():
+    """Knock, refined: two warm knuckle knocks on a door, then the note."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    place2(buf, pan(knuckle(430), -0.08), 0.0, 1.0)
+    place2(buf, pan(knuckle(415), 0.08), 0.15, 0.85)
+    place2(buf, pan(mallet(hz("G6"), 0.85, 0.7, 5), 0.0), 0.33, 0.55)
+    place2(buf, pan(mallet(hz("D6"), 0.85, 0.5, 5), 0.0), 0.33, 0.25)
+    return tight(buf, 1.15, 0.5, 0.1)
+
+
+def knock_felt():
+    """Knock, softest: felt-mallet woodblock taps, then a warm felt-piano note."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    place2(buf, pan(felt_block(620), -0.08), 0.0, 1.0)
+    place2(buf, pan(felt_block(600), 0.08), 0.14, 0.85)
+    place2(buf, pan(felt_piano(hz("G6"), 0.9, 0.8), 0.0), 0.31, 0.6)
+    place2(buf, pan(felt_piano(hz("D6"), 0.9, 0.6), 0.0), 0.31, 0.25)
+    return tight(buf, 1.15, 0.55, 0.12)
+
+
+def knock_tune():
+    """Knock, musical: the knocks are pitched marimba taps that lead into the note (tok-tok-ding)."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    place2(buf, pan(marimba(hz("D5"), 0.3), -0.08), 0.0, 0.85)
+    place2(buf, pan(marimba(hz("D5"), 0.3), 0.08), 0.14, 0.75)
+    place2(buf, pan(mallet(hz("G6"), 0.85, 0.7, 5), 0.0), 0.3, 0.6)
+    place2(buf, pan(marimba(hz("G5"), 0.6), 0.0), 0.3, 0.3)
+    return tight(buf, 1.1, 0.5, 0.1)
+
+
+KNOCK = {
+    "a6-knock": knock,
+    "k1-door": knock_door,
+    "k2-felt": knock_felt,
+    "k3-tune": knock_tune,
+}
+
 IPHONE = {
     "a1-trio": trio,
     "a2-felt": felt,
@@ -662,7 +717,7 @@ if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "reminder-tones")
     which = sys.argv[2] if len(sys.argv) > 2 else "classic"
     out.mkdir(parents=True, exist_ok=True)
-    sets = {"classic": OPTIONS, "premium": PREMIUM, "pop": POP, "iphone": IPHONE}
+    sets = {"classic": OPTIONS, "premium": PREMIUM, "pop": POP, "iphone": IPHONE, "knock": KNOCK}
     for name, fn in sets[which].items():
         x = fn()
         sf.write(out / f"{name}.wav", x.astype(np.float32), SR, subtype="PCM_16")
