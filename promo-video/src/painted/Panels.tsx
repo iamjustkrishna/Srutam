@@ -9,7 +9,7 @@ import {
   SrutamHeader,
 } from "../components/AppUI";
 import { rand } from "../anim";
-import { Meera } from "../spirit/Meera";
+import { MeeraHD as Meera } from "../spirit/MeeraHD";
 import { Firefly, Head, Shru } from "../spirit/Shru";
 import { SpeedLines, Sparkle } from "../styleboard/FX";
 import {

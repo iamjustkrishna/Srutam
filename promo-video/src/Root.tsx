@@ -10,6 +10,7 @@ import { SparkStory } from "./SparkStory";
 import { StyleBoard } from "./styleboard/StyleBoard";
 import { OptionsBoard } from "./options/OptionsBoard";
 import { PaintedBoard } from "./painted/PaintedBoard";
+import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
@@ -66,6 +67,22 @@ export const RemotionRoot: React.FC = () => (
       height={1590}
       calculateMetadata={calculateMetadata}
     />
+    <Folder name="Painted-Panels">
+      {PANELS.map((Panel, i) => (
+        <Still
+          key={i}
+          id={`Painted${String(i + 1).padStart(2, "0")}`}
+          component={() => (
+            <svg viewBox="0 0 1600 900" width={1600} height={900}>
+              <Panel />
+            </svg>
+          )}
+          width={1600}
+          height={900}
+          calculateMetadata={calculateMetadata}
+        />
+      ))}
+    </Folder>
     <Folder name="Scenes">
       {scenes.map(([id, component, duration]) => (
         <Composition
