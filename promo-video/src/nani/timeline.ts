@@ -15,7 +15,7 @@ export const SCENES = {
 
 export const BEAT = {
   shade: 252, // Quick Settings pulls down
-  tile: 320, // "Voice Record" tapped
+  tile: 330, // "Voice Record" tapped, on "listen"
   gur: 516, // "...and how much gur goes in?!"
   qStart: 612,
   qEnd: 680,
@@ -32,7 +32,7 @@ const N = "voiceover/nani/nani";
 export const VO: (Line & { src: string })[] = [
   { file: "n1-never", at: 14, frames: 82, src: `${M}/n1-never.mp3` },
   { file: "nani-smell", at: 108, frames: 126, src: `${N}/nani-smell.wav` },
-  { file: "n2-listen", at: 252, frames: 77, src: `${M}/n2-listen.mp3` },
+  { file: "n2-listen", at: 252, frames: 100, src: `${M}/n2-listen.mp3` },
   { file: "n3-diwali", at: 398, frames: 191, src: `${M}/n3-diwali.mp3` },
   { file: "n4-ask", at: 612, frames: 73, src: `${M}/n4-ask.mp3` },
   { file: "nani-recipe", at: 800, frames: 197, src: `${N}/nani-recipe.wav` },
@@ -57,7 +57,7 @@ export const SFX: Cue[] = [
 export const CAPTIONS: CaptionCue[] = [
   { from: 14, to: 96, text: "My Nani never measured anything." },
   { from: 108, to: 234, text: "“Measure? Arre beta, you go by the smell!”" },
-  { from: 252, to: 329, text: "So one Sunday, I let my phone listen." },
+  { from: 252, to: 352, text: "So one Sunday, I let Srutam listen." },
   { from: 403, to: 502, text: "This Diwali, I'm 1,400 km away…" },
   { from: BEAT.gur, to: 571, text: "…and how much gur goes in?!" },
   { from: 800, to: 931, text: "“One fistful of gur for every bowl of besan…”" },

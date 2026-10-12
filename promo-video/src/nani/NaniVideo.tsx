@@ -118,7 +118,7 @@ const Kitchen: React.FC = () => {
   );
 };
 
-/* 2. "So one Sunday, I let my phone listen." Quick Settings, Voice Record. */
+/* 2. "So one Sunday, I let Srutam listen." Quick Settings, Voice Record. */
 const Listen: React.FC = () => {
   const f = useCurrentFrame() + SCENES.listen.from;
   const shade = interpolate(f, [BEAT.shade, BEAT.shade + 16], [-100, 0], { ...clamp, easing: easeOut });

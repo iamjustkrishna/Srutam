@@ -66,7 +66,7 @@ export const N2: React.FC = () => (
       <QuickSettings w={620} recording />
     </Phone>
     <GripHand x={470} y={1780} s={1.4} rot={2} />
-    <Caption text="So one Sunday, I let my phone listen." y={60} />
+    <Caption text="So one Sunday, I let Srutam listen." y={60} />
   </Frame>
 );
 
@@ -143,7 +143,7 @@ export const NANI_IDEA = {
   length: "40 s",
   beats: [
     { t: "0–4 s", title: "Hook", vo: "“Measure? Beta, you go by smell!”", sfx: "Sizzling ghee, steel spoon on kadhai", Panel: N1 },
-    { t: "4–9 s", title: "Let it listen", vo: "So one Sunday, I let my phone listen.", sfx: "Pull down Quick Settings · tap “Voice Record”", Panel: N2 },
+    { t: "4–9 s", title: "Let it listen", vo: "So one Sunday, I let Srutam listen.", sfx: "Pull down Quick Settings · tap “Voice Record”", Panel: N2 },
     { t: "9–15 s", title: "Far from home", vo: "Diwali. 1,400 km from Nani's kitchen. How much gud?!", sfx: "Distant crackers, quiet flat", Panel: N3 },
     { t: "15–22 s", title: "Ask", vo: "“How much jaggery did Nani put in the laddoos?”", sfx: "Answer types in · Referenced Notes pill", Panel: N4 },
     { t: "22–30 s", title: "Her voice", vo: "Nani (recording): “…aur thoda sa pyaar. Bas.”", sfx: "Nani's real voice from the note · music swells", Panel: N5 },

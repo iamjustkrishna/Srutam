@@ -3,7 +3,9 @@
 // ReminderAlarmReceiver.kt, GlobalCopilotScreen.kt, QuickRecordingTileService.kt
 // and the Insights screen).
 import { useId } from "react";
+import { Img } from "remotion";
 import { BellIcon, BulbIcon, LockIcon, MicIcon, WaveIcon } from "../components/Icons";
+import { LOGO } from "../spirit/logoData";
 import { C } from "../theme";
 
 export const W = 1080;
@@ -356,7 +358,7 @@ export const QuickSettings: React.FC<{ w: number; recording?: boolean }> = ({ w,
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 * k }}>
         {tile("Wi-Fi", true, <span>📶</span>, 0)}
         {tile("Bluetooth", false, <span>🎧</span>, 1)}
-        {tile(recording ? "Recording..." : "Voice Record", recording, <MicIcon size={30 * k} color={recording ? C.crimson : "#E2E8F0"} />, 2)}
+        {tile(recording ? "Recording..." : "Voice Record", recording, <Img src={LOGO} style={{ width: 40 * k, height: 40 * k }} />, 2)}
         {tile("Torch", false, <span>🔦</span>, 3)}
         {tile("Do not disturb", false, <span>🌙</span>, 4)}
         {tile("Rotate", false, <span>🔄</span>, 5)}

@@ -3,7 +3,7 @@
   "outDir": "voiceover/nani/meera",
   "lines": [
     ["n1-never", "[warm, smiling] My Nani never measured anything."],
-    ["n2-listen", "So one Sunday, I let my phone listen."],
+    ["n2-listen", "[warm] So one Sunday, I let Shrutam listen."],
     ["n3-diwali", "[softly] This Diwali, I'm fourteen hundred kilometres away... [worried] and how much gud goes in?!"],
     ["n4-ask", "How much jaggery did Nani put in the laddoos?"],
     ["n5-end", "[warm] Keep the recipe. Keep the voice."]
