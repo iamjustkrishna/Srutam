@@ -8,6 +8,7 @@ import { Insights } from "./scenes/Insights";
 import { Lost } from "./scenes/Lost";
 import { SparkStory } from "./SparkStory";
 import { StyleBoard } from "./styleboard/StyleBoard";
+import { OptionsBoard } from "./options/OptionsBoard";
 import { SpiritBoard } from "./spirit/SpiritBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
@@ -48,6 +49,13 @@ export const RemotionRoot: React.FC = () => (
       component={SpiritBoard}
       width={2480}
       height={2800}
+      calculateMetadata={calculateMetadata}
+    />
+    <Still
+      id="HeroOptions"
+      component={OptionsBoard}
+      width={2500}
+      height={2560}
       calculateMetadata={calculateMetadata}
     />
     <Folder name="Scenes">
