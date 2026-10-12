@@ -60,12 +60,12 @@ export const BEAT = {
 const V = "voiceover/exam";
 export const VO: (Line & { src: string })[] = [
   { file: "e-forgot", at: 16, frames: 108, src: `${V}/meera/e-forgot.mp3` },
-  { file: "prof-lecture", at: 270, frames: 66, src: `${V}/prof/prof-lecture.wav` },
+  { file: "prof-lecture", at: 270, frames: 74, src: `${V}/prof/prof-lecture.wav` },
   { file: "e-asleep", at: 304, frames: 98, src: `${V}/meera/e-asleep.mp3` },
   { file: "e-ask", at: 424, frames: 68, src: `${V}/meera/e-ask.mp3` },
-  { file: "prof-recording", at: BEAT.play, frames: 186, src: `${V}/prof/prof-recording.wav` },
-  { file: "kabir-chai", at: 882, frames: 30, src: `${V}/kabir/kabir-chai.wav` },
-  { file: "riya-study", at: 914, frames: 42, src: `${V}/riya/riya-study.wav` },
+  { file: "prof-recording", at: BEAT.play, frames: 189, src: `${V}/prof/prof-recording.wav` },
+  { file: "kabir-chai", at: 882, frames: 28, src: `${V}/kabir/kabir-chai.wav` },
+  { file: "riya-study", at: 914, frames: 39, src: `${V}/riya/riya-study.wav` },
   { file: "e-tagline", at: 1206, frames: 75, src: `${V}/meera/e-tagline.mp3` },
 ];
 
@@ -103,7 +103,7 @@ export const CAPTIONS: CaptionCue[] = [
   { from: 16, to: 124, text: "Exam at nine. And I forgot what Prof said." },
   { from: 304, to: 402, text: "Half the class was asleep. Srutam wasn't." },
   { from: 424, to: 492, text: "“What did Prof say will be on the exam?”" },
-  { from: BEAT.play, to: 762, text: "▶ Econ lecture · “In Thursday's exam: chapters 4 and 7, and the metro case study. Twenty marks.”", top: true },
+  { from: BEAT.play, to: 765, text: "▶ Econ lecture · “In Thursday's exam: chapters 4 and 7, and the metro case study. Twenty marks.”", top: true },
   { from: 882, to: 912, text: "“Chai's here!”" },
   { from: 914, to: 956, text: "“Come on, let's start!”" },
 ];
