@@ -4,7 +4,10 @@ Each tone is short (about 1-2 s), melodic, starts immediately, rings out
 into a soft synthetic room and fades to true silence (no click), and is
 normalized to the same loudness so the options compare fairly.
 
-Usage: python scripts/generate_reminder_tones.py <out_dir>
+The "premium" set is stereo and FM-synthesized (bells, electric piano, a
+voice-like hum), with a richer feedback-delay-network reverb.
+
+Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium]
 """
 import sys
 from pathlib import Path
@@ -195,10 +198,212 @@ OPTIONS = {
     "6-echo": echo,
 }
 
+# ---------- premium set: stereo, FM, airy ----------
+
+
+def fm(fc, ratio, index, idx_decay, amp_decay, sec, attack=0.002):
+    """Two-operator FM voice: bells (non-integer ratio) or electric piano (1:1)."""
+    t = t_axis(sec)
+    mod = index * np.exp(-t * idx_decay) * np.sin(2 * np.pi * fc * ratio * t)
+    return np.sin(2 * np.pi * fc * t + mod) * np.exp(-t * amp_decay) * np.clip(t / attack, 0, 1)
+
+
+def epiano(f, sec=1.6, vel=1.0):
+    """Warm FM electric piano with a glassy tine at the attack."""
+    t = t_axis(sec)
+    body = fm(f, 1.0, 1.6 * vel, 5.5, 2.4, sec)
+    tine = 0.16 * vel * np.sin(2 * np.pi * f * 14 * t) * np.exp(-t * 70)
+    return body + tine
+
+
+def fm_bell(f, sec=1.6, bright=1.0):
+    return fm(f, 3.5, 2.2 * bright, 3.0, 2.6, sec) + 0.35 * fm(f * 2.0, 1.41, 1.0 * bright, 6, 4.0, sec)
+
+
+def tactile(sec=0.012, cutoff=7000):
+    """A tiny high transient, the "click" that makes a tone feel physical."""
+    t = t_axis(sec)
+    noise = np.random.default_rng(5).standard_normal(len(t))
+    return (noise - lowpass(noise, cutoff)) * np.exp(-t * 700)
+
+
+def fdn(x, seconds=1.4, mix=0.25, damp=0.45):
+    """Stereo 8-line feedback delay network reverb (Hadamard mixing).
+
+    x may be mono or stereo; the dry signal keeps its own panning.
+    """
+    lines = [1031, 1327, 1523, 1801, 2053, 2311, 2591, 2833]
+    n = len(x) + int(seconds * SR)
+    pad = np.zeros(int(seconds * SR))
+    stereo_in = x if x.ndim == 2 else np.stack([x, x], 1)
+    dry = np.concatenate([stereo_in, np.stack([pad, pad], 1)])
+    src = dry.mean(axis=1)
+    g = 10 ** (-3 * np.mean(lines) / (seconds * SR))  # ~60 dB decay over `seconds`
+    h = np.array([[1]])
+    while h.shape[0] < 8:
+        h = np.block([[h, h], [h, -h]])
+    h = h / np.sqrt(8)
+    bufs = [np.zeros(d) for d in lines]
+    idx = [0] * 8
+    lp = np.zeros(8)
+    left = np.zeros(n)
+    right = np.zeros(n)
+    for i in range(n):
+        outs = np.array([bufs[k][idx[k]] for k in range(8)])
+        lp = (1 - damp) * outs + damp * lp
+        fb = h @ lp * g
+        for k in range(8):
+            bufs[k][idx[k]] = src[i] * 0.35 + fb[k]
+            idx[k] = (idx[k] + 1) % lines[k]
+        left[i] = outs[0] + outs[2] + outs[4] + outs[6]
+        right[i] = outs[1] + outs[3] + outs[5] + outs[7]
+    wet = np.stack([left, right], 1)
+    wet /= max(1e-9, np.max(np.abs(wet)))
+    dry = dry / max(1e-9, np.max(np.abs(dry)))
+    return (1 - mix) * dry + mix * wet
+
+
+def pan(x, p):
+    """Equal-power pan of a mono clip, p in [-1, 1]."""
+    a = (p + 1) * np.pi / 4
+    return np.stack([x * np.cos(a), x * np.sin(a)], 1)
+
+
+def place2(buf, clip, at, gain=1.0):
+    i = int(at * SR)
+    j = min(len(buf), i + len(clip))
+    buf[i:j] += clip[: j - i] * gain
+
+
+def master(x, length, loud_window=None):
+    x = x[: int(length * SR)].copy()
+    x = np.tanh(1.15 * x / max(1e-9, np.max(np.abs(x)))) / np.tanh(1.15)
+    fade = int(0.3 * SR)
+    x[-fade:] *= (np.linspace(1, 0, fade) ** 2)[:, None]
+    x[-int(0.01 * SR):] = 0.0
+    a, b = loud_window or (0.0, 0.4)
+    win = x[int(a * SR): int(b * SR)]
+    x *= 10 ** (-13 / 20) / max(1e-9, np.sqrt(np.mean(win**2)))
+    peak = np.max(np.abs(x))
+    if peak > 10 ** (-1 / 20):
+        x *= 10 ** (-1 / 20) / peak
+    return x
+
+
+def surface():
+    """A thought surfacing: a reversed swell that blooms into a Cmaj9 bell chord."""
+    chord = ["C5", "E5", "G5", "B5", "D6"]
+    hit = np.zeros(int(1.8 * SR))
+    for i, n in enumerate(chord):
+        place(hit, fm_bell(hz(n), 1.8, 0.8), i * 0.012, 0.8)
+    tail = fdn(hit, 1.2, mix=1.0)[:, 0]
+    swell = tail[: int(0.42 * SR)][::-1] * np.linspace(0, 1, int(0.42 * SR)) ** 2
+    buf = np.zeros((int(2.4 * SR), 2))
+    place2(buf, pan(swell, 0.0), 0.0, 0.5)
+    for i, n in enumerate(chord):
+        place2(buf, pan(fm_bell(hz(n), 1.8, 0.8), -0.6 + i * 0.3), 0.42 + i * 0.012, 0.8)
+    place2(buf, pan(tactile(), 0.0), 0.42, 0.25)
+    return master(fdn(buf, 1.4, 0.3), 2.2, (0.4, 0.8))
+
+
+def droplet():
+    """A memory resurfacing: a water-drop glide that ripples left and right."""
+    t = t_axis(0.5)
+    f = 650 + 900 * np.exp(-t * 55)
+    drop = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 9) * np.clip(t / 0.001, 0, 1)
+    buf = np.zeros((int(1.4 * SR), 2))
+    for i, (p, g) in enumerate(((0.0, 1.0), (-0.7, 0.45), (0.7, 0.25), (-0.4, 0.12))):
+        place2(buf, pan(lowpass(drop, 12000 / (1 + i)), p), i * 0.16, g)
+    place2(buf, pan(fm_bell(hz("E6"), 0.9, 0.4), 0.0), 0.02, 0.18)
+    return master(fdn(buf, 1.0, 0.18), 1.3)
+
+
+def hum():
+    """A voice app should answer like a voice: a soft, warm "mm-hm".
+
+    Uses a recorded hum when REMINDER_HUM_VOICE points to a WAV (the shipped
+    tone uses one from ElevenLabs); otherwise falls back to a synthesized hum.
+    """
+    import os
+
+    path = os.environ.get("REMINDER_HUM_VOICE")
+    if path and Path(path).exists():
+        voice, vsr = sf.read(path)
+        if voice.ndim == 2:
+            voice = voice.mean(axis=1)
+        if vsr != SR:
+            voice = np.interp(np.arange(int(len(voice) * SR / vsr)) * vsr / SR, np.arange(len(voice)), voice)
+        voice = voice / max(1e-9, np.max(np.abs(voice)))
+        lead = 0.0
+    else:
+        sec = 0.8
+        t = t_axis(sec)
+        pitch = np.where(t < 0.2, 205 + 10 * t, np.where(t < 0.26, 0, 185 + 140 * np.clip((t - 0.26) / 0.34, 0, 1)))
+        phase = np.cumsum(pitch) / SR
+        src = sum(np.sin(2 * np.pi * k * phase) / k**1.4 for k in range(1, 30))
+        gate = np.where(t < 0.2, np.clip(t / 0.03, 0, 1) * np.clip((0.2 - t) / 0.03, 0, 1), 0)
+        gate += np.where((t > 0.26) & (t < 0.62), np.clip((t - 0.26) / 0.03, 0, 1) * np.clip((0.62 - t) / 0.08, 0, 1), 0)
+        v = src * gate
+        voice = lowpass(v, 420) + (lowpass(v, 2600) - lowpass(v, 1900)) * 0.6
+        voice /= max(1e-9, np.max(np.abs(voice)))
+        lead = 0.0
+    buf = np.zeros((int(1.4 * SR), 2))
+    place2(buf, pan(voice, -0.12), lead, 1.0)
+    place2(buf, pan(voice, 0.12), lead + 0.008, 0.85)  # Haas widening
+    place2(buf, pan(epiano(hz("E5"), 1.0, 0.5), -0.35), 0.02, 0.22)
+    place2(buf, pan(epiano(hz("B5"), 1.1, 0.6), 0.35), 0.3, 0.3)
+    return master(fdn(buf, 0.9, 0.15), 1.3)
+
+
+def signature():
+    """Srutam's sonic logo: "shru-TAM", short then long, rising a fifth, with the logo's waveform bars as a tiny arpeggio."""
+    buf = np.zeros((int(2.0 * SR), 2))
+    for i, n in enumerate(["G6", "B6", "D7", "G7"]):
+        place2(buf, pan(fm_bell(hz(n), 0.4, 0.5), -0.6 + i * 0.4), i * 0.022, 0.12)
+    place2(buf, pan(epiano(hz("G5"), 0.6, 0.8), -0.25), 0.1, 0.8)
+    place2(buf, pan(epiano(hz("D6"), 1.7, 1.0), 0.25), 0.28, 1.0)
+    place2(buf, pan(epiano(hz("D5"), 1.7, 0.6), 0.0), 0.28, 0.4)
+    place2(buf, pan(fm_bell(hz("D7"), 1.5, 0.4), 0.5), 0.3, 0.12)
+    return master(fdn(buf, 1.3, 0.25), 1.9)
+
+
+def glass():
+    """Two crisp FM glass taps, wide and airy."""
+    buf = np.zeros((int(1.4 * SR), 2))
+    place2(buf, pan(fm_bell(hz("C7"), 1.0, 1.0), -0.5), 0.0, 0.8)
+    place2(buf, pan(tactile(), -0.5), 0.0, 0.3)
+    place2(buf, pan(fm_bell(hz("G6"), 1.2, 1.0), 0.5), 0.12, 1.0)
+    place2(buf, pan(tactile(), 0.5), 0.12, 0.3)
+    place2(buf, pan(fm(hz("G4"), 1.0, 0.4, 4, 5, 0.6), 0.0), 0.12, 0.2)
+    return master(fdn(buf, 1.1, 0.3), 1.3)
+
+
+def halo():
+    """A fast, shimmering major-seventh strum: bright, open, modern."""
+    buf = np.zeros((int(1.9 * SR), 2))
+    notes = ["C5", "E5", "G5", "B5", "E6"]
+    for i, n in enumerate(notes):
+        place2(buf, pan(epiano(hz(n), 1.6, 0.7) + 0.5 * fm_bell(hz(n) * 2, 1.6, 0.5), -0.8 + i * 0.4), i * 0.028, 0.7)
+    t = t_axis(1.4)  # shimmer: octave-up air that blooms after the strum
+    shimmer = sum(np.sin(2 * np.pi * hz(n) * 4 * t) for n in notes) * np.clip(t / 0.35, 0, 1) * np.exp(-t * 2.2)
+    place2(buf, pan(shimmer, 0.0), 0.1, 0.05)
+    return master(fdn(buf, 1.5, 0.3), 1.8)
+
+
+PREMIUM = {
+    "p1-surface": surface,
+    "p2-droplet": droplet,
+    "p3-hum": hum,
+    "p4-signature": signature,
+    "p5-glass": glass,
+    "p6-halo": halo,
+}
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "reminder-tones")
+    which = sys.argv[2] if len(sys.argv) > 2 else "classic"
     out.mkdir(parents=True, exist_ok=True)
-    for name, fn in OPTIONS.items():
+    for name, fn in (PREMIUM if which == "premium" else OPTIONS).items():
         x = fn()
         sf.write(out / f"{name}.wav", x.astype(np.float32), SR, subtype="PCM_16")
         print(f"{name}: {len(x) / SR:.2f}s peak {20 * np.log10(np.max(np.abs(x))):.1f} dBFS")
