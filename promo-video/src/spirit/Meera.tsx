@@ -3,7 +3,7 @@ import { useId } from "react";
 export type MeeraExpr = "awe" | "smile" | "focus";
 type Light = "sunset" | "night";
 
-const LINE = "#2A1A22";
+const DEFAULT_INK = "#2A1A22";
 const HAIR = "#2A2050";
 const HAIR_DARK = "#140F2A";
 
@@ -19,7 +19,18 @@ export const Meera: React.FC<{
   expr?: MeeraExpr;
   light?: Light;
   look?: number;
-}> = ({ x, y, s, expr = "awe", light = "sunset", look = -1 }) => {
+  /** Line-art color; the painted style uses a softer, warmer ink. */
+  ink?: string;
+}> = ({
+  x,
+  y,
+  s,
+  expr = "awe",
+  light = "sunset",
+  look = -1,
+  ink = DEFAULT_INK,
+}) => {
+  const LINE = ink;
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const skin = "#F3C9A8";
   const skinShade = light === "sunset" ? "#C98F7A" : "#8E8AB8";

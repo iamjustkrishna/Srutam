@@ -27,4 +27,15 @@ export const fontsReady = Promise.all([
     family: "Tiro Devanagari Sanskrit",
     url: staticFile("fonts/TiroDevanagariSanskrit-Regular.woff2"),
   }),
+  // Kalam (SIL OFL), a handwritten face from the Indian Type Foundry
+  loadFont({
+    family: "Kalam",
+    url: staticFile("fonts/Kalam-Regular.woff2"),
+    weight: "400",
+  }),
+  loadFont({
+    family: "Kalam",
+    url: staticFile("fonts/Kalam-Bold.woff2"),
+    weight: "700",
+  }),
 ]);
