@@ -1,4 +1,4 @@
-import { Composition, Folder } from "remotion";
+import { Composition, Folder, Still } from "remotion";
 import { fontsReady } from "./fonts";
 import { Catch } from "./scenes/Catch";
 import { Connect } from "./scenes/Connect";
@@ -7,6 +7,7 @@ import { Hook } from "./scenes/Hook";
 import { Insights } from "./scenes/Insights";
 import { Lost } from "./scenes/Lost";
 import { SparkStory } from "./SparkStory";
+import { StyleBoard } from "./styleboard/StyleBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
 const calculateMetadata = async () => {
@@ -32,6 +33,13 @@ export const RemotionRoot: React.FC = () => (
       fps={FPS}
       width={WIDTH}
       height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Still
+      id="AnimeStyleBoard"
+      component={StyleBoard}
+      width={2200}
+      height={2660}
       calculateMetadata={calculateMetadata}
     />
     <Folder name="Scenes">
