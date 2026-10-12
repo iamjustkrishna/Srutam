@@ -7,7 +7,7 @@ normalized to the same loudness so the options compare fairly.
 The "premium" set is stereo and FM-synthesized (bells, electric piano, a
 voice-like hum), with a richer feedback-delay-network reverb.
 
-Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium]
+Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium|pop]
 """
 import sys
 from pathlib import Path
@@ -399,11 +399,135 @@ PREMIUM = {
     "p6-halo": halo,
 }
 
+# ---------- pop set: short, bouncy, punchy ----------
+
+
+def bubble(f, sec=0.35, rise=0.45):
+    """A bubbly "bloop": a sine that swoops up into its note, the classic pop-app sound."""
+    t = t_axis(sec)
+    freq = f * (1 - rise * np.exp(-t * 80)) * (1 + 0.05 * t)
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    tone = np.sin(phase) + 0.18 * np.sin(2 * phase)
+    return tone * np.exp(-t * 13) * np.clip(t / 0.002, 0, 1)
+
+
+def synth_pluck(f, sec=0.6, bright=1.0, odd_only=False, detune=0.0):
+    """Pop-synth pluck: a saw (or square) whose upper harmonics close fast, like a filter envelope."""
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    k = 1
+    while f * k < 12000 and k <= 24:
+        if not odd_only or k % 2:
+            out += np.sin(2 * np.pi * f * (1 + detune) * k * t) / k * np.exp(-t * (6 + 9 * k / bright))
+        k += 1
+    return out * np.clip(t / 0.0015, 0, 1)
+
+
+def thump(sec=0.25, f0=190, f1=85):
+    """A short pitched punch under the main note: felt on headphones, harmless on a phone speaker."""
+    t = t_axis(sec)
+    freq = f1 + (f0 - f1) * np.exp(-t * 35)
+    return np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 16)
+
+
+def mouth_pop():
+    """A cheek pop: a fast upward swoop with a tiny click."""
+    t = t_axis(0.09)
+    freq = 260 + 900 * (1 - np.exp(-t * 120))
+    tone = np.sin(2 * np.pi * np.cumsum(freq) / SR) * np.exp(-t * 45) * np.clip(t / 0.001, 0, 1)
+    tone[: len(tactile())] += tactile() * 0.4
+    return tone
+
+
+def stereo_pluck(f, sec=0.6, bright=1.0, odd_only=False, width=0.0012):
+    """A centred pluck plus a slightly detuned one per side: wide, and still solid in mono."""
+    mid = synth_pluck(f, sec, bright, odd_only)
+    left = synth_pluck(f, sec, bright, odd_only, -width)
+    right = synth_pluck(f, sec, bright, odd_only, width)
+    return np.stack([mid + 0.5 * left, mid + 0.5 * right], 1) / 1.5
+
+
+def bloop():
+    """Two bubbles rising a fifth: bloop-BLOOP."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    place2(buf, pan(bubble(hz("A5")), -0.3), 0.0, 0.8)
+    place2(buf, pan(bubble(hz("E6"), 0.5), 0.3), 0.13, 1.0)
+    place2(buf, pan(bubble(hz("E7"), 0.25, 0.3), 0.5), 0.15, 0.12)
+    return master(fdn(buf, 0.6, 0.12), 0.9)
+
+
+def bounce():
+    """A ball bouncing upward: marimba hits that rise and speed up."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    hits = [(0.0, "C6", -0.4), (0.17, "E6", -0.15), (0.29, "G6", 0.15), (0.37, "C7", 0.4)]
+    for at, n, p in hits:
+        place2(buf, pan(marimba(hz(n), 0.8), p), at, 0.9)
+        place2(buf, pan(tactile(), p), at, 0.15)
+    place2(buf, pan(bubble(hz("C7"), 0.4, 0.25), 0.4), 0.37, 0.25)
+    return master(fdn(buf, 0.7, 0.14), 1.1)
+
+
+def tada():
+    """Ta-da-da-DAH: a bright pop-synth arpeggio landing on an accented octave."""
+    buf = np.zeros((int(1.3 * SR), 2))
+    for i, n in enumerate(["C5", "E5", "G5"]):
+        place2(buf, stereo_pluck(hz(n), 0.35, 0.8), i * 0.06, 0.55)
+    place2(buf, stereo_pluck(hz("C6"), 0.9, 1.4), 0.2, 0.9)
+    place2(buf, stereo_pluck(hz("G6"), 0.7, 1.0), 0.2, 0.25)
+    place2(buf, pan(thump(), 0.0), 0.2, 0.3)
+    place2(buf, pan(fm_bell(hz("C7"), 0.8, 0.5), 0.3), 0.21, 0.12)
+    return master(fdn(buf, 0.8, 0.15), 1.2, (0.15, 0.55))
+
+
+def pop_ding():
+    """Pop! then a bright ding: a cheek pop that opens into a bell."""
+    buf = np.zeros((int(1.4 * SR), 2))
+    place2(buf, pan(mouth_pop(), -0.2), 0.0, 0.9)
+    place2(buf, pan(fm_bell(hz("E6"), 1.2, 0.9), 0.2), 0.1, 0.8)
+    place2(buf, pan(epiano(hz("B5"), 1.1, 0.7), -0.2), 0.1, 0.5)
+    place2(buf, pan(tactile(), 0.2), 0.1, 0.2)
+    return master(fdn(buf, 0.9, 0.18), 1.2)
+
+
+def popcorn():
+    """Popcorn: tiny pentatonic pops skipping across the stereo field, then one big pop."""
+    rng = np.random.default_rng(23)
+    buf = np.zeros((int(1.2 * SR), 2))
+    notes = ["E6", "G6", "A6", "C7", "D7", "G6"]
+    at = 0.0
+    for i, n in enumerate(notes):
+        place2(buf, pan(bubble(hz(n), 0.18, 0.5), rng.uniform(-0.8, 0.8)), at, 0.45)
+        at += rng.uniform(0.045, 0.075)
+    place2(buf, pan(bubble(hz("C6"), 0.55, 0.5), 0.0), at + 0.04, 1.0)
+    place2(buf, stereo_pluck(hz("C5"), 0.6, 0.8), at + 0.04, 0.35)
+    return master(fdn(buf, 0.6, 0.12), 1.1, (0.2, 0.6))
+
+
+def bip_bop():
+    """Bip-BOP on the "Shru-tam" rhythm: a soft square pluck with a punch, rising a fifth."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    place2(buf, stereo_pluck(hz("G5"), 0.18, 0.7, odd_only=True), 0.0, 0.7)
+    place2(buf, stereo_pluck(hz("D6"), 0.75, 1.0, odd_only=True), 0.15, 1.0)
+    place2(buf, pan(thump(0.2, 220, 110), 0.0), 0.15, 0.3)
+    place2(buf, pan(bubble(hz("D7"), 0.3, 0.3), 0.35), 0.17, 0.15)
+    return master(fdn(buf, 0.6, 0.12), 1.0)
+
+
+POP = {
+    "q1-bloop": bloop,
+    "q2-bounce": bounce,
+    "q3-tada": tada,
+    "q4-pop-ding": pop_ding,
+    "q5-popcorn": popcorn,
+    "q6-bip-bop": bip_bop,
+}
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "reminder-tones")
     which = sys.argv[2] if len(sys.argv) > 2 else "classic"
     out.mkdir(parents=True, exist_ok=True)
-    for name, fn in (PREMIUM if which == "premium" else OPTIONS).items():
+    sets = {"classic": OPTIONS, "premium": PREMIUM, "pop": POP}
+    for name, fn in sets[which].items():
         x = fn()
         sf.write(out / f"{name}.wav", x.astype(np.float32), SR, subtype="PCM_16")
         print(f"{name}: {len(x) / SR:.2f}s peak {20 * np.log10(np.max(np.abs(x))):.1f} dBFS")
