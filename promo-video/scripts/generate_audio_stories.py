@@ -634,6 +634,68 @@ def exam_music_v2():
     return buf
 
 
+W3_TOTAL = 1456 * F
+
+
+def who_music_v3():
+    """v3 timing: drone after the slam, warm plucks through Tuesday, a groove for Srutam,
+    a quiet walk for the blame, a hopeful pad while she asks, nothing under the playback."""
+    buf = np.zeros(int((W3_TOTAL + 1) * SR))
+    beat = 60 / 108
+    place(buf, shape(pad(["C2", "G2", "C#3"], 3.0, 0.1, 0.4), 500), 0.6, 0.35)
+    at, i = 6.8, 0
+    prog = [("C3", ["E5", "G5", "C6"]), ("A2", ["E5", "A5", "C6"]), ("F2", ["F5", "A5", "C6"]), ("G2", ["D5", "G5", "B5"])]
+    while at < 18.5:
+        root, tri = prog[(i // 4) % 4]
+        if i % 2 == 0:
+            place(buf, pizz(hz(root), 0.4), at, 0.3)
+        place(buf, pizz(hz(tri[i % 3]), 0.35), at + beat / 2, 0.14)
+        at += beat
+        i += 1
+    place(buf, bell(hz("E6"), 2.0), 19.0, 0.05)
+    groove(buf, 21.0, 28.6, ["G5", "B5", "D6", "B5", "A5", "D6", "F#6", "D6"], ["G2", "D3", "E3", "C3"], beat, 0.9)
+    for j, n in enumerate(["C3", "D#3", "G3", "F#3", "F3", "D#3", "C3", "G2"]):
+        place(buf, pizz(hz(n), 0.35), 31.0 + j * beat / 2, 0.32)
+    ask = pad(["G3", "D4", "B4"], 4.8, 0.3, 1.2)
+    ask *= np.clip(np.linspace(1.8, 0, len(ask)), 0, 1)
+    place(buf, shape(ask, 2400), 33.8, 0.28)
+    groove(buf, 44.3, 45.4, ["G5", "B5", "D6", "B5"], ["G2", "D3"], beat, 0.8)
+    res = pad(["G2", "D3", "B3", "G4", "A4"], W3_TOTAL - 45.4, 0.7, 0.4)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 45.4, 0.35)
+    for j, n in enumerate(["G5", "B5", "D6", "G6"]):
+        place(buf, bell(hz(n), 2.2), 45.6 + j * 0.08, 0.06)
+    return buf
+
+
+E3_TOTAL = 1296 * F
+
+
+def exam_music_v3():
+    """v3 timing for 2 a.m. Before the Exam (see src/exam/timeline.ts)."""
+    buf = np.zeros(int((E3_TOTAL + 1) * SR))
+    place(buf, shape(pad(["D2", "A2", "F3"], 8.4, 0.15, 1.2), 700), 0.0, 0.32)
+    for k in range(9):
+        place(buf, shape(noise(0.12), 120) * np.exp(-t_axis(0.12) * 30), 0.5 + k * 0.95, 0.35)
+    place(buf, bell(hz("A5"), 2.4), 7.9, 0.06)
+    for k, n in enumerate(["A5", "C6", "E6", "D6", "C6", "A5", "G5", "A5"]):
+        place(buf, bell(hz(n), 1.6), 8.7 + k * 0.62, 0.05)
+    place(buf, shape(pad(["A2", "E3", "C4"], 5.4, 0.15, 1.0), 800), 8.6, 0.25)
+    lift = pad(["F3", "C4", "A4", "E5"], 10.0, 0.4, 1.0)
+    lift *= np.concatenate([np.ones(int(4.6 * SR)), np.linspace(1, 0.22, len(lift) - int(4.6 * SR))])
+    place(buf, shape(lift, 2200), 14.0, 0.28)
+    for k, n in enumerate(["C5", "F5", "A5", "C6"]):
+        place(buf, bell(hz(n), 1.8), 23.0 + k * 0.12, 0.06)
+    beat = 60 / 112
+    groove(buf, 25.7, 28.2, ["F5", "A5", "C6", "A5"], ["F2", "C3"], beat, 0.6, bass=False)
+    groove(buf, 31.9, 35.4, ["F5", "A5", "C6", "A5", "G5", "C6", "E6", "C6"], ["F2", "C3", "D3", "A#2"], beat, 0.9)
+    groove(buf, 36.6, 39.4, ["C6", "A5", "F5", "A5"], ["F2", "C3"], beat, 0.7)
+    res = pad(["F2", "C3", "A3", "F4", "G4"], E3_TOTAL - 39.5, 0.7, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 39.5, 0.35)
+    return buf
+
+
 def who_music():
     buf = np.zeros(int((W_TOTAL + 1) * SR))
     beat = 60 / 112
@@ -779,7 +841,9 @@ if __name__ == "__main__":
     write(PUB / "exam" / "snore.wav", snore(), 0.5)
     write(PUB / "exam" / "scribble.wav", scribble(), 0.4)
     write(PUB / "meeting" / "music2.wav", who_music_v2(), 0.5)
+    write(PUB / "meeting" / "music3.wav", who_music_v3(), 0.5)
     write(PUB / "exam" / "music2.wav", exam_music_v2(), 0.5)
+    write(PUB / "exam" / "music3.wav", exam_music_v3(), 0.5)
     # v2 sound kit
     write(PUB / "sfx2" / "air.wav", soft_air(), 0.5)
     write(PUB / "sfx2" / "air-long.wav", soft_air(1.1, 140, 1200), 0.5)

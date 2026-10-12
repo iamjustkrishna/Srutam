@@ -755,12 +755,16 @@ export const Sweat: React.FC<{ x: number; y: number; s?: number }> = ({ x, y, s 
  * (QuickRecordNotification + notification_quick_record.xml): idle "Srutam / Ready to
  * record" with Start; recording "Recording" with a running timer, Save and Pause.
  */
-export const NotificationShade: React.FC<{ w: number; recording: boolean; pressed?: boolean; secs?: number }> = ({
-  w,
-  recording,
-  pressed = false,
-  secs = 0,
-}) => {
+export const NotificationShade: React.FC<{
+  w: number;
+  recording: boolean;
+  pressed?: boolean;
+  secs?: number;
+  time?: string;
+  date?: string;
+  /** Another notification under Srutam's (app, title, text); null for none. */
+  other?: { app: string; title: string; text: string } | null;
+}> = ({ w, recording, pressed = false, secs = 0, time = "11:24", date = "Sun, 3 March", other = { app: "Messages · 2m", title: "Riya", text: "Send laddoo pics later 😋" } }) => {
   const k = k0(w);
   const pill = (label: string, primary: boolean, down: boolean) => (
     <div
@@ -809,8 +813,8 @@ export const NotificationShade: React.FC<{ w: number; recording: boolean; presse
   return (
     <div style={{ position: "absolute", inset: 0, background: "#11141D", padding: `${70 * k}px ${22 * k}px`, color: "#E2E8F0" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 58 * k, fontWeight: 300 }}>11:24</div>
-        <div style={{ fontSize: 22 * k, opacity: 0.7 }}>Sun, 3 March</div>
+        <div style={{ fontSize: 58 * k, fontWeight: 300 }}>{time}</div>
+        <div style={{ fontSize: 22 * k, opacity: 0.7 }}>{date}</div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", margin: `${22 * k}px 0 ${14 * k}px` }}>
         {["📶", "🎧", "🔦", "🌙", "🔄"].map((ic, i) => tile(ic, i === 0, i))}
@@ -830,11 +834,13 @@ export const NotificationShade: React.FC<{ w: number; recording: boolean; presse
           {recording ? [pill("Save", false, false), pill("Pause", true, false)] : pill("Start", true, pressed)}
         </div>
       </div>
-      <div style={card}>
-        <div style={{ fontSize: 19 * k, color: "#94A3B8" }}>Messages · 2m</div>
-        <div style={{ fontSize: 24 * k, fontWeight: 700, color: "#F8FAFC", marginTop: 6 * k }}>Riya</div>
-        <div style={{ fontSize: 21 * k, color: "#CBD5E1" }}>Send laddoo pics later 😋</div>
+      {other && (
+        <div style={card}>
+        <div style={{ fontSize: 19 * k, color: "#94A3B8" }}>{other?.app}</div>
+        <div style={{ fontSize: 24 * k, fontWeight: 700, color: "#F8FAFC", marginTop: 6 * k }}>{other?.title}</div>
+        <div style={{ fontSize: 21 * k, color: "#CBD5E1" }}>{other?.text}</div>
       </div>
+      )}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 24 * k, marginTop: 18 * k, fontSize: 20 * k, color: "#93C5FD" }}>
         <span>Manage</span>
         <span>Clear all</span>

@@ -13,11 +13,13 @@ import { damped, flutter, follow, spin, springAt, springPt } from "../stories/ph
 import { Captions, Soundtrack } from "../stories/Story";
 import { K, useT } from "../stories/time";
 import { voice } from "../stories/voice";
-import { AskScreen, Board, Books, ChatScreen, EndBand, Frame, GripHand, H, InsightsScreen, Lamp, LINE, LockNotifs, Phone, Table, W, Window } from "../storyboards/Kit";
+import { AskFlow, Board, Books, ChatScreen, EndBand, Frame, GripHand, H, InsightsScreen, Lamp, LINE, LockNotifs, NoteDetail, NotificationShade, Phone, Table, W, Window } from "../storyboards/Kit";
+import { HandsOnPhone } from "../stories/Hands";
+import { thumbs, typed } from "../stories/typing";
 import { BEAT, CAPTIONS, SCENES, SFX, VO } from "./timeline";
 import { VISEMES } from "./visemes";
 
-const { vis, talkTilt } = voice(VO, VISEMES);
+const { vis, talkTilt, emph } = voice(VO, VISEMES);
 const span = (sc: { from: number; duration: number }): [number, number] => [sc.from, sc.from + sc.duration];
 const NIGHT: [string, string] = ["#0B1033", "#1E1B4B"];
 
@@ -246,7 +248,7 @@ const BOARD = ["Exam:", "Ch. 4, Ch. 7", "+ metro case (20)"];
 /* 4. Monday, sepia, half-heard: Prof talks at the board, the class dozes, Meera too. Her phone records. */
 const Lecture: React.FC = () => {
   const f = useT() + SCENES.lecture.from;
-  const k = interpolate(f, [BEAT.ripple, BEAT.ripple + 22], [0, 1], { ...clamp, easing: easeOut });
+  const k = 1;
   const P = { x: 620, y: 300, s: 0.66 };
   const hand = springPt(f, [60, 430], [{ at: 288, to: [40, 400] }, { at: 292, to: [60, 430] }], 12, 240);
   const hw: Pt = [P.x + hand[0] * P.s, P.y + hand[1] * P.s];
@@ -263,7 +265,7 @@ const Lecture: React.FC = () => {
             <rect width={W} height={H} fill="#E2CFA8" />
             <Board x={40} y={150} w={1000} h={440} chalk lines={BOARD} />
             <path d={`M${hw[0] + 30} ${hw[1] + 30} L${tip[0]} ${tip[1]}`} stroke="#7C4A21" strokeWidth={9} strokeLinecap="round" />
-            <Actor x={P.x} y={P.y} s={P.s} f={f} who={PROF} torso={620} expr="talk" viseme={vis("prof-lecture", f, "B")} turn={-0.25} gaze={[-0.6, -0.4]} tilt={talkTilt(["prof-lecture"], f, -3, 1.2)} blink={blinkK(f, 4)} arms={{ l: { to: hand, pose: "grip", rot: 20 } }} />
+            <Actor x={P.x} y={P.y} s={P.s} f={f} who={PROF} torso={620} expr="talk" viseme={vis("prof-lecture", f, (["C", "B", "E", "B", "A", "C"] as const)[Math.floor(f / 4) % 6])} turn={-0.25} gaze={[-0.6, -0.4]} tilt={talkTilt(["prof-lecture"], f, -3, 1.2)} blink={blinkK(f, 4)} arms={{ l: { to: hand, pose: "grip", rot: 20 } }} />
           </Depth>
           <Table y={1380} color="#7C5134" top="#A9744D" />
           <Actor x={-110} y={930} s={0.68} f={f} who={KABIR} shadow expr="sleepy" tilt={-12 + Math.sin(f / 30) * 2} />
@@ -299,7 +301,36 @@ const Insert: React.FC = () => {
             <circle key={i} cx={200 + ((i * 137) % 700) + Math.sin(f / 40 + i) * 30} cy={300 + ((i * 251) % 1200) - ((f * (0.4 + (i % 3) * 0.2)) % 200)} r={2 + (i % 3)} fill="#FFF7ED" opacity={0.5} />
           ))}
         </Camera>
-        <LightLeak k={interpolate(f, [SCENES.ask.from - 14, SCENES.ask.from + 4], [0, 1], clamp)} color="#FDE68A" />
+        <LightLeak k={interpolate(f, [SCENES.type.from - 14, SCENES.type.from + 4], [0, 1], clamp)} color="#FDE68A" />
+      </Flashback>
+      <Grade warm="#FDE68A" cool="#78350F" from="top" amount={0.18} />
+    </Frame>
+  );
+};
+
+/* 4. Monday, 9:00, sepia: before the lecture starts, Meera, yawning, pulls down the shade
+   and taps Start on Srutam's notification. */
+const Start: React.FC = () => {
+  const f = useT() + SCENES.start.from;
+  const k = interpolate(f, [BEAT.ripple, BEAT.ripple + 22], [0, 1], { ...clamp, easing: easeOut });
+  const PW = 640;
+  const kk = PW / 470;
+  const startBtn: Pt = [PW - (22 + 60) * kk, (70 + 28 + 10 + 34 + 23) * kk + 18 * kk];
+  const point: Pt | null = f >= BEAT.startTap - 12 && f < BEAT.startTap + 10 ? [startBtn[0], startBtn[1] + Math.max(0, BEAT.startTap - f) * 16] : null;
+  const rec = f >= BEAT.startTap + 2;
+  return (
+    <Frame bg={["#E9D8B4", "#C9AE82"]}>
+      <Flashback k={k}>
+        <Camera f={f} zoom={interpolate(f, span(SCENES.start), [1, 1.05], clamp)} focus={[540, 900]} drift={2} seed={5}>
+          <Depth blur={8}>
+            <rect width={W} height={H} fill="#E2CFA8" />
+            <Board x={40} y={150} w={1000} h={440} chalk lines={BOARD} />
+            <Actor x={620} y={300} s={0.66} f={f} who={PROF} torso={620} expr="talk" turn={-0.25} />
+          </Depth>
+          <HandsOnPhone x={220} y={240} w={PW} point={point}>
+            <NotificationShade w={PW} recording={rec} pressed={f >= BEAT.startTap - 2 && f < BEAT.startTap + 4} secs={rec ? Math.floor((f - BEAT.startTap) / 30) + 1 : 0} time="9:00" date="Mon, 4 March" other={{ app: "Calendar · now", title: "Econ lecture", text: "9:00 – 10:00 · Room 204" }} />
+          </HandsOnPhone>
+        </Camera>
       </Flashback>
       <Grade warm="#FDE68A" cool="#78350F" from="top" amount={0.18} />
     </Frame>
@@ -307,30 +338,86 @@ const Insert: React.FC = () => {
 };
 
 const Q = "What did Prof say will be on the exam?";
-const A = "In Monday's Econ lecture (41:05): chapters 4 and 7, plus the metro case study, “twenty marks.” Exam: Thursday, 9:00 am.";
+const A = "From Monday's Econ lecture: chapters 4 and 7, plus the metro case study (“bees marks ka”, 20 marks). Exam: Thursday, 9 am.";
 
-/* 6. 2:11 am, she asks Srutam. The answer comes with its source; she taps it. */
-const Ask: React.FC = () => {
-  const f = useT() + SCENES.ask.from;
-  const qn = Math.round(interpolate(f, [BEAT.type + 2, BEAT.type + 62], [0, Q.length], clamp));
-  const an = Math.round(interpolate(f, [BEAT.answer, BEAT.answer + 30], [0, A.length], clamp));
-  const tapK = interpolate(f, [BEAT.tapRef, BEAT.tapRef + 12], [0, 1], clamp);
-  const thumb = springPt(f, [900, 1900], [{ at: BEAT.tapRef - 10, to: [600, 1290] }, { at: BEAT.tapRef + 8, to: [900, 1900] }], 15, 200);
+/* 6. 2:11 am: she types the question (a jump cut skips most of it), sends it; Srutam answers
+   from the lecture and cites it; she taps the note with her index finger. */
+const TypeShot: React.FC = () => {
+  const f = useT() + SCENES.type.from;
+  const PW = 680;
+  const ph = PW * (2400 / 1080);
+  const cut = BEAT.typeStart + 22;
+  const t = typed(Q, f < cut ? f : f + 220, BEAT.typeStart, 9);
+  const sent = f >= BEAT.send;
+  const kb = sent ? interpolate(f, [BEAT.send, BEAT.send + 8], [1, 0], clamp) : 1;
+  const words = A.split(" ");
+  const shown = Math.round(interpolate(f, [BEAT.answer, BEAT.answerEnd], [0, words.length], clamp));
+  const th = thumbs(sent ? undefined : t.key, t.press, PW);
+  const thumbR: Pt | null = f >= BEAT.send - 4 && f < BEAT.send + 4 ? [PW - 70, ph - 330] : th.r;
+  const point: Pt | null = f >= BEAT.tapRef - 10 && f < BEAT.tapRef + 10 ? [PW * 0.32, ph * 0.68 + (f < BEAT.tapRef ? (BEAT.tapRef - f) * 14 : 0)] : null;
   return (
     <Frame bg={NIGHT} night>
-      <Camera f={f} zoom={interpolate(f, span(SCENES.ask), [1, 1.05], clamp)} focus={[540, 900]} drift={3} seed={14}>
+      <Camera f={f} zoom={interpolate(f, span(SCENES.type), [1, 1.04], clamp)} focus={[540, 900]} drift={2} seed={14}>
         <Depth blur={9}>
           <Room f={f} />
           <Lamp x={760} y={880} />
         </Depth>
-        <HeldPhone f={f} y={180} w={700} glow="#3B82F6">
-          <AskScreen w={700} q={Q.slice(0, qn)} a={A.slice(0, an)} refs={f >= BEAT.refs ? ["Econ lecture · 41:05"] : []} pressed={f >= BEAT.tapRef && f < BEAT.tapRef + 8} />
-        </HeldPhone>
-        {tapK > 0 && tapK < 1 && <circle cx={600} cy={1280} r={24 + tapK * 110} fill="none" stroke="#FFFFFF" strokeWidth={8} opacity={1 - tapK} />}
-        <g transform={`translate(${thumb[0]} ${thumb[1]}) rotate(-35)`}>
-          <path d="M-34 0 C-34 -60 34 -60 34 0 L40 260 L-40 260 Z" fill="#F2C3A2" stroke={LINE} strokeWidth={4} />
-          <path d="M-18 -26 C-10 -40 10 -40 18 -26" stroke={LINE} strokeWidth={3} fill="#FBE3D2" />
-        </g>
+        <HandsOnPhone x={200} y={170} w={PW} glow={sent ? "#3B82F6" : undefined} thumbL={th.l} thumbR={thumbR} point={point}>
+          <AskFlow
+            w={PW}
+            sent={sent ? Q : undefined}
+            thinking={sent && f < BEAT.answer}
+            answer={shown > 0 ? words.slice(0, shown).join(" ") : undefined}
+            refs={f >= BEAT.answerEnd ? ["Econ lecture"] : []}
+            pressedRef={f >= BEAT.tapRef && f < BEAT.tapRef + 8}
+            input={sent ? "" : t.text}
+            caret={!sent && Math.floor(f / 8) % 2 === 0}
+            keyboard={kb}
+            keyDown={t.key}
+            sendDown={f >= BEAT.send - 2 && f < BEAT.send + 3}
+          />
+        </HandsOnPhone>
+      </Camera>
+      {f >= cut && f < cut + 4 && <rect width={W} height={H} fill="#FFFFFF" opacity={0.12} />}
+      <Grade warm="#93C5FD" cool="#0B1033" from="top" amount={0.14} />
+    </Frame>
+  );
+};
+
+/* 6b. The lecture opens; she taps the waveform near the part, then play. */
+const DetailShot: React.FC = () => {
+  const f = useT() + SCENES.detail.from;
+  const PW = 680;
+  const k = PW / 470;
+  const slide = interpolate(f, [SCENES.detail.from, SCENES.detail.from + 8], [1, 0], { ...clamp, easing: easeOut });
+  const seeked = f >= BEAT.seek;
+  const waveX = (24 + 20 + 70 + 16) * k;
+  const waveW = PW - waveX - 120 * k;
+  const waveY = (76 + 20 + 18 + 34 + 4 + 18 + 24 + 22 + 35) * k;
+  const seekX = waveX + waveW * 0.79;
+  const playX = (24 + 20 + 35) * k;
+  const point: Pt | null = f < BEAT.seek - 10 ? null : f < BEAT.playBtn - 5 ? [seekX, waveY + 10] : f < BEAT.playBtn + 8 ? [playX, waveY + 10] : null;
+  return (
+    <Frame bg={NIGHT} night>
+      <Camera f={f} drift={2} seed={15}>
+        <Depth blur={9}>
+          <Room f={f} />
+        </Depth>
+        <HandsOnPhone x={200} y={170} w={PW} glow="#3B82F6" point={point}>
+          <div style={{ position: "absolute", inset: 0, transform: `translateX(${slide * 100}%)` }}>
+            <NoteDetail
+              w={PW}
+              title="Econ lecture"
+              meta="Mon, 9:00 am · 52:10"
+              progress={seeked ? 0.79 : 0}
+              playing={f >= BEAT.playBtn}
+              time={seeked ? "41:05" : "0:00"}
+              total="52:10"
+              tap={interpolate(f, [BEAT.seek, BEAT.seek + 10], [0, 1], clamp)}
+              transcript="...toh, Thursday ke exam mein, chapter chaar aur saat, aur metro case study. Bees marks ka. Toh metro wala case dhyan se padhna..."
+            />
+          </div>
+        </HandsOnPhone>
       </Camera>
       <Grade warm="#93C5FD" cool="#0B1033" from="top" amount={0.14} />
     </Frame>
@@ -360,6 +447,7 @@ const Listen: React.FC = () => {
           f={f}
           who="meera"
           shadow
+          screen={<rect x={-38} y={-84} width={76} height={164} rx={9} fill="#0C1225" />}
           expr={expr}
           tilt={lean * 4 + (f > BEAT.yes ? Math.sin(f / 6) * 1.5 : 0)}
           gaze={f < BEAT.relief ? [0.7, 0.3] : [0, 0]}
@@ -453,10 +541,10 @@ const DoorShot: React.FC = () => {
         </g>
         <rect x={hx - 24} y={top - 24} width={dw + 48} height={24} fill="#4C3B8F" stroke={LINE} strokeWidth={6} />
         <g opacity={rIn > 0.01 ? 1 : 0}>
-          <Actor x={rx} y={yOf(1000)} s={S} f={f} who={RIYA} shadow torso={1000} legs={{ pants: "#1E3A8A", shoes: "#F8FAFC", walk: rWalk }} expr="laugh" viseme={vis("riya-study", f)} tilt={talkTilt(["riya-study"], f, -2, 1.6)} gaze={[-0.8, 0.2]} blink={blinkK(f, 3)} arms={f > 856 ? { r: { to: reach("r", -60, 0.9), pose: "fist" } } : {}} />
+          <Actor x={rx} y={yOf(1000)} s={S} f={f} who={RIYA} shadow torso={1000} legs={{ pants: "#1E3A8A", shoes: "#F8FAFC", walk: rWalk }} expr="laugh" viseme={vis("riya-study", f)} tilt={talkTilt(["riya-study"], f, -2, 1.6)} gaze={[-0.8, 0.2]} blink={blinkK(f, 3)} turn={-0.4} arms={f > 910 ? { r: { to: [reach("r", -60, 0.9)[0], reach("r", -60, 0.9)[1] - emph(["riya-study"], f) * 40], pose: "fist" } } : {}} />
         </g>
         <g opacity={kIn > 0.01 ? 1 : 0}>
-          <Actor x={kx} y={yOf(1000)} s={S} f={f} who={KABIR} shadow torso={1000} legs={{ pants: "#334155", shoes: "#1F2937", walk: kWalk }} expr="laugh" viseme={vis("kabir-chai", f)} tilt={talkTilt(["kabir-chai"], f, 0, 1.6)} gaze={[-0.8, 0.3]} blink={blinkK(f, 5)} arms={{ l: { to: [160, 880], pose: "grip" }, r: { to: [440, 880], pose: "grip" } }} />
+          <Actor x={kx} y={yOf(1000)} s={S} f={f} who={KABIR} shadow torso={1000} legs={{ pants: "#334155", shoes: "#1F2937", walk: kWalk }} expr="laugh" viseme={vis("kabir-chai", f)} tilt={talkTilt(["kabir-chai"], f, 0, 1.6)} turn={-0.4} gaze={[-0.8, 0.3]} blink={blinkK(f, 5)} arms={{ l: { to: [160, 880], pose: "grip" }, r: { to: [440, 880], pose: "grip" } }} />
           <Tray x={kx + 300 * S} y={yOf(1000) + 880 * S - 6} f={f} s={S * 1.6} />
         </g>
         {/* Meera at her desk, foreground left, turns to the door */}
@@ -655,9 +743,11 @@ const LIST = [
   ["1 2:07 am", SCENES.night, Night],
   ["2 Group chat", SCENES.chat, Chat],
   ["3 She was asleep too", SCENES.guilt, Guilt],
-  ["4 Lecture (flashback)", SCENES.lecture, Lecture],
-  ["5 Recording insert", SCENES.insert, Insert],
-  ["6 Ask Srutam", SCENES.ask, Ask],
+  ["4 Monday: Start", SCENES.start, Start],
+  ["5 Lecture (flashback)", SCENES.lecture, Lecture],
+  ["5b Recording insert", SCENES.insert, Insert],
+  ["6 Type and ask", SCENES.type, TypeShot],
+  ["6b Open the lecture", SCENES.detail, DetailShot],
   ["7 The lecture plays", SCENES.listen, Listen],
   ["8 Share", SCENES.share, Share],
   ["9 Chai's here", SCENES.door, DoorShot],
@@ -670,7 +760,7 @@ const LIST = [
 export const ExamVideo: React.FC = () => {
   const f = useT();
   // Old-film warmth through the flashback (shots 4-5).
-  const sepia = interpolate(f, [SCENES.lecture.from, SCENES.lecture.from + 16, SCENES.ask.from - 10, SCENES.ask.from], [0, 0.5, 0.5, 0], clamp);
+  const sepia = interpolate(f, [SCENES.start.from, SCENES.start.from + 16, SCENES.type.from - 10, SCENES.type.from], [0, 0.5, 0.5, 0], clamp);
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <AbsoluteFill style={{ filter: sepia > 0 ? `sepia(${sepia})` : undefined }}>
@@ -681,7 +771,7 @@ export const ExamVideo: React.FC = () => {
         ))}
       </AbsoluteFill>
       <Captions cues={CAPTIONS} k={K} />
-      <Soundtrack music="exam/music2.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />
+      <Soundtrack music="exam/music3.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />
     </AbsoluteFill>
   );
 };

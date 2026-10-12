@@ -128,13 +128,16 @@ export const Person: React.FC<Props> = ({
   const url = (k: string) => `url(#${k}${id})`;
   const gx = (flip ? -gaze[0] : gaze[0]) * 12;
   const gy = gaze[1] * 7;
-  const t = turn * 16;
+  const t = turn * 30;
+  // In a three-quarter view the far eye travels less than the near one (the face wraps away).
+  const eyeL = 245 + t * (turn < 0 ? 0.72 : 1.05);
+  const eyeR = 355 + t * (turn > 0 ? 0.72 : 1.05);
   const hairHi = shade(hairColor, hair === "nani" ? 1.12 : 1.9);
   const longHair = lashes ?? ["nani", "bob", "ponytail", "side"].includes(hair);
 
   const eye = (cx: number, cy: number, left: boolean) => {
     const out = left ? -1 : 1;
-    const w = 72 * eyeScale * (left ? 1 - turn * 0.1 : 1 + turn * 0.1);
+    const w = 72 * eyeScale * (left ? 1 + Math.max(0, turn) * 0.1 - Math.max(0, -turn) * 0.32 : 1 + Math.max(0, -turn) * 0.1 - Math.max(0, turn) * 0.32);
     const xo = cx + (out * w) / 2;
     const xi = cx - (out * w) / 2;
     if (expr === "laugh" || expr === "sleepy" || shut > 0.8) {
@@ -581,12 +584,12 @@ export const Person: React.FC<Props> = ({
           </g>
         )}
         {/* Ears: the far ear tucks away as the head turns */}
-        <ellipse cx={180 + t * 0.6} cy={356} rx={16 - Math.max(0, turn) * 8} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
-        <ellipse cx={420 + t * 0.6} cy={356} rx={16 + Math.min(0, turn) * 8} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
-        <path d={`M${184 + t * 0.6} 340 q-8 10 -2 26 q4 6 -2 10 M${416 + t * 0.6} 340 q8 10 2 26 q-4 6 2 10`} stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.5} />
+        <ellipse cx={180 + t * 0.35} cy={356} rx={Math.max(4, 16 + Math.max(0, turn) * 6 - Math.max(0, -turn) * 14)} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
+        <ellipse cx={420 + t * 0.35} cy={356} rx={Math.max(4, 16 + Math.max(0, -turn) * 6 - Math.max(0, turn) * 14)} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
+        <path d={`M${184 + t * 0.35} 340 q-8 10 -2 26 q4 6 -2 10 M${416 + t * 0.35} 340 q8 10 2 26 q-4 6 2 10`} stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.5} />
         {earrings && (
           <g fill="#F59E0B" stroke={LINE} strokeWidth={1.4}>
-            {[178 + t * 0.6, 422 + t * 0.6].map((ex, i) => (
+            {[178 + t * 0.35, 422 + t * 0.35].map((ex, i) => (
               <g key={i} transform={`translate(${ex} 384) rotate(${sway * -12})`}>
                 <circle cx={0} cy={0} r={4} />
                 <path d="M-9 8 Q0 2 9 8 L7 20 L-7 20 Z" />
@@ -614,10 +617,10 @@ export const Person: React.FC<Props> = ({
             <path d="M266 268 Q300 260 334 268" />
           </g>
         )}
-        {brow(245 + t, true)}
-        {brow(355 + t, false)}
-        {eye(245 + t, 362, true)}
-        {eye(355 + t, 362, false)}
+        {brow(eyeL, true)}
+        {brow(eyeR, false)}
+        {eye(eyeL, 362, true)}
+        {eye(eyeR, 362, false)}
         {(() => {
           const n = t * 1.3;
           if (nose === "button")

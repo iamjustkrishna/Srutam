@@ -56,10 +56,10 @@ export const MeeraSketch: React.FC<Props> = ({
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = (k: string) => `${k}${id}`;
   const url = (k: string) => `url(#${k}${id})`;
-  const t = turn * 16; // feature shift for a slight head turn
+  const t = turn * 28; // feature shift for a head turn (three-quarter at |turn| ~ 0.6)
 
   const eye = (cx: number, cy: number, left: boolean) => {
-    const w = 82 * (left ? 1 - turn * 0.1 : 1 + turn * 0.1);
+    const w = 82 * (left ? 1 + Math.max(0, turn) * 0.1 - Math.max(0, -turn) * 0.3 : 1 + Math.max(0, -turn) * 0.1 - Math.max(0, turn) * 0.3);
     const open =
       expr === "surprised"
         ? 1.18
