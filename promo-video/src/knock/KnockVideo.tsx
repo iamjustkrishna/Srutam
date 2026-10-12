@@ -188,8 +188,8 @@ const Once: React.FC = () => {
               time="8:12"
               notifs={[
                 recording
-                  ? { title: "Recording", text: `0:0${secs}`, recording: true, actions: ["Pause", "Save"] }
-                  : { title: "Srutam", text: "Ready to record", actions: ["Start"], pressed: f >= BEAT.tapStart - 3 ? 0 : undefined },
+                  ? { title: "Recording", text: `0:0${secs}`, recording: true, ongoing: true, actions: ["Save", "Pause"] }
+                  : { title: "Srutam", text: "Ready to record", ongoing: true, actions: ["Start"], pressed: f >= BEAT.tapStart - 3 ? 0 : undefined },
               ]}
             />
           )}

@@ -14,8 +14,8 @@ export const SCENES = {
 } as const;
 
 export const BEAT = {
-  shade: 252, // Quick Settings pulls down
-  tile: 330, // "Voice Record" tapped, on "listen"
+  shade: 252, // the notification shade pulls down
+  start: 330, // Start on Srutam's recording notification, on "listen"
   gur: 516, // "...and how much gur goes in?!"
   qStart: 612,
   qEnd: 680,
@@ -43,7 +43,7 @@ export const VO: (Line & { src: string })[] = [
 export const SFX: Cue[] = [
   { file: "nani/sizzle.wav", at: 0, volume: 0.35, dur: 255 },
   { file: "sfx/whoosh.wav", at: BEAT.shade - 4, volume: 0.35 },
-  { file: "sfx/tap.wav", at: BEAT.tile, volume: 0.7 },
+  { file: "sfx/tap.wav", at: BEAT.start, volume: 0.7 },
   { file: "sfx/whoosh.wav", at: 377, volume: 0.3 },
   { file: "nani/crackers.wav", at: 380, volume: 0.4, dur: 222 },
   { file: "nani/typing.wav", at: BEAT.qStart, volume: 0.35, dur: 70 },

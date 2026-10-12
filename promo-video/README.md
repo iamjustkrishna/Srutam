@@ -9,13 +9,13 @@ payoff and closes the end card ("Say it once. Srutam knocks.").
 
 ## "Nani's Laddoos" (41.5 s, 1080x1920): `NanisLaddoos`
 
-Nani never measured anything. Meera records her once from the Quick Settings tile
-("Voice Record"); on Diwali, 1,400 km away, she asks Srutam AI how much jaggery goes
+Nani never measured anything. Meera pulls down the shade and taps Start on Srutam's
+recording notification ("Ready to record" → "Recording", Save / Pause); on Diwali, 1,400 km away, she asks Srutam AI how much jaggery goes
 in, gets the answer with a "Referenced Notes:" pill, and hears Nani's own voice:
 "...aur thoda sa pyaar. Bas." End card: "Keep the recipe. Keep the voice."
 
 Both use real app strings (ReminderAlarmReceiver, QuickRecordNotification,
-QuickRecordingTileService, GlobalCopilotScreen) and share `src/stories/Story.tsx`
+notification_quick_record.xml, GlobalCopilotScreen) and share `src/stories/Story.tsx`
 (captions, ducking, pop-ins, lip-sync) and the storyboard kit in `src/storyboards/`.
 
 - Meera: ElevenLabs Eleven v4, voice "Jessica" (`scripts/vo/knock-meera.json`, `scripts/vo/nani-meera.json`)

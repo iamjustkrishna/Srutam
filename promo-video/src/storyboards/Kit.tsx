@@ -247,8 +247,10 @@ export const LockNotifs: React.FC<{
     reminder?: boolean;
     recording?: boolean;
     app?: string;
-    /** Pill buttons, e.g. the recording notification's Start or Pause / Save. */
+    /** Pill buttons; the last is the blue primary (Start, or Save then Pause), as in notification_quick_record.xml. */
     actions?: string[];
+    /** Ongoing notifications (the recorder) don't show a time. */
+    ongoing?: boolean;
     pressed?: number;
   }[];
 }> = ({ w, time, date, notifs }) => {
@@ -278,20 +280,9 @@ export const LockNotifs: React.FC<{
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 * k, fontSize: 20 * k, color: "#64748B" }}>
-            <div
-              style={{
-                width: 30 * k,
-                height: 30 * k,
-                borderRadius: 999,
-                background: n.recording ? C.crimson : C.cobalt,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {n.recording ? <MicIcon size={18 * k} /> : <BellIcon size={18 * k} color="#FFF" />}
-            </div>
-            {n.app ?? "Srutam"} · now
+            <Img src={LOGO} style={{ width: 30 * k, height: 30 * k, borderRadius: 999 }} />
+            {n.app ?? "Srutam"}
+            {n.ongoing ? "" : " · now"}
           </div>
           <div style={{ fontSize: 30 * k, fontWeight: 800, marginTop: 8 * k }}>{n.title}</div>
           <div style={{ fontSize: 24 * k, color: "#334155" }}>{n.text}</div>
@@ -745,3 +736,96 @@ export const Sweat: React.FC<{ x: number; y: number; s?: number }> = ({ x, y, s 
     <path d="M40 30 C50 44 50 54 40 57 C30 54 30 44 40 30 Z" />
   </g>
 );
+
+/**
+ * The pulled-down notification shade with Srutam's ongoing recording notification
+ * (QuickRecordNotification + notification_quick_record.xml): idle "Srutam / Ready to
+ * record" with Start; recording "Recording" with a running timer, Save and Pause.
+ */
+export const NotificationShade: React.FC<{ w: number; recording: boolean; pressed?: boolean; secs?: number }> = ({
+  w,
+  recording,
+  pressed = false,
+  secs = 0,
+}) => {
+  const k = k0(w);
+  const pill = (label: string, primary: boolean, down: boolean) => (
+    <div
+      key={label}
+      style={{
+        height: 46 * k,
+        padding: `0 ${(primary ? 24 : 19) * k}px`,
+        borderRadius: 999,
+        background: primary ? C.cobalt : "#64748B",
+        color: "#FFF",
+        fontWeight: 700,
+        fontSize: 19 * k,
+        display: "flex",
+        alignItems: "center",
+        transform: down ? "scale(0.9)" : undefined,
+        boxShadow: down ? `0 0 0 ${9 * k}px rgba(96,165,250,0.45)` : undefined,
+      }}
+    >
+      {label}
+    </div>
+  );
+  const tile = (icon: string, on: boolean, i: number) => (
+    <div
+      key={i}
+      style={{
+        width: 62 * k,
+        height: 62 * k,
+        borderRadius: 999,
+        background: on ? "#C7D7FE" : "#2A3046",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 26 * k,
+      }}
+    >
+      {icon}
+    </div>
+  );
+  const card: React.CSSProperties = {
+    background: "#232838",
+    borderRadius: 30 * k,
+    padding: `${18 * k}px ${22 * k}px`,
+    marginTop: 14 * k,
+    color: "#E2E8F0",
+  };
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#11141D", padding: `${70 * k}px ${22 * k}px`, color: "#E2E8F0" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 58 * k, fontWeight: 300 }}>11:24</div>
+        <div style={{ fontSize: 22 * k, opacity: 0.7 }}>Sun, 3 March</div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", margin: `${22 * k}px 0 ${14 * k}px` }}>
+        {["📶", "🎧", "🔦", "🌙", "🔄"].map((ic, i) => tile(ic, i === 0, i))}
+      </div>
+      <div style={{ ...card, boxShadow: recording ? `0 0 0 ${4 * k}px rgba(239,68,68,0.5)` : undefined }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 * k, fontSize: 19 * k, color: "#94A3B8" }}>
+          <Img src={LOGO} style={{ width: 28 * k, height: 28 * k, borderRadius: 999 }} />
+          Srutam
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 * k, marginTop: 10 * k }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 26 * k, fontWeight: 700, color: "#F8FAFC" }}>{recording ? "Recording" : "Srutam"}</div>
+            <div style={{ fontSize: 21 * k, color: recording ? "#FCA5A5" : "#94A3B8", fontVariantNumeric: "tabular-nums" }}>
+              {recording ? `0:${String(secs).padStart(2, "0")}` : "Ready to record"}
+            </div>
+          </div>
+          {recording ? [pill("Save", false, false), pill("Pause", true, false)] : pill("Start", true, pressed)}
+        </div>
+      </div>
+      <div style={card}>
+        <div style={{ fontSize: 19 * k, color: "#94A3B8" }}>Messages · 2m</div>
+        <div style={{ fontSize: 24 * k, fontWeight: 700, color: "#F8FAFC", marginTop: 6 * k }}>Riya</div>
+        <div style={{ fontSize: 21 * k, color: "#CBD5E1" }}>Send laddoo pics later 😋</div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 24 * k, marginTop: 18 * k, fontSize: 20 * k, color: "#93C5FD" }}>
+        <span>Manage</span>
+        <span>Clear all</span>
+      </div>
+    </div>
+  );
+};

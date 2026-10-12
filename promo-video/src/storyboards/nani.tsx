@@ -16,7 +16,7 @@ import {
   LINE,
   Phone,
   PlaybackScreen,
-  QuickSettings,
+  NotificationShade,
   Table,
   W,
   Window,
@@ -63,7 +63,7 @@ export const N2: React.FC = () => (
       <Kadhai x={760} y={1260} s={0.8} />
     </g>
     <Phone x={170} y={420} w={620} rot={-4}>
-      <QuickSettings w={620} recording />
+      <NotificationShade w={620} recording secs={4} />
     </Phone>
     <GripHand x={470} y={1780} s={1.4} rot={2} />
     <Caption text="So one Sunday, I let Srutam listen." y={60} />
@@ -139,11 +139,11 @@ export const NANI_IDEA = {
   logline:
     "Nani never measured anything, so the recipe only ever lived in her voice. One Sunday Meera let Srutam listen in the kitchen. Diwali, 1,400 km away, she asks for it back and hears Nani say it.",
   audience: "Diwali / festive season · anyone who moved away from home",
-  features: ["Quick Settings tile", "Ask Srutam AI", "Referenced Notes", "Playback of the original voice"],
+  features: ["Recording notification", "Ask Srutam AI", "Referenced Notes", "Playback of the original voice"],
   length: "40 s",
   beats: [
     { t: "0–4 s", title: "Hook", vo: "“Measure? Beta, you go by smell!”", sfx: "Sizzling ghee, steel spoon on kadhai", Panel: N1 },
-    { t: "4–9 s", title: "Let it listen", vo: "So one Sunday, I let Srutam listen.", sfx: "Pull down Quick Settings · tap “Voice Record”", Panel: N2 },
+    { t: "4–9 s", title: "Let it listen", vo: "So one Sunday, I let Srutam listen.", sfx: "Pull down the shade · tap Start on Srutam's notification", Panel: N2 },
     { t: "9–15 s", title: "Far from home", vo: "Diwali. 1,400 km from Nani's kitchen. How much gud?!", sfx: "Distant crackers, quiet flat", Panel: N3 },
     { t: "15–22 s", title: "Ask", vo: "“How much jaggery did Nani put in the laddoos?”", sfx: "Answer types in · Referenced Notes pill", Panel: N4 },
     { t: "22–30 s", title: "Her voice", vo: "Nani (recording): “…aur thoda sa pyaar. Bas.”", sfx: "Nani's real voice from the note · music swells", Panel: N5 },

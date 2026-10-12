@@ -16,7 +16,7 @@ import {
   LINE,
   Phone,
   PlaybackScreen,
-  QuickSettings,
+  NotificationShade,
   Table,
   W,
   Window,
@@ -118,11 +118,10 @@ const Kitchen: React.FC = () => {
   );
 };
 
-/* 2. "So one Sunday, I let Srutam listen." Quick Settings, Voice Record. */
+/* 2. "So one Sunday, I let Srutam listen." Pull down the shade, Start on Srutam's notification. */
 const Listen: React.FC = () => {
   const f = useCurrentFrame() + SCENES.listen.from;
   const shade = interpolate(f, [BEAT.shade, BEAT.shade + 16], [-100, 0], { ...clamp, easing: easeOut });
-  const ripple = interpolate(f, [BEAT.tile, BEAT.tile + 14], [0, 1], clamp);
   return (
     <Frame bg={["#FCD9A8", "#E9A86B"]}>
       <g opacity={0.45}>
@@ -134,12 +133,14 @@ const Listen: React.FC = () => {
         <Phone x={170} y={420} w={620} rot={-4}>
           <div style={{ position: "absolute", inset: 0, background: "#1E2A5A" }} />
           <div style={{ position: "absolute", inset: 0, transform: `translateY(${shade}%)` }}>
-            <QuickSettings w={620} recording={f >= BEAT.tile + 3} />
+            <NotificationShade
+              w={620}
+              recording={f >= BEAT.start + 3}
+              pressed={f >= BEAT.start - 3}
+              secs={Math.max(0, Math.floor((f - BEAT.start) / 30))}
+            />
           </div>
         </Phone>
-        {ripple > 0 && ripple < 1 && (
-          <circle cx={377} cy={900} r={40 + ripple * 90} fill="none" stroke="#FFFFFF" strokeWidth={10} opacity={1 - ripple} />
-        )}
         <GripHand x={470} y={1780} s={1.4} rot={2} />
       </g>
     </Frame>
