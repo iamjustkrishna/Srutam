@@ -17,6 +17,7 @@ import { KnockVideo } from "./knock/KnockVideo";
 import { TOTAL as KNOCK_TOTAL } from "./knock/timeline";
 import { NaniVideo } from "./nani/NaniVideo";
 import { WhoVideo } from "./who/WhoVideo";
+import { K as STORY_K, RENDER_FPS } from "./stories/time";
 import { ExamVideo } from "./exam/ExamVideo";
 import { TOTAL as EXAM_TOTAL } from "./exam/timeline";
 import { TOTAL as WHO_TOTAL } from "./who/timeline";
@@ -127,8 +128,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="WhoSaidThat"
       component={WhoVideo}
-      durationInFrames={WHO_TOTAL}
-      fps={FPS}
+      durationInFrames={WHO_TOTAL * STORY_K}
+      fps={RENDER_FPS}
       width={WIDTH}
       height={HEIGHT}
       calculateMetadata={calculateMetadata}
@@ -136,8 +137,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition
       id="BeforeTheExam"
       component={ExamVideo}
-      durationInFrames={EXAM_TOTAL}
-      fps={FPS}
+      durationInFrames={EXAM_TOTAL * STORY_K}
+      fps={RENDER_FPS}
       width={WIDTH}
       height={HEIGHT}
       calculateMetadata={calculateMetadata}

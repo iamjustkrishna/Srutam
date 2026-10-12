@@ -16,7 +16,8 @@ export const springAt = (f: number, from: number, keys: Key<number>[], damping =
   let v = from;
   let prev = from;
   for (const k of keys) {
-    const p = spring({ frame: f - k.at, fps: FPS, config: { damping, stiffness, mass } });
+    // Stepped at 60 fps so half story frames (60 fps renders) get their own in-betweens.
+    const p = spring({ frame: (f - k.at) * 2, fps: FPS * 2, config: { damping, stiffness, mass } });
     v += (k.to - prev) * p;
     prev = k.to;
   }

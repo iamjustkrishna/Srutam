@@ -40,8 +40,8 @@ export const Scene: React.FC<{ children: React.ReactNode; fadeIn?: number }> = (
   return <AbsoluteFill style={{ opacity: fadeIn ? fade(f, 0, fadeIn) : 1 }}>{children}</AbsoluteFill>;
 };
 
-export const Captions: React.FC<{ cues: CaptionCue[] }> = ({ cues }) => {
-  const f = useCurrentFrame();
+export const Captions: React.FC<{ cues: CaptionCue[]; k?: number }> = ({ cues, k: rate = 1 }) => {
+  const f = useCurrentFrame() / rate;
   const c = cues.find((x) => f >= x.from - 2 && f <= x.to + 4);
   if (!c) return null;
   const k = interpolate(f, [c.from - 2, c.from + 5, c.to, c.to + 4], [0, 1, 1, 0], clamp);
@@ -78,25 +78,40 @@ export const Captions: React.FC<{ cues: CaptionCue[] }> = ({ cues }) => {
   );
 };
 
-/** Voice lines, sound effects and a music bed that ducks under the voices. */
+/**
+ * Voice lines, sound effects and a music bed that ducks under the voices.
+ * `k` is render frames per timeline frame (2 for 60 fps renders of 30 fps
+ * timelines); `sfxGain` scales every effect; `duck` is the music level under voice.
+ */
 export const Soundtrack: React.FC<{
   music: string;
   musicVolume?: number;
   lines: (Line & { src: string })[];
   sfx: Cue[];
-}> = ({ music, musicVolume = 0.6, lines, sfx }) => {
-  const inVo = (f: number) => lines.some((l) => f >= l.at - 4 && f <= l.at + l.frames + 4);
+  k?: number;
+  sfxGain?: number;
+  duck?: number;
+}> = ({ music, musicVolume = 0.6, lines, sfx, k = 1, sfxGain = 1, duck = 0.5 }) => {
+  // Music eases down under each line and back up after it (no hard steps).
+  const level = (t: number) => {
+    let d = 0;
+    for (const l of lines) {
+      const a = interpolate(t, [l.at - 8, l.at - 2, l.at + l.frames + 2, l.at + l.frames + 12], [0, 1, 1, 0], clamp);
+      d = Math.max(d, a);
+    }
+    return musicVolume * (1 - d * (1 - duck));
+  };
   return (
     <>
-      <Audio src={staticFile(music)} volume={(f) => (inVo(f) ? musicVolume * 0.5 : musicVolume)} />
+      <Audio src={staticFile(music)} volume={(f) => level(f / k)} />
       {lines.map((l) => (
-        <Sequence key={l.file} name={`VO ${l.file}`} from={l.at} durationInFrames={l.frames + 8} layout="none">
+        <Sequence key={l.file} name={`VO ${l.file}`} from={Math.round(l.at * k)} durationInFrames={Math.round((l.frames + 8) * k)} layout="none">
           <Audio src={staticFile(l.src)} />
         </Sequence>
       ))}
       {sfx.map((s, i) => (
-        <Sequence key={i} name={`SFX ${s.file}`} from={s.at} durationInFrames={s.dur ?? 60} layout="none">
-          <Audio src={staticFile(s.file)} volume={s.volume ?? 0.6} loop={s.loop} />
+        <Sequence key={i} name={`SFX ${s.file}`} from={Math.round(s.at * k)} durationInFrames={Math.round((s.dur ?? 60) * k)} layout="none">
+          <Audio src={staticFile(s.file)} volume={(s.volume ?? 0.6) * sfxGain} loop={s.loop} />
         </Sequence>
       ))}
     </>

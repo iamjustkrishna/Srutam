@@ -9,7 +9,10 @@ const LASH = "#24140F";
 
 export type Hair = "nani" | "short" | "bob" | "ponytail" | "curly" | "bald" | "side";
 export type Outfit = "saree" | "shirt" | "hoodie" | "kurta" | "blazer" | "tee";
+export type Face = "oval" | "round" | "square" | "long" | "heart";
+export type Nose = "button" | "straight" | "broad";
 export type PExpr =
+  | "sheepish"
   | "smile"
   | "neutral"
   | "laugh"
@@ -46,12 +49,36 @@ type Props = {
   turn?: number;
   /** Rhubarb mouth shape while speaking. */
   viseme?: Viseme;
-  blink?: boolean;
+  /** Closed (true), open (false) or partly closed (0..1, for smooth blinks). */
+  blink?: boolean | number;
   flip?: boolean;
+  /** Head shape. */
+  face?: Face;
+  nose?: Nose;
+  /** Eye size: adults smaller than the young ones. */
+  eyeScale?: number;
+  iris?: string;
+  /** Shoulder width: 1 slim, ~1.08 broad. */
+  bw?: number;
+  /** Hide the resting upper arm on a side (the rig draws a posed arm there). */
+  armsOut?: { l?: boolean; r?: boolean };
+  earrings?: boolean;
+  headphones?: boolean;
+  stubble?: boolean;
+  /** A sleeveless Nehru jacket over the outfit, in this colour. */
+  vest?: string;
+  pocketSquare?: boolean;
+  /** Hair swing (-1..1). */
+  sway?: number;
 };
 
-const FACE =
-  "M182 300 C180 372 196 428 228 470 C252 500 278 518 300 520 C322 518 348 500 372 470 C404 428 420 372 418 300 C410 222 360 188 300 188 C240 188 190 222 182 300 Z";
+const FACES: Record<Face, string> = {
+  oval: "M182 300 C180 372 196 428 228 470 C252 500 278 518 300 520 C322 518 348 500 372 470 C404 428 420 372 418 300 C410 222 360 188 300 188 C240 188 190 222 182 300 Z",
+  round: "M180 304 C178 384 200 440 236 478 C258 500 280 512 300 512 C320 512 342 500 364 478 C400 440 422 384 420 304 C412 224 362 190 300 190 C238 190 188 224 180 304 Z",
+  square: "M182 300 C180 382 188 446 218 484 C242 512 274 522 300 522 C326 522 358 512 382 484 C412 446 420 382 418 300 C410 222 360 188 300 188 C240 188 190 222 182 300 Z",
+  long: "M190 300 C188 380 204 446 234 488 C256 518 280 532 300 532 C320 532 344 518 366 488 C396 446 412 380 410 300 C404 220 358 184 300 184 C242 184 196 220 190 300 Z",
+  heart: "M180 296 C182 370 204 432 240 476 C264 504 284 520 300 522 C316 520 336 504 360 476 C396 432 418 370 420 296 C412 220 362 186 300 186 C238 186 188 220 180 296 Z",
+};
 
 const shade = (hex: string, k: number) => {
   const n = parseInt(hex.slice(1), 16);
@@ -81,7 +108,21 @@ export const Person: React.FC<Props> = ({
   viseme,
   blink = false,
   flip = false,
+  face = "oval",
+  nose = "button",
+  eyeScale = 1,
+  iris = "#6B4A3A",
+  bw = 1,
+  armsOut = {},
+  earrings = false,
+  headphones = false,
+  stubble = false,
+  vest,
+  pocketSquare = false,
+  sway = 0,
 }) => {
+  const FACE = FACES[face];
+  const shut = blink === true ? 1 : typeof blink === "number" ? blink : 0;
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = (k: string) => `${k}${id}`;
   const url = (k: string) => `url(#${k}${id})`;
@@ -93,10 +134,10 @@ export const Person: React.FC<Props> = ({
 
   const eye = (cx: number, cy: number, left: boolean) => {
     const out = left ? -1 : 1;
-    const w = 72 * (left ? 1 - turn * 0.1 : 1 + turn * 0.1);
+    const w = 72 * eyeScale * (left ? 1 - turn * 0.1 : 1 + turn * 0.1);
     const xo = cx + (out * w) / 2;
     const xi = cx - (out * w) / 2;
-    if (expr === "laugh" || expr === "sleepy" || blink) {
+    if (expr === "laugh" || expr === "sleepy" || shut > 0.8) {
       const up = expr === "laugh" ? -18 : 10;
       return (
         <g>
@@ -105,15 +146,15 @@ export const Person: React.FC<Props> = ({
         </g>
       );
     }
-    const open = expr === "surprised" ? 1.2 : expr === "sideeye" || expr === "angry" || expr === "smug" ? 0.62 : 1;
-    const h = 44 * open;
+    const open = (expr === "surprised" ? 1.2 : expr === "sideeye" || expr === "angry" || expr === "smug" ? 0.62 : expr === "sheepish" ? 0.8 : 1) * (1 - shut * 0.85);
+    const h = 44 * eyeScale * open;
     const lidY = cy - h * 0.6;
     const upper = `M${xi} ${cy + 2} C${xi + out * w * 0.2} ${lidY - h * 0.1} ${xo - out * w * 0.2} ${lidY - h * 0.12} ${xo} ${cy - 4}`;
     const white = `${upper} C${xo - out * w * 0.2} ${cy + h * 0.5} ${xi + out * w * 0.2} ${cy + h * 0.5} ${xi} ${cy + 2} Z`;
     const side = expr === "sideeye" ? 16 * (flip ? -1 : 1) : 0;
     const ix = cx + gx + side;
     const iy = cy + 3 + gy;
-    const r = expr === "surprised" ? 16 : 21;
+    const r = (expr === "surprised" ? 16 : 21) * eyeScale;
     return (
       <g>
         <clipPath id={u(left ? "el" : "er")}>
@@ -128,7 +169,9 @@ export const Person: React.FC<Props> = ({
           <circle cx={ix - r * 0.38} cy={iy - r * 0.4} r={r * 0.3} fill="#FFF" />
           <circle cx={ix + r * 0.4} cy={iy + r * 0.38} r={r * 0.12} fill="#FFF" />
         </g>
-        <path d={upper} stroke={LASH} strokeWidth={6.5} fill="none" strokeLinecap="round" />
+        <path d={upper} stroke={LASH} strokeWidth={5.5 + eyeScale} fill="none" strokeLinecap="round" />
+        {/* eyelid crease */}
+        <path d={`M${xi + out * w * 0.12} ${lidY - 10 * eyeScale} Q${cx} ${lidY - 20 * eyeScale - h * 0.1} ${xo - out * w * 0.08} ${cy - 10 - h * 0.25}`} stroke={LINE} strokeWidth={1.8} fill="none" opacity={0.5} strokeLinecap="round" />
         {longHair && (
           <path d={`M${xo - out * 6} ${cy - 6} q${out * 10} -4 ${out * 18} -14 M${xo - out * 16} ${lidY + 2} q${out * 8} -6 ${out * 14} -12`} stroke={LASH} strokeWidth={3.2} fill="none" strokeLinecap="round" />
         )}
@@ -158,8 +201,9 @@ export const Person: React.FC<Props> = ({
                 ? [-8, -10]
                 : [-16, -24]
               : [-14, -14];
-    const yi = 312 + inner;
-    const yo = 312 + outer;
+    const sheep: [number, number] = [-22, -8];
+    const yi = 312 + (expr === "sheepish" ? sheep[0] : inner) + (1 - eyeScale) * 30;
+    const yo = 312 + (expr === "sheepish" ? sheep[1] : outer) + (1 - eyeScale) * 30;
     const xi = cx - out * 28;
     const xo = cx + out * 32;
     const thick = hair === "short" || hair === "bald" || hair === "curly" ? 1.5 : 1;
@@ -172,6 +216,7 @@ export const Person: React.FC<Props> = ({
     );
   };
 
+  const lip = shade(skin, 0.78);
   const mouth = (() => {
     if (viseme && viseme !== "X") return <Mouth shape={viseme} x={300 + t * 1.2} y={454} s={expr === "angry" || expr === "surprised" ? 1.4 : 1} />;
     switch (expr) {
@@ -202,15 +247,27 @@ export const Person: React.FC<Props> = ({
         );
       case "smug":
         return <path d={`M${276 + t} 452 Q${300 + t} 466 ${328 + t} 444`} stroke={LINE} strokeWidth={3.2} fill="none" strokeLinecap="round" />;
+      case "sheepish":
+        return (
+          <g>
+            <path d={`M${280 + t} 452 Q${292 + t} 446 ${300 + t} 452 Q${310 + t} 458 ${322 + t} 448`} stroke={LINE} strokeWidth={3} fill="none" strokeLinecap="round" />
+            <path d={`M${290 + t} 462 Q${300 + t} 466 ${310 + t} 462`} stroke={lip} strokeWidth={4} fill="none" strokeLinecap="round" opacity={0.6} />
+          </g>
+        );
       case "sideeye":
       case "neutral":
       case "sleepy":
-        return <path d={`M${288 + t} 454 L${312 + t} 454`} stroke={LINE} strokeWidth={2.6} strokeLinecap="round" />;
+        return (
+          <g>
+            <path d={`M${284 + t} 455 Q${292 + t} 451 ${300 + t} 453 Q${308 + t} 451 ${316 + t} 455`} stroke={LINE} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+            <path d={`M${291 + t} 463 Q${300 + t} 467 ${309 + t} 463`} stroke={lip} strokeWidth={4} fill="none" strokeLinecap="round" opacity={0.55} />
+          </g>
+        );
       default:
         return (
           <g>
             <path d={`M${278 + t} 448 Q${300 + t} 470 ${322 + t} 448`} stroke={LINE} strokeWidth={3} fill="none" strokeLinecap="round" />
-            <path d={`M${288 + t} 462 Q${300 + t} 468 ${312 + t} 462`} stroke="#E08E84" strokeWidth={4} fill="none" strokeLinecap="round" opacity={0.7} />
+            <path d={`M${288 + t} 462 Q${300 + t} 468 ${312 + t} 462`} stroke={lip} strokeWidth={4} fill="none" strokeLinecap="round" opacity={0.7} />
           </g>
         );
     }
@@ -234,8 +291,11 @@ export const Person: React.FC<Props> = ({
         return (
           <g>
             <path d="M168 330 C160 226 224 160 300 160 C376 160 440 226 432 330 L432 380 L168 380 Z" fill={hairColor} />
-            <path d="M410 190 C480 200 500 300 470 420 C460 470 430 520 420 560 C440 470 450 380 420 290 Z" fill={hairColor} />
-            <path d="M440 240 C470 300 470 380 452 440" stroke={hairHi} strokeWidth={4} fill="none" opacity={0.7} strokeLinecap="round" />
+            <g transform={`rotate(${sway * 9} 412 200)`}>
+              <path d="M410 190 C484 196 506 300 476 420 C466 472 434 524 420 566 C442 474 452 382 420 290 Z" fill={hairColor} />
+              <path d="M440 240 C470 300 470 380 452 440 M424 260 C446 320 444 400 432 470" stroke={hairHi} strokeWidth={3.5} fill="none" opacity={0.6} strokeLinecap="round" />
+            </g>
+            <ellipse cx={414} cy={204} rx={20} ry={26} fill={accent === "#FDF2F8" ? "#F472B6" : accent} stroke={LINE} strokeWidth={2} transform="rotate(30 414 204)" />
           </g>
         );
       case "curly":
@@ -246,6 +306,10 @@ export const Person: React.FC<Props> = ({
               return <circle key={i} cx={300 + Math.cos(a) * 150} cy={300 + Math.sin(a) * 150} r={46} />;
             })}
             <circle cx={300} cy={250} r={120} />
+            {Array.from({ length: 9 }, (_, i) => {
+              const a = Math.PI * (1.08 + (i / 8) * 0.84);
+              return <path key={`s${i}`} d={`M${300 + Math.cos(a) * 150 - 14} ${300 + Math.sin(a) * 150} q14 -18 28 0`} stroke={hairHi} strokeWidth={3} fill="none" opacity={0.45} />;
+            })}
           </g>
         );
       default:
@@ -276,8 +340,9 @@ export const Person: React.FC<Props> = ({
         return (
           <g>
             <path d="M180 300 C168 214 226 150 304 152 C382 154 434 214 420 300 C414 262 400 240 380 230 C352 246 300 250 250 236 C214 246 192 268 180 300 Z" fill={hairColor} />
-            <path d="M236 196 Q300 176 366 196 M220 220 Q262 204 300 210" stroke={hairHi} strokeWidth={4} fill="none" opacity={0.6} strokeLinecap="round" />
-            <path d="M182 300 L178 340 M418 300 L422 340" stroke={hairColor} strokeWidth={14} strokeLinecap="round" />
+            <path d="M196 236 C230 170 330 150 396 196 C360 176 300 178 262 204 C240 214 214 226 196 236 Z" fill={hairColor} />
+            <path d="M236 196 Q300 176 366 196 M220 220 Q262 204 300 210 M300 172 Q336 168 372 184" stroke={hairHi} strokeWidth={3.5} fill="none" opacity={0.6} strokeLinecap="round" />
+            <path d="M186 296 L182 348 M414 296 L418 348" stroke={hairColor} strokeWidth={14} strokeLinecap="round" />
           </g>
         );
       case "bob":
@@ -292,6 +357,10 @@ export const Person: React.FC<Props> = ({
           <g>
             <path d="M178 330 C170 232 232 168 300 166 C380 166 432 236 422 320 C400 262 330 226 252 250 C222 266 196 296 178 330 Z" fill={hairColor} />
             <path d="M250 196 Q330 172 396 230 M226 236 Q280 216 330 222" stroke={hairHi} strokeWidth={4} fill="none" opacity={0.6} strokeLinecap="round" />
+            <g transform={`rotate(${sway * 4} 420 320)`}>
+              <path d="M404 260 C432 330 440 420 432 520 C428 580 440 630 456 668 C420 640 402 590 404 520 C406 430 404 350 386 290 Z" fill={hairColor} stroke={LINE} strokeWidth={1.2} strokeOpacity={0.4} />
+              <path d="M416 330 C424 410 420 500 430 600" stroke={hairHi} strokeWidth={3} fill="none" opacity={0.5} strokeLinecap="round" />
+            </g>
           </g>
         );
       case "ponytail":
@@ -300,6 +369,7 @@ export const Person: React.FC<Props> = ({
             <path d="M180 320 C172 228 232 172 300 172 C368 172 428 228 420 320 C404 268 360 232 300 226 C252 232 204 262 180 320 Z" fill={hairColor} />
             <path d="M236 200 Q300 182 364 200" stroke={hairHi} strokeWidth={4} fill="none" opacity={0.6} strokeLinecap="round" />
             <path d="M190 300 C182 340 186 380 196 410" stroke={hairColor} strokeWidth={6} fill="none" strokeLinecap="round" />
+            <path d="M206 262 C226 232 262 220 286 222 C276 246 262 268 240 282 C250 262 254 252 252 246 C236 256 222 268 206 262 Z" fill={hairColor} />
           </g>
         );
       case "curly":
@@ -316,69 +386,141 @@ export const Person: React.FC<Props> = ({
           </g>
         );
       case "bald":
-        return <path d="M182 318 C178 290 182 262 194 244 M418 318 C422 290 418 262 406 244" stroke={hairColor} strokeWidth={22} fill="none" strokeLinecap="round" />;
+        return (
+          <g>
+            <path d="M182 318 C178 290 182 262 194 244 M418 318 C422 290 418 262 406 244" stroke={hairColor} strokeWidth={22} fill="none" strokeLinecap="round" />
+            <path d="M184 318 C180 296 182 272 192 254 M416 318 C420 296 418 272 408 254" stroke={hairHi} strokeWidth={4} fill="none" opacity={0.4} strokeLinecap="round" />
+            <ellipse cx={262} cy={222} rx={44} ry={16} fill="#FFFFFF" opacity={0.22} transform="rotate(-18 262 222)" />
+          </g>
+        );
     }
   })();
 
+  // ---------- body: neck, trapezius, deltoids and resting upper arms (no more dome) ----------
+  const X = (dx: number) => 300 + dx * bw;
+  const leftOut = !!armsOut[flip ? "r" : "l"];
+  const rightOut = !!armsOut[flip ? "l" : "r"];
+  const half = (side: -1 | 1, out: boolean) => {
+    const x = (dx: number) => 300 + side * dx * bw;
+    return out
+      ? `M300 572 L${x(46)} 572 L${x(94)} 584 C${x(124)} 594 ${x(148)} 604 ${x(160)} 618 C${x(178)} 632 ${x(180)} 660 ${x(166)} 690 C${x(160)} 716 ${x(160)} 740 ${x(162)} 760 L300 760 Z`
+      : `M300 572 L${x(46)} 572 L${x(94)} 584 C${x(124)} 594 ${x(148)} 604 ${x(160)} 618 C${x(184)} 628 ${x(200)} 652 ${x(204)} 690 C${x(208)} 716 ${x(214)} 740 ${x(218)} 760 L300 760 Z`;
+  };
+  /** A resting upper arm's inner edge (the line between arm and chest). */
+  const armLine = (side: -1 | 1) => {
+    const x = (dx: number) => 300 + side * dx * bw;
+    return `M${x(158)} 664 C${x(154)} 694 ${x(156)} 728 ${x(162)} 760`;
+  };
+  const clothBody = (fill: string, sleeve = fill) => (
+    <g>
+      <path d={half(-1, leftOut)} fill={fill} />
+      <path d={half(1, rightOut)} fill={fill} />
+      {/* sleeves a touch darker, so the resting arms read as arms */}
+      {!leftOut && <path d={`${half(-1, false)}`} fill={sleeve} clipPath={url("armL")} />}
+      {!rightOut && <path d={`${half(1, false)}`} fill={sleeve} clipPath={url("armR")} />}
+      {/* light from the upper left: the far half and the lower chest fall into shade */}
+      <path d={half(1, rightOut)} fill="#000" opacity={0.07} />
+      <path d={`${half(-1, leftOut)} ${half(1, rightOut)}`} fill={url("chest")} />
+      <path d={`${half(-1, leftOut)} ${half(1, rightOut)}`} fill="none" stroke={LINE} strokeWidth={2.4} strokeLinejoin="round" />
+      {!leftOut && <path d={armLine(-1)} stroke={LINE} strokeWidth={2} fill="none" opacity={0.7} />}
+      {!rightOut && <path d={armLine(1)} stroke={LINE} strokeWidth={2} fill="none" opacity={0.7} />}
+      {/* trapezius / collarbone hint and a shoulder seam */}
+      <path d={`M${X(-60)} 600 Q${X(-100)} 612 ${X(-136)} 612 M${X(60)} 600 Q${X(100)} 612 ${X(136)} 612`} stroke={LINE} strokeWidth={1.4} fill="none" opacity={0.25} />
+    </g>
+  );
+  const folds = <path d={`M${X(-110)} 690 q8 30 4 70 M${X(110)} 690 q-8 30 -4 70`} stroke={LINE} strokeWidth={1.8} fill="none" opacity={0.3} />;
   const body = (() => {
-    const shoulders =
-      "M20 800 C30 730 90 672 188 642 C204 634 214 626 222 618 L378 618 C386 626 396 634 412 642 C510 672 570 730 580 800 Z";
-    const folds = <path d="M150 720 q20 30 14 80 M450 720 q-20 30 -14 80" stroke={LINE} strokeWidth={2} fill="none" opacity={0.35} />;
     switch (outfit) {
       case "saree":
         return (
           <g>
-            <path d={shoulders} fill={cloth} stroke={LINE} strokeWidth={2.4} />
-            <path d="M222 618 C250 660 350 660 378 618 Z" fill={url("skin")} stroke={LINE} strokeWidth={2} />
-            <path d="M360 612 C420 640 470 700 520 800 L360 800 C340 740 330 680 340 620 Z" fill={accent} stroke={LINE} strokeWidth={2.2} opacity={0.95} />
-            <path d="M372 618 C430 650 476 712 512 800" stroke="#C2410C" strokeWidth={14} fill="none" opacity={0.8} />
-            <path d="M372 618 C430 650 476 712 512 800" stroke="#FBBF24" strokeWidth={4} fill="none" strokeDasharray="8 10" />
+            {clothBody(cloth, shade(cloth, 0.92))}
+            <path d="M246 572 C262 612 338 612 354 572 Z" fill={url("skin")} stroke={LINE} strokeWidth={2} />
+            <path d={`M356 572 C${X(150)} 600 ${X(196)} 660 ${X(214)} 760 L356 760 C338 700 334 630 352 574 Z`} fill={accent} stroke={LINE} strokeWidth={2.2} opacity={0.95} />
+            <path d={`M368 576 C${X(150)} 606 ${X(190)} 664 ${X(206)} 760`} stroke="#C2410C" strokeWidth={14} fill="none" opacity={0.8} />
+            <path d={`M368 576 C${X(150)} 606 ${X(190)} 664 ${X(206)} 760`} stroke="#FBBF24" strokeWidth={4} fill="none" strokeDasharray="8 10" />
           </g>
         );
       case "shirt":
-      case "blazer":
+      case "blazer": {
+        const coat = outfit === "blazer" ? "#334155" : cloth;
         return (
           <g>
-            <path d={shoulders} fill={outfit === "blazer" ? "#334155" : cloth} stroke={LINE} strokeWidth={2.4} />
-            {outfit === "blazer" && <path d="M240 626 L300 760 L360 626 L330 618 L300 690 L270 618 Z" fill={cloth} stroke={LINE} strokeWidth={2} />}
-            <path d="M246 618 L300 680 L354 618 L332 610 L300 650 L268 610 Z" fill="#FFFFFF" stroke={LINE} strokeWidth={2} />
-            {outfit === "blazer" && (
-              <g fill="#B91C1C" stroke={LINE} strokeWidth={1.8} strokeLinejoin="round">
-                <path d="M292 672 L308 672 L312 690 L300 698 L288 690 Z" />
-                <path d="M290 696 L310 696 L306 742 L300 750 L294 742 Z" />
+            {clothBody(coat, shade(coat, 0.9))}
+            {outfit === "blazer" ? (
+              <g>
+                {/* shirt and tie in the V, notched lapels */}
+                <path d="M254 572 L300 712 L346 572 Z" fill={cloth} stroke={LINE} strokeWidth={2} />
+                <g fill="#B91C1C" stroke={LINE} strokeWidth={1.8} strokeLinejoin="round">
+                  <path d="M292 616 L308 616 L312 632 L300 640 L288 632 Z" />
+                  <path d="M290 638 L310 638 L306 694 L300 704 L294 694 Z" />
+                </g>
+                <path d="M246 574 L268 572 L300 612 L276 590 Z M354 574 L332 572 L300 612 L324 590 Z" fill="#FFFFFF" stroke={LINE} strokeWidth={2} strokeLinejoin="round" />
+                <path d="M248 572 L226 594 L240 610 L226 618 L300 716 L262 600 Z" fill={shade(coat, 1.15)} stroke={LINE} strokeWidth={2} strokeLinejoin="round" />
+                <path d="M352 572 L374 594 L360 610 L374 618 L300 716 L338 600 Z" fill={shade(coat, 1.15)} stroke={LINE} strokeWidth={2} strokeLinejoin="round" />
+                {pocketSquare && <path d="M352 662 L384 662 L376 646 L366 656 L360 644 Z" fill="#F8FAFC" stroke={LINE} strokeWidth={1.4} />}
+                <path d="M346 668 L392 668" stroke={LINE} strokeWidth={1.6} opacity={0.5} />
+                <circle cx={300} cy={738} r={6} fill="#1E293B" stroke={LINE} strokeWidth={1.4} />
+              </g>
+            ) : (
+              <g>
+                {/* collar points, placket, buttons and a chest pocket */}
+                <path d="M300 760 L300 604" stroke={LINE} strokeWidth={1.8} opacity={0.5} />
+                {[0, 1, 2].map((i) => (
+                  <circle key={i} cx={306} cy={626 + i * 46} r={4} fill="#FFFFFF" stroke={LINE} strokeWidth={1.2} />
+                ))}
+                <path d="M248 568 L300 604 L290 620 L238 590 Z M352 568 L300 604 L310 620 L362 590 Z" fill={shade(cloth, 1.12)} stroke={LINE} strokeWidth={2} strokeLinejoin="round" />
+                <path d="M226 650 L262 650 L262 690 Q244 698 226 690 Z" fill="none" stroke={LINE} strokeWidth={1.6} opacity={0.55} />
               </g>
             )}
-            {outfit === "shirt" && <path d="M300 680 L300 800" stroke={LINE} strokeWidth={1.8} opacity={0.5} />}
-            {outfit === "shirt" && [0, 1].map((i) => <circle key={i} cx={306} cy={712 + i * 50} r={4} fill="#FFF" stroke={LINE} strokeWidth={1.2} />)}
             {folds}
           </g>
         );
+      }
       case "hoodie":
         return (
           <g>
-            <path d={shoulders} fill={cloth} stroke={LINE} strokeWidth={2.4} />
-            <path d="M196 640 C220 700 380 700 404 640 C380 660 340 672 300 672 C260 672 220 660 196 640 Z" fill="#00000022" stroke={LINE} strokeWidth={2} />
-            <path d="M282 676 L278 740 M318 676 L322 740" stroke={accent} strokeWidth={4} strokeLinecap="round" />
+            {clothBody(cloth, shade(cloth, 0.9))}
+            {/* the hood bunched behind the neck, raglan seams, drawstrings */}
+            <path d="M226 574 C236 548 364 548 374 574 C372 606 346 626 300 628 C254 626 228 606 226 574 Z" fill={shade(cloth, 0.82)} stroke={LINE} strokeWidth={2.2} />
+            <path d="M246 580 C262 604 338 604 354 580" stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.5} />
+            <path d={`M244 600 L${X(-150)} 700 M356 600 L${X(150)} 700`} stroke={LINE} strokeWidth={1.6} opacity={0.35} />
+            <path d="M284 622 C282 650 280 676 278 700 M316 622 C318 650 320 676 322 700" stroke={accent} strokeWidth={4} strokeLinecap="round" fill="none" />
+            <circle cx={278} cy={704} r={5} fill={accent} stroke={LINE} strokeWidth={1.2} />
+            <circle cx={322} cy={704} r={5} fill={accent} stroke={LINE} strokeWidth={1.2} />
             {folds}
           </g>
         );
       case "tee":
         return (
           <g>
-            <path d={shoulders} fill={cloth} stroke={LINE} strokeWidth={2.4} />
-            <path d="M226 618 C250 650 350 650 374 618" stroke={shade(cloth, 0.75)} strokeWidth={8} fill="none" />
+            {clothBody(cloth, shade(cloth, 0.92))}
+            <path d="M248 572 C262 604 338 604 352 572" stroke={shade(cloth, 0.75)} strokeWidth={8} fill="none" />
             {folds}
           </g>
         );
       case "kurta":
         return (
           <g>
-            <path d={shoulders} fill={cloth} stroke={LINE} strokeWidth={2.4} />
-            <path d="M300 640 L300 760" stroke={LINE} strokeWidth={2} />
+            {clothBody(cloth, shade(cloth, 0.92))}
+            {/* band collar, placket with buttons, embroidered edge */}
+            <path d="M252 566 C262 586 338 586 348 566 L350 580 C338 600 262 600 250 580 Z" fill={shade(cloth, 0.9)} stroke={LINE} strokeWidth={2} />
+            <path d="M292 592 L292 690 L308 690 L308 592" fill={shade(cloth, 0.95)} stroke={LINE} strokeWidth={1.6} />
             {[0, 1, 2].map((i) => (
-              <circle key={i} cx={300} cy={660 + i * 30} r={4} fill={accent} stroke={LINE} strokeWidth={1} />
+              <circle key={i} cx={300} cy={612 + i * 28} r={4} fill={accent} stroke={LINE} strokeWidth={1} />
             ))}
-            <path d="M222 618 C250 646 350 646 378 618" stroke={accent} strokeWidth={6} fill="none" />
+            <path d="M292 690 L308 690" stroke={accent} strokeWidth={4} />
+            {vest && (
+              <g>
+                <path d={`M252 574 L${X(-118)} 610 C${X(-140)} 650 ${X(-140)} 700 ${X(-136)} 760 L286 760 L286 640 Z`} fill={vest} stroke={LINE} strokeWidth={2.2} strokeLinejoin="round" />
+                <path d={`M348 574 L${X(118)} 610 C${X(140)} 650 ${X(140)} 700 ${X(136)} 760 L314 760 L314 640 Z`} fill={vest} stroke={LINE} strokeWidth={2.2} strokeLinejoin="round" />
+                {[0, 1].map((i) => (
+                  <circle key={i} cx={322} cy={668 + i * 40} r={5} fill="#F5E6C8" stroke={LINE} strokeWidth={1.2} />
+                ))}
+                <path d="M346 652 L386 652" stroke={LINE} strokeWidth={1.6} opacity={0.5} />
+                <path d="M358 652 L358 618 L364 612 L370 618 L370 652" fill="#1D4ED8" stroke={LINE} strokeWidth={1.4} />
+              </g>
+            )}
             {folds}
           </g>
         );
@@ -389,10 +531,15 @@ export const Person: React.FC<Props> = ({
     <g transform={`translate(${x} ${y}) scale(${s}) ${flip ? "translate(600 0) scale(-1 1)" : ""}`}>
       <defs>
         <radialGradient id={u("iris")} cx="45%" cy="65%" r="65%">
-          <stop offset="0%" stopColor="#6B4A3A" />
+          <stop offset="0%" stopColor={iris} />
           <stop offset="60%" stopColor="#3A251C" />
           <stop offset="100%" stopColor="#1A0F0B" />
         </radialGradient>
+        <linearGradient id={u("chest")} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#000" stopOpacity={0} />
+          <stop offset="55%" stopColor="#000" stopOpacity={0.02} />
+          <stop offset="100%" stopColor="#000" stopOpacity={0.12} />
+        </linearGradient>
         <radialGradient id={u("blush")}>
           <stop offset="0%" stopColor="#EE8E78" stopOpacity={0.6} />
           <stop offset="100%" stopColor="#EE8E78" stopOpacity={0} />
@@ -411,15 +558,43 @@ export const Person: React.FC<Props> = ({
         <clipPath id={u("face")}>
           <path d={FACE} />
         </clipPath>
+        <clipPath id={u("armL")}>
+          <path d={`M${X(-150)} 600 L${X(-260)} 600 L${X(-260)} 770 L${X(-162)} 770 C${X(-156)} 728 ${X(-154)} 694 ${X(-158)} 664 Z`} />
+        </clipPath>
+        <clipPath id={u("armR")}>
+          <path d={`M${X(150)} 600 L${X(260)} 600 L${X(260)} 770 L${X(162)} 770 C${X(156)} 728 ${X(154)} 694 ${X(158)} 664 Z`} />
+        </clipPath>
       </defs>
       <g filter={url("sketch")}>
         {backHair}
-        <path d="M266 476 C266 520 262 548 252 574 L348 574 C338 548 334 520 334 476 Z" fill={url("skin")} stroke={LINE} strokeWidth={2.2} />
-        <ellipse cx={300} cy={500} rx={44} ry={18} fill={shade(skin, 0.75)} opacity={0.55} filter={url("soft")} />
-        <g transform="translate(0 -44)">{body}</g>
+        <path d={`M${300 - 34 * bw} 476 C${300 - 34 * bw} 520 ${300 - 38 * bw} 548 ${300 - 50 * bw} 576 L${300 + 50 * bw} 576 C${300 + 38 * bw} 548 ${300 + 34 * bw} 520 ${300 + 34 * bw} 476 Z`} fill={url("skin")} stroke={LINE} strokeWidth={2.2} />
+        <ellipse cx={300} cy={504} rx={44 * bw} ry={20} fill={shade(skin, 0.72)} opacity={0.6} filter={url("soft")} />
+        {bw > 1.02 && <path d="M300 528 q-5 10 0 18" stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.3} />}
+        {headphones && <path d="M232 560 C226 600 374 600 368 560" stroke="#1F2937" strokeWidth={14} fill="none" strokeLinecap="round" />}
+        {body}
+        {headphones && (
+          <g>
+            <ellipse cx={240} cy={594} rx={30} ry={38} fill="#1F2937" stroke={LINE} strokeWidth={2.4} transform="rotate(-24 240 594)" />
+            <ellipse cx={360} cy={594} rx={30} ry={38} fill="#1F2937" stroke={LINE} strokeWidth={2.4} transform="rotate(24 360 594)" />
+            <ellipse cx={244} cy={590} rx={14} ry={20} fill="#374151" transform="rotate(-24 244 590)" />
+            <ellipse cx={356} cy={590} rx={14} ry={20} fill="#374151" transform="rotate(24 356 590)" />
+          </g>
+        )}
         {/* Ears: the far ear tucks away as the head turns */}
         <ellipse cx={180 + t * 0.6} cy={356} rx={16 - Math.max(0, turn) * 8} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
         <ellipse cx={420 + t * 0.6} cy={356} rx={16 + Math.min(0, turn) * 8} ry={26} fill={skin} stroke={LINE} strokeWidth={2} />
+        <path d={`M${184 + t * 0.6} 340 q-8 10 -2 26 q4 6 -2 10 M${416 + t * 0.6} 340 q8 10 2 26 q-4 6 2 10`} stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.5} />
+        {earrings && (
+          <g fill="#F59E0B" stroke={LINE} strokeWidth={1.4}>
+            {[178 + t * 0.6, 422 + t * 0.6].map((ex, i) => (
+              <g key={i} transform={`translate(${ex} 384) rotate(${sway * -12})`}>
+                <circle cx={0} cy={0} r={4} />
+                <path d="M-9 8 Q0 2 9 8 L7 20 L-7 20 Z" />
+                <circle cx={0} cy={24} r={3} fill="#FDE68A" />
+              </g>
+            ))}
+          </g>
+        )}
         <path d={FACE} fill={url("skin")} />
         <g clipPath={url("face")}>
           {/* soft shadow under the hairline and down the far cheek */}
@@ -443,8 +618,36 @@ export const Person: React.FC<Props> = ({
         {brow(355 + t, false)}
         {eye(245 + t, 362, true)}
         {eye(355 + t, 362, false)}
-        <path d={`M${302 + t * 1.3} 392 Q${309 + t * 1.3} 406 ${299 + t * 1.3} 412`} stroke={LINE} strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.75} />
-        <ellipse cx={298 + t * 1.3} cy={415} rx={6} ry={2.2} fill={shade(skin, 0.7)} opacity={0.6} />
+        {(() => {
+          const n = t * 1.3;
+          if (nose === "button")
+            return (
+              <g>
+                <path d={`M${302 + n} 392 Q${309 + n} 406 ${299 + n} 412`} stroke={LINE} strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.75} />
+                <ellipse cx={298 + n} cy={415} rx={6} ry={2.2} fill={shade(skin, 0.7)} opacity={0.6} />
+              </g>
+            );
+          const wide = nose === "broad" ? 1.3 : 1;
+          return (
+            <g strokeLinecap="round" fill="none">
+              {/* bridge shadow, tip highlight, nostril wings */}
+              <path d={`M${292 + n} 356 Q${288 + n} 384 ${290 + n} 402`} stroke={shade(skin, 0.7)} strokeWidth={5} opacity={0.35} />
+              <ellipse cx={302 + n} cy={404} rx={7 * wide} ry={5} fill="#FFFFFF" opacity={0.25} />
+              <path d={`M${300 - 16 * wide + n} 410 Q${300 - 12 * wide + n} 420 ${300 - 4 + n} 416 Q${300 + n} 420 ${304 + n} 416 Q${300 + 12 * wide + n} 420 ${300 + 16 * wide + n} 410`} stroke={LINE} strokeWidth={2} opacity={0.7} />
+              <ellipse cx={300 - 8 * wide + n} cy={414} rx={3.5} ry={2} fill={shade(skin, 0.55)} stroke="none" opacity={0.7} />
+              <ellipse cx={300 + 8 * wide + n} cy={414} rx={3.5} ry={2} fill={shade(skin, 0.55)} stroke="none" opacity={0.7} />
+            </g>
+          );
+        })()}
+        {stubble && (
+          <path d="M224 440 C238 496 270 520 300 522 C330 520 362 496 376 440 C360 470 340 488 300 490 C260 488 240 470 224 440 Z" fill={hairColor} opacity={0.18} />
+        )}
+        {expr === "sheepish" && (
+          <g>
+            <ellipse cx={226 + t} cy={404} rx={44} ry={20} fill="#E05A4A" opacity={0.28} filter={url("soft")} />
+            <ellipse cx={374 + t} cy={404} rx={44} ry={20} fill="#E05A4A" opacity={0.28} filter={url("soft")} />
+          </g>
+        )}
         {moustache && <path d={`M${264 + t} 432 Q${300 + t} 418 ${336 + t} 432 Q${300 + t} 440 ${264 + t} 432 Z`} fill={hairColor} />}
         {mouth}
         {beard && (

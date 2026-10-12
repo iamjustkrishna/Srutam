@@ -842,3 +842,57 @@ export const NotificationShade: React.FC<{ w: number; recording: boolean; presse
     </div>
   );
 };
+
+/** A group chat (a generic messenger, no real brand): messages spring in as `appear` goes 0 -> 1. */
+export const ChatScreen: React.FC<{
+  w: number;
+  title: string;
+  members: string;
+  messages: { from: string; text: string; me?: boolean; color?: string }[];
+  appear: number[];
+  typing?: string;
+}> = ({ w, title, members, messages, appear, typing }) => {
+  const k = k0(w);
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#EEF1F6", color: "#0F172A", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#FFFFFF", padding: `${70 * k}px ${26 * k}px ${18 * k}px`, borderBottom: "1.5px solid #E2E8F0", display: "flex", alignItems: "center", gap: 14 * k }}>
+        <div style={{ width: 54 * k, height: 54 * k, borderRadius: 99, background: "#C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22 * k, color: "#3730A3" }}>
+          {title.slice(0, 1)}
+        </div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 28 * k }}>{title}</div>
+          <div style={{ fontSize: 18 * k, color: "#64748B" }}>{members}</div>
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: `${20 * k}px ${22 * k}px`, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 14 * k }}>
+        {messages.map((m, i) => {
+          const a = Math.max(0, Math.min(1.2, appear[i] ?? 0));
+          if (a <= 0.001) return null;
+          return (
+            <div key={i} style={{ display: "flex", justifyContent: m.me ? "flex-end" : "flex-start", opacity: Math.min(1, a * 1.5), transform: `translateY(${(1 - a) * 30 * k}px) scale(${0.85 + 0.15 * a})`, transformOrigin: m.me ? "right bottom" : "left bottom" }}>
+              <div
+                style={{
+                  maxWidth: "80%",
+                  background: m.me ? C.cobalt : "#FFFFFF",
+                  color: m.me ? "#FFFFFF" : "#0F172A",
+                  borderRadius: m.me ? `${26 * k}px ${26 * k}px ${8 * k}px ${26 * k}px` : `${26 * k}px ${26 * k}px ${26 * k}px ${8 * k}px`,
+                  padding: `${12 * k}px ${20 * k}px`,
+                  fontSize: 25 * k,
+                  lineHeight: 1.3,
+                  boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
+                }}
+              >
+                {!m.me && <div style={{ fontSize: 18 * k, fontWeight: 800, color: m.color ?? "#7C3AED", marginBottom: 2 * k }}>{m.from}</div>}
+                {m.text}
+              </div>
+            </div>
+          );
+        })}
+        {typing && <div style={{ fontSize: 19 * k, color: "#64748B" }}>{typing} is typing…</div>}
+      </div>
+      <div style={{ background: "#FFFFFF", margin: `0 ${16 * k}px ${40 * k}px`, borderRadius: 99, height: 64 * k, border: "1.5px solid #E2E8F0", display: "flex", alignItems: "center", padding: `0 ${22 * k}px`, color: "#94A3B8", fontSize: 22 * k }}>
+        Message
+      </div>
+    </div>
+  );
+};

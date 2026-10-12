@@ -474,6 +474,166 @@ def scribble(sec=1.2):
     return out
 
 
+# ---------- v2: a quieter sound kit that supports the cut instead of taking focus ----------
+
+
+def soft_air(sec=0.7, lo=180, hi=1600):
+    """A soft whoosh for a cut: a band of air that swells and passes."""
+    t = t_axis(sec)
+    env = np.sin(np.pi * np.clip(t / sec, 0, 1)) ** 2.2
+    x = shape(shape(noise(sec), hi), lo, "hp") * env
+    return x * (0.7 + 0.3 * np.sin(2 * np.pi * 1.3 * t))
+
+
+def soft_swell(sec=1.1):
+    """A gentle rise into a transition (filter opens, then fades fast)."""
+    t = t_axis(sec)
+    env = (t / sec) ** 2 * np.clip((sec - t) / 0.12, 0, 1)
+    sweep = np.sin(2 * np.pi * np.cumsum(220 + 440 * (t / sec) ** 2) / SR) * 0.25
+    n = len(t)
+    lows, highs = shape(noise(sec), 900), shape(noise(sec), 3600)
+    k = t / sec
+    return (lows * (1 - k) + highs * k * 0.7 + sweep[:n]) * env
+
+
+def soft_thump():
+    """A fist on a meeting table: a felt low thud, no cartoon crack."""
+    t = t_axis(0.5)
+    body = np.sin(2 * np.pi * np.cumsum(95 * np.exp(-t * 14) + 55) / SR) * np.exp(-t * 11)
+    knock = shape(noise(0.5), 700) * np.exp(-t * 60) * 0.35
+    return body + knock
+
+
+def soft_blip():
+    """A chat message arriving: two quiet sine notes."""
+    out = np.zeros(int(0.3 * SR))
+    for i, f in enumerate((988, 1319)):
+        t = t_axis(0.16)
+        place(out, np.sin(2 * np.pi * f * t) * np.sin(np.pi * t / 0.16) ** 2, i * 0.07, 0.5)
+    return out
+
+
+def soft_tap():
+    t = t_axis(0.08)
+    return shape(noise(0.08), 3500) * np.exp(-t * 90) + np.sin(2 * np.pi * 1600 * t) * np.exp(-t * 70) * 0.3
+
+
+def soft_tick():
+    t = t_axis(0.05)
+    return shape(shape(noise(0.05), 2500, "hp"), 8000) * np.exp(-t * 160)
+
+
+def soft_page():
+    t = t_axis(0.45)
+    return shape(shape(noise(0.45), 1500, "hp"), 6000) * np.sin(np.pi * t / 0.45) ** 1.5 * (1 + 0.5 * np.sin(2 * np.pi * 18 * t))
+
+
+def soft_rewind(sec=0.8):
+    t = t_axis(sec)
+    env = np.sin(np.pi * t / sec) ** 2
+    return (np.sin(2 * np.pi * np.cumsum(500 + 1800 * (1 - t / sec)) / SR) * 0.2 + shape(noise(sec), 2200) * 0.6) * env
+
+
+def night_room(sec=12.0):
+    """2 a.m. in a hostel room: a slow ceiling fan and far crickets."""
+    t = t_axis(sec)
+    fan = shape(noise(sec), 300) * (0.8 + 0.2 * np.sin(2 * np.pi * 2.2 * t))
+    out = fan * 0.6
+    at = 0.4
+    while at < sec - 0.3:
+        place(out, cricket(0.9) * 0.15, at, 0.35)
+        at += rng.uniform(1.4, 2.6)
+    return out
+
+
+def class_room(sec=6.0):
+    """A lecture hall: low murmur of air and the odd chair creak."""
+    return shape(noise(sec), 500) * 0.6 + shape(noise(sec), 2500, "hp") * 0.02
+
+
+W2_TOTAL = 1340 * F
+E2_TOTAL = 1240 * F
+
+
+def groove(buf, start, end, notes, roots, beat, level=1.0, bass=True):
+    """A soft marimba line over a pizzicato bass, on 8ths."""
+    at, i = start, 0
+    while at < end:
+        place(buf, marimba(hz(notes[i % len(notes)]), 0.5), at, 0.15 * level)
+        if bass and i % 2 == 0:
+            place(buf, pizz(hz(roots[(i // 4) % len(roots)]), 0.45), at, 0.3 * level)
+        at += beat / 2
+        i += 1
+
+
+def who_music_v2():
+    """Sits under the dialogue: tension after the slam, a light office groove on
+    Tuesday, a confident groove for Srutam, nothing under the playback, a warm resolve."""
+    buf = np.zeros(int((W2_TOTAL + 1) * SR))
+    beat = 60 / 108
+    # cold open: a low uneasy drone after the slam
+    place(buf, shape(pad(["C2", "G2", "C#3"], 3.0, 0.1, 0.4), 500), 0.6, 0.35)
+    # Tuesday: warm plucks (stop at the side-eye)
+    at, i = 5.0, 0
+    prog = [("C3", ["E5", "G5", "C6"]), ("A2", ["E5", "A5", "C6"]), ("F2", ["F5", "A5", "C6"]), ("G2", ["D5", "G5", "B5"])]
+    while at < 16.8:
+        root, tri = prog[(i // 4) % 4]
+        if i % 2 == 0:
+            place(buf, pizz(hz(root), 0.4), at, 0.3)
+        place(buf, pizz(hz(tri[i % 3]), 0.35), at + beat / 2, 0.14)
+        at += beat
+        i += 1
+    place(buf, bell(hz("E6"), 2.0), 17.2, 0.05)
+    # Srutam: dock and cards
+    groove(buf, 19.4, 27.0, ["G5", "B5", "D6", "B5", "A5", "D6", "F#6", "D6"], ["G2", "D3", "E3", "C3"], beat, 0.9)
+    # blame: a quiet pizzicato walk
+    for j, n in enumerate(["C3", "D#3", "G3", "F#3", "F3", "D#3", "C3", "G2"]):
+        place(buf, pizz(hz(n), 0.35), 29.2 + j * beat / 2, 0.32)
+    # ask: a hopeful pad; it fades out before the playback
+    ask = pad(["G3", "D4", "B4"], 3.9, 0.3, 1.2)
+    ask *= np.clip(np.linspace(1.6, 0, len(ask)), 0, 1)
+    place(buf, shape(ask, 2400), 32.3, 0.28)
+    # payoff and end: the groove returns softly with the laugh, then resolves
+    groove(buf, 40.4, 42.2, ["G5", "B5", "D6", "B5"], ["G2", "D3"], beat, 0.8)
+    res = pad(["G2", "D3", "B3", "G4", "A4"], W2_TOTAL - 41.6, 0.7, 0.4)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 41.6, 0.35)
+    for j, n in enumerate(["G5", "B5", "D6", "G6"]):
+        place(buf, bell(hz(n), 2.2), 41.8 + j * 0.08, 0.06)
+    return buf
+
+
+def exam_music_v2():
+    """2 a.m. hush, a sepia music box for the memory, near-silence under the lecture
+    playback, then a warm groove for chai and the exam."""
+    buf = np.zeros(int((E2_TOTAL + 1) * SR))
+    # 2 a.m.: low pad, a slow heartbeat pulse
+    place(buf, shape(pad(["D2", "A2", "F3"], 8.4, 0.15, 1.2), 700), 0.0, 0.32)
+    for k in range(9):
+        place(buf, shape(noise(0.12), 120) * np.exp(-t_axis(0.12) * 30), 0.5 + k * 0.95, 0.35)
+    place(buf, bell(hz("A5"), 2.4), 7.9, 0.06)
+    # memory: music box over a drone
+    for k, n in enumerate(["A5", "C6", "E6", "D6", "C6", "A5", "G5", "A5"]):
+        place(buf, bell(hz(n), 1.6), 8.6 + k * 0.6, 0.05)
+    place(buf, shape(pad(["A2", "E3", "C4"], 4.8, 0.15, 1.0), 800), 8.5, 0.25)
+    # ask: a hopeful lift that thins out under the playback
+    lift = pad(["F3", "C4", "A4", "E5"], 9.0, 0.4, 1.0)
+    lift *= np.concatenate([np.ones(int(3.6 * SR)), np.linspace(1, 0.25, len(lift) - int(3.6 * SR))])
+    place(buf, shape(lift, 2200), 13.4, 0.28)
+    for k, n in enumerate(["C5", "F5", "A5", "C6"]):
+        place(buf, bell(hz(n), 1.8), 21.4 + k * 0.12, 0.06)
+    # share, door, chai, time-lapse: an easy groove in F
+    beat = 60 / 112
+    groove(buf, 23.8, 26.2, ["F5", "A5", "C6", "A5"], ["F2", "C3"], beat, 0.6, bass=False)
+    groove(buf, 29.6, 33.6, ["F5", "A5", "C6", "A5", "G5", "C6", "E6", "C6"], ["F2", "C3", "D3", "A#2"], beat, 0.9)
+    # exam hall: steady and sure
+    groove(buf, 34.8, 37.6, ["C6", "A5", "F5", "A5"], ["F2", "C3"], beat, 0.7)
+    res = pad(["F2", "C3", "A3", "F4", "G4"], E2_TOTAL - 37.6, 0.7, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 37.6, 0.35)
+    return buf
+
+
 def who_music():
     buf = np.zeros(int((W_TOTAL + 1) * SR))
     beat = 60 / 112
@@ -618,6 +778,20 @@ if __name__ == "__main__":
     write(PUB / "exam" / "rewind.wav", rewind(), 0.4)
     write(PUB / "exam" / "snore.wav", snore(), 0.5)
     write(PUB / "exam" / "scribble.wav", scribble(), 0.4)
+    write(PUB / "meeting" / "music2.wav", who_music_v2(), 0.5)
+    write(PUB / "exam" / "music2.wav", exam_music_v2(), 0.5)
+    # v2 sound kit
+    write(PUB / "sfx2" / "air.wav", soft_air(), 0.5)
+    write(PUB / "sfx2" / "air-long.wav", soft_air(1.1, 140, 1200), 0.5)
+    write(PUB / "sfx2" / "swell.wav", soft_swell(), 0.5)
+    write(PUB / "sfx2" / "thump.wav", soft_thump(), 0.7)
+    write(PUB / "sfx2" / "blip.wav", soft_blip(), 0.4)
+    write(PUB / "sfx2" / "tap.wav", soft_tap(), 0.4)
+    write(PUB / "sfx2" / "tick.wav", soft_tick(), 0.35)
+    write(PUB / "sfx2" / "page.wav", soft_page(), 0.4)
+    write(PUB / "sfx2" / "rewind.wav", soft_rewind(), 0.4)
+    write(PUB / "sfx2" / "night.wav", night_room(), 0.3)
+    write(PUB / "sfx2" / "class.wav", class_room(), 0.3)
     vo = PUB / "voiceover"
     write_lipsync("knock", {
         **{p.stem: p for p in sorted((vo / "knock" / "meera").glob("k*.mp3"))},

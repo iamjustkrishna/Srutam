@@ -223,7 +223,8 @@ export type ActorProps = {
   turn?: number;
   /** Head-and-shoulders lean in degrees. */
   tilt?: number;
-  blink?: boolean;
+  /** Closed (true) or partly closed (0..1, see blinkK). */
+  blink?: boolean | number;
   arms?: { l?: ArmPose; r?: ArmPose };
   /** Frame, for breathing. */
   f?: number;
@@ -235,6 +236,8 @@ export type ActorProps = {
   shadow?: boolean;
   /** Extend the body below the bust (local units) for standing wide shots. */
   torso?: number;
+  /** With `torso`: trousers and shoes below the waist; `walk` is the stride phase (radians). */
+  legs?: { pants: string; shoes?: string; walk?: number };
   screen?: ReactNode;
 };
 
@@ -257,6 +260,7 @@ export const Actor: React.FC<ActorProps> = ({
   sway = 0,
   shadow = false,
   torso = 0,
+  legs,
   screen,
 }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -265,8 +269,10 @@ export const Actor: React.FC<ActorProps> = ({
   const skin = meera ? "#F2C3A2" : (who.skin ?? "#E8B48F");
   const build = meera ? SLIM : isBroad(who) ? BROAD : SLIM;
   const coat = meera ? "#EFE6D8" : who.outfit === "blazer" ? "#334155" : (who.cloth ?? "#6B8CC7");
-  // Where the bust ends (Person draws its body 44 units up), for the torso extension.
-  const top = meera ? 792 : 748;
+  // Where the bust ends, for the torso extension.
+  const top = meera ? 792 : 758;
+  const bw = meera ? 1 : (who.bw ?? (isBroad(who) ? 1.08 : 1));
+  const out = { l: !!arms.l && !arms.l.behind, r: !!arms.r && !arms.r.behind };
   const breath = 1 + 0.008 * Math.sin(f / 18);
   const sy = squash * breath;
   const sx = 1 / Math.sqrt(squash);
@@ -287,7 +293,7 @@ export const Actor: React.FC<ActorProps> = ({
       )}
       <g filter={shadow ? `url(#sh${id})` : undefined}>
         <g transform={`translate(300 800) scale(${sx} ${sy}) rotate(${tilt}) translate(-300 -800)`}>
-          {torso > 0 && (
+          {torso > 0 && meera && (
             <path
               d={`M20 ${top} C18 ${top + torso * 0.5} 46 ${800 + torso * 0.85} 70 ${800 + torso} L530 ${800 + torso} C554 ${800 + torso * 0.85} 582 ${top + torso * 0.5} 580 ${top} Z`}
               fill={coat}
@@ -297,30 +303,106 @@ export const Actor: React.FC<ActorProps> = ({
           )}
           {behind.map(arm)}
           {meera ? (
-            <MeeraSketch x={0} y={0} s={1} expr={expr as SketchExpr} viseme={viseme} gaze={gaze} turn={turn} blink={blink} sway={sway} />
+            <MeeraSketch x={0} y={0} s={1} expr={expr as SketchExpr} viseme={viseme} gaze={gaze} turn={turn} blink={typeof blink === "number" ? blink > 0.5 : blink} sway={sway} />
           ) : (
-            <Person {...who} x={0} y={0} s={1} expr={expr as PExpr} viseme={viseme} gaze={gaze} turn={turn} blink={blink} />
+            <Person {...who} x={0} y={0} s={1} expr={expr as PExpr} viseme={viseme} gaze={gaze} turn={turn} blink={blink} armsOut={out} bw={bw} sway={sway} />
           )}
-          {torso > 0 && (
-            <g>
-              {/* hide the bust's bottom edge so the body reads as one piece */}
-              <rect x={24} y={top - 8} width={552} height={20} fill={coat} />
-              {!meera && who.outfit === "blazer" && (
-                <g>
-                  <path d={`M300 716 L300 ${800 + torso}`} stroke={LINE} strokeWidth={2.2} opacity={0.6} />
-                  {[0, 1].map((i) => (
-                    <circle key={i} cx={308} cy={770 + i * Math.min(90, torso * 0.3)} r={6} fill="#1E293B" stroke={LINE} strokeWidth={1.4} />
-                  ))}
-                </g>
-              )}
-              <path d={`M150 ${top + 40 + torso * 0.25} q16 ${torso * 0.3} 8 ${torso * 0.6} M450 ${top + 40 + torso * 0.25} q-16 ${torso * 0.3} -8 ${torso * 0.6}`} stroke={LINE} strokeWidth={2} fill="none" opacity={0.25} />
-            </g>
-          )}
+          {torso > 0 && meera && <rect x={24} y={top - 8} width={552} height={20} fill={coat} />}
+          {torso > 0 && !meera && <LowerBody who={who} torso={torso} bw={bw} out={out} coat={coat} sleeve={sleeve} skin={skin} legs={legs} />}
           {front.map(arm)}
         </g>
       </g>
     </g>
   );
+};
+
+/**
+ * The body below a Person's bust for standing shots: shirt to the waist, the resting
+ * forearms and hands, then (with `legs`) trousers and shoes. Drawn over the bust's
+ * bottom edge so the figure reads as one piece.
+ */
+const LowerBody: React.FC<{
+  who: PersonLook;
+  torso: number;
+  bw: number;
+  out: { l: boolean; r: boolean };
+  coat: string;
+  sleeve: string;
+  skin: string;
+  legs?: { pants: string; shoes?: string; walk?: number };
+}> = ({ who, torso, bw, out, coat, sleeve, skin, legs }) => {
+  const X = (dx: number) => 300 + dx * bw;
+  const floor = 800 + torso;
+  const waist = legs ? 800 + torso * 0.36 : floor;
+  const hem = legs ? waist + (who.outfit === "kurta" ? torso * 0.22 : who.outfit === "hoodie" ? 40 : 0) : floor;
+  const edge = (side: -1 | 1) => (out[side < 0 ? "l" : "r"] ? 162 : 218);
+  const L = edge(-1);
+  const R = edge(1);
+  const body = `M${X(-L)} 757 C${X(-L - 4)} ${757 + (hem - 757) * 0.4} ${X(-150)} ${hem - (hem - 757) * 0.3} ${X(-150)} ${hem} L${X(150)} ${hem} C${X(150)} ${hem - (hem - 757) * 0.3} ${X(R + 4)} ${757 + (hem - 757) * 0.4} ${X(R)} 757 Z`;
+  const w = legs?.walk ?? 0;
+  const leg = (side: -1 | 1) => {
+    const swing = Math.sin(w + (side < 0 ? 0 : Math.PI)) * 12;
+    const hipX = X(side * 64);
+    return (
+      <g key={side} transform={`rotate(${swing} ${hipX} ${waist + 20})`}>
+        <path
+          d={`M${X(side * 140)} ${waist} C${X(side * 136)} ${waist + (floor - waist) * 0.4} ${X(side * 116)} ${floor - 120} ${X(side * 112)} ${floor - 30} L${X(side * 30)} ${floor - 30} C${X(side * 28)} ${floor - 160} ${X(side * 10)} ${waist + 140} ${X(0)} ${waist + 90} Z`}
+          fill={legs!.pants}
+          stroke={LINE}
+          strokeWidth={2.4}
+          strokeLinejoin="round"
+        />
+        <path d={`M${X(side * 70)} ${waist + 120} Q${X(side * 76)} ${floor - 220} ${X(side * 70)} ${floor - 60}`} stroke={LINE} strokeWidth={1.6} fill="none" opacity={0.3} />
+        <path
+          d={`M${X(side * 118)} ${floor - 34} C${X(side * 122)} ${floor + 6} ${X(side * 40)} ${floor + 14} ${X(side * 6)} ${floor + 4} L${X(side * 8)} ${floor - 34} Z`}
+          transform={`translate(${side * 14} 0)`}
+          fill={legs!.shoes ?? "#1F2937"}
+          stroke={LINE}
+          strokeWidth={2.4}
+          strokeLinejoin="round"
+        />
+      </g>
+    );
+  };
+  const forearm = (side: -1 | 1) => {
+    if (out[side < 0 ? "l" : "r"]) return null;
+    const x0 = X(side * 196);
+    const handY = legs ? waist + 40 : Math.min(floor - 40, 757 + 260);
+    const swing = legs ? Math.sin(w + (side < 0 ? Math.PI : 0)) * 6 : 0;
+    return (
+      <g key={side} transform={`rotate(${swing} ${x0} 740)`}>
+        <path d={`M${x0 - 30} 740 L${x0 + side * 8 - 26} ${handY - 30} L${x0 + side * 8 + 26} ${handY - 30} L${x0 + 30} 740 Z`} fill={sleeve} stroke={LINE} strokeWidth={2.2} strokeLinejoin="round" />
+        <ellipse cx={x0 + side * 8} cy={handY} rx={26} ry={34} fill={skin} stroke={LINE} strokeWidth={2.2} />
+        <path d={`M${x0 + side * 8 - side * 16} ${handY - 8} q${-side * 4} 14 ${side * 2} 26`} stroke={LINE} strokeWidth={1.4} fill="none" opacity={0.5} />
+      </g>
+    );
+  };
+  return (
+    <g>
+      {legs && [leg(-1), leg(1)]}
+      <path d={body} fill={coat} />
+      <path d={`M${X(-L)} 757 C${X(-L - 4)} ${757 + (hem - 757) * 0.4} ${X(-150)} ${hem - (hem - 757) * 0.3} ${X(-150)} ${hem} L${X(150)} ${hem} C${X(150)} ${hem - (hem - 757) * 0.3} ${X(R + 4)} ${757 + (hem - 757) * 0.4} ${X(R)} 757`} fill="none" stroke={LINE} strokeWidth={2.4} />
+      <rect x={X(-150)} y={757} width={300 * bw} height={Math.max(0, hem - 757)} fill="#000" opacity={0.05} />
+      {who.outfit === "blazer" && (
+        <g>
+          <path d={`M300 757 L300 ${hem}`} stroke={LINE} strokeWidth={2.2} opacity={0.6} />
+          <circle cx={308} cy={790} r={6} fill="#1E293B" stroke={LINE} strokeWidth={1.4} />
+        </g>
+      )}
+      {(who.outfit === "shirt" || who.outfit === "blazer") && legs && <rect x={X(-150)} y={waist - 16} width={300 * bw} height={22} fill="#3F2A1D" stroke={LINE} strokeWidth={1.6} />}
+      {who.outfit === "shirt" && <path d={`M300 757 L300 ${waist - 16}`} stroke={LINE} strokeWidth={1.8} opacity={0.5} />}
+      {who.outfit === "hoodie" && <path d={`M${X(-110)} ${hem - 150} L${X(110)} ${hem - 150} L${X(90)} ${hem - 40} L${X(-90)} ${hem - 40} Z`} fill="none" stroke={LINE} strokeWidth={1.8} opacity={0.5} />}
+      {forearm(-1)}
+      {forearm(1)}
+    </g>
+  );
+};
+
+/** A smooth blink (0 open .. 1 closed) about every 3 s, 6 story frames long. */
+export const blinkK = (f: number, seed = 0) => {
+  const period = 84 + (seed % 5) * 9;
+  const p = (((f + seed * 17) % period) + period) % period;
+  return p < 6 ? Math.sin((p / 6) * Math.PI) : 0;
 };
 
 /** Natural idle eye movement: small saccades every ~1.5 s, deterministic per seed. */

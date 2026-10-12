@@ -16,45 +16,53 @@
   (`IdeaMeetingV2`, `IdeaExamV2`).
 - `MeetingAnimationTest`: 13.6 s test of the "Who Said That?" climax with the new rig.
 
-## "Who Said That?" (43.7 s, 1080x1920): `WhoSaidThat`
+## "Who Said That?" v2 (44.7 s, 1080x1920, 60 fps): `WhoSaidThat`
 
-Tuesday sync: Mr. Rao agrees to launch on the 14th, says "someone note it down", and
-nobody does, except Srutam, recording from the dock under the table. The Insights
-cards land before lunch. A week later Rao slams the table: "Who said yes to the
-14th?!" Arjun and Neha point at each other. Meera asks Srutam AI "When did we agree on
-the 14th?" and gets "Tuesday's sync, 0:42: “Fine. The 14th, final.”" with the source,
-then plays it: the room hears Rao himself. End card: "Every meeting, minuted."
+Cold open a week later: Mr. Rao slams the table, "Fourteen? Kisne haan bola tha
+fourteen ko?!" Freeze, "One week earlier": at Tuesday's sync Arjun suggests the 21st and
+Rao overrules him himself ("Nahi nahi, fourteen. Final."), then asks someone to note it
+down. Nobody does, except Srutam from the dock under the table; the Insights cards land
+before lunch. Back to the outburst: "Neha ne!" "Arjun ne!" Meera asks Srutam AI "When did
+we agree on the 14th?" and gets "Tuesday's sync, 0:42" with the quote and the source,
+then plays it: the room hears Rao himself. He owns it ("Achha... toh fourteen hi final
+hai.") and everyone laughs. End card: "Every meeting, minuted."
 
-Srutam never claims to know who spoke (the app has no speaker diarization): it finds
-the moment by time and quote, and the recording does the rest.
+Srutam never claims to know who spoke (the app has no speaker diarization): it finds the
+moment by time and quote, and the recording does the rest.
 
-## "2 a.m. Before the Exam" (41.2 s, 1080x1920): `BeforeTheExam`
+## "2 a.m. Before the Exam" v2 (41.3 s, 1080x1920, 60 fps): `BeforeTheExam`
 
-2:07 a.m., the exam is at nine and Meera can't remember what Prof said would come.
-Pages fly. A sepia flashback: Monday's lecture, half the class asleep (Meera too),
-her phone on the desk with Srutam's ongoing "Recording" notification (Save / Pause).
-Back at 2 a.m. she asks Srutam AI; the answer cites "Econ lecture · 41:05" and plays
-the lecture: "...and the metro case study. Twenty marks." Riya and Kabir burst in,
-chai, a time-lapse to 3:40 with the lecture's Key Points, and at 8:45 the app's own
-knock-knock reminder: "Econ exam. Starts in 15 minutes." Q3 is the metro case study.
-End card: "Listen once. Ask anytime."
+2:07 a.m., the exam is at nine. The group chat asks "Meera, you were in class na?" She
+slept through that lecture too, but Srutam didn't: a sepia flashback half-hears Prof while
+her phone shows Srutam's ongoing "Recording" notification. Back at 2 a.m. she asks Srutam
+AI; the answer cites "Econ lecture · 41:05" and plays the lecture: "Thursday ke exam mein,
+chapter chaar aur saat, aur metro case study. Bees marks ka." She shares it, Kabir and
+Riya walk in with chai, a smooth time-lapse to 4:10 with the lecture's Key Points, and at
+8:45 the app's own knock-knock reminder: "Econ exam. Starts in 15 minutes." Q3 is the
+metro case study. End card: "Listen once. Ask anytime."
 
-Shared for both:
+What changed in v2:
 
-- `src/cast/Rig.tsx` v3: tapered two-bone IK arms with build-aware proportions
-  (`SLIM`, `BROAD`), anatomical hands, `reach()` for aimed poses, a `torso` extension
-  for standing wide shots, soft drop shadows.
-- `src/stories/physics.ts`: springs with overshoot (`springAt`, `springPt`),
-  `ballistic` arcs, `flutter` (air drag + side-to-side for paper), `damped` wobbles,
-  `spin` with friction, `follow` for hair follow-through, a `handheld` camera.
-- `src/stories/Camera.tsx`: camera zoom / focus / shake / drift, depth-of-field
-  layers, colour grade and light leaks. `src/stories/voice.ts`: lip-sync by line.
-- Voices: Meera on ElevenLabs Eleven v4 ("Jessica", `scripts/vo/meeting-meera*.json`,
-  `scripts/vo/exam-meera.json`); everyone else in Hindi on Kokoro (the recordings
-  played back from the phone get a phone EQ). Mouths: Rhubarb.
+- Hindi voices: AI4Bharat Indic-TTS (FastPitch + HiFi-GAN, native Hindi studio voices)
+  instead of Kokoro's Hindi. Each character is voiced by steering the model's own pitch
+  level and range, its pace and a light formant shift (WORLD), with natural Hinglish lines
+  (`scripts/generate-voices-indic.py`). Playbacks from a phone get a phone EQ; the flashback
+  is muffled. Measured pitch: Rao ~96 Hz, Prof ~101, Arjun ~125, Kabir ~128, Neha ~210,
+  Riya ~253.
+- Characters: face shapes (oval, round, square, long, heart), nose styles, eye sizes by
+  age, eyelid creases, lips and ear detail; shoulders, deltoids and resting arms instead of
+  a dome; collars, lapels and tie, a Nehru jacket with a pen, hood and drawstrings,
+  headphones, earrings, a scrunchie and a swinging ponytail; trousers, shoes and a walk
+  cycle for standing shots (`src/storyboards/People.tsx`, `LowerBody` in `src/cast/Rig.tsx`).
+- Motion: rendered at 60 fps from 30 fps timelines (`src/stories/time.ts`): every pose,
+  spring, camera move and blink gets twice the in-betweens; smooth half-blinks
+  (`blinkK`), eased glances, no stepped time-lapse.
+- Sound: a quieter kit (`public/sfx2/`: air, swell, felt thump, blips, taps, ticks, pages,
+  room tones) under a softer score; music eases down under every line and drops out under
+  the playback; effects at 60% so they carry transitions without taking focus.
 
 ```bash
-python scripts/generate-voices-kokoro.py kokoro.onnx voices.bin
+python scripts/generate-voices-indic.py path/to/Indic-TTS/hi
 python scripts/lipsync-rhubarb.py path/to/rhubarb
 python scripts/generate_audio_stories.py
 npx remotion render WhoSaidThat out/who-said-that.mp4
