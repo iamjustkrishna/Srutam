@@ -695,11 +695,61 @@ def knock_tune():
     return tight(buf, 1.1, 0.5, 0.1)
 
 
+def knocks(buf, at=0.0, gain=1.0):
+    """The original A6 knock-knock, unchanged."""
+    place2(buf, pan(wood(1250), -0.1), at, 0.8 * gain)
+    place2(buf, pan(wood(1180), 0.1), at + 0.11, 0.7 * gain)
+
+
+def swell(freqs, sec=0.9, rise=0.16):
+    """A soft tone that fades in (no strike) and dies away: the opposite of an abrupt note."""
+    t = t_axis(sec)
+    tone = sum(np.sin(2 * np.pi * f * t) + 0.12 * np.sin(4 * np.pi * f * t) for f in freqs) / len(freqs)
+    rise_env = 0.5 - 0.5 * np.cos(np.pi * np.clip(t / rise, 0, 1))
+    return tone * rise_env * np.exp(-np.clip(t - rise, 0, None) * 4.5)
+
+
+def knock_only():
+    """Just the original knock-knock."""
+    buf = np.zeros((int(0.8 * SR), 2))
+    knocks(buf)
+    return tight(buf, 0.6, 0.4, 0.1)
+
+
+def knock_twice():
+    """Knock-knock ... knock-knock: someone at the door, a little more noticeable."""
+    buf = np.zeros((int(1.1 * SR), 2))
+    knocks(buf)
+    knocks(buf, 0.42, 0.9)
+    return tight(buf, 1.0, 0.4, 0.1)
+
+
+def knock_glow():
+    """Knock-knock, then a soft tone that fades in under the knocks' tail."""
+    buf = np.zeros((int(1.3 * SR), 2))
+    knocks(buf)
+    place2(buf, pan(swell([hz("G5"), hz("D6")], 0.95), -0.1), 0.17, 0.32)
+    place2(buf, pan(swell([hz("G6")], 0.95), 0.1), 0.19, 0.22)
+    return tight(buf, 1.2, 0.6, 0.14)
+
+
+def knock_hum():
+    """Knock-knock, with the knock's own pitch left softly humming in the room."""
+    buf = np.zeros((int(1.1 * SR), 2))
+    knocks(buf)
+    place2(buf, pan(swell([1250, 1250 * 1.5], 0.8, 0.08), 0.0), 0.12, 0.18)
+    return tight(buf, 1.0, 0.7, 0.18)
+
+
 KNOCK = {
     "a6-knock": knock,
     "k1-door": knock_door,
     "k2-felt": knock_felt,
     "k3-tune": knock_tune,
+    "o1-knock": knock_only,
+    "o2-twice": knock_twice,
+    "o3-glow": knock_glow,
+    "o4-hum": knock_hum,
 }
 
 IPHONE = {
