@@ -79,7 +79,7 @@ export const SFX: Cue[] = [
   { file: "sfx2/class.wav", at: 254, volume: 0.45, dur: 166 },
   { file: "sfx2/tap.wav", at: BEAT.startTap, volume: 0.45 },
   { file: "sfx2/air.wav", at: 416, volume: 0.3 },
-  { file: "sfx2/night.wav", at: 420, volume: 0.35, dur: 428 },
+  { file: "sfx2/night.wav", at: 420, volume: 0.35, dur: 428, loop: true },
   ...Array.from({ length: 10 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.typeStart + 2 + i * 3.4, volume: 0.22 })),
   { file: "sfx2/tap.wav", at: BEAT.send, volume: 0.4 },
   { file: "sfx2/blip.wav", at: BEAT.answer, volume: 0.3 },
