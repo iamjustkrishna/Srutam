@@ -15,6 +15,8 @@ import { BedtimeVideo } from "./bedtime/BedtimeVideo";
 import { TOTAL as BEDTIME_TOTAL } from "./bedtime/timeline";
 import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
+import { SHEET_H, SHEET_W } from "./storyboards/Board";
+import { IDEA_BOARDS } from "./storyboards/Ideas";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
 
 const calculateMetadata = async () => {
@@ -102,6 +104,18 @@ export const RemotionRoot: React.FC = () => (
       height={HEIGHT}
       calculateMetadata={calculateMetadata}
     />
+    <Folder name="Ideas">
+      {IDEA_BOARDS.map(([id, component]) => (
+        <Still
+          key={id}
+          id={id}
+          component={component}
+          width={SHEET_W}
+          height={SHEET_H}
+          calculateMetadata={calculateMetadata}
+        />
+      ))}
+    </Folder>
     <Folder name="Scenes">
       {scenes.map(([id, component, duration]) => (
         <Composition
