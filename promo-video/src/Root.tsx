@@ -11,6 +11,8 @@ import { StyleBoard } from "./styleboard/StyleBoard";
 import { OptionsBoard } from "./options/OptionsBoard";
 import { PaintedBoard } from "./painted/PaintedBoard";
 import { SketchSheet } from "./sketch/SketchSheet";
+import { BedtimeVideo } from "./bedtime/BedtimeVideo";
+import { TOTAL as BEDTIME_TOTAL } from "./bedtime/timeline";
 import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
@@ -89,6 +91,15 @@ export const RemotionRoot: React.FC = () => (
       component={SketchSheet}
       width={1800}
       height={2400}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="TwoAmIdea"
+      component={BedtimeVideo}
+      durationInFrames={BEDTIME_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
       calculateMetadata={calculateMetadata}
     />
     <Folder name="Scenes">

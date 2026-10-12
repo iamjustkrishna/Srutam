@@ -1,0 +1,42 @@
+{
+  "voiceId": "cgSgspJ2msm6clMCkdW9",
+  "outDir": "voiceover/bedtime",
+  "lines": [
+    [
+      "b1-idea",
+      "[sleepy, wide-eyed] Two thirteen a.m. [excited whisper] The best idea I've ever had."
+    ],
+    [
+      "b2-remember",
+      "[yawning, content] I'll remember it in the morning."
+    ],
+    [
+      "b3-forgot",
+      "[flat, deadpan] I did not remember it in the morning."
+    ],
+    [
+      "b4-rewind",
+      "[playful] Okay. Let's try that again."
+    ],
+    [
+      "b5-whisper",
+      "[whispering] Rooftop café, for book lovers... swap a book, get a chai. [whispering] Call Priya about her terrace... Saturday."
+    ],
+    [
+      "b6-sleep",
+      "[softly, sleepy] Tap. Say it. Back to sleep."
+    ],
+    [
+      "b7-morning",
+      "[delighted] And in the morning, it's all there. The idea, the next step... even a reminder."
+    ],
+    [
+      "b8-later",
+      "[warm] Three months later."
+    ],
+    [
+      "b9-end",
+      "[warm, confident] Shrutam. Catch it before it's gone."
+    ]
+  ]
+}

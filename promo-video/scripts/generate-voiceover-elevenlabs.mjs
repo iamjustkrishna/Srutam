@@ -5,37 +5,29 @@
 // timestamps the API returns. File names match src/timeline.ts.
 //
 // Usage:
-//   ELEVENLABS_API_KEY=... node scripts/generate-voiceover-elevenlabs.mjs [voiceId] [--audition]
+//   ELEVENLABS_API_KEY=... node scripts/generate-voiceover-elevenlabs.mjs [script.json] [--audition]
 //
-// --audition renders only the hook line to public/voiceover/auditions/<voice>.mp3
-// so voices can be compared cheaply.
+// script.json (default scripts/vo/spark.json) holds { voiceId, outDir, lines },
+// where outDir is relative to public/. --audition renders only the first line to
+// public/<outDir>/auditions/<voice>.mp3 so voices can be compared cheaply.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 if (!KEY) throw new Error("Set ELEVENLABS_API_KEY");
 
-const voiceId = process.argv[2] ?? "JBFqnCBsd6RMkjVDRZzb"; // George - warm, captivating storyteller
-const audition = process.argv.includes("--audition");
 const MODEL = "eleven_v4";
-
+const scriptPath = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "scripts/vo/spark.json";
+const audition = process.argv.includes("--audition");
 // Audio tags in [brackets] direct the performance; they are not spoken.
-// "Shrutam" is spelled for pronunciation (Sanskrit: shroo-tum).
-const LINES = [
-  ["v1-hook", "[hushed, intriguing] This idea... has four seconds to live."],
-  ["v2-lost", "[sighs] Most never make it."],
-  ["v3-tap", "[quick, playful] Tap, tap. From any app."],
-  ["v4-caught", "[relieved] Caught. [warm] And transcribed, right on your phone."],
-  ["v5-insights", "[confident] Shrutam pulls out your next steps, ideas, and decisions."],
-  ["v6-connect", "[wonder] Every thought connects. [smiling] Just ask."],
-  ["v7-end", "[warm, charismatic] Shrutam. Catch it before it's gone."],
-];
+// "Shrutam" is spelled for pronunciation (shroo-tum).
+const { voiceId, outDir: outRel, lines: LINES } = JSON.parse(readFileSync(scriptPath, "utf8"));
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = join(root, "public", "voiceover");
+const outDir = join(root, "public", outRel);
 
 const lines = audition ? LINES.slice(0, 1) : LINES;
 const SEP = "\n\n";

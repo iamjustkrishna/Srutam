@@ -5,7 +5,14 @@ import { useId } from "react";
 import { rand } from "../anim";
 import { quad, ribbon, type Pt } from "../options/shapes";
 
-export type SketchExpr = "surprised" | "worried" | "smug" | "laugh";
+export type SketchExpr =
+  | "surprised"
+  | "worried"
+  | "smug"
+  | "laugh"
+  | "sleep"
+  | "drowsy"
+  | "blank";
 
 const LINE = "#4A2E28";
 const HAIR = "#2B1E1B";
@@ -22,6 +29,12 @@ type Props = {
   turn?: number;
   gaze?: [number, number];
   hand?: boolean;
+  /** Close the eyes for a blink without changing the expression. */
+  blink?: boolean;
+  /** 0..1 how open the mouth is (lip-sync for "drowsy" whispering). */
+  talk?: number;
+  /** Hair sway, -1..1. */
+  sway?: number;
 };
 
 export const MeeraSketch: React.FC<Props> = ({
@@ -32,6 +45,9 @@ export const MeeraSketch: React.FC<Props> = ({
   turn = 0,
   gaze = [0, 0],
   hand = false,
+  blink = false,
+  talk = 0,
+  sway = 0,
 }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = (k: string) => `${k}${id}`;
@@ -40,11 +56,37 @@ export const MeeraSketch: React.FC<Props> = ({
 
   const eye = (cx: number, cy: number, left: boolean) => {
     const w = 82 * (left ? 1 - turn * 0.1 : 1 + turn * 0.1);
-    const open = expr === "surprised" ? 1.18 : expr === "smug" ? 0.72 : 1;
+    const open =
+      expr === "surprised"
+        ? 1.18
+        : expr === "smug"
+          ? 0.72
+          : expr === "drowsy"
+            ? 0.6
+            : 1;
     const h = 50 * open;
     const out = left ? -1 : 1; // direction of the outer corner
     const xo = cx + (out * w) / 2;
     const xi = cx - (out * w) / 2;
+    if (expr === "sleep" || blink) {
+      return (
+        <g>
+          <path
+            d={`M${xi} ${cy + 2} Q${cx} ${cy + 14} ${xo} ${cy}`}
+            stroke="#24140F"
+            strokeWidth={6}
+            fill="none"
+            strokeLinecap="round"
+          />
+          <path
+            d={`M${xo} ${cy} l${out * 12} 4 M${xo - out * 10} ${cy + 6} l${out * 8} 8`}
+            stroke="#24140F"
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        </g>
+      );
+    }
     if (expr === "laugh") {
       return (
         <g>
@@ -64,11 +106,12 @@ export const MeeraSketch: React.FC<Props> = ({
         </g>
       );
     }
-    const lidY = expr === "smug" ? cy - h * 0.28 : cy - h * 0.62;
+    const lidY =
+      expr === "smug" || expr === "drowsy" ? cy - h * 0.28 : cy - h * 0.62;
     const upper = `M${xi} ${cy + 2} C${xi + out * w * 0.18} ${lidY - h * 0.1} ${xo - out * w * 0.2} ${lidY - h * 0.14} ${xo} ${cy - 4}`;
     const white = `${upper} C${xo - out * w * 0.18} ${cy + h * 0.5} ${xi + out * w * 0.2} ${cy + h * 0.52} ${xi} ${cy + 2} Z`;
     const r =
-      (expr === "surprised" ? 21 : 26) *
+      (expr === "surprised" || expr === "blank" ? 20 : 26) *
       (left ? 1 - turn * 0.06 : 1 + turn * 0.06);
     const ix = cx + gaze[0] * 14;
     const iy = cy + 3 + gaze[1] * 7;
@@ -165,7 +208,7 @@ export const MeeraSketch: React.FC<Props> = ({
   // Brows: [inner y offset, outer y offset]
   const brow = (cx: number, left: boolean) => {
     const out = left ? -1 : 1;
-    const [inner, outer] =
+    const [inner, outer]: [number, number] =
       expr === "surprised"
         ? [-26, -22]
         : expr === "worried"
@@ -174,7 +217,11 @@ export const MeeraSketch: React.FC<Props> = ({
             ? left
               ? [-6, -8]
               : [-14, -20]
-            : [-12, -12];
+            : expr === "blank"
+              ? [-20, -20]
+              : expr === "sleep" || expr === "drowsy"
+                ? [-6, -6]
+                : [-12, -12];
     const yi = 312 + inner;
     const yo = 312 + outer;
     const xi = cx - out * 30;
@@ -190,7 +237,59 @@ export const MeeraSketch: React.FC<Props> = ({
 
   const mx = 300 + t;
   const mouth =
-    expr === "surprised" ? (
+    expr === "sleep" ? (
+      <g transform={`translate(${mx} 452)`}>
+        <path
+          d="M-14 0 Q0 9 14 0"
+          stroke={LINE}
+          strokeWidth={2.6}
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-10 4 Q0 10 10 4"
+          stroke="#E08E84"
+          strokeWidth={4}
+          fill="none"
+          strokeLinecap="round"
+          opacity={0.7}
+        />
+      </g>
+    ) : expr === "drowsy" ? (
+      <g transform={`translate(${mx} 452)`}>
+        <ellipse
+          rx={7 + talk * 5}
+          ry={2 + talk * 8}
+          fill="#7A2E2E"
+          stroke={LINE}
+          strokeWidth={2}
+        />
+        <path
+          d="M-13 -5 Q0 -9 13 -5"
+          stroke="#B5605A"
+          strokeWidth={2.5}
+          fill="none"
+          opacity={0.7}
+        />
+      </g>
+    ) : expr === "blank" ? (
+      <g transform={`translate(${mx} 454)`}>
+        <path
+          d="M-12 0 L12 0"
+          stroke={LINE}
+          strokeWidth={2.6}
+          strokeLinecap="round"
+        />
+        <path
+          d="M-8 4 Q0 8 8 4"
+          stroke="#E08E84"
+          strokeWidth={3}
+          fill="none"
+          strokeLinecap="round"
+          opacity={0.6}
+        />
+      </g>
+    ) : expr === "surprised" ? (
       <g transform={`translate(${mx} 450)`}>
         <ellipse rx={12} ry={15} fill="#7A2E2E" stroke={LINE} strokeWidth={2} />
         <ellipse cy={8} rx={8} ry={5} fill="#D86A6A" />
@@ -283,7 +382,7 @@ export const MeeraSketch: React.FC<Props> = ({
     const len = 40 + rand(i * 3) * 50;
     const ex = sx + Math.cos(tang) * len * (i % 2 ? 1 : -1);
     const ey = sy + Math.sin(tang) * len * (i % 2 ? 1 : -1);
-    const bend = 14 + rand(i * 9) * 14;
+    const bend = 14 + rand(i * 9) * 14 + sway * 10 * (i % 2 ? 1 : -1);
     return `M${sx} ${sy} Q${(sx + ex) / 2 + Math.cos(a) * bend} ${(sy + ey) / 2 + Math.sin(a) * bend} ${ex} ${ey}`;
   });
 

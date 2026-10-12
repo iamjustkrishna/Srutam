@@ -1,0 +1,13 @@
+{
+  "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+  "outDir": "voiceover",
+  "lines": [
+    ["v1-hook", "[hushed, intriguing] This idea... has four seconds to live."],
+    ["v2-lost", "[sighs] Most never make it."],
+    ["v3-tap", "[quick, playful] Tap, tap. From any app."],
+    ["v4-caught", "[relieved] Caught. [warm] And transcribed, right on your phone."],
+    ["v5-insights", "[confident] Shrutam pulls out your next steps, ideas, and decisions."],
+    ["v6-connect", "[wonder] Every thought connects. [smiling] Just ask."],
+    ["v7-end", "[warm, charismatic] Shrutam. Catch it before it's gone."]
+  ]
+}
