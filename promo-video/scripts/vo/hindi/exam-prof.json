@@ -1,0 +1,15 @@
+{
+  "voiceId": "Qxb5zQvEo3DYQK2HNnXm",
+  "voiceName": "Kunal Agarwal",
+  "outDir": "voiceover/exam/prof",
+  "lines": [
+    [
+      "prof-recording",
+      "[lecturing, clear and deliberate] Thursday के exam में, chapter चार और सात, और metro case study. बीस marks का."
+    ],
+    [
+      "prof-lecture",
+      "[lecturing] तो, Thursday के exam में..."
+    ]
+  ]
+}

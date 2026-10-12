@@ -1,0 +1,31 @@
+{
+  "voiceId": "m5qndnI7u4OAdXhH0Mr5",
+  "voiceName": "Krishna",
+  "outDir": "voiceover/meeting/rao",
+  "lines": [
+    [
+      "rao-who",
+      "[furious, slamming the table] Fourteen? किसने हाँ बोला था fourteen को?!"
+    ],
+    [
+      "rao-launch",
+      "[thinking aloud, confident] तो... launch, fourteen को करें?"
+    ],
+    [
+      "rao-final",
+      "[firm, waving it off] नहीं नहीं, fourteen. Final."
+    ],
+    [
+      "rao-deck",
+      "[brisk] Arjun, pricing deck, Thursday तक."
+    ],
+    [
+      "rao-note",
+      "[cheerful] कोई note कर लो!"
+    ],
+    [
+      "rao-sheepish",
+      "[sheepish, embarrassed little laugh] अच्छा... तो fourteen ही final है."
+    ]
+  ]
+}

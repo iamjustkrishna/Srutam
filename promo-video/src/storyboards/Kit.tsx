@@ -896,3 +896,203 @@ export const ChatScreen: React.FC<{
     </div>
   );
 };
+
+const KEYS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+
+/** A phone keyboard; `down` is the key under the thumb right now. */
+const Keyboard: React.FC<{ k: number; down?: string }> = ({ k, down }) => (
+  <div style={{ background: "#0F1426", padding: `${14 * k}px ${8 * k}px ${44 * k}px`, display: "flex", flexDirection: "column", gap: 10 * k }}>
+    {KEYS.map((row, r) => (
+      <div key={r} style={{ display: "flex", justifyContent: "center", gap: 7 * k }}>
+        {row.split("").map((c) => (
+          <div
+            key={c}
+            style={{
+              width: 38 * k,
+              height: 52 * k,
+              borderRadius: 8 * k,
+              background: down === c ? "#475569" : "#1E2539",
+              transform: down === c ? "translateY(-4px) scale(1.15)" : undefined,
+              color: "#E2E8F0",
+              fontSize: 22 * k,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {c}
+          </div>
+        ))}
+      </div>
+    ))}
+    <div style={{ display: "flex", justifyContent: "center", gap: 7 * k }}>
+      <div style={{ width: 300 * k, height: 52 * k, borderRadius: 8 * k, background: down === " " ? "#475569" : "#1E2539" }} />
+    </div>
+  </div>
+);
+
+/**
+ * Ask Srutam AI as the app draws it (GlobalCopilotScreen): the conversation, a
+ * "Thinking..." state, answers with "Referenced Notes:" pills, and the input bar
+ * ("Ask, or tell me what to set up...") with the send button and the keyboard.
+ */
+export const AskFlow: React.FC<{
+  w: number;
+  sent?: string;
+  thinking?: boolean;
+  answer?: string;
+  refs?: string[];
+  pressedRef?: boolean;
+  input?: string;
+  caret?: boolean;
+  keyboard?: number;
+  keyDown?: string;
+  sendDown?: boolean;
+}> = ({ w, sent, thinking = false, answer, refs = [], pressedRef = false, input = "", caret = false, keyboard = 0, keyDown, sendDown = false }) => {
+  const k = k0(w);
+  const canSend = input.trim().length > 0;
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#050714", color: "#F8FAFC", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: `${80 * k}px ${28 * k}px 0` }}>
+        <div style={{ fontFamily: "Playfair Display", fontSize: 44 * k }}>
+          Srutam <span style={{ fontStyle: "italic", fontWeight: 700, color: "#93C5FD" }}>AI</span>
+        </div>
+        <div style={{ fontSize: 19 * k, color: "#94A3B8", marginTop: 4 * k, lineHeight: 1.35 }}>I can search your voice notes and help you set reminders, add next steps, and save ideas.</div>
+      </div>
+      <div style={{ flex: 1, padding: `${20 * k}px ${28 * k}px`, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 22 * k }}>
+        {sent && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ background: C.cobalt, borderRadius: `${28 * k}px ${28 * k}px ${8 * k}px ${28 * k}px`, padding: `${16 * k}px ${22 * k}px`, fontSize: 25 * k, maxWidth: "82%", lineHeight: 1.35 }}>{sent}</div>
+          </div>
+        )}
+        {thinking && <div style={{ fontSize: 22 * k, color: "#94A3B8" }}>✦ Thinking...</div>}
+        {answer && (
+          <div style={{ background: "#0C1225", border: "1.5px solid #1A1F3A", borderRadius: 28 * k, padding: `${20 * k}px ${22 * k}px` }}>
+            <div style={{ fontSize: 18 * k, color: "#93C5FD", fontWeight: 700, marginBottom: 8 * k }}>✦ Srutam AI</div>
+            <div style={{ fontSize: 25 * k, lineHeight: 1.45 }}>{answer}</div>
+            {refs.length > 0 && (
+              <>
+                <div style={{ fontSize: 18 * k, color: "#94A3B8", marginTop: 16 * k, fontWeight: 700 }}>Referenced Notes:</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 * k, marginTop: 10 * k }}>
+                  {refs.map((r) => (
+                    <div
+                      key={r}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8 * k,
+                        background: pressedRef ? "#1D4ED8" : "#172554",
+                        boxShadow: pressedRef ? `0 0 0 ${8 * k}px rgba(96,165,250,0.4)` : undefined,
+                        color: "#BFDBFE",
+                        borderRadius: 999,
+                        padding: `${8 * k}px ${16 * k}px`,
+                        fontSize: 20 * k,
+                        fontWeight: 600,
+                      }}
+                    >
+                      📄 {r}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 12 * k, margin: `0 ${18 * k}px ${keyboard > 0 ? 12 * k : 60 * k}px`, background: "#0C1225", border: "1.5px solid #1A1F3A", borderRadius: 26 * k, padding: `${14 * k}px ${14 * k}px ${14 * k}px ${22 * k}px` }}>
+        <div style={{ flex: 1, fontSize: 23 * k, lineHeight: 1.35, color: input ? "#F8FAFC" : "#64748B", minHeight: 34 * k }}>
+          {input || "Ask, or tell me what to set up..."}
+          {caret && <span style={{ color: "#60A5FA" }}>|</span>}
+        </div>
+        <div
+          style={{
+            width: 52 * k,
+            height: 52 * k,
+            borderRadius: 999,
+            background: canSend ? C.cobalt : "#1E2539",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: sendDown ? "scale(0.88)" : undefined,
+            boxShadow: sendDown ? `0 0 0 ${8 * k}px rgba(96,165,250,0.4)` : undefined,
+            fontSize: 24 * k,
+          }}
+        >
+          ➤
+        </div>
+      </div>
+      {keyboard > 0 && (
+        <div style={{ transform: `translateY(${(1 - keyboard) * 100}%)` }}>
+          <Keyboard k={k} down={keyDown} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Note Details as the app draws it (DetailScreen + AudioPlayerCard): the note title,
+ * the round play button, the tap-to-seek waveform, the timecode and speed pills,
+ * then the Summary / Transcript / Insights tabs with the transcript showing.
+ */
+export const NoteDetail: React.FC<{
+  w: number;
+  title: string;
+  meta: string;
+  progress: number;
+  playing: boolean;
+  time: string;
+  total: string;
+  tap?: number;
+  transcript: string;
+}> = ({ w, title, meta, progress, playing, time, total, tap, transcript }) => {
+  const k = k0(w);
+  const bars = Array.from({ length: 44 }, (_, i) => 0.22 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.55)) * 0.78);
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#050714", color: "#F8FAFC", padding: `${76 * k}px ${24 * k}px` }}>
+      <div style={{ fontSize: 20 * k, color: "#94A3B8", fontWeight: 700 }}>‹ Note Details</div>
+      <div style={{ fontSize: 34 * k, fontWeight: 800, marginTop: 18 * k }}>{title}</div>
+      <div style={{ fontSize: 18 * k, color: "#94A3B8", marginTop: 4 * k }}>{meta}</div>
+      <div style={{ marginTop: 24 * k, background: "#0C1225", border: "1px solid #1A1F3A", borderRadius: 28 * k, padding: `${22 * k}px ${20 * k}px` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 * k }}>
+          <div style={{ width: 70 * k, height: 70 * k, borderRadius: 999, background: C.cobalt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 * k, flexShrink: 0 }}>
+            {playing ? "❚❚" : "▶"}
+          </div>
+          <div style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", gap: 3 * k, height: 64 * k }}>
+            {bars.map((b, i) => (
+              <div key={i} style={{ flex: 1, height: `${b * 100}%`, borderRadius: 99, background: i / bars.length < progress ? "#60A5FA" : "#334155" }} />
+            ))}
+            {tap !== undefined && tap > 0 && tap < 1 && (
+              <div style={{ position: "absolute", left: `${progress * 100}%`, top: "50%", width: 24 * k + tap * 70 * k, height: 24 * k + tap * 70 * k, borderRadius: 999, border: `${3 * k}px solid rgba(255,255,255,${1 - tap})`, transform: "translate(-50%, -50%)" }} />
+            )}
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 20 * k, fontWeight: 800, color: playing ? "#60A5FA" : "#F8FAFC" }}>{time}</div>
+            <div style={{ fontSize: 15 * k, color: "#64748B" }}>{total}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18 * k }}>
+          <div style={{ fontSize: 17 * k, color: "#94A3B8" }}>Playback Speed</div>
+          <div style={{ display: "flex", gap: 8 * k }}>
+            {["1.0x", "1.25x", "1.5x", "2.0x"].map((s, i) => (
+              <div key={s} style={{ fontSize: 15 * k, fontWeight: 700, borderRadius: 99, padding: `${5 * k}px ${11 * k}px`, background: i === 0 ? C.cobalt : "#1E2539", color: i === 0 ? "#FFF" : "#94A3B8" }}>
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10 * k, marginTop: 24 * k }}>
+        {["✦ Summary", "📄 Transcript", "💡 Insights"].map((t, i) => (
+          <div key={t} style={{ fontSize: 18 * k, fontWeight: 700, borderRadius: 99, padding: `${9 * k}px ${16 * k}px`, background: i === 1 ? "#172554" : "transparent", color: i === 1 ? "#BFDBFE" : "#94A3B8", border: "1px solid #1A1F3A" }}>
+            {t}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 18 * k, background: "#0C1225", border: "1px solid #1A1F3A", borderRadius: 24 * k, padding: `${18 * k}px ${20 * k}px` }}>
+        <div style={{ fontSize: 18 * k, fontWeight: 800, color: "#94A3B8" }}>Full Transcript</div>
+        <div style={{ fontSize: 21 * k, lineHeight: 1.5, color: "#CBD5E1", marginTop: 8 * k }}>{transcript}</div>
+      </div>
+    </div>
+  );
+};
