@@ -19,16 +19,16 @@ import {
 } from "./Kit";
 import { Person } from "./People";
 
-const MA = { hair: "nani", outfit: "saree", hairColor: "#5A4A45", skin: "#D9A07C", cloth: "#0F766E", accent: "#FDE68A", bindi: true, aged: true } as const;
+export const MA = { hair: "nani", outfit: "saree", hairColor: "#5A4A45", skin: "#D9A07C", cloth: "#0F766E", accent: "#FDE68A", bindi: true, aged: true } as const;
 
-const Sofa: React.FC<{ y: number }> = ({ y }) => (
+export const Sofa: React.FC<{ y: number }> = ({ y }) => (
   <g>
     <rect x={-40} y={y} width={W + 80} height={420} rx={60} fill="#7C3AED" stroke={LINE} strokeWidth={6} opacity={0.85} />
     <rect x={-40} y={y + 160} width={W + 80} height={H} fill="#6D28D9" stroke={LINE} strokeWidth={6} />
   </g>
 );
 
-const Street: React.FC = () => (
+export const Street: React.FC = () => (
   <g>
     {[0, 1, 2, 3, 4].map((i) => (
       <rect key={i} x={i * 230 - 20} y={520 + (i % 2) * 120} width={210} height={900} fill={i % 2 ? "#3B2F5C" : "#4C3B6E"} />

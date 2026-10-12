@@ -23,7 +23,7 @@ import {
 } from "./Kit";
 import { Person } from "./People";
 
-const NANI = {
+export const NANI = {
   hair: "nani",
   outfit: "saree",
   hairColor: "#CFC8C2",
@@ -35,7 +35,7 @@ const NANI = {
   glasses: true,
 } as const;
 
-const Shelf: React.FC = () => (
+export const Shelf: React.FC = () => (
   <g>
     <rect x={0} y={640} width={W} height={26} fill="#8B5E3C" stroke={LINE} strokeWidth={5} />
     <Jar x={150} y={640} label="Gud" fill="#B7791F" />

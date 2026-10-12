@@ -12,6 +12,10 @@ import { OptionsBoard } from "./options/OptionsBoard";
 import { PaintedBoard } from "./painted/PaintedBoard";
 import { SketchSheet } from "./sketch/SketchSheet";
 import { BedtimeVideo } from "./bedtime/BedtimeVideo";
+import { KnockVideo } from "./knock/KnockVideo";
+import { TOTAL as KNOCK_TOTAL } from "./knock/timeline";
+import { NaniVideo } from "./nani/NaniVideo";
+import { TOTAL as NANI_TOTAL } from "./nani/timeline";
 import { TOTAL as BEDTIME_TOTAL } from "./bedtime/timeline";
 import { PANELS } from "./painted/Panels";
 import { SpiritBoard } from "./spirit/SpiritBoard";
@@ -93,6 +97,24 @@ export const RemotionRoot: React.FC = () => (
       component={SketchSheet}
       width={1800}
       height={2400}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="KnockKnock"
+      component={KnockVideo}
+      durationInFrames={KNOCK_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="NanisLaddoos"
+      component={NaniVideo}
+      durationInFrames={NANI_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
       calculateMetadata={calculateMetadata}
     />
     <Composition

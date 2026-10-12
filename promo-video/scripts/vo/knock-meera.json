@@ -1,0 +1,12 @@
+{
+  "voiceId": "cgSgspJ2msm6clMCkdW9",
+  "outDir": "voiceover/knock/meera",
+  "lines": [
+    ["k1-who", "[curious, playful] Who's there?"],
+    ["k2-promise", "[laughing] Haan Ma, I'll call you on Sunday. Promise!"],
+    ["k3-busy", "[sheepish] Sunday came... and I got busy."],
+    ["k4-once", "Now, I just say it once. Call Ma, Sunday at seven."],
+    ["k5-knocks", "[delighted] And Srutam knocks."],
+    ["k6-end", "[warm] Say it once. Srutam knocks."]
+  ]
+}

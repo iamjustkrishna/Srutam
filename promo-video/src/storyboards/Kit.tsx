@@ -239,7 +239,16 @@ export const LockNotifs: React.FC<{
   w: number;
   time: string;
   date: string;
-  notifs: { title: string; text: string; reminder?: boolean; recording?: boolean; app?: string }[];
+  notifs: {
+    title: string;
+    text: string;
+    reminder?: boolean;
+    recording?: boolean;
+    app?: string;
+    /** Pill buttons, e.g. the recording notification's Start or Pause / Save. */
+    actions?: string[];
+    pressed?: number;
+  }[];
 }> = ({ w, time, date, notifs }) => {
   const k = k0(w);
   return (
@@ -284,6 +293,27 @@ export const LockNotifs: React.FC<{
           </div>
           <div style={{ fontSize: 30 * k, fontWeight: 800, marginTop: 8 * k }}>{n.title}</div>
           <div style={{ fontSize: 24 * k, color: "#334155" }}>{n.text}</div>
+          {n.actions && (
+            <div style={{ display: "flex", gap: 14 * k, marginTop: 14 * k }}>
+              {n.actions.map((a, j) => (
+                <div
+                  key={a}
+                  style={{
+                    padding: `${10 * k}px ${26 * k}px`,
+                    borderRadius: 999,
+                    background: j === n.actions!.length - 1 ? C.cobalt : "#64748B",
+                    color: "#FFF",
+                    fontWeight: 700,
+                    fontSize: 22 * k,
+                    transform: n.pressed === j ? "scale(0.9)" : undefined,
+                    boxShadow: n.pressed === j ? `0 0 0 ${8 * k}px rgba(37,99,235,0.35)` : undefined,
+                  }}
+                >
+                  {a}
+                </div>
+              ))}
+            </div>
+          )}
           {n.reminder && (
             <div style={{ display: "flex", gap: 34 * k, marginTop: 14 * k, fontSize: 24 * k, fontWeight: 700, color: C.cobalt }}>
               <span>Mark Done</span>
@@ -336,7 +366,7 @@ export const QuickSettings: React.FC<{ w: number; recording?: boolean }> = ({ w,
 };
 
 /** Ask Srutam AI: a question, the answer and "Referenced Notes:" pills. */
-export const AskScreen: React.FC<{ w: number; q: string; a: string; refs: string[] }> = ({ w, q, a, refs }) => {
+export const AskScreen: React.FC<{ w: number; q: string; a: string; refs: string[]; pressed?: boolean }> = ({ w, q, a, refs, pressed = false }) => {
   const k = k0(w);
   return (
     <div style={{ position: "absolute", inset: 0, background: "#050714", color: "#F8FAFC", padding: `${80 * k}px ${28 * k}px` }}>
@@ -344,14 +374,14 @@ export const AskScreen: React.FC<{ w: number; q: string; a: string; refs: string
         Srutam <span style={{ fontStyle: "italic", fontWeight: 700, color: "#93C5FD" }}>AI</span>
       </div>
       <div style={{ fontSize: 20 * k, color: "#94A3B8", marginTop: 4 * k }}>Ask anything across all your voice notes and ideas</div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 40 * k }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 40 * k, visibility: q ? "visible" : "hidden" }}>
         <div style={{ background: C.cobalt, borderRadius: `${30 * k}px ${30 * k}px ${8 * k}px ${30 * k}px`, padding: `${18 * k}px ${24 * k}px`, fontSize: 27 * k, maxWidth: "82%", lineHeight: 1.35 }}>
           {q}
         </div>
       </div>
-      <div style={{ marginTop: 28 * k, background: "#0C1225", border: "1.5px solid #1A1F3A", borderRadius: 30 * k, padding: `${22 * k}px ${24 * k}px` }}>
+      <div style={{ marginTop: 28 * k, background: "#0C1225", border: "1.5px solid #1A1F3A", borderRadius: 30 * k, padding: `${22 * k}px ${24 * k}px`, visibility: a ? "visible" : "hidden" }}>
         <div style={{ fontSize: 27 * k, lineHeight: 1.45 }}>{a}</div>
-        <div style={{ fontSize: 19 * k, color: "#94A3B8", marginTop: 18 * k, fontWeight: 700 }}>Referenced Notes:</div>
+        <div style={{ fontSize: 19 * k, color: "#94A3B8", marginTop: 18 * k, fontWeight: 700, visibility: refs.length ? "visible" : "hidden" }}>Referenced Notes:</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 * k, marginTop: 10 * k }}>
           {refs.map((r) => (
             <div
@@ -360,7 +390,8 @@ export const AskScreen: React.FC<{ w: number; q: string; a: string; refs: string
                 display: "flex",
                 alignItems: "center",
                 gap: 8 * k,
-                background: "#172554",
+                background: pressed ? "#1D4ED8" : "#172554",
+                boxShadow: pressed ? `0 0 0 ${8 * k}px rgba(96,165,250,0.4)` : undefined,
                 color: "#BFDBFE",
                 borderRadius: 999,
                 padding: `${8 * k}px ${16 * k}px`,

@@ -1,5 +1,37 @@
 # Srutam promo videos
 
+## "Knock Knock" (31 s, 1080x1920): `KnockKnock`
+
+Meera promises Ma a Sunday call, then binges a show. Next time she says it once to
+Srutam, and on Sunday the reminder knocks: "Call Ma. Starts in 15 minutes." The app's
+own knock-knock reminder sound (`public/sfx/knock.wav`) opens the film, lands the
+payoff and closes the end card ("Say it once. Srutam knocks.").
+
+## "Nani's Laddoos" (41.5 s, 1080x1920): `NanisLaddoos`
+
+Nani never measured anything. Meera records her once from the Quick Settings tile
+("Voice Record"); on Diwali, 1,400 km away, she asks Srutam AI how much jaggery goes
+in, gets the answer with a "Referenced Notes:" pill, and hears Nani's own voice:
+"...aur thoda sa pyaar. Bas." End card: "Keep the recipe. Keep the voice."
+
+Both use real app strings (ReminderAlarmReceiver, QuickRecordNotification,
+QuickRecordingTileService, GlobalCopilotScreen) and share `src/stories/Story.tsx`
+(captions, ducking, pop-ins, lip-sync) and the storyboard kit in `src/storyboards/`.
+
+- Meera: ElevenLabs Eleven v4, voice "Jessica" (`scripts/vo/knock-meera.json`, `scripts/vo/nani-meera.json`)
+- Ma and Nani: Hindi, Kokoro TTS Hindi voices (`scripts/generate-voices-kokoro.py`), with English captions
+- Score, SFX and lip-sync data: `scripts/generate_audio_stories.py` (mouths follow each voice's loudness)
+- Storyboards for these and two more ideas: `node scripts/render-ideas.mjs`
+
+```bash
+ELEVENLABS_API_KEY=... node scripts/generate-voiceover-elevenlabs.mjs scripts/vo/knock-meera.json
+ELEVENLABS_API_KEY=... node scripts/generate-voiceover-elevenlabs.mjs scripts/vo/nani-meera.json
+python scripts/generate-voices-kokoro.py kokoro.onnx voices.bin
+python scripts/generate_audio_stories.py
+npx remotion render KnockKnock out/knock-knock.mp4
+npx remotion render NanisLaddoos out/nanis-laddoos.mp4
+```
+
 ## "The 2 a.m. Idea" (40 s, 1080x1920): `TwoAmIdea`
 
 A relatable story in Meera's own voice (ElevenLabs Eleven v4, voice "Jessica"),

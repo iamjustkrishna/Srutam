@@ -693,7 +693,25 @@ export const MeeraSketch: React.FC<Props> = ({
           fill="#C9826A"
           opacity={0.5}
         />
-        {mouth}
+        {talk > 0.12 && !["drowsy", "sleep", "laugh"].includes(expr) ? (
+          // Speaking: an open mouth sized by the voice's loudness (lip-sync)
+          <g transform={`translate(${mx} 452)`}>
+            <ellipse
+              rx={10 + talk * 8}
+              ry={3 + talk * 13}
+              fill="#7A2E2E"
+              stroke={LINE}
+              strokeWidth={2.2}
+            />
+            <ellipse cy={2 + talk * 7} rx={6 + talk * 4} ry={2 + talk * 4} fill="#D86A6A" />
+          </g>
+        ) : expr === "laugh" && talk > 0.12 ? (
+          <g transform={`translate(${mx} 448) scale(${0.8 + talk * 0.4}) translate(${-mx} -448)`}>
+            {mouth}
+          </g>
+        ) : (
+          mouth
+        )}
 
         {/* Bangs (curtain), side locks, flyaways */}
         <path

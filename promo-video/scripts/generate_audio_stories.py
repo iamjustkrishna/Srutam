@@ -1,0 +1,372 @@
+"""Score, sound effects and lip-sync data for "Knock Knock" and "Nani's Laddoos".
+
+Everything is synthesized here (no downloads). Times mirror the frame numbers
+in src/knock/timeline.ts and src/nani/timeline.ts (seconds = frame / 30).
+Lip-sync: the loudness of each voice line per video frame, written to
+src/<video>/lipsync.ts so mouths open with the real voice.
+
+Usage: python scripts/generate_audio_stories.py
+"""
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
+SR = 44100
+ROOT = Path(__file__).resolve().parent.parent
+PUB = ROOT / "public"
+rng = np.random.default_rng(23)
+F = 1 / 30
+
+
+def t_axis(sec):
+    return np.arange(int(sec * SR)) / SR
+
+
+def hz(name):
+    names = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+    semis = names[name[0]] + name.count("#") - name[1:].count("b")
+    return 440.0 * 2 ** ((semis - 9) / 12 + (int(name[-1]) - 4))
+
+
+def shape(x, fc, kind="lp", order=2):
+    """Gentle spectral low/high-pass (offline, so an FFT mask is fine)."""
+    spec = np.fft.rfft(x)
+    f = np.fft.rfftfreq(len(x), 1 / SR) + 1e-9
+    g = 1 / (1 + (f / fc) ** (2 * order)) if kind == "lp" else 1 / (1 + (fc / f) ** (2 * order))
+    return np.fft.irfft(spec * g, len(x))
+
+
+def place(buf, clip, at, gain=1.0):
+    i = int(at * SR)
+    j = min(len(buf), i + len(clip))
+    if j > i >= 0:
+        buf[i:j] += clip[: j - i] * gain
+
+
+def env(t, attack, decay):
+    return np.clip(t / attack, 0, 1) * np.exp(-t * decay)
+
+
+# ---------- instruments ----------
+
+
+def pizz(f, sec=0.5):
+    t = t_axis(sec)
+    tone = sum(np.sin(2 * np.pi * f * k * t) * np.exp(-t * (9 + 6 * k)) / k for k in range(1, 6))
+    return tone * np.clip(t / 0.003, 0, 1)
+
+
+def marimba(f, sec=0.8):
+    t = t_axis(sec)
+    tone = np.sin(2 * np.pi * f * t) * np.exp(-t * 7) + 0.3 * np.sin(2 * np.pi * f * 3.93 * t) * np.exp(-t * 24)
+    return tone * np.clip(t / 0.002, 0, 1)
+
+
+def piano(f, sec=1.6, vel=1.0):
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    for k in range(1, 8):
+        fk = f * k * np.sqrt(1 + 0.0003 * k * k)
+        out += np.sin(2 * np.pi * fk * t) * (0.65 * np.exp(-t * (6 + 2 * k)) + 0.35 * np.exp(-t * (1.6 + 0.4 * k))) / k ** (2.2 - vel)
+    return out * np.clip(t / 0.004, 0, 1)
+
+
+def pad(notes, sec, bright=0.4, attack=0.6):
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    for n in notes:
+        f = hz(n)
+        for det in (-0.07, 0.0, 0.07):
+            ff = f * 2 ** (det / 12)
+            out += np.sin(2 * np.pi * ff * t + rng.uniform(0, 6.28)) + bright * 0.3 * np.sin(4 * np.pi * ff * t)
+    out /= len(notes) * 3
+    return out * np.clip(t / attack, 0, 1) * np.clip((sec - t) / 0.6, 0, 1)
+
+
+def strings(notes, sec, attack=1.2):
+    """Bowed strings: slightly brighter pad with slow vibrato."""
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    for n in notes:
+        f = hz(n)
+        vib = 1 + 0.004 * np.sin(2 * np.pi * 5.2 * t + rng.uniform(0, 6))
+        ph = 2 * np.pi * np.cumsum(f * vib) / SR
+        out += sum(np.sin(k * ph) / k ** 1.3 for k in range(1, 7))
+    out /= len(notes) * 2
+    return shape(out, 3200) * np.clip(t / attack, 0, 1) ** 1.5 * np.clip((sec - t) / 0.8, 0, 1)
+
+
+def sitar(f, sec=1.4, bend=0.0):
+    """Sitar-ish pluck: bright decaying harmonics, a buzzy bridge and an optional meend (bend)."""
+    t = t_axis(sec)
+    freq = f * (1 + bend * np.clip(t / 0.18, 0, 1))
+    ph = 2 * np.pi * np.cumsum(freq) / SR
+    tone = sum(np.sin(k * ph) * np.exp(-t * (2.5 + 1.6 * k)) / k ** 0.7 for k in range(1, 14))
+    buzz = np.tanh(tone * 2.2) * 0.35
+    return (tone * 0.6 + buzz) * np.clip(t / 0.002, 0, 1)
+
+
+def tanpura(root, sec):
+    """A four-string tanpura cycle (Pa Sa Sa Sa-low) with a jawari shimmer, looped."""
+    out = np.zeros(int(sec * SR))
+    cycle = [hz(root) * 1.5 / 2, hz(root), hz(root), hz(root) / 2]
+    at = 0.0
+    i = 0
+    while at < sec:
+        f = cycle[i % 4]
+        n = t_axis(3.2)
+        ph = 2 * np.pi * f * n
+        tone = sum(np.sin(k * ph) * (0.6 + 0.4 * np.sin(2 * np.pi * (0.4 + 0.25 * k) * n)) / k ** 0.9 for k in range(1, 16))
+        place(out, tone * np.clip(n / 0.05, 0, 1) * np.exp(-n * 0.7), at, 0.25)
+        at += 0.8
+        i += 1
+    return shape(out, 4000)
+
+
+def bell(f, sec=2.5):
+    t = t_axis(sec)
+    out = sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-t * d) for r, a, d in ((1, 1, 1.4), (2.76, 0.5, 2.6), (5.4, 0.25, 4.5), (8.9, 0.12, 7)))
+    return out * np.clip(t / 0.002, 0, 1)
+
+
+def tabla(kind):
+    t = t_axis(0.5)
+    if kind == "na":
+        f = 520 * (1 + 0.04 * np.exp(-t * 40))
+        return (np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 14) + 0.3 * np.sin(2 * np.pi * 1300 * t) * np.exp(-t * 40))
+    f = 90 + 70 * np.exp(-t * 9)  # "ge": the bayan's swooping bass
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 6)
+
+
+def noise(sec):
+    return rng.standard_normal(int(sec * SR))
+
+
+# ---------- Knock Knock ----------
+
+K_TOTAL = 945 * F
+
+
+def knock_music():
+    buf = np.zeros(int((K_TOTAL + 1) * SR))
+    beat = 60 / 104
+    # Hook: two curious plucks after "Who's there?", then a hush under the title
+    place(buf, pizz(hz("C5")), 2.62, 0.5)
+    place(buf, pizz(hz("A4")), 2.85, 0.5)
+    place(buf, shape(pad(["D3", "A3", "F4"], 1.2, 0.2), 1500), 2.7, 0.35)
+
+    def bouncy(start, end, chords, gain=1.0, bass=True):
+        at, i = start, 0
+        while at < end - 0.05:
+            root, third, fifth = chords[(i // 4) % len(chords)]
+            if bass and i % 2 == 0:
+                place(buf, pizz(hz(root), 0.4), at, 0.55 * gain)
+            place(buf, marimba(hz([third, fifth, third, fifth][i % 4]), 0.5), at + beat / 2, 0.22 * gain)
+            sh = shape(noise(0.06), 6000, "hp") * np.exp(-t_axis(0.06) * 60)
+            place(buf, sh, at, 0.05 * gain)
+            place(buf, sh, at + beat / 2, 0.03 * gain)
+            at += beat
+            i += 1
+
+    # The promise: bouncy F - Bb - F - C
+    bouncy(3.5, 8.5, [("F2", "A5", "C6"), ("A#1", "D6", "F6"), ("F2", "A5", "C6"), ("C2", "G5", "E6")])
+    # Life happens: a lonely descending piano in D minor over a dull pad
+    place(buf, shape(pad(["D3", "F3", "A3"], 5.0, 0.1), 900), 8.5, 0.45)
+    for i, n in enumerate(["A4", "G4", "F4", "E4", "D4"]):
+        place(buf, piano(hz(n), 1.8, 0.8), 8.9 + i * 0.9, 0.35)
+    # Say it once: light, building again (no bass at first)
+    bouncy(13.5, 15.2, [("F2", "A5", "C6")], 0.6, bass=False)
+    bouncy(15.2, 19.8, [("A#1", "D6", "F6"), ("C2", "E6", "G6")], 0.8)
+    for i, n in enumerate(["C6", "F6", "A6"]):
+        place(buf, bell(hz(n), 1.4), 18.0 + i * 0.05, 0.12)
+    # (silence from 19.8 for the knock at 20.0)
+    # Payoff build: brighter, fuller
+    bouncy(20.6, 25.0, [("F2", "A5", "C6"), ("E2", "G5", "C6"), ("D2", "F5", "A5"), ("A#1", "D6", "F6")], 1.0)
+    place(buf, shape(pad(["F3", "A3", "C4", "G4"], 4.6, 0.6), 2600), 20.6, 0.35)
+    # Video call: warm pad and a few marimba notes
+    place(buf, shape(pad(["F3", "C4", "A4", "G5"], 2.6, 0.7), 3000), 25.0, 0.45)
+    for i, n in enumerate(["C6", "A5", "F5", "G5"]):
+        place(buf, marimba(hz(n)), 25.2 + i * 0.5, 0.2)
+    # End: resolve after the logo knock
+    end = K_TOTAL - 27.85
+    res = pad(["F2", "C3", "A3", "F4", "G4", "C5"], end, 0.8, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.4
+    place(buf, shape(res, 3000), 27.85, 0.55)
+    for i, n in enumerate(["F5", "A5", "C6", "F6"]):
+        place(buf, bell(hz(n), 2.2), 27.9 + i * 0.07, 0.1)
+    return buf
+
+
+def street():
+    sec = 5.2
+    hum = shape(noise(sec), 400) * 0.6 + shape(noise(sec), 2500, "hp") * 0.03
+    out = hum * (0.8 + 0.2 * np.sin(2 * np.pi * 0.3 * t_axis(sec)))
+    # an auto-rickshaw putt-putt passing by
+    t = t_axis(sec)
+    putt = np.sin(2 * np.pi * 55 * t) * (np.sin(2 * np.pi * 9 * t) > 0.3) * np.exp(-((t - 2.2) ** 2) / 1.2)
+    return out + shape(putt, 600) * 1.4
+
+
+def horn():
+    t = t_axis(0.5)
+    tone = np.sign(np.sin(2 * np.pi * 420 * t)) + np.sign(np.sin(2 * np.pi * 530 * t))
+    return shape(tone, 2500) * np.clip(t / 0.01, 0, 1) * np.clip((0.5 - t) / 0.05, 0, 1) * (t < 0.18) + 0
+
+
+def tv_laugh(sec=1.6):
+    """A muffled studio-audience laugh coming from the TV."""
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    for _ in range(14):
+        f0 = rng.uniform(180, 320)
+        rate = rng.uniform(5, 8)
+        ph = 2 * np.pi * np.cumsum(f0 * (1 + 0.05 * np.sin(2 * np.pi * 3 * t))) / SR
+        voice = np.tanh(2 * np.sin(ph)) * (0.5 + 0.5 * np.sin(2 * np.pi * rate * t + rng.uniform(0, 6))) ** 2
+        out += voice * np.exp(-t * rng.uniform(0.6, 1.4))
+    return shape(shape(out, 2200), 250, "hp") * np.clip(t / 0.05, 0, 1)
+
+
+def clock(sec=5.2):
+    out = np.zeros(int(sec * SR))
+    for i in range(int(sec)):
+        click = shape(noise(0.03), 3000, "hp") * np.exp(-t_axis(0.03) * 300)
+        place(out, click, i + 0.1, 0.5 if i % 2 else 0.35)
+    return out
+
+
+# ---------- Nani's Laddoos ----------
+
+N_TOTAL = 1245 * F
+
+
+def nani_music():
+    buf = np.zeros(int((N_TOTAL + 1) * SR))
+    place(buf, tanpura("D3", N_TOTAL), 0.0, 1.0)
+
+    def phrase(start, notes, step=0.42, gain=0.3, bends=None):
+        for i, n in enumerate(notes):
+            if n:
+                place(buf, sitar(hz(n), 1.4, (bends or {}).get(i, 0.0)), start + i * step, gain)
+
+    # Kitchen: a warm, playful sitar line in D (Yaman colour with G#)
+    phrase(0.4, ["A4", None, "B4", "C#5", "D5", None, "C#5", "B4", "A4"], 0.42, 0.28, {4: 0.03})
+    phrase(4.6, ["F#4", "A4", None, "B4", "A4", "G#4", "A4"], 0.4, 0.22)
+    # Let it listen: the motif, softer
+    phrase(8.2, ["A4", "B4", "D5", None, "C#5", "A4"], 0.45, 0.18)
+    # Diwali night: drone, a soft B minor pad and distant bells
+    place(buf, shape(pad(["B2", "D3", "F#3"], 7.4, 0.2, 1.0), 1200), 12.7, 0.5)
+    for at, n in ((13.2, "F#5"), (15.6, "D5"), (18.0, "B4")):
+        place(buf, bell(hz(n), 3.0), at, 0.12)
+    # Ask: a curious little figure
+    phrase(20.2, ["F#4", "A4", "B4", None, "A4", "B4", "D5"], 0.36, 0.16)
+    # Her voice: strings swell D - Bm - G - A, opening up after "pyaar"
+    for i, ch in enumerate([["D3", "A3", "F#4"], ["B2", "F#3", "D4"], ["G2", "D3", "B3"], ["A2", "E3", "C#4"]]):
+        place(buf, strings(ch, 2.3), 26.0 + i * 2.0, 0.32 + 0.1 * i)
+    place(buf, strings(["D3", "A3", "D4", "F#4"], 3.2, 0.6), 33.8, 0.55)
+    # Video call: tabla pulse and a happy sitar line, resolving on D
+    beat = 60 / 92
+    at = 34.0
+    i = 0
+    while at < 39.2:
+        place(buf, tabla("ge" if i % 4 in (0, 3) else "na"), at, 0.35 if i % 4 == 0 else 0.22)
+        place(buf, tabla("na"), at + beat / 2, 0.12)
+        at += beat
+        i += 1
+    phrase(34.4, ["D5", "E5", "F#5", "A5", None, "F#5", "E5", "D5"], 0.33, 0.2)
+    end = N_TOTAL - 38.4
+    res = pad(["D3", "A3", "D4", "F#4", "A4"], end, 0.6, 0.4)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 38.4, 0.5)
+    for i, n in enumerate(["D5", "F#5", "A5", "D6"]):
+        place(buf, bell(hz(n), 2.6), 37.4 + i * 0.08, 0.09)
+    return buf
+
+
+def sizzle(sec=8.5):
+    t = t_axis(sec)
+    crackle = np.zeros_like(t)
+    for _ in range(int(sec * 60)):
+        at = rng.uniform(0, sec - 0.02)
+        pop = shape(noise(0.012), 3500, "hp") * np.exp(-t_axis(0.012) * 400)
+        place(crackle, pop, at, rng.uniform(0.1, 0.6))
+    hiss = shape(shape(noise(sec), 2500, "hp"), 9000) * 0.12
+    return (crackle + hiss) * np.clip(t / 0.4, 0, 1) * np.clip((sec - t) / 0.6, 0, 1)
+
+
+def crackers(sec=7.4):
+    out = np.zeros(int(sec * SR))
+    for _ in range(9):
+        at = rng.uniform(0.2, sec - 1.2)
+        boom = shape(noise(1.0), 180) * np.exp(-t_axis(1.0) * 4)
+        place(out, boom, at, rng.uniform(0.6, 1.2))
+        for k in range(rng.integers(3, 9)):  # a string of distant pops
+            pop = shape(shape(noise(0.03), 1500, "hp"), 5000) * np.exp(-t_axis(0.03) * 150)
+            place(out, pop, at + 0.15 + k * rng.uniform(0.05, 0.12), rng.uniform(0.2, 0.5))
+    return shape(out, 3000)
+
+
+def typing(sec, rate=13):
+    out = np.zeros(int(sec * SR))
+    at = 0.0
+    while at < sec - 0.05:
+        tick = shape(noise(0.02), 2500, "hp") * np.exp(-t_axis(0.02) * 350)
+        place(out, tick, at, rng.uniform(0.3, 0.6))
+        at += rng.uniform(0.6, 1.4) / rate
+    return out
+
+
+# ---------- lip-sync ----------
+
+
+def envelope(path):
+    x, sr = sf.read(path)
+    if x.ndim == 2:
+        x = x.mean(axis=1)
+    hop = sr / 30
+    n = int(len(x) / hop) + 1
+    rms = np.array([np.sqrt(np.mean(x[int(i * hop): int((i + 1) * hop)] ** 2) + 1e-12) for i in range(n)])
+    ref = np.percentile(rms[rms > 1e-4], 90) if np.any(rms > 1e-4) else 1
+    v = np.clip(rms / ref, 0, 1)
+    v = np.convolve(v, [0.25, 0.5, 0.25], mode="same")
+    v[v < 0.12] = 0
+    return [round(float(a), 2) for a in v]
+
+
+def write_lipsync(name, files):
+    lines = [f"// Generated by scripts/generate_audio_stories.py: voice loudness per frame (0..1).", "export const LIPSYNC: Record<string, number[]> = {"]
+    for key, path in files.items():
+        lines.append(f'  "{key}": {envelope(path)},')
+    lines.append("};")
+    out = ROOT / "src" / name / "lipsync.ts"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + "\n")
+    print(out.relative_to(ROOT))
+
+
+def write(path, data, peak=0.9):
+    data = data / max(1e-9, np.max(np.abs(data))) * peak
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(path, data.astype(np.float32), SR)
+    print(path.relative_to(ROOT), f"{len(data) / SR:.2f}s")
+
+
+if __name__ == "__main__":
+    write(PUB / "knock" / "music.wav", knock_music(), 0.6)
+    write(PUB / "knock" / "street.wav", street(), 0.5)
+    write(PUB / "knock" / "horn.wav", horn(), 0.5)
+    write(PUB / "knock" / "tv-laugh.wav", tv_laugh(), 0.5)
+    write(PUB / "knock" / "clock.wav", clock(), 0.5)
+    write(PUB / "nani" / "music.wav", nani_music(), 0.6)
+    write(PUB / "nani" / "sizzle.wav", sizzle(), 0.5)
+    write(PUB / "nani" / "crackers.wav", crackers(), 0.6)
+    write(PUB / "nani" / "typing.wav", typing(2.4), 0.5)
+    vo = PUB / "voiceover"
+    write_lipsync("knock", {
+        **{p.stem: p for p in sorted((vo / "knock" / "meera").glob("k*.mp3"))},
+        "ma-remembered": vo / "knock" / "ma" / "ma-remembered.wav",
+    })
+    write_lipsync("nani", {
+        **{p.stem: p for p in sorted((vo / "nani" / "meera").glob("n*.mp3"))},
+        **{p.stem: p for p in sorted((vo / "nani" / "nani").glob("*.wav"))},
+    })
