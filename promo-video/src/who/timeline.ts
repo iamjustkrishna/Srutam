@@ -81,7 +81,7 @@ export const VO: (Line & { src: string })[] = [
 
 // Effects sit under the story: soft air on cuts, a felt thump, quiet UI sounds.
 export const SFX: Cue[] = [
-  { file: "meeting/office.wav", at: 0, volume: 0.25, dur: 104 },
+  { file: "meeting/office.wav", at: 0, volume: 0.25, dur: 150 },
   { file: "sfx2/thump.wav", at: BEAT.impact, volume: 0.7 },
   { file: "sfx2/rewind.wav", at: BEAT.freeze + 4, volume: 0.5 },
   { file: "meeting/office.wav", at: 146, volume: 0.22, dur: 362 },
@@ -95,6 +95,7 @@ export const SFX: Cue[] = [
   { file: "sfx2/blip.wav", at: BEAT.cardReminder, volume: 0.3 },
   { file: "sfx2/tick.wav", at: 820, volume: 0.5 },
   { file: "sfx2/page.wav", at: BEAT.pageTear, volume: 0.5 },
+  { file: "meeting/office.wav", at: 806, volume: 0.15, dur: 70 },
   { file: "sfx2/tick.wav", at: 850, volume: 0.5 },
   { file: "meeting/office.wav", at: 872, volume: 0.2, dur: 468 },
   { file: "sfx2/air.wav", at: BEAT.raise, volume: 0.3 },
