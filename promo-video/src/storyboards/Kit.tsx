@@ -412,7 +412,8 @@ const STYLE: Record<Insight["kind"], { color: string; bg: string }> = {
 };
 
 /** Insights for one note: title card, then Idea / Next Step / Decision / Reminder cards. */
-export const InsightsScreen: React.FC<{ w: number; note: string; meta: string; items: Insight[] }> = ({ w, note, meta, items }) => {
+/** `appear` (0..1 per item, may overshoot) springs each card in; omit to show all. */
+export const InsightsScreen: React.FC<{ w: number; note: string; meta: string; items: Insight[]; appear?: number[] }> = ({ w, note, meta, items, appear }) => {
   const k = k0(w);
   return (
     <div style={{ position: "absolute", inset: 0, background: "#F4F5F8", color: "#0F172A", padding: `${70 * k}px ${28 * k}px` }}>
@@ -427,7 +428,19 @@ export const InsightsScreen: React.FC<{ w: number; note: string; meta: string; i
         <div style={{ fontSize: 18 * k, color: "#64748B" }}>{meta}</div>
       </div>
       {items.map((it, i) => (
-        <div key={i} style={{ marginTop: 16 * k, background: "#FFF", border: "1.5px solid #E2E8F0", borderRadius: 26 * k, padding: `${18 * k}px ${22 * k}px` }}>
+        <div
+          key={i}
+          style={{
+            marginTop: 16 * k,
+            background: "#FFF",
+            border: "1.5px solid #E2E8F0",
+            borderRadius: 26 * k,
+            padding: `${18 * k}px ${22 * k}px`,
+            opacity: appear ? Math.min(1, Math.max(0, appear[i] ?? 0) * 1.6) : 1,
+            transform: appear ? `translateY(${(1 - (appear[i] ?? 0)) * 40 * k}px) scale(${0.9 + 0.1 * (appear[i] ?? 0)})` : undefined,
+            boxShadow: appear && (appear[i] ?? 0) > 0.05 && (appear[i] ?? 0) < 0.98 ? "0 12px 30px rgba(37,99,235,0.25)" : undefined,
+          }}
+        >
           <div
             style={{
               display: "inline-flex",

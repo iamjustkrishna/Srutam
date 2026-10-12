@@ -3,7 +3,7 @@
 ## Cast v2: rig, lip-sync and pro storyboards
 
 - `src/cast/Rig.tsx`: `Actor` wraps Meera or any cast member with two-bone IK arms
-  (hand poses: point, open, fist, grip, thumb, phone), head tilt, breathing and
+  (hand poses: point, open, palm, fist, grip, thumb, phone), head tilt, breathing and
   squash & stretch. `saccade()` and `blinkAt()` add idle eye life.
 - `src/cast/Mouth.tsx`: the nine Rhubarb mouth shapes (A-H, X) in the sketch style.
 - `scripts/lipsync-rhubarb.py`: runs [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync)
@@ -15,6 +15,51 @@
   camera moves (red), character action (orange), cuts, dialogue, sound and animation notes
   (`IdeaMeetingV2`, `IdeaExamV2`).
 - `MeetingAnimationTest`: 13.6 s test of the "Who Said That?" climax with the new rig.
+
+## "Who Said That?" (43.7 s, 1080x1920): `WhoSaidThat`
+
+Tuesday sync: Mr. Rao agrees to launch on the 14th, says "someone note it down", and
+nobody does, except Srutam, recording from the dock under the table. The Insights
+cards land before lunch. A week later Rao slams the table: "Who said yes to the
+14th?!" Arjun and Neha point at each other. Meera asks Srutam AI "When did we agree on
+the 14th?" and gets "Tuesday's sync, 0:42: “Fine. The 14th, final.”" with the source,
+then plays it: the room hears Rao himself. End card: "Every meeting, minuted."
+
+Srutam never claims to know who spoke (the app has no speaker diarization): it finds
+the moment by time and quote, and the recording does the rest.
+
+## "2 a.m. Before the Exam" (41.2 s, 1080x1920): `BeforeTheExam`
+
+2:07 a.m., the exam is at nine and Meera can't remember what Prof said would come.
+Pages fly. A sepia flashback: Monday's lecture, half the class asleep (Meera too),
+her phone on the desk with Srutam's ongoing "Recording" notification (Save / Pause).
+Back at 2 a.m. she asks Srutam AI; the answer cites "Econ lecture · 41:05" and plays
+the lecture: "...and the metro case study. Twenty marks." Riya and Kabir burst in,
+chai, a time-lapse to 3:40 with the lecture's Key Points, and at 8:45 the app's own
+knock-knock reminder: "Econ exam. Starts in 15 minutes." Q3 is the metro case study.
+End card: "Listen once. Ask anytime."
+
+Shared for both:
+
+- `src/cast/Rig.tsx` v3: tapered two-bone IK arms with build-aware proportions
+  (`SLIM`, `BROAD`), anatomical hands, `reach()` for aimed poses, a `torso` extension
+  for standing wide shots, soft drop shadows.
+- `src/stories/physics.ts`: springs with overshoot (`springAt`, `springPt`),
+  `ballistic` arcs, `flutter` (air drag + side-to-side for paper), `damped` wobbles,
+  `spin` with friction, `follow` for hair follow-through, a `handheld` camera.
+- `src/stories/Camera.tsx`: camera zoom / focus / shake / drift, depth-of-field
+  layers, colour grade and light leaks. `src/stories/voice.ts`: lip-sync by line.
+- Voices: Meera on ElevenLabs Eleven v4 ("Jessica", `scripts/vo/meeting-meera*.json`,
+  `scripts/vo/exam-meera.json`); everyone else in Hindi on Kokoro (the recordings
+  played back from the phone get a phone EQ). Mouths: Rhubarb.
+
+```bash
+python scripts/generate-voices-kokoro.py kokoro.onnx voices.bin
+python scripts/lipsync-rhubarb.py path/to/rhubarb
+python scripts/generate_audio_stories.py
+npx remotion render WhoSaidThat out/who-said-that.mp4
+npx remotion render BeforeTheExam out/before-the-exam.mp4
+```
 
 ## "Knock Knock" (31 s, 1080x1920): `KnockKnock`
 

@@ -16,6 +16,10 @@ import { BedtimeVideo } from "./bedtime/BedtimeVideo";
 import { KnockVideo } from "./knock/KnockVideo";
 import { TOTAL as KNOCK_TOTAL } from "./knock/timeline";
 import { NaniVideo } from "./nani/NaniVideo";
+import { WhoVideo } from "./who/WhoVideo";
+import { ExamVideo } from "./exam/ExamVideo";
+import { TOTAL as EXAM_TOTAL } from "./exam/timeline";
+import { TOTAL as WHO_TOTAL } from "./who/timeline";
 import { MeetingTest, TEST_TOTAL } from "./meeting/MeetingTest";
 import { TOTAL as NANI_TOTAL } from "./nani/timeline";
 import { TOTAL as BEDTIME_TOTAL } from "./bedtime/timeline";
@@ -115,6 +119,24 @@ export const RemotionRoot: React.FC = () => (
       id="NanisLaddoos"
       component={NaniVideo}
       durationInFrames={NANI_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="WhoSaidThat"
+      component={WhoVideo}
+      durationInFrames={WHO_TOTAL}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="BeforeTheExam"
+      component={ExamVideo}
+      durationInFrames={EXAM_TOTAL}
       fps={FPS}
       width={WIDTH}
       height={HEIGHT}

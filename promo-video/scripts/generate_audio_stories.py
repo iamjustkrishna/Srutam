@@ -381,6 +381,178 @@ def meeting_test_music():
     return buf
 
 
+# ---------- Who Said That? (full) and 2 a.m. Before the Exam ----------
+
+W_TOTAL = 1310 * F
+E_TOTAL = 1235 * F
+
+
+def office_hum(sec):
+    t = t_axis(sec)
+    return shape(noise(sec), 220) * 0.5 + np.sin(2 * np.pi * 120 * t) * 0.02 + shape(noise(sec), 3000, "hp") * 0.01
+
+
+def cricket(sec=1.6):
+    out = np.zeros(int(sec * SR))
+    for k in range(3):
+        t = t_axis(0.22)
+        chirp = np.sin(2 * np.pi * 4600 * t) * (np.sin(2 * np.pi * 32 * t) > 0) * np.exp(-t * 6)
+        place(out, chirp, 0.1 + k * 0.45, 0.6)
+    return out
+
+
+def paper_flip():
+    t = t_axis(0.35)
+    return shape(shape(noise(0.35), 2500, "hp"), 9000) * np.exp(-t * 9) * (1 + 0.6 * np.sin(2 * np.pi * 26 * t))
+
+
+def chalk(sec=1.6):
+    out = np.zeros(int(sec * SR))
+    at = 0.0
+    while at < sec - 0.2:
+        t = t_axis(0.16)
+        tone = shape(noise(0.16), 2800, "hp") * (0.6 + 0.4 * np.sin(2 * np.pi * 80 * t)) * np.exp(-t * 8)
+        place(out, tone, at, rng.uniform(0.4, 0.8))
+        at += rng.uniform(0.18, 0.3)
+    return out
+
+
+def bell_ring(sec=2.2):
+    t = t_axis(sec)
+    ring = sum(np.sin(2 * np.pi * f * t) for f in (1480, 1520, 2960)) * (np.sin(2 * np.pi * 22 * t) > -0.2)
+    return ring * np.clip(t / 0.01, 0, 1) * np.clip((1.4 - t) / 0.3, 0, 1) * 0.3
+
+
+def door_bang():
+    t = t_axis(0.7)
+    return np.sin(2 * np.pi * np.cumsum(110 * np.exp(-t * 10) + 60) / SR) * np.exp(-t * 9) + shape(noise(0.7), 1200) * np.exp(-t * 30) * 0.6
+
+
+def clink():
+    t = t_axis(0.8)
+    return sum(np.sin(2 * np.pi * f * t) * np.exp(-t * d) for f, d in ((2300, 7), (3550, 10), (5100, 14))) * 0.4
+
+
+def door_knock():
+    """Two knuckle raps on a wooden door: a low body thump plus a short click."""
+    out = np.zeros(int(0.9 * SR))
+    for k, at in enumerate((0.0, 0.2, 0.48)):
+        t = t_axis(0.25)
+        body = np.sin(2 * np.pi * np.cumsum(170 * np.exp(-t * 25) + 95) / SR) * np.exp(-t * 32)
+        click = shape(noise(0.25), 2400) * np.exp(-t * 180) * 0.5
+        place(out, body + click, at, 1.0 if k != 1 else 0.85)
+    return out
+
+
+def rewind(sec=0.9):
+    """Tape-rewind whir: a filtered noise band sweeping up."""
+    t = t_axis(sec)
+    sweep = np.sin(2 * np.pi * np.cumsum(300 + 2600 * (t / sec) ** 2) / SR)
+    return (sweep * 0.3 + shape(noise(sec), 3000) * 0.5) * np.clip(t / 0.05, 0, 1) * np.clip((sec - t) / 0.15, 0, 1)
+
+
+def snore(sec=2.6):
+    """A slow cartoon snore: a rough low in-breath and a whistling out-breath."""
+    out = np.zeros(int(sec * SR))
+    t = t_axis(1.0)
+    rough = shape(noise(1.0), 400) * (0.6 + 0.4 * np.sin(2 * np.pi * 34 * t)) * np.sin(np.pi * t) ** 2
+    whistle = np.sin(2 * np.pi * np.cumsum(900 - 300 * t) / SR) * np.sin(np.pi * t) ** 3 * 0.12
+    place(out, rough, 0.0, 0.8)
+    place(out, whistle, 1.2, 1.0)
+    return out
+
+
+def scribble(sec=1.2):
+    """Pen on paper: bursts of bright friction noise."""
+    out = np.zeros(int(sec * SR))
+    at = 0.0
+    while at < sec - 0.15:
+        d = rng.uniform(0.06, 0.14)
+        t = t_axis(d)
+        place(out, shape(shape(noise(d), 1800, "hp"), 7000) * np.sin(np.pi * t / d), at, rng.uniform(0.5, 1.0))
+        at += d + rng.uniform(0.01, 0.05)
+    return out
+
+
+def who_music():
+    buf = np.zeros(int((W_TOTAL + 1) * SR))
+    beat = 60 / 112
+    # 1-2 Tuesday sync: light office ukulele-ish plucks over a soft pad (stops dead on "note it down")
+    at, i = 0.3, 0
+    prog = [("C3", ["E5", "G5", "C6"]), ("A2", ["E5", "A5", "C6"]), ("F2", ["F5", "A5", "C6"]), ("G2", ["D5", "G5", "B5"])]
+    while at < 10.6:
+        root, tri = prog[(i // 4) % 4]
+        if i % 2 == 0:
+            place(buf, pizz(hz(root), 0.4), at, 0.45)
+        place(buf, pizz(hz(tri[i % 3]), 0.35), at + beat / 2, 0.22)
+        at += beat
+        i += 1
+    # 4-5 Srutam: soft confident marimba groove, cards pop on the beat
+    at, i = 15.0, 0
+    notes = ["G5", "B5", "D6", "B5", "A5", "D6", "F#6", "D6"]
+    while at < 23.0:
+        place(buf, marimba(hz(notes[i % len(notes)]), 0.5), at, 0.2)
+        if i % 2 == 0:
+            place(buf, pizz(hz(["G2", "D3", "E3", "C3"][(i // 4) % 4]), 0.45), at, 0.38)
+        at += beat / 2
+        i += 1
+    # 6 one week later: a ticking hush; 7 the slam gets the sting (SFX); 8 comic pizz walk
+    at, i = 30.2, 0
+    for n in ["C3", "D#3", "G3", "F#3", "F3", "D#3", "C3", "G2"]:
+        place(buf, pizz(hz(n), 0.35), at + i * beat / 2, 0.5)
+        i += 1
+    # 9-10 Meera's reveal and the laugh: the groove returns, then a warm resolve
+    at, i = 33.0, 0
+    while at < 41.0:
+        place(buf, marimba(hz(notes[i % len(notes)]), 0.5), at, 0.2)
+        if i % 2 == 0:
+            place(buf, pizz(hz(["G2", "D3", "E3", "C3"][(i // 4) % 4]), 0.45), at, 0.4)
+        at += beat / 2
+        i += 1
+    end = W_TOTAL - 40.6
+    res = pad(["G2", "D3", "B3", "G4", "A4"], end, 0.7, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 40.6, 0.45)
+    for i, n in enumerate(["G5", "B5", "D6", "G6"]):
+        place(buf, bell(hz(n), 2.2), 40.7 + i * 0.07, 0.09)
+    return buf
+
+
+def exam_music():
+    buf = np.zeros(int((E_TOTAL + 1) * SR))
+    # 1-2 2 a.m.: ticking tension, low pulse, rising on the panic
+    for i in range(16):
+        place(buf, shape(noise(0.03), 3000, "hp") * np.exp(-t_axis(0.03) * 300), 0.2 + i * 0.5, 0.25)
+    place(buf, shape(pad(["D2", "A2", "F3"], 7.6, 0.2, 1.0), 900), 0.0, 0.45)
+    for i, n in enumerate(["D4", "F4", "A4", "C5", "D5", "F5"]):
+        place(buf, pizz(hz(n), 0.3), 5.1 + i * 0.25, 0.3)
+    # 3-5 flashback: sepia music-box over a drone
+    for i, n in enumerate(["A5", "C6", "E6", "D6", "C6", "A5", "G5", "A5", "C6", "E6", "G6", "E6"]):
+        place(buf, bell(hz(n), 1.6), 7.8 + i * 0.75, 0.08)
+    place(buf, shape(pad(["A2", "E3", "C4"], 10.6, 0.15, 1.0), 800), 7.6, 0.35)
+    # 6 the answer: a hopeful lift
+    place(buf, shape(pad(["F3", "C4", "A4", "E5"], 8.0, 0.5, 0.8), 2600), 18.4, 0.4)
+    for i, n in enumerate(["C5", "F5", "A5", "C6"]):
+        place(buf, bell(hz(n), 1.8), 22.6 + i * 0.12, 0.08)
+    # 7-10 friends, time-lapse, exam, end: an upbeat groove in F, resolving
+    beat = 60 / 118
+    at, i = 26.4, 0
+    notes = ["F5", "A5", "C6", "A5", "G5", "C6", "E6", "C6"]
+    while at < 37.0:
+        place(buf, marimba(hz(notes[i % len(notes)]), 0.5), at, 0.2)
+        if i % 2 == 0:
+            place(buf, pizz(hz(["F2", "C3", "D3", "A#2"][(i // 4) % 4]), 0.45), at, 0.42)
+        if i % 4 == 2:
+            place(buf, shape(noise(0.08), 4000, "hp") * np.exp(-t_axis(0.08) * 40), at, 0.12)
+        at += beat / 2
+        i += 1
+    end = E_TOTAL - 36.8
+    res = pad(["F2", "C3", "A3", "F4", "G4"], end, 0.7, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 36.8, 0.45)
+    return buf
+
+
 # ---------- lip-sync ----------
 
 
@@ -432,6 +604,20 @@ if __name__ == "__main__":
     write(PUB / "meeting" / "scratch.wav", scratch(), 0.6)
     write(PUB / "meeting" / "sting.wav", sting(), 0.8)
     write(PUB / "meeting" / "test-music.wav", meeting_test_music(), 0.6)
+    write(PUB / "meeting" / "music.wav", who_music(), 0.6)
+    write(PUB / "meeting" / "office.wav", office_hum(9.5), 0.3)
+    write(PUB / "meeting" / "cricket.wav", cricket(), 0.4)
+    write(PUB / "meeting" / "paper.wav", paper_flip(), 0.5)
+    write(PUB / "exam" / "music.wav", exam_music(), 0.6)
+    write(PUB / "exam" / "chalk.wav", chalk(), 0.5)
+    write(PUB / "exam" / "bell.wav", bell_ring(), 0.5)
+    write(PUB / "exam" / "door.wav", door_bang(), 0.8)
+    write(PUB / "exam" / "clink.wav", clink(), 0.5)
+    write(PUB / "exam" / "paper.wav", paper_flip(), 0.5)
+    write(PUB / "exam" / "knock-door.wav", door_knock(), 0.8)
+    write(PUB / "exam" / "rewind.wav", rewind(), 0.4)
+    write(PUB / "exam" / "snore.wav", snore(), 0.5)
+    write(PUB / "exam" / "scribble.wav", scribble(), 0.4)
     vo = PUB / "voiceover"
     write_lipsync("knock", {
         **{p.stem: p for p in sorted((vo / "knock" / "meera").glob("k*.mp3"))},

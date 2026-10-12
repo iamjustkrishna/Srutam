@@ -26,6 +26,17 @@ LINES = [
     ("meeting/arjun/arjun-her", "hm_psi", 1.05, 0.0, False, "इसने!"),
     ("meeting/neha/neha-him", "hf_beta", 1.05, 0.0, False, "इसने!"),
     ("meeting/rao/rao-recording", "hm_omega", 0.95, -1.0, True, "ठीक है, चौदह तारीख फाइनल."),
+    ("meeting/rao/rao-launch", "hm_omega", 1.0, -1.0, False, "चौदह तारीख को लॉन्च?"),
+    ("meeting/rao/rao-final", "hm_omega", 0.95, -1.0, False, "ठीक है, चौदह तारीख फाइनल."),
+    ("meeting/rao/rao-deck", "hm_omega", 1.0, -1.0, False, "अर्जुन, गुरुवार तक प्राइसिंग डेक."),
+    ("meeting/rao/rao-note", "hm_omega", 1.0, -1.0, False, "बढ़िया. कोई नोट कर लेना!"),
+    ("meeting/arjun/arjun-yes", "hm_psi", 1.05, 0.0, False, "हाँ सर!"),
+    ("meeting/neha/neha-yes", "hf_beta", 1.05, 0.0, False, "हाँ, हाँ!"),
+    # 2 a.m. Before the Exam
+    ("exam/prof/prof-chapters", "hm_psi", 0.9, -3.0, False, "चैप्टर चार और सात... और मेट्रो केस स्टडी. बीस मार्क्स."),
+    ("exam/prof/prof-recording", "hm_psi", 0.9, -3.0, True, "और मेट्रो केस स्टडी. बीस मार्क्स."),
+    ("exam/riya/riya-record", "hf_alpha", 1.05, 0.0, False, "रिकॉर्ड किया था ना?!"),
+    ("exam/kabir/kabir-chai", "hm_omega", 1.05, 1.0, False, "मैं चाय लाता हूँ!"),
 ]
 
 

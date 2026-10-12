@@ -1,0 +1,10 @@
+{
+  "voiceId": "cgSgspJ2msm6clMCkdW9",
+  "outDir": "voiceover/exam/meera",
+  "lines": [
+    ["e-forgot", "Exam at nine. And I forgot what Prof said."],
+    ["e-asleep", "Half the class was asleep. Shrutam wasn't."],
+    ["e-ask", "What did Prof say will be on the exam?"],
+    ["e-tagline", "Listen once. Ask anytime."]
+  ]
+}

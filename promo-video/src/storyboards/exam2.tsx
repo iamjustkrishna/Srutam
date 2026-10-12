@@ -134,14 +134,14 @@ export const X6: React.FC = () => (
       <AskScreen
         w={680}
         q="What did Prof say will be on the exam?"
-        a="Chapters 4 and 7, plus the metro case study. He said the case study alone is worth 20 marks."
-        refs={["Econ lecture · 52 min"]}
+        a="In Monday's lecture: chapters 4 and 7, plus the metro case study, “twenty marks.”"
+        refs={["Econ lecture · 41:05"]}
       />
     </Phone>
     <g transform="translate(-170 1080) scale(1.5)">
       <Actor x={0} y={0} s={1} who="meera" expr="blank" turn={0.4} gaze={[0.9, -0.9]} />
     </g>
-    <Caption text="▶ Prof (recording): “…twenty marks.”" y={1740} />
+    <Caption text="▶ Econ lecture, 41:05: “…twenty marks.”" y={1740} />
     <Shot text="OTS" />
   </Frame>
 );
@@ -234,7 +234,7 @@ export const EXAM2: ProIdea = {
     { t: "6–10 s", shot: "WS · FLASHBACK", cut: "CUT", action: "Monday, sepia: Prof Iyer at the board; Riya and Kabir asleep.", lines: [["Meera (VO)", "Monday. Half the class asleep."]], sfx: "Rewind whir into a chalk scratch, yawns", anim: "Ripple dissolve 12f; Zzz drift", Panel: X3 },
     { t: "10–14 s", shot: "MCU", cut: "CUT", action: "Prof makes his point with an open palm.", lines: [["Prof. Iyer", "Chapters 4 and 7… and the metro case study. Twenty marks."]], sfx: "Chalk tap on 'twenty'", anim: "Palm beat on stressed words", Panel: X4 },
     { t: "14–17 s", shot: "INSERT", cut: "RIPPLE", action: "Meera's phone on the desk: Srutam's notification says Recording, 31:42.", lines: [["Meera (VO)", "Srutam wasn't."]], sfx: "Soft record blip", anim: "Timer ticks; slow push", Panel: X5 },
-    { t: "17–21 s", shot: "OTS", cut: "WHIP", action: "Back to 2 a.m.: she asks Srutam AI and gets the answer, with the lecture referenced.", lines: [["Meera", "What did Prof say will be on the exam?"], ["Prof (recording)", "…twenty marks."]], sfx: "Typing, answer pop, Prof's voice from the note", anim: "Question types in; answer cascades", Panel: X6 },
+    { t: "17–21 s", shot: "OTS", cut: "WHIP", action: "Back to 2 a.m.: she asks Srutam AI and gets the answer, with the lecture referenced.", lines: [["Meera", "What did Prof say will be on the exam?"], ["Econ lecture (recording)", "…and the metro case study. Twenty marks."]], sfx: "Typing, answer pop, Prof's voice from the note", anim: "Question types in; answer cascades", Panel: X6 },
     { t: "21–24 s", shot: "MS", cut: "CUT", action: "Knock knock: Riya and Kabir burst in.", lines: [["Riya", "Did you record it?!"]], sfx: "Real door knock, door bang", anim: "Door swing with overshoot; whip pan", Panel: X7 },
     { t: "24–28 s", shot: "MS", cut: "MATCH CUT", action: "Time-lapse: the three revise around the phone with chai; Key Points glow.", lines: [["Meera (VO)", "The whole floor, one recording."]], sfx: "Laughter, chai glasses clink, upbeat music", anim: "Clock spins 2:15→3:40; chai steam loops", Panel: X8 },
     { t: "28–31 s", shot: "MCU", cut: "CUT", action: "Exam hall, morning: Q3 is the metro case study. Smug pen spin.", sfx: "Bell, pen click", anim: "Pen spin on 1s; push in", Panel: X9 },

@@ -22,7 +22,7 @@ import {
 import { Act, NotationDefs, Push, Shake, Shot } from "./Notation";
 import type { ProIdea } from "./ProBoard";
 
-const OfficeWall: React.FC<{ board?: boolean }> = ({ board = true }) => (
+export const OfficeWall: React.FC<{ board?: boolean }> = ({ board = true }) => (
   <g>
     <rect width={W} height={H} fill="#DCE3EC" />
     <rect x={660} y={150} width={360} height={520} fill="#BFDBFE" stroke={LINE} strokeWidth={8} />
@@ -40,7 +40,7 @@ const OfficeWall: React.FC<{ board?: boolean }> = ({ board = true }) => (
   </g>
 );
 
-const MeetingTable: React.FC<{ y: number }> = ({ y }) => (
+export const MeetingTable: React.FC<{ y: number }> = ({ y }) => (
   <g>
     <path d={`M-40 ${y} L${W + 40} ${y} L${W + 40} ${H} L-40 ${H} Z`} fill="#6B4F3A" />
     <rect x={-40} y={y} width={W + 80} height={36} fill="#8B6B52" stroke={LINE} strokeWidth={5} />
@@ -222,7 +222,7 @@ export const W9: React.FC = () => (
     <OfficeWall board={false} />
     <Actor x={-250} y={760} s={1.15} who="meera" expr="smug" turn={0.3} gaze={[0.8, -0.2]} arms={{ r: { to: [520, 440], pose: "phone", upright: true } }} />
     <Phone x={560} y={140} w={440} rot={3} glow="#3B82F6">
-      <AskScreen w={440} q="Who decided on the 14th?" a="In Tuesday's sync, Mr. Rao said: “Fine, let's go with the 14th.”" refs={["Tuesday sync"]} />
+      <AskScreen w={440} q="When did we agree on the 14th?" a="Tuesday's sync, 0:42: “Fine. The 14th, final.”" refs={["Tuesday sync · 0:42"]} />
     </Phone>
     <Actor x={600} y={1260} s={0.62} who={RAO} expr="worried" gaze={[-0.8, -0.4]} />
     <Sweat x={980} y={1450} />
@@ -262,7 +262,7 @@ export const MEETING2: ProIdea = {
     { t: "17–19 s", shot: "TITLE", cut: "CUT", action: "Calendar page flips: one week later.", sfx: "Paper flip, clock tick", anim: "Page curl 8f", Panel: W6 },
     { t: "19–23 s", shot: "CU", cut: "CUT", action: "Rao slams the table and roars.", lines: [["Rao", "WHO agreed to the 14th?!"]], sfx: "BAM, record scratch, dramatic sting", anim: "Crash zoom 6f, shake 10f, anger mark pulses", Panel: W7 },
     { t: "23–26 s", shot: "2-SHOT", cut: "CUT", action: "Arjun and Neha point at each other at the same time.", lines: [["Arjun", "Her!"], ["Neha", "Him!"]], sfx: "Two comic boings", anim: "Mirror the point; sweat drops on 2s", Panel: W8 },
-    { t: "26–31 s", shot: "MS", cut: "CUT", action: "Meera calmly holds up her phone. Srutam AI answers and plays Rao's own words.", lines: [["Meera", "Let's ask."], ["Rao (recording)", "Fine, let's go with the 14th."]], sfx: "Answer pop, then Rao's recorded voice", anim: "Phone raise with overshoot; Rao shrinks 3%", Panel: W9 },
+    { t: "26–31 s", shot: "MS", cut: "CUT", action: "Meera calmly holds up her phone. Srutam AI finds the moment (it doesn't guess who spoke) and plays it: the room hears Rao himself.", lines: [["Meera", "Relax. Let's ask Srutam."], ["Tuesday sync (recording)", "Fine. The 14th, final."]], sfx: "Answer pop, then the recording plays", anim: "Phone raise with overshoot; Rao shrinks 3%", Panel: W9 },
     { t: "31–34 s", shot: "END", action: "Everyone laughs; Rao rubs his head. End card.", lines: [["Meera (VO)", "Every meeting, minuted."]], sfx: "Laughter, warm resolve, logo", anim: "End band rises 18f", Panel: W10 },
   ],
 };

@@ -342,6 +342,12 @@ export const Person: React.FC<Props> = ({
             <path d={shoulders} fill={outfit === "blazer" ? "#334155" : cloth} stroke={LINE} strokeWidth={2.4} />
             {outfit === "blazer" && <path d="M240 626 L300 760 L360 626 L330 618 L300 690 L270 618 Z" fill={cloth} stroke={LINE} strokeWidth={2} />}
             <path d="M246 618 L300 680 L354 618 L332 610 L300 650 L268 610 Z" fill="#FFFFFF" stroke={LINE} strokeWidth={2} />
+            {outfit === "blazer" && (
+              <g fill="#B91C1C" stroke={LINE} strokeWidth={1.8} strokeLinejoin="round">
+                <path d="M292 672 L308 672 L312 690 L300 698 L288 690 Z" />
+                <path d="M290 696 L310 696 L306 742 L300 750 L294 742 Z" />
+              </g>
+            )}
             {outfit === "shirt" && <path d="M300 680 L300 800" stroke={LINE} strokeWidth={1.8} opacity={0.5} />}
             {outfit === "shirt" && [0, 1].map((i) => <circle key={i} cx={306} cy={712 + i * 50} r={4} fill="#FFF" stroke={LINE} strokeWidth={1.2} />)}
             {folds}
