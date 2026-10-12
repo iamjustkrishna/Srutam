@@ -7,7 +7,7 @@ normalized to the same loudness so the options compare fairly.
 The "premium" set is stereo and FM-synthesized (bells, electric piano, a
 voice-like hum), with a richer feedback-delay-network reverb.
 
-Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium|pop]
+Usage: python scripts/generate_reminder_tones.py <out_dir> [classic|premium|pop|iphone]
 """
 import sys
 from pathlib import Path
@@ -522,11 +522,147 @@ POP = {
     "q6-bip-bop": bip_bop,
 }
 
+# ---------- iPhone-inspired set: pure, tight, close (original melodies) ----------
+
+
+def mallet(f, sec=0.7, hardness=1.0, decay=6.0):
+    """A pure sine mallet: the clean, close-miked tone of a phone alert."""
+    t = t_axis(sec)
+    tone = (np.sin(2 * np.pi * f * t) * np.exp(-t * decay)
+            + 0.22 * hardness * np.sin(2 * np.pi * 2 * f * t) * np.exp(-t * decay * 2.5)
+            + 0.06 * hardness * np.sin(2 * np.pi * 4.07 * f * t) * np.exp(-t * decay * 6))
+    hit = lowpass(np.random.default_rng(7).standard_normal(len(t)), 3500) * np.exp(-t * 500) * 0.12 * hardness
+    return (tone + hit) * np.clip(t / 0.0025, 0, 1)
+
+
+def felt_piano(f, sec=1.0, vel=1.0):
+    """A soft felt piano: slightly stretched partials, fast-then-slow decay, a muted hammer."""
+    t = t_axis(sec)
+    out = np.zeros_like(t)
+    for k in range(1, 9):
+        fk = f * k * np.sqrt(1 + 0.0004 * k * k)
+        if fk > 9000:
+            break
+        env = 0.7 * np.exp(-t * (9 + 3 * k)) + 0.3 * np.exp(-t * (2.2 + 0.6 * k))
+        out += np.sin(2 * np.pi * fk * t) * env / k ** (1.9 - 0.5 * vel)
+    hammer = lowpass(np.random.default_rng(8).standard_normal(len(t)), 1400) * np.exp(-t * 260) * 0.25 * vel
+    return lowpass(out, 5000) + hammer
+
+
+def soft_synth(f, sec=0.5, glide_from=None, glide_ms=60):
+    """A rounded triangle-ish synth note, optionally gliding up into pitch."""
+    t = t_axis(sec)
+    freq = np.full_like(t, f)
+    if glide_from:
+        freq = f + (glide_from - f) * np.exp(-t / (glide_ms / 1000 / 3))
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    tone = sum(np.sin(k * phase) * (-1) ** ((k - 1) // 2) / k**2 for k in (1, 3, 5, 7))
+    return tone * np.exp(-t * 5) * np.clip(t / 0.004, 0, 1)
+
+
+def wood(f=1250, sec=0.12):
+    """A small wooden knock."""
+    t = t_axis(sec)
+    tone = np.sin(2 * np.pi * f * t) * np.exp(-t * 60) + 0.4 * np.sin(2 * np.pi * f * 2.7 * t) * np.exp(-t * 110)
+    return tone + lowpass(np.random.default_rng(9).standard_normal(len(t)), 2500) * np.exp(-t * 400) * 0.3
+
+
+def tight(buf, length, room_sec=0.55, mix=0.1):
+    return master(fdn(buf, room_sec, mix), length)
+
+
+def trio():
+    """Three pure mallet notes rising through a triad, the last one left to ring."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    for i, (n, p) in enumerate((("A5", -0.12), ("D6", 0.0), ("F#6", 0.12))):
+        place2(buf, pan(mallet(hz(n), 0.8 if i == 2 else 0.35, 1.0, 5 if i == 2 else 9), p), i * 0.085, 0.9)
+    return tight(buf, 0.95)
+
+
+def felt():
+    """Felt piano, a fifth apart, with a soft octave underneath."""
+    buf = np.zeros((int(1.2 * SR), 2))
+    place2(buf, pan(felt_piano(hz("F#5"), 1.1, 0.6), 0.0), 0.0, 0.45)
+    place2(buf, pan(felt_piano(hz("F#6"), 0.5, 0.9), -0.15), 0.0, 0.8)
+    place2(buf, pan(felt_piano(hz("C#7"), 1.0, 0.9), 0.15), 0.11, 1.0)
+    return tight(buf, 1.1, 0.6, 0.12)
+
+
+def ricochet():
+    """One glassy note that rebounds, faster and softer each time."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    at, gap, gain = 0.0, 0.15, 1.0
+    for i in range(6):
+        place2(buf, pan(mallet(hz("E6") * (1 + 0.004 * i), 0.4, 1.2, 10), 0.1 * (-1) ** i), at, gain)
+        at += gap
+        gap *= 0.68
+        gain *= 0.72
+    return tight(buf, 0.85, 0.5, 0.08)
+
+
+def glow():
+    """A soft sine chord that swells in, topped by a single bright glint."""
+    t = t_axis(1.2)
+    chord = sum(np.sin(2 * np.pi * hz(n) * t + k) for k, n in enumerate(["E5", "B5", "D#6", "F#6"])) / 4
+    chord *= np.clip(t / 0.12, 0, 1) ** 2 * np.exp(-np.clip(t - 0.12, 0, None) * 3.2)
+    buf = np.zeros((int(1.3 * SR), 2))
+    place2(buf, np.stack([chord, np.roll(chord, int(0.006 * SR))], 1), 0.0, 0.7)
+    place2(buf, pan(mallet(hz("B6"), 0.9, 0.8, 4.5), 0.1), 0.12, 0.6)
+    return master(fdn(buf, 0.8, 0.15), 1.2, (0.05, 0.45))
+
+
+def flick():
+    """A quick grace note flicked up into a ringing one."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    place2(buf, pan(mallet(hz("B5"), 0.12, 0.8, 30), -0.1), 0.0, 0.6)
+    place2(buf, pan(mallet(hz("E6"), 0.85, 1.0, 4.8), 0.05), 0.045, 1.0)
+    place2(buf, pan(mallet(hz("E7"), 0.4, 0.5, 9), 0.15), 0.047, 0.12)
+    return tight(buf, 0.9)
+
+
+def knock():
+    """A polite knock-knock, then a clear note: someone at the door of your day."""
+    buf = np.zeros((int(1.1 * SR), 2))
+    place2(buf, pan(wood(1250), -0.1), 0.0, 0.8)
+    place2(buf, pan(wood(1180), 0.1), 0.11, 0.7)
+    place2(buf, pan(mallet(hz("G6"), 0.8, 1.0, 5), 0.0), 0.26, 0.9)
+    place2(buf, pan(mallet(hz("D6"), 0.8, 0.6, 5), 0.0), 0.26, 0.35)
+    return tight(buf, 1.05)
+
+
+def lift():
+    """A rounded synth note that glides up a seventh and lands with a soft echo."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    place2(buf, pan(soft_synth(hz("C6"), 0.18), -0.1), 0.0, 0.7)
+    place2(buf, pan(soft_synth(hz("A#6"), 0.6, glide_from=hz("C6"), glide_ms=70), 0.1), 0.12, 1.0)
+    place2(buf, pan(soft_synth(hz("A#6"), 0.4), -0.3), 0.32, 0.18)
+    return tight(buf, 0.9)
+
+
+def hello():
+    """Up, down, and up again, like a friendly "hel-lo!"."""
+    buf = np.zeros((int(1.0 * SR), 2))
+    for i, (n, at, sec) in enumerate((("G6", 0.0, 0.25), ("E6", 0.1, 0.25), ("C7", 0.2, 0.75))):
+        place2(buf, pan(mallet(hz(n), sec, 0.9, 8 if i < 2 else 5) + 0.35 * soft_synth(hz(n), sec), (i - 1) * 0.12), at, 0.85)
+    return tight(buf, 0.95)
+
+
+IPHONE = {
+    "a1-trio": trio,
+    "a2-felt": felt,
+    "a3-ricochet": ricochet,
+    "a4-glow": glow,
+    "a5-flick": flick,
+    "a6-knock": knock,
+    "a7-lift": lift,
+    "a8-hello": hello,
+}
+
 if __name__ == "__main__":
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "reminder-tones")
     which = sys.argv[2] if len(sys.argv) > 2 else "classic"
     out.mkdir(parents=True, exist_ok=True)
-    sets = {"classic": OPTIONS, "premium": PREMIUM, "pop": POP}
+    sets = {"classic": OPTIONS, "premium": PREMIUM, "pop": POP, "iphone": IPHONE}
     for name, fn in sets[which].items():
         x = fn()
         sf.write(out / f"{name}.wav", x.astype(np.float32), SR, subtype="PCM_16")
