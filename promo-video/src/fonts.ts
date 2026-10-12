@@ -22,11 +22,6 @@ export const fontsReady = Promise.all([
     family: "Playfair Display",
     url: staticFile("fonts/playfair_display.ttf"),
   }),
-  // Tiro Devanagari Sanskrit (SIL OFL) for the name in its own script
-  loadFont({
-    family: "Tiro Devanagari Sanskrit",
-    url: staticFile("fonts/TiroDevanagariSanskrit-Regular.woff2"),
-  }),
   // Kalam (SIL OFL), a handwritten face from the Indian Type Foundry
   loadFont({
     family: "Kalam",

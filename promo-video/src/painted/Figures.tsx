@@ -4,7 +4,7 @@ import { LOGO } from "../spirit/logoData";
 
 const INK = "#4A2E35";
 
-/** Meera from behind: bun, pencil, denim jacket, warm rim light. 600 x 700 box. */
+/** Meera from behind: long hair in the breeze, denim jacket, warm rim light. 600 x 700 box. */
 export const MeeraBack: React.FC<{
   x: number;
   y: number;
@@ -12,75 +12,11 @@ export const MeeraBack: React.FC<{
   rim?: string;
 }> = ({ x, y, s, rim = "#FFB27A" }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
-    <g transform="rotate(-24 330 120)">
-      <rect
-        x={250}
-        y={112}
-        width={170}
-        height={15}
-        rx={3}
-        fill="#FACC15"
-        stroke={INK}
-        strokeWidth={3}
-      />
-      <rect
-        x={410}
-        y={112}
-        width={20}
-        height={15}
-        rx={4}
-        fill="#F472B6"
-        stroke={INK}
-        strokeWidth={3}
-      />
-    </g>
-    <circle
-      cx={300}
-      cy={128}
-      r={58}
-      fill="#2A2050"
-      stroke={INK}
-      strokeWidth={3}
-    />
-    <path
-      d="M256 112 Q300 76 344 112"
-      stroke="#5C5AA8"
-      strokeWidth={5}
-      fill="none"
-    />
     <path
       d="M300 470 L360 460 L372 560 L232 560 L242 460 Z"
       fill="#E7B48F"
       stroke={INK}
       strokeWidth={3}
-    />
-    <ellipse
-      cx={300}
-      cy={300}
-      rx={140}
-      ry={160}
-      fill="#2A2050"
-      stroke={INK}
-      strokeWidth={3}
-    />
-    <path
-      d="M190 330 C200 420 250 470 300 476 C350 470 400 420 410 330 C380 410 220 410 190 330 Z"
-      fill="#1E1740"
-    />
-    <path
-      d="M168 300 C170 200 230 150 300 142"
-      stroke="#6E68C0"
-      strokeWidth={6}
-      fill="none"
-      opacity={0.7}
-      strokeLinecap="round"
-    />
-    <path
-      d="M432 300 C430 210 380 160 320 146"
-      stroke={rim}
-      strokeWidth={6}
-      fill="none"
-      strokeLinecap="round"
     />
     <path
       d="M60 700 C70 590 150 520 250 500 L350 500 C450 520 530 590 540 700 Z"
@@ -89,15 +25,56 @@ export const MeeraBack: React.FC<{
       strokeWidth={4}
     />
     <path
-      d="M250 500 L300 560 L350 500"
-      fill="#3E5F93"
-      stroke={INK}
-      strokeWidth={3}
-    />
-    <path
       d="M350 500 C450 520 530 590 540 700 L500 700 C490 610 430 545 350 520 Z"
       fill={rim}
       opacity={0.35}
+    />
+    {/* Long hair down her back, lifting in the sea breeze */}
+    <path
+      d="M160 300 C160 150 440 150 440 300 C470 380 520 450 610 500 C560 520 500 510 452 490 C470 560 500 620 552 690 C470 690 400 640 372 580 L232 580 C214 630 178 670 140 700 C160 610 168 520 160 300 Z"
+      fill="#241C44"
+      stroke={INK}
+      strokeWidth={3}
+    />
+    <g fill="none" strokeLinecap="round">
+      <path
+        d="M300 160 C330 260 380 380 470 470"
+        stroke="#6E66C4"
+        strokeWidth={4}
+        opacity={0.5}
+      />
+      <path
+        d="M250 170 C250 300 260 440 290 560"
+        stroke="#6E66C4"
+        strokeWidth={4}
+        opacity={0.4}
+      />
+      <path
+        d="M200 220 C190 360 190 480 176 640"
+        stroke="#0A0716"
+        strokeWidth={3}
+        opacity={0.6}
+      />
+      <path
+        d="M610 500 C640 500 670 486 690 470"
+        stroke="#241C44"
+        strokeWidth={3}
+      />
+    </g>
+    <path
+      d="M440 300 C470 380 520 450 610 500"
+      stroke={rim}
+      strokeWidth={5}
+      fill="none"
+      strokeLinecap="round"
+    />
+    <path
+      d="M168 300 C170 200 230 158 300 152"
+      stroke="#9C95EA"
+      strokeWidth={7}
+      fill="none"
+      opacity={0.6}
+      strokeLinecap="round"
     />
   </g>
 );

@@ -4,7 +4,7 @@ import { useId } from "react";
 import { rand } from "../anim";
 import { Cloud, Sparkle, SpeedLines } from "../styleboard/FX";
 import { LOGO } from "./logoData";
-import { Meera } from "./Meera";
+import { MeeraHD as Meera } from "./MeeraHD";
 import { Firefly, Head, Shru } from "./Shru";
 
 export const W = 1080;
@@ -414,18 +414,7 @@ export const KeyVisual: React.FC = () => (
     {/* Title block */}
     <text
       x={W / 2}
-      y={150}
-      textAnchor="middle"
-      fontFamily="Tiro Devanagari Sanskrit"
-      fontSize={78}
-      fill="#FDE68A"
-      style={{ filter: "drop-shadow(0 0 18px rgba(251,191,36,0.8))" }}
-    >
-      श्रुतम्
-    </text>
-    <text
-      x={W / 2}
-      y={290}
+      y={230}
       textAnchor="middle"
       fontFamily="Playfair Display"
       fontSize={150}
@@ -437,7 +426,7 @@ export const KeyVisual: React.FC = () => (
     </text>
     <text
       x={W / 2}
-      y={360}
+      y={300}
       textAnchor="middle"
       fontFamily="Playfair Display"
       fontStyle="italic"

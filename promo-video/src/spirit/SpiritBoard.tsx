@@ -1,6 +1,7 @@
 import { AbsoluteFill } from "remotion";
 import { FONT } from "../theme";
-import { Meera, type MeeraExpr } from "./Meera";
+import type { MeeraExpr } from "./Meera";
+import { MeeraHD as Meera } from "./MeeraHD";
 import {
   FrameCaught,
   FrameEye,

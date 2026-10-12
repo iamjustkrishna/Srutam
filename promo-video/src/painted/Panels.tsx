@@ -856,17 +856,6 @@ export const P15: React.FC = () => (
     <circle cx={1480} cy={40} r={6} fill="#FFFFFF" />
     <text
       x={PW / 2}
-      y={250}
-      textAnchor="middle"
-      fontFamily="Tiro Devanagari Sanskrit"
-      fontSize={80}
-      fill="#FDE68A"
-      style={{ filter: "drop-shadow(0 0 16px rgba(251,191,36,0.8))" }}
-    >
-      श्रुतम्
-    </text>
-    <text
-      x={PW / 2}
       y={420}
       textAnchor="middle"
       fontFamily="Playfair Display"
