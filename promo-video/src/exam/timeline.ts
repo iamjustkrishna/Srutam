@@ -92,6 +92,7 @@ export const SFX: Cue[] = [
   { file: "sfx2/air-long.wav", at: BEAT.open - 2, volume: 0.35 },
   ...BEAT.clink.map((at) => ({ file: "exam/clink.wav", at, volume: 0.22 })),
   { file: "sfx2/night.wav", at: 956, volume: 0.25, dur: 110 },
+  { file: "sfx2/class.wav", at: 1066, volume: 0.22, dur: BEAT.bell + 4 - 1066 },
   { file: "sfx/knock.wav", at: BEAT.notify, volume: 0.6 },
   { file: "exam/bell.wav", at: BEAT.bell, volume: 0.18 },
   { file: "sfx2/page.wav", at: BEAT.paperDown, volume: 0.45 },
