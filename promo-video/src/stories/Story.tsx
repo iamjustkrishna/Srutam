@@ -3,6 +3,7 @@
 import { Audio } from "@remotion/media";
 import { AbsoluteFill, interpolate, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { clamp, easeOut, springy } from "../anim";
+import { useWide } from "../landscape/frame";
 import { FONT } from "../theme";
 
 export type Line = { file: string; at: number; frames: number };
@@ -42,8 +43,9 @@ export const Scene: React.FC<{ children: React.ReactNode; fadeIn?: number }> = (
 
 export const Captions: React.FC<{ cues: CaptionCue[]; k?: number }> = ({ cues, k: rate = 1 }) => {
   const f = useCurrentFrame() / rate;
+  const wide = useWide();
   const c = cues.find((x) => f >= x.from - 2 && f <= x.to + 4);
-  if (!c) return null;
+  if (!c || wide) return null;
   const k = interpolate(f, [c.from - 2, c.from + 5, c.to, c.to + 4], [0, 1, 1, 0], clamp);
   return (
     <div

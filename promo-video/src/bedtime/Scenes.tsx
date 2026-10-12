@@ -16,6 +16,7 @@ import {
 } from "./Props";
 import { LockScreen, MorningScreen, type LockState } from "./Screens";
 import { BEAT, H, SCENES, W } from "./timeline";
+import { useWide } from "../landscape/frame";
 
 const Stage: React.FC<{
   children: React.ReactNode;
@@ -106,6 +107,8 @@ const LyingMeera: React.FC<{
 /* 1. 2:13 a.m. Eyes snap open: the best idea. */
 export const Night1: React.FC = () => {
   const f = useCurrentFrame();
+  // The landscape cut sets its own clock.
+  const wide = useWide();
   const open = f >= BEAT.eyesOpen;
   const bulbIn = interpolate(f, [BEAT.bulbOn - 4, BEAT.bulbOn + 10], [0, 1], {
     ...clamp,
@@ -116,32 +119,34 @@ export const Night1: React.FC = () => {
       zoom={interpolate(f, [0, SCENES.night1.duration], [1.18, 1.28], clamp)}
       focus={[540, 640]}
       overlay={
-        <>
-          <text
-            x={90}
-            y={240}
-            fontFamily="Inter"
-            fontWeight={200}
-            fontSize={150}
-            fill="#E9E4FF"
-            opacity={interpolate(f, [14, 24], [0, 1], clamp)}
-            style={{ filter: "drop-shadow(0 0 16px rgba(167,139,250,0.8))" }}
-          >
-            2:13
-          </text>
-          <text
-            x={98}
-            y={300}
-            fontFamily="Inter"
-            fontWeight={600}
-            fontSize={44}
-            letterSpacing={8}
-            fill="#C4B5FD"
-            opacity={interpolate(f, [18, 28], [0, 1], clamp)}
-          >
-            A.M.
-          </text>
-        </>
+        !wide && (
+          <>
+            <text
+              x={90}
+              y={240}
+              fontFamily="Inter"
+              fontWeight={200}
+              fontSize={150}
+              fill="#E9E4FF"
+              opacity={interpolate(f, [14, 24], [0, 1], clamp)}
+              style={{ filter: "drop-shadow(0 0 16px rgba(167,139,250,0.8))" }}
+            >
+              2:13
+            </text>
+            <text
+              x={98}
+              y={300}
+              fontFamily="Inter"
+              fontWeight={600}
+              fontSize={44}
+              letterSpacing={8}
+              fill="#C4B5FD"
+              opacity={interpolate(f, [18, 28], [0, 1], clamp)}
+            >
+              A.M.
+            </text>
+          </>
+        )
       }
     >
       <Bedroom morning={0} />

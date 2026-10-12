@@ -1,13 +1,5 @@
 import { Audio } from "@remotion/media";
-import {
-  AbsoluteFill,
-  interpolate,
-  Sequence,
-  staticFile,
-  useCurrentFrame,
-} from "remotion";
-import { clamp, easeOut } from "../anim";
-import { FONT } from "../theme";
+import { AbsoluteFill, Sequence, staticFile } from "remotion";
 import {
   End,
   Later,
@@ -19,11 +11,12 @@ import {
   Rewind,
   Save,
 } from "./Scenes";
+import { Captions, type CaptionCue } from "../stories/Story";
 import { SCENES, VO } from "./timeline";
 
 // Caption chunks (absolute frames), timed to the voiceover's word timings.
 // The whisper is shown as the golden words drifting into the phone instead.
-const CAPTIONS: { from: number; to: number; text: string; top?: boolean }[] = [
+export const CAPTIONS: CaptionCue[] = [
   { from: 6, to: 64, text: "2:13 a.m." },
   { from: 70, to: 152, text: "The best idea I've ever had." },
   { from: 170, to: 230, text: "I'll remember it in the morning." },
@@ -40,48 +33,6 @@ const CAPTIONS: { from: number; to: number; text: string; top?: boolean }[] = [
   { from: 965, to: 1000, text: "...even a reminder.", top: true },
 ];
 
-const Captions: React.FC = () => {
-  const f = useCurrentFrame();
-  const c = CAPTIONS.find((x) => f >= x.from - 2 && f <= x.to + 4);
-  if (!c) return null;
-  const k = interpolate(
-    f,
-    [c.from - 2, c.from + 5, c.to, c.to + 4],
-    [0, 1, 1, 0],
-    clamp,
-  );
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: 70,
-        right: 70,
-        top: c.top ? 130 : undefined,
-        bottom: c.top ? undefined : 200,
-        display: "flex",
-        justifyContent: "center",
-        opacity: k,
-        translate: `0 ${interpolate(k, [0, 1], [18, 0], { ...clamp, easing: easeOut })}px`,
-      }}
-    >
-      <div
-        style={{
-          padding: "18px 34px",
-          borderRadius: 30,
-          background: "rgba(26,20,51,0.82)",
-          color: "#FFFFFF",
-          fontFamily: FONT.sans,
-          fontWeight: 800,
-          fontSize: 52,
-          textAlign: "center",
-          lineHeight: 1.2,
-        }}
-      >
-        {c.text}
-      </div>
-    </div>
-  );
-};
 
 const SFX: { file: string; at: number; volume?: number; dur?: number }[] = [
   { file: "bedtime/ding.wav", at: 86, volume: 0.6 },
@@ -167,7 +118,7 @@ export const BedtimeVideo: React.FC = () => (
       <End />
     </Sequence>
 
-    <Captions />
+    <Captions cues={CAPTIONS} />
 
     <Audio
       src={staticFile("bedtime/music.wav")}

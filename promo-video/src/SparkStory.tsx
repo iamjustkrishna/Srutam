@@ -29,6 +29,13 @@ const CAPTIONS: Record<string, string> = {
   "v6-connect": "Every thought connects. Just ask.",
 };
 
+/** The burned-in captions as cues: each ends before the next line starts. */
+export const SPARK_CAPTIONS = VO.flatMap((v, i) => {
+  if (!CAPTIONS[v.file]) return [];
+  const next = VO[i + 1]?.at ?? Infinity;
+  return [{ from: v.at, to: Math.min(v.at + VO_FRAMES[v.file], next - 10), text: CAPTIONS[v.file] }];
+});
+
 const C0 = SCENES.catch.from;
 const SFX: { file: string; at: number; volume?: number }[] = [
   // Countdown ticks
@@ -113,15 +120,9 @@ export const SparkStory: React.FC = () => (
       <End />
     </Sequence>
 
-    {VO.map((v, i) => {
-      if (!CAPTIONS[v.file]) return null;
-      // End each caption before the next line starts so two never overlap.
-      const next = VO[i + 1]?.at ?? Infinity;
-      const to = Math.min(v.at + VO_FRAMES[v.file], next - 10);
-      return (
-        <Caption key={v.file} text={CAPTIONS[v.file]} from={v.at} to={to} />
-      );
-    })}
+    {SPARK_CAPTIONS.map((c) => (
+      <Caption key={c.text} text={c.text} from={c.from} to={c.to} />
+    ))}
 
     <Audio
       src={staticFile("music/bed.wav")}

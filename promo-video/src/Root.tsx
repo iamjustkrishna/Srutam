@@ -30,6 +30,11 @@ import { SHEET_H, SHEET_W } from "./storyboards/Board";
 import { IDEA_BOARDS, PRO_BOARDS } from "./storyboards/Ideas";
 import { PRO_H, PRO_W } from "./storyboards/ProBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
+import { SparkWide } from "./landscape/spark";
+import { BedtimeWide } from "./landscape/bedtime";
+import { NaniWide } from "./landscape/nani";
+import { KnockWide } from "./landscape/knock";
+import { WIDE_H, WIDE_W } from "./landscape/Wide";
 
 const calculateMetadata = async () => {
   await fontsReady;
@@ -47,6 +52,12 @@ const scenes = [
 
 export const RemotionRoot: React.FC = () => (
   <>
+    <Folder name="Landscape">
+      <Composition id="TwoAmIdeaWide" component={BedtimeWide} durationInFrames={BEDTIME_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+      <Composition id="NanisLaddoosWide" component={NaniWide} durationInFrames={NANI_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+      <Composition id="KnockKnockWide" component={KnockWide} durationInFrames={KNOCK_TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+      <Composition id="SparkStoryWide" component={SparkWide} durationInFrames={TOTAL} fps={FPS} width={WIDE_W} height={WIDE_H} calculateMetadata={calculateMetadata} />
+    </Folder>
     <Composition
       id="SparkStory30"
       component={SparkStory}

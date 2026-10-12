@@ -1,6 +1,7 @@
 import { interpolate, useCurrentFrame } from "remotion";
 import { clamp, easeOut } from "../anim";
 import { C, FONT } from "../theme";
+import { useWide } from "../landscape/frame";
 
 /** Countdown ring around the spark: `progress` 1 -> 0, `label` in the middle. */
 export const CountdownRing: React.FC<{
@@ -70,7 +71,8 @@ export const Caption: React.FC<{
   y?: number;
 }> = ({ text, from, to, y = 1650 }) => {
   const frame = useCurrentFrame();
-  if (frame < from - 2 || frame > to + 8) return null;
+  const wide = useWide();
+  if (wide || frame < from - 2 || frame > to + 8) return null;
   return (
     <div
       style={{
