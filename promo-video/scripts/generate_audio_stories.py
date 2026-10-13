@@ -148,7 +148,10 @@ def noise(sec):
 K_TOTAL = 945 * F
 
 
-def knock_music():
+def knock_music(total=None, end_at=27.85):
+    """Defaults are the vertical cut; the 16:9 cut (src/wide/knock/timeline.ts) runs to
+    32 s with the logo knock 0.8 s later, so its resolve comes in at 28.65 s."""
+    K_TOTAL = total or globals()["K_TOTAL"]
     buf = np.zeros(int((K_TOTAL + 1) * SR))
     beat = 60 / 104
     # Hook: two curious plucks after "Who's there?", then a hush under the title
@@ -185,16 +188,16 @@ def knock_music():
     bouncy(20.6, 25.0, [("F2", "A5", "C6"), ("E2", "G5", "C6"), ("D2", "F5", "A5"), ("A#1", "D6", "F6")], 1.0)
     place(buf, shape(pad(["F3", "A3", "C4", "G4"], 4.6, 0.6), 2600), 20.6, 0.35)
     # Video call: warm pad and a few marimba notes
-    place(buf, shape(pad(["F3", "C4", "A4", "G5"], 2.6, 0.7), 3000), 25.0, 0.45)
+    place(buf, shape(pad(["F3", "C4", "A4", "G5"], end_at - 25.25, 0.7), 3000), 25.0, 0.45)
     for i, n in enumerate(["C6", "A5", "F5", "G5"]):
         place(buf, marimba(hz(n)), 25.2 + i * 0.5, 0.2)
     # End: resolve after the logo knock
-    end = K_TOTAL - 27.85
+    end = K_TOTAL - end_at
     res = pad(["F2", "C3", "A3", "F4", "G4", "C5"], end, 0.8, 0.3)
     res *= np.linspace(1, 0, len(res)) ** 1.4
-    place(buf, shape(res, 3000), 27.85, 0.55)
+    place(buf, shape(res, 3000), end_at, 0.55)
     for i, n in enumerate(["F5", "A5", "C6", "F6"]):
-        place(buf, bell(hz(n), 2.2), 27.9 + i * 0.07, 0.1)
+        place(buf, bell(hz(n), 2.2), end_at + 0.05 + i * 0.07, 0.1)
     return buf
 
 
@@ -240,7 +243,10 @@ def clock(sec=5.2):
 N_TOTAL = 1245 * F
 
 
-def nani_music():
+def nani_music(total=None, d=0.0):
+    """Defaults are the vertical cut; the 16:9 cut (src/wide/nani/timeline.ts) holds the
+    kitchen 0.8 s longer, so everything from "let it listen" on comes d = 0.8 s later."""
+    N_TOTAL = total or globals()["N_TOTAL"]
     buf = np.zeros(int((N_TOTAL + 1) * SR))
     place(buf, tanpura("D3", N_TOTAL), 0.0, 1.0)
 
@@ -253,33 +259,33 @@ def nani_music():
     phrase(0.4, ["A4", None, "B4", "C#5", "D5", None, "C#5", "B4", "A4"], 0.42, 0.28, {4: 0.03})
     phrase(4.6, ["F#4", "A4", None, "B4", "A4", "G#4", "A4"], 0.4, 0.22)
     # Let it listen: the motif, softer
-    phrase(8.2, ["A4", "B4", "D5", None, "C#5", "A4"], 0.45, 0.18)
+    phrase(8.2 + d, ["A4", "B4", "D5", None, "C#5", "A4"], 0.45, 0.18)
     # Diwali night: drone, a soft B minor pad and distant bells
-    place(buf, shape(pad(["B2", "D3", "F#3"], 7.4, 0.2, 1.0), 1200), 12.7, 0.5)
+    place(buf, shape(pad(["B2", "D3", "F#3"], 7.4, 0.2, 1.0), 1200), 12.7 + d, 0.5)
     for at, n in ((13.2, "F#5"), (15.6, "D5"), (18.0, "B4")):
-        place(buf, bell(hz(n), 3.0), at, 0.12)
+        place(buf, bell(hz(n), 3.0), at + d, 0.12)
     # Ask: a curious little figure
-    phrase(20.2, ["F#4", "A4", "B4", None, "A4", "B4", "D5"], 0.36, 0.16)
+    phrase(20.2 + d, ["F#4", "A4", "B4", None, "A4", "B4", "D5"], 0.36, 0.16)
     # Her voice: strings swell D - Bm - G - A, opening up after "pyaar"
     for i, ch in enumerate([["D3", "A3", "F#4"], ["B2", "F#3", "D4"], ["G2", "D3", "B3"], ["A2", "E3", "C#4"]]):
-        place(buf, strings(ch, 2.3), 26.0 + i * 2.0, 0.32 + 0.1 * i)
-    place(buf, strings(["D3", "A3", "D4", "F#4"], 3.2, 0.6), 33.8, 0.55)
+        place(buf, strings(ch, 2.3), 26.0 + d + i * 2.0, 0.32 + 0.1 * i)
+    place(buf, strings(["D3", "A3", "D4", "F#4"], 3.2, 0.6), 33.8 + d, 0.55)
     # Video call: tabla pulse and a happy sitar line, resolving on D
     beat = 60 / 92
-    at = 34.0
+    at = 34.0 + d
     i = 0
-    while at < 39.2:
+    while at < 39.2 + d:
         place(buf, tabla("ge" if i % 4 in (0, 3) else "na"), at, 0.35 if i % 4 == 0 else 0.22)
         place(buf, tabla("na"), at + beat / 2, 0.12)
         at += beat
         i += 1
-    phrase(34.4, ["D5", "E5", "F#5", "A5", None, "F#5", "E5", "D5"], 0.33, 0.2)
-    end = N_TOTAL - 38.4
+    phrase(34.4 + d, ["D5", "E5", "F#5", "A5", None, "F#5", "E5", "D5"], 0.33, 0.2)
+    end = N_TOTAL - 38.4 - d
     res = pad(["D3", "A3", "D4", "F#4", "A4"], end, 0.6, 0.4)
     res *= np.linspace(1, 0, len(res)) ** 1.3
-    place(buf, shape(res, 3000), 38.4, 0.5)
+    place(buf, shape(res, 3000), 38.4 + d, 0.5)
     for i, n in enumerate(["D5", "F#5", "A5", "D6"]):
-        place(buf, bell(hz(n), 2.6), 37.4 + i * 0.08, 0.09)
+        place(buf, bell(hz(n), 2.6), 37.4 + d + i * 0.08, 0.09)
     return buf
 
 

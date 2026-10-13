@@ -34,6 +34,6 @@ export const NaniLandscape: React.FC = () => (
       </Sequence>
     ))}
     <LCaptions cues={CAPTIONS} lane={lane} />
-    <Soundtrack music="nani/music.wav" lines={VO} sfx={SFX} />
+    <Soundtrack music="nani/music-wide.wav" lines={VO} sfx={SFX} />
   </Landscape>
 );

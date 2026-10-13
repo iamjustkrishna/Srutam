@@ -34,6 +34,6 @@ export const KnockLandscape: React.FC = () => (
       </Sequence>
     ))}
     <LCaptions cues={CAPTIONS} lane={lane} />
-    <Soundtrack music="knock/music.wav" lines={VO} sfx={SFX} />
+    <Soundtrack music="knock/music-wide.wav" lines={VO} sfx={SFX} />
   </Landscape>
 );
