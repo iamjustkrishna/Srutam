@@ -150,19 +150,19 @@ export const Listen: React.FC = () => {
         <Steam f={f} x={KADHAI[0] - 170} y={KADHAI[1] - 20} s={0.9} />
         <Kadhai x={KADHAI[0] - 170} y={KADHAI[1]} s={1.1} steam={false} />
       </g>
-      <g transform={`translate(0 ${lift}) ${about(1450, 500, zoom(f, SCENES.listen.from, SCENES.listen.duration, 1, 1.03))}`}>
-        <Phone x={1300} y={56} w={400} rot={4}>
+      <g transform={`translate(0 ${lift}) ${about(1480, 500, zoom(f, SCENES.listen.from, SCENES.listen.duration, 1, 1.03))}`}>
+        <Phone x={1220} y={40} w={520} rot={4}>
           <div style={{ position: "absolute", inset: 0, background: "#1E2A5A" }} />
           <div style={{ position: "absolute", inset: 0, transform: `translateY(${shade}%)` }}>
             <NotificationShade
-              w={400}
+              w={520}
               recording={f >= BEAT.start + 3}
               pressed={f >= BEAT.start - 3}
               secs={Math.max(0, Math.floor((f - BEAT.start) / 30))}
             />
           </div>
         </Phone>
-        <GripHand x={1438} y={972} s={1.0} rot={4} />
+        <GripHand x={1400} y={1010} s={1.2} rot={4} />
       </g>
     </Frame>
   );
@@ -276,16 +276,16 @@ export const Ask: React.FC = () => {
         <ellipse cx={1250} cy={540} rx={760} ry={620} fill="url(#askGlow)" opacity={glow} />
         <Meera f={f} x={240} y={200} s={1.1} expr={expr} talk={talk("n4-ask", f)} turn={0.3} gaze={[0.9, 0.35]} seed={6} />
         <g transform={`translate(0 ${lift})`}>
-          <Phone x={1200} y={96} w={400} rot={-3} glow="#3B82F6">
+          <Phone x={1160} y={64} w={520} rot={-3} glow="#3B82F6">
             <AskScreen
-              w={400}
+              w={520}
               q={Q.slice(0, qn)}
               a={A.slice(0, an)}
               refs={f >= BEAT.refs ? ["Nani's kitchen · 14 min"] : []}
               pressed={f >= BEAT.tapRef && f < BEAT.tapRef + 8}
             />
           </Phone>
-          <GripHand x={1446} y={990} s={1.0} rot={-3} />
+          <GripHand x={1480} y={1010} s={1.2} rot={-3} />
         </g>
       </g>
     </Frame>

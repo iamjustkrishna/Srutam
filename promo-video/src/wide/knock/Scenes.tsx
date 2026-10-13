@@ -190,14 +190,14 @@ export const Once: React.FC = () => {
     <Frame bg={["#FDE7C7", "#F3D2A8"]}>
       <Meera f={f} x={170} y={200} s={1.12} expr="smug" talk={talk("k4-once", f)} turn={0.3} gaze={[0.6, 0.3]} />
       <g transform={`translate(0 ${phoneIn})`}>
-        <Phone x={1290} y={80} w={400} rot={6}>
+        <Phone x={1230} y={56} w={520} rot={6}>
           {showCard ? (
             <div style={{ position: "absolute", inset: 0, transform: `scale(${0.94 + 0.06 * card})`, opacity: Math.min(1, card * 1.5) }}>
-              <InsightsScreen w={400} note="Call Ma" meta="Today, 8:12 pm · 0:04" items={[{ kind: "REMINDER", text: "Call Ma", meta: "Sunday, 7:00 pm" }]} />
+              <InsightsScreen w={520} note="Call Ma" meta="Today, 8:12 pm · 0:04" items={[{ kind: "REMINDER", text: "Call Ma", meta: "Sunday, 7:00 pm" }]} />
             </div>
           ) : (
             <LockNotifs
-              w={400}
+              w={520}
               date="Wednesday, 6 March"
               time="8:12"
               notifs={[
@@ -208,7 +208,7 @@ export const Once: React.FC = () => {
             />
           )}
         </Phone>
-        <GripHand x={1396} y={1000} s={1.0} rot={4} />
+        <GripHand x={1370} y={1012} s={1.2} rot={4} />
       </g>
       <g transform={about(900, 200, say)} opacity={say > 0 && f < 536 ? 1 : 0}>
         <Bubble x={690} y={90} w={480} lines={["Call Ma,", "Sunday at 7."]} tail={[664, 640]} size={66} />
@@ -236,9 +236,9 @@ export const Knock: React.FC = () => {
           <Burst x={1450} y={540} r={470} color="#FBBF24" n={14} />
         </g>
         <g transform={`translate(${dx} 0)`}>
-          <Phone x={1240} y={96} w={400} rot={-4} glow={on ? "#FBBF24" : undefined}>
+          <Phone x={1200} y={64} w={500} rot={-4} glow={on ? "#FBBF24" : undefined}>
             <LockNotifs
-              w={400}
+              w={500}
               date="Sunday, 10 March"
               time="6:45"
               notifs={on ? [{ title: "Call Ma", text: "Starts in 15 minutes.", reminder: true }] : []}
