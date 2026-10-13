@@ -1,0 +1,30 @@
+{
+  "voiceId": "pNInz6obpgDQGcFmaJgB",
+  "outDir": "voiceover/en/meeting/rao",
+  "lines": [
+    [
+      "rao-who",
+      "[furious, shouting] The fourteenth?! Who said yes to the fourteenth?!"
+    ],
+    [
+      "rao-launch",
+      "[thinking aloud, drawn out] So... do we launch on the fourteenth?"
+    ],
+    [
+      "rao-final",
+      "[firm, cutting him off] No, no. The fourteenth. Final."
+    ],
+    [
+      "rao-deck",
+      "[brisk, pointing] Arjun. Pricing deck, by Thursday."
+    ],
+    [
+      "rao-note",
+      "[loud, to the whole room] Someone note it down!"
+    ],
+    [
+      "rao-sheepish",
+      "[sheepish, embarrassed little laugh] Okay... so the fourteenth is final, then."
+    ]
+  ]
+}

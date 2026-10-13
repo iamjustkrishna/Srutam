@@ -1,0 +1,14 @@
+{
+  "voiceId": "pqHfZKP75CvOlQylNhV4",
+  "outDir": "voiceover/en/exam/prof",
+  "lines": [
+    [
+      "prof-lecture",
+      "[lecturing, unhurried] So, in Thursday's exam..."
+    ],
+    [
+      "prof-recording",
+      "[lecturing, clear and deliberate] In Thursday's exam: chapters four and seven, and the metro case study. Twenty marks."
+    ]
+  ]
+}

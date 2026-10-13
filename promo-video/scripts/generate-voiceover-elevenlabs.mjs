@@ -76,7 +76,8 @@ const spans = lines.map(([name, t]) => {
   if (i < 0) i = chars.indexOf(t.slice(0, 12), cursor);
   if (i < 0) throw new Error(`Could not align "${name}"`);
   const lastWord = spoken.slice(-6);
-  let j = chars.indexOf(lastWord, i);
+  // Search for the last word near where the line should end (a line can repeat it).
+  let j = chars.indexOf(lastWord, Math.max(i, i + spoken.length - lastWord.length - 4));
   j = j < 0 ? i + spoken.length - 1 : j + lastWord.length - 1;
   cursor = j + 1;
   return { name, start: starts[i], end: ends[Math.min(j, ends.length - 1)] };
