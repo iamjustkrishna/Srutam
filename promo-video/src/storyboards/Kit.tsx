@@ -6,6 +6,7 @@ import { useId } from "react";
 import { Img } from "remotion";
 import { BellIcon, BulbIcon, LockIcon, MicIcon, WaveIcon } from "../components/Icons";
 import { LOGO } from "../spirit/logoData";
+import { useCanvas } from "../stories/canvas";
 import { C } from "../theme";
 
 export const W = 1080;
@@ -19,6 +20,7 @@ export const Frame: React.FC<{
   night?: boolean;
 }> = ({ bg, children, night = false }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const { w: W, h: H } = useCanvas();
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ display: "block" }}>
       <defs>

@@ -2,8 +2,8 @@
 // handheld drift, shake), a depth-of-field background layer, a colour grade
 // and a light leak for transitions. All SVG, inside a 1080 x 1920 Frame.
 import { useId } from "react";
-import { H, W } from "../storyboards/Kit";
 import { handheld } from "./physics";
+import { useCanvas } from "./canvas";
 
 export const Camera: React.FC<{
   f: number;
@@ -15,11 +15,13 @@ export const Camera: React.FC<{
   drift?: number;
   seed?: number;
   children: React.ReactNode;
-}> = ({ f, zoom = 1, focus = [540, 960], center, shake = [0, 0], drift = 5, seed = 1, children }) => {
+}> = ({ f, zoom = 1, focus, center, shake = [0, 0], drift = 5, seed = 1, children }) => {
+  const cv = useCanvas();
+  const fo = focus ?? [cv.w / 2, cv.h / 2];
   const h = handheld(f, drift, seed);
-  const c = center ?? focus;
+  const c = center ?? fo;
   return (
-    <g transform={`translate(${h.x + shake[0]} ${h.y + shake[1]}) rotate(${h.rot} 540 960) translate(${c[0]} ${c[1]}) scale(${zoom}) translate(${-focus[0]} ${-focus[1]})`}>
+    <g transform={`translate(${h.x + shake[0]} ${h.y + shake[1]}) rotate(${h.rot} ${cv.w / 2} ${cv.h / 2}) translate(${c[0]} ${c[1]}) scale(${zoom}) translate(${-fo[0]} ${-fo[1]})`}>
       {children}
     </g>
   );
@@ -48,6 +50,7 @@ export const Grade: React.FC<{ warm?: string; cool?: string; from?: "left" | "ri
   amount = 0.22,
 }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const cv = useCanvas();
   const [x1, y1, x2, y2] = from === "left" ? [0, 0, 1, 0] : from === "right" ? [1, 0, 0, 0] : [0, 0, 0, 1];
   return (
     <g style={{ mixBlendMode: "soft-light" }} opacity={amount * 3}>
@@ -57,7 +60,7 @@ export const Grade: React.FC<{ warm?: string; cool?: string; from?: "left" | "ri
           <stop offset="100%" stopColor={cool} />
         </linearGradient>
       </defs>
-      <rect width={W} height={H} fill={`url(#gr${id})`} />
+      <rect width={cv.w} height={cv.h} fill={`url(#gr${id})`} />
     </g>
   );
 };
@@ -65,6 +68,7 @@ export const Grade: React.FC<{ warm?: string; cool?: string; from?: "left" | "ri
 /** A warm light leak sweeping across, for transitions (k: 0 -> 1). */
 export const LightLeak: React.FC<{ k: number; color?: string }> = ({ k, color = "#FB923C" }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const cv = useCanvas();
   if (k <= 0 || k >= 1) return null;
   const a = Math.sin(k * Math.PI);
   return (
@@ -76,7 +80,7 @@ export const LightLeak: React.FC<{ k: number; color?: string }> = ({ k, color = 
           <stop offset="100%" stopColor={color} stopOpacity={0} />
         </radialGradient>
       </defs>
-      <ellipse cx={-200 + k * 1500} cy={500 + k * 600} rx={900} ry={700} fill={`url(#lk${id})`} />
+      <ellipse cx={-200 + k * (cv.w + 420)} cy={(500 + k * 600) * (cv.h / 1920)} rx={900} ry={700} fill={`url(#lk${id})`} />
     </g>
   );
 };

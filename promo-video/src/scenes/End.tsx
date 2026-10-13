@@ -7,7 +7,6 @@ import {
 } from "remotion";
 import { clamp, easeInOut, easeOut, springy } from "../anim";
 import { Spark } from "../components/Spark";
-import { useWide } from "../landscape/frame";
 import { C, FONT } from "../theme";
 
 /** 0:26.3 - Brand resolve, then fade to the opening's grey so it loops. */
@@ -45,21 +44,15 @@ export const End: React.FC = () => {
   });
   const sx = 540 + Math.cos(a) * r;
   const sy = 700 + Math.sin(a) * r * 0.8;
-  // In a landscape cut the backdrop runs past the frame's edges (same gradient).
-  const bleed = useWide() ? 900 : 0;
 
   return (
-    <AbsoluteFill style={{ fontFamily: FONT.sans, alignItems: "center" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: -bleed,
-          right: -bleed,
-          background: `radial-gradient(circle 1307px at ${540 + bleed}px 730px, ${C.cobaltContainer} 0%, ${C.slate50} 60%)`,
-        }}
-      />
+    <AbsoluteFill
+      style={{
+        background: `radial-gradient(circle at 50% 38%, ${C.cobaltContainer} 0%, ${C.slate50} 60%)`,
+        fontFamily: FONT.sans,
+        alignItems: "center",
+      }}
+    >
       <Img
         src={staticFile("img/logo.png")}
         style={{
@@ -122,7 +115,7 @@ export const End: React.FC = () => {
         style={{ position: "absolute", left: sx - 55, top: sy - 55 }}
       />
       {/* Fade into the opening frame's grey: a seamless loop on Reels/Shorts */}
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: -bleed, right: -bleed, background: C.slate300, opacity: loop }} />
+      <AbsoluteFill style={{ background: C.slate300, opacity: loop }} />
     </AbsoluteFill>
   );
 };
