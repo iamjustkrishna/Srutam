@@ -703,6 +703,33 @@ def who_music_wide(total=1606 / 30):
     return buf
 
 
+def exam_music_wide(total=1364 / 30):
+    """exam_music_v3 retimed for the 16:9 cut (src/wide/exam/timeline.ts): the night pad
+    and clock ticks, the flashback bells, the lift as she asks, bells on the relief, the
+    groove for the share, the time-lapse and the hall, and the resolve under the band."""
+    buf = np.zeros(int((total + 1) * SR))
+    place(buf, shape(pad(["D2", "A2", "F3"], 8.4, 0.15, 1.2), 700), 0.0, 0.32)
+    for k in range(9):
+        place(buf, shape(noise(0.12), 120) * np.exp(-t_axis(0.12) * 30), 0.5 + k * 0.95, 0.35)
+    place(buf, bell(hz("A5"), 2.4), 7.9, 0.06)
+    for k, n in enumerate(["A5", "C6", "E6", "D6", "C6", "A5", "G5", "A5"]):
+        place(buf, bell(hz(n), 1.6), 8.7 + k * 0.72, 0.05)
+    place(buf, shape(pad(["A2", "E3", "C4"], 6.2, 0.15, 1.0), 800), 8.6, 0.25)
+    lift = pad(["F3", "C4", "A4", "E5"], 10.0, 0.4, 1.0)
+    lift *= np.concatenate([np.ones(int(4.6 * SR)), np.linspace(1, 0.22, len(lift) - int(4.6 * SR))])
+    place(buf, shape(lift, 2200), 14.67, 0.28)
+    for k, n in enumerate(["C5", "F5", "A5", "C6"]):
+        place(buf, bell(hz(n), 1.8), 23.8 + k * 0.12, 0.06)
+    beat = 60 / 112
+    groove(buf, 26.7, 29.2, ["F5", "A5", "C6", "A5"], ["F2", "C3"], beat, 0.6, bass=False)
+    groove(buf, 34.2, 37.7, ["F5", "A5", "C6", "A5", "G5", "C6", "E6", "C6"], ["F2", "C3", "D3", "A#2"], beat, 0.9)
+    groove(buf, 38.87, 41.67, ["C6", "A5", "F5", "A5"], ["F2", "C3"], beat, 0.7)
+    res = pad(["F2", "C3", "A3", "F4", "G4"], total - 41.8, 0.7, 0.3)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 41.8, 0.35)
+    return buf
+
+
 def exam_music_v3():
     """v3 timing for 2 a.m. Before the Exam (see src/exam/timeline.ts)."""
     buf = np.zeros(int((E3_TOTAL + 1) * SR))
