@@ -9,21 +9,23 @@ const LINE = "#4A2E28";
 
 /**
  * The bedroom. `bx` is the bed's centre (Meera's head), `top` the top of the
- * headboard; `wx` the window's left edge and `nx` the nightstand's (either can
- * sit off-frame). Night (morning 0) or morning (1).
+ * headboard, `ps` the pillow's scale; `wx` the window's left edge and `nx` the
+ * nightstand's (either can sit off-frame). Night (morning 0) or morning (1).
  */
 export const LBedroom: React.FC<{
   morning: number;
   bx: number;
-  top?: number;
-  wx?: number;
+  top: number;
+  ps?: number;
+  wx: number;
   nx?: number;
-}> = ({ morning, bx, top = 430, wx = bx + 520, nx = bx - 880 }) => {
+  plant?: number;
+}> = ({ morning, bx, top, ps = 0.9, wx, nx = bx - 900, plant }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const m = morning > 0.5;
   const floorY = 880;
   // The window: the vertical one (560..980 x 90..590), scaled and clipped.
-  const ws = 0.92;
+  const ws = 0.85;
   const wy = 70;
   return (
     <g>
@@ -111,14 +113,15 @@ export const LBedroom: React.FC<{
         <circle cx={120} cy={188} r={7} fill={LINE} />
       </g>
 
+      {plant !== undefined && <Plant x={plant} y={floorY + 10} m={m} />}
       {/* Headboard */}
-      <rect x={bx - 540} y={top} width={1080} height={280} rx={60} fill={m ? "#B07A55" : "#4A3A5E"} stroke={LINE} strokeWidth={5} />
-      <rect x={bx - 500} y={top + 38} width={1000} height={200} rx={40} fill={m ? "#C48C64" : "#56456C"} />
+      <rect x={bx - 500} y={top} width={1000} height={290} rx={60} fill={m ? "#B07A55" : "#4A3A5E"} stroke={LINE} strokeWidth={5} />
+      <rect x={bx - 462} y={top + 38} width={924} height={210} rx={40} fill={m ? "#C48C64" : "#56456C"} />
       {/* Bed */}
-      <rect x={bx - 600} y={top + 240} width={1200} height={LH} rx={20} fill={m ? "#F4EBDD" : "#3E4470"} stroke={LINE} strokeWidth={4} />
+      <rect x={bx - 560} y={top + 250} width={1120} height={LH} rx={20} fill={m ? "#F4EBDD" : "#3E4470"} stroke={LINE} strokeWidth={4} />
       {/* Pillow (the vertical one, 780 x 370, scaled) */}
       <path
-        transform={`translate(${bx} ${top + 34}) scale(0.82 0.78) translate(-540 -626)`}
+        transform={`translate(${bx} ${top + 32}) scale(${ps}) translate(-540 -626)`}
         d="M150 700 C140 640 220 620 540 626 C860 620 940 640 930 700 C946 800 940 880 930 930 C940 990 860 1000 540 994 C220 1000 140 990 150 930 C140 880 134 800 150 700 Z"
         fill={m ? "#FFFDF8" : "#8E93C4"}
         stroke={LINE}
@@ -128,6 +131,23 @@ export const LBedroom: React.FC<{
   );
 };
 
+/** A potted plant on the floor (x, y = bottom centre of the pot). */
+const Plant: React.FC<{ x: number; y: number; m: boolean }> = ({ x, y, m }) => (
+  <g transform={`translate(${x} ${y})`}>
+    {[-0.9, -0.45, 0, 0.45, 0.9].map((a, i) => (
+      <path
+        key={i}
+        d={`M0 -110 C${a * 60} -170 ${a * 120} -230 ${a * 110} ${-300 + Math.abs(a) * 60} C${a * 70} -240 ${a * 20} -170 0 -110 Z`}
+        fill={m ? (i % 2 ? "#5E8F5A" : "#4C7A4A") : i % 2 ? "#2E4A48" : "#263E3E"}
+        stroke={LINE}
+        strokeWidth={3}
+      />
+    ))}
+    <path d="M-62 -120 L62 -120 L48 0 L-48 0 Z" fill={m ? "#C2703F" : "#4A3048"} stroke={LINE} strokeWidth={4} />
+    <rect x={-70} y={-134} width={140} height={22} rx={6} fill={m ? "#D88A55" : "#57385A"} stroke={LINE} strokeWidth={4} />
+  </g>
+);
+
 /** The quilt across the bed, `y` its top edge at the sides (it bows up ~38 px). */
 export const LQuilt: React.FC<{
   morning: number;
@@ -135,7 +155,7 @@ export const LQuilt: React.FC<{
   y: number;
   half?: number;
   breathe?: number;
-}> = ({ morning, bx, y, half = 680, breathe = 0 }) => {
+}> = ({ morning, bx, y, half = 640, breathe = 0 }) => {
   const m = morning > 0.5;
   const x0 = bx - half;
   const x1 = bx + half;
@@ -175,7 +195,17 @@ export const AlarmClock: React.FC<{
   ringing?: boolean;
 }> = ({ x, y, text, night = false, buzz = 0, ringing = false }) => (
   <g transform={`translate(${x + buzz} ${y}) rotate(${buzz * 0.8})`}>
-    {night && <ellipse cx={0} cy={-62} rx={150} ry={90} fill="#FDE68A" opacity={0.12} />}
+    {night && (
+      <>
+        <defs>
+          <radialGradient id="clockGlow">
+            <stop offset="0%" stopColor="#FDE68A" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="#FDE68A" stopOpacity={0} />
+          </radialGradient>
+        </defs>
+        <ellipse cx={0} cy={-62} rx={170} ry={110} fill="url(#clockGlow)" />
+      </>
+    )}
     <rect x={-80} y={-8} width={20} height={10} rx={3} fill={LINE} />
     <rect x={60} y={-8} width={20} height={10} rx={3} fill={LINE} />
     <rect x={-100} y={-118} width={200} height={112} rx={20} fill="#0F172A" stroke={LINE} strokeWidth={5} />

@@ -671,6 +671,38 @@ def who_music_v3():
 E3_TOTAL = 1296 * F
 
 
+def who_music_wide(total=1606 / 30):
+    """who_music_v3 retimed for the 16:9 cut (src/wide/who/timeline.ts): plucks from
+    the board to the side-eye, the Srutam groove over the table and cards, the blame
+    walk, the hopeful pad as she asks, the laugh and the resolve under the band."""
+    buf = np.zeros(int((total + 1) * SR))
+    beat = 60 / 108
+    place(buf, shape(pad(["C2", "G2", "C#3"], 3.0, 0.1, 0.4), 500), 0.6, 0.35)
+    at, i = 7.1, 0
+    prog = [("C3", ["E5", "G5", "C6"]), ("A2", ["E5", "A5", "C6"]), ("F2", ["F5", "A5", "C6"]), ("G2", ["D5", "G5", "B5"])]
+    while at < 22.4:
+        root, tri = prog[(i // 4) % 4]
+        if i % 2 == 0:
+            place(buf, pizz(hz(root), 0.4), at, 0.3)
+        place(buf, pizz(hz(tri[i % 3]), 0.35), at + beat / 2, 0.14)
+        at += beat
+        i += 1
+    place(buf, bell(hz("E6"), 2.0), 22.7, 0.05)
+    groove(buf, 24.8, 32.6, ["G5", "B5", "D6", "B5", "A5", "D6", "F#6", "D6"], ["G2", "D3", "E3", "C3"], beat, 0.9)
+    for j, n in enumerate(["C3", "D#3", "G3", "F#3", "F3", "D#3", "C3", "G2"]):
+        place(buf, pizz(hz(n), 0.35), 34.9 + j * beat / 2, 0.32)
+    ask = pad(["G3", "D4", "B4"], 4.8, 0.3, 1.2)
+    ask *= np.clip(np.linspace(1.8, 0, len(ask)), 0, 1)
+    place(buf, shape(ask, 2400), 37.9, 0.28)
+    groove(buf, 49.6, 50.5, ["G5", "B5", "D6", "B5"], ["G2", "D3"], beat, 0.8)
+    res = pad(["G2", "D3", "B3", "G4", "A4"], total - 50.5, 0.7, 0.4)
+    res *= np.linspace(1, 0, len(res)) ** 1.3
+    place(buf, shape(res, 3000), 50.5, 0.35)
+    for j, n in enumerate(["G5", "B5", "D6", "G6"]):
+        place(buf, bell(hz(n), 2.2), 50.7 + j * 0.08, 0.06)
+    return buf
+
+
 def exam_music_v3():
     """v3 timing for 2 a.m. Before the Exam (see src/exam/timeline.ts)."""
     buf = np.zeros(int((E3_TOTAL + 1) * SR))

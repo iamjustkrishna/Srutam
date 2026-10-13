@@ -57,10 +57,16 @@ const NightTint: React.FC<{ amount?: number }> = ({ amount = 0.45 }) => (
 );
 
 /** Meera's scale in the bedroom, and where things sit. */
-const MS = 1.05;
+const MS = 1.3;
 const SOLO = 960; // bed / head centre when she has the frame to herself
-const DUO = 600; // bed / head centre when the phone shares the frame
-const CLOCK: [number, number] = [SOLO - 880 + 120, 430 + 150 - 6]; // on the nightstand
+const DUO = 560; // bed / head centre when the phone shares the frame
+/** The pillow and headboard sit behind her head: headboard top for a MeeraSketch y. */
+const headboard = (y: number) => y + 289;
+// Solo framing: nightstand + clock on the left, window and a plant on the right.
+const SOLO_ROOM = { bx: SOLO, top: headboard(100), wx: 1470, nx: 60, plant: 1745 };
+// Duo framing: the window on the left behind her, the phone on the right.
+const DUO_ROOM = { bx: DUO, top: headboard(80), wx: 90 };
+const CLOCK: [number, number] = [SOLO_ROOM.nx + 120, SOLO_ROOM.top + 150 - 6]; // on the nightstand
 
 const LyingMeera: React.FC<{
   f: number;
@@ -106,7 +112,7 @@ const SittingMeera: React.FC<{
 );
 
 // Night 1 / Remember: lying, head centred; the bulb up to her right.
-const N1 = { y: 148, quilt: 745, bulb: [1330, 290] as [number, number] };
+const N1 = { y: 100, quilt: 828, bulb: [1395, 290] as [number, number] };
 
 /* 1. 2:13 a.m. Eyes snap open: the best idea. */
 export const Night1: React.FC = () => {
@@ -146,17 +152,17 @@ export const Night1: React.FC = () => {
         </>
       }
     >
-      <LBedroom morning={0} bx={SOLO} />
+      <LBedroom morning={0} {...SOLO_ROOM} />
       <LyingMeera f={f} cx={SOLO} y={N1.y} expr={open ? "surprised" : "sleep"} gaze={[0, -0.7]} />
       <LQuilt morning={0} bx={SOLO} y={N1.quilt} breathe={Math.sin(f / 22)} />
       <NightTint />
       <AlarmClock x={CLOCK[0]} y={CLOCK[1]} text="2:13" night />
       <g opacity={interpolate(f, [BEAT.eyesOpen, BEAT.eyesOpen + 4, 40, 48], [0, 1, 1, 0], clamp)}>
-        <text x={SOLO + 205} y={390} fontFamily="Kalam" fontWeight={700} fontSize={110} fill="#FDE68A">
+        <text x={SOLO + 245} y={400} fontFamily="Kalam" fontWeight={700} fontSize={130} fill="#FDE68A">
           !
         </text>
       </g>
-      <Bulb x={N1.bulb[0]} y={N1.bulb[1]} s={bulbIn * 1.15} glow={bulbIn} />
+      <Bulb x={N1.bulb[0]} y={N1.bulb[1]} s={bulbIn * 1.2} glow={bulbIn} />
     </LStage>
   );
 };
@@ -169,29 +175,29 @@ export const Remember: React.FC = () => {
   const dawn = interpolate(f, [70, 90], [0, 1], clamp);
   return (
     <LStage zoom={1.06} focus={[SOLO, 470]}>
-      <LBedroom morning={0} bx={SOLO} />
+      <LBedroom morning={0} {...SOLO_ROOM} />
       <LyingMeera f={f + 165} cx={SOLO} y={N1.y} expr={asleep ? "sleep" : "smug"} gaze={[-0.4, -0.2]} />
       <LQuilt morning={0} bx={SOLO} y={N1.quilt} breathe={Math.sin(f / 22)} />
       <NightTint />
-      <AlarmClock x={CLOCK[0]} y={CLOCK[1]} text="2:14" night />
-      <Bulb x={N1.bulb[0]} y={N1.bulb[1]} s={1.15} glow={interpolate(f, [40, 90], [1, 0.25], clamp)} />
+      <AlarmClock x={CLOCK[0]} y={CLOCK[1]} text="2:13" night />
+      <Bulb x={N1.bulb[0]} y={N1.bulb[1]} s={1.2} glow={interpolate(f, [40, 90], [1, 0.25], clamp)} />
       <ThoughtBubble
-        x={190}
+        x={180}
         y={140}
         w={500}
         lines={["I'll remember it", "in the morning."]}
-        size={52}
-        tail={[820, 380]}
+        size={54}
+        tail={[740, 380]}
         opacity={bubble}
       />
-      {asleep && <Zzz x={SOLO + 170} y={410} t={f} />}
+      {asleep && <Zzz x={SOLO + 215} y={400} t={f} />}
       <rect width={LW} height={LH} fill="#FFF4D6" opacity={dawn} />
     </LStage>
   );
 };
 
 // Morning 1: sitting up, head centred.
-const M1 = { y: 171, quilt: 900 };
+const M1 = { y: 125, quilt: 1040 };
 
 /* 3. Morning. Alarm. "...I did not remember it in the morning." */
 export const Morning1: React.FC = () => {
@@ -201,18 +207,18 @@ export const Morning1: React.FC = () => {
   const buzz = f >= 3 && f < 34 ? Math.sin(f * 2.4) * 6 : 0;
   return (
     <LStage zoom={interpolate(f, [0, 90], [1.0, 1.05], clamp)} focus={[SOLO, 470]}>
-      <LBedroom morning={1} bx={SOLO} />
+      <LBedroom morning={1} {...SOLO_ROOM} />
       <SittingMeera f={f} cx={SOLO} y={M1.y} expr="blank" />
       <LQuilt morning={1} bx={SOLO} y={M1.quilt} />
       <AlarmClock x={CLOCK[0]} y={CLOCK[1]} text="7:30" buzz={buzz} ringing={f < 34} />
-      <Bulb x={1320} y={270} s={1.0} glow={0.2} pop={pop} />
+      <Bulb x={1395} y={290} s={1.05} glow={0.2} pop={pop} />
       <ThoughtBubble
-        x={1230}
-        y={120}
-        w={340}
+        x={1300}
+        y={150}
+        w={320}
         lines={["?"]}
-        size={110}
-        tail={[1120, 450]}
+        size={100}
+        tail={[1170, 470]}
         opacity={interpolate(f, [44, 52], [0, 1], clamp)}
       />
       <rect width={LW} height={LH} fill="#FFFFFF" opacity={flash} />
@@ -232,7 +238,7 @@ export const Rewind: React.FC = () => {
   return (
     <LStage zoom={1.03} focus={[SOLO, 470]}>
       <g transform={`translate(${jx} 0)`}>
-        <LBedroom morning={night ? 0 : 1} bx={SOLO} />
+        <LBedroom morning={night ? 0 : 1} {...SOLO_ROOM} />
         {night ? (
           <LyingMeera f={300 - f * 4} cx={SOLO} y={N1.y} expr={expr} gaze={[0, -0.7]} />
         ) : (
@@ -287,10 +293,11 @@ const SPEAKING: [number, number][] = [
 ];
 
 // Night 2 / Save: Meera lying on the left, the phone held up on the right.
-const N2 = { y: 100, quilt: 700 };
-const PHONE = { x: 1220, w: 540, y: 150, down: 1140 };
-/** Where the vertical's phone-local points land: the vertical phone is 620 wide. */
-const pk = PHONE.w / 620;
+const N2 = { y: 80, quilt: 808 };
+const PHONE = { x: 1200, w: 560, y: 140, down: 1140 };
+/** LockScreen units (it lays out at w / 640): the notification's pills, and its middle. */
+const pk = PHONE.w / 640;
+const PILL = { start: [519, 471], save: [522, 471], card: 500 };
 /** Hands at the phone's lower edge (thumb left, fingers right). */
 const PhoneHand: React.FC<{ x: number; y: number; w: number }> = ({ x, y, w }) => {
   const k = (w + 80) / 400;
@@ -321,12 +328,12 @@ export const Night2: React.FC = () => {
   const talk = talking ? 0.4 + 0.6 * Math.abs(Math.sin(abs * 0.8)) : 0;
   const bulbT = interpolate(abs, [BEAT.bulbIntoPhone, BEAT.bulbIntoPhone + 28], [0, 1], { ...clamp, easing: easeInOut });
   const glow = interpolate(abs, [BEAT.bulbIntoPhone + 24, BEAT.bulbIntoPhone + 34, BEAT.bulbIntoPhone + 70], [0, 1, 0.25], clamp);
-  const target: [number, number] = [PHONE.x + PHONE.w / 2, phoneY + 400 * pk];
-  const from: [number, number] = [DUO + 400, 270];
+  const target: [number, number] = [PHONE.x + PHONE.w / 2, phoneY + PILL.card * pk];
+  const from: [number, number] = [DUO + 420, 270];
   return (
     <LStage>
       <Lights />
-      <LBedroom morning={0} bx={DUO} wx={110} />
+      <LBedroom morning={0} {...DUO_ROOM} />
       <LyingMeera
         f={abs}
         cx={DUO}
@@ -361,8 +368,8 @@ export const Night2: React.FC = () => {
       {/* Tap ripple on Start */}
       {abs >= BEAT.tapStart && abs < BEAT.tapStart + 14 && (
         <circle
-          cx={PHONE.x + 540 * pk}
-          cy={phoneY + 395 * pk}
+          cx={PHONE.x + PILL.start[0] * pk}
+          cy={phoneY + PILL.start[1] * pk}
           r={20 + (abs - BEAT.tapStart) * 6}
           fill="none"
           stroke="#FFFFFF"
@@ -377,12 +384,12 @@ export const Night2: React.FC = () => {
         return (
           <text
             key={i}
-            x={900 + t * 330}
-            y={(i % 2 ? 600 : 520) - t * 60 - Math.sin(t * Math.PI) * 40}
+            x={900 + t * 230}
+            y={(i % 2 ? 610 : 530) - t * 70 - Math.sin(t * Math.PI) * 40}
             textAnchor="middle"
             fontFamily="Kalam"
             fontWeight={700}
-            fontSize={54}
+            fontSize={52}
             fill="#FDE68A"
             opacity={Math.sin(t * Math.PI)}
             style={{ filter: "drop-shadow(0 0 10px rgba(251,191,36,0.9))" }}
@@ -406,7 +413,7 @@ export const Save: React.FC = () => {
   return (
     <LStage>
       <Lights />
-      <LBedroom morning={0} bx={DUO} wx={110} />
+      <LBedroom morning={0} {...DUO_ROOM} />
       <LyingMeera f={abs} cx={DUO} y={N2.y} expr={asleep ? "sleep" : "drowsy"} gaze={[0.9, 0.4]} />
       <LQuilt morning={0} bx={DUO} y={N2.quilt} breathe={Math.sin(abs / 22)} />
       <NightTint />
@@ -423,8 +430,8 @@ export const Save: React.FC = () => {
       <PhoneHand x={PHONE.x} y={phoneY} w={PHONE.w} />
       {abs >= BEAT.tapSave && abs < BEAT.tapSave + 14 && (
         <circle
-          cx={PHONE.x + 560 * pk}
-          cy={phoneY + 395 * pk}
+          cx={PHONE.x + PILL.save[0] * pk}
+          cy={phoneY + PILL.save[1] * pk}
           r={20 + (abs - BEAT.tapSave) * 6}
           fill="none"
           stroke="#FFFFFF"
@@ -432,15 +439,15 @@ export const Save: React.FC = () => {
           opacity={1 - (abs - BEAT.tapSave) / 14}
         />
       )}
-      {asleep && <Zzz x={DUO + 170} y={360} t={f} />}
+      {asleep && <Zzz x={DUO + 215} y={380} t={f} />}
       <rect width={LW} height={LH} fill="#FFF4D6" opacity={dawn} />
     </LStage>
   );
 };
 
 /* 7. Morning: it's all there. */
-const M2 = { y: 150, quilt: 880 };
-const PHONE2 = { x: 1210, w: 560, y: 150 };
+const M2 = { y: 110, quilt: 1040 };
+const PHONE2 = { x: 1200, w: 560, y: 150 };
 
 export const Morning2: React.FC = () => {
   const f = useCurrentFrame();
@@ -450,11 +457,11 @@ export const Morning2: React.FC = () => {
   const expr: SketchExpr = abs < BEAT.noteIn ? "blank" : abs < BEAT.ideaCard ? "surprised" : "laugh";
   return (
     <LStage>
-      <LBedroom morning={1} bx={DUO} wx={110} />
+      <LBedroom morning={1} {...DUO_ROOM} />
       {[0, 1, 2].map((i) => (
         <polygon
           key={i}
-          points={`${240 + i * 90},90 ${300 + i * 90},90 ${980 + i * 150},${LH} ${820 + i * 150},${LH}`}
+          points={`${220 + i * 90},90 ${280 + i * 90},90 ${960 + i * 150},${LH} ${800 + i * 150},${LH}`}
           fill="#FFF4D6"
           opacity={0.12}
         />
@@ -502,17 +509,17 @@ export const Later: React.FC = () => {
     >
       <LRooftop t={f} />
       <MeeraSketch
-        x={cx - 300 * MS}
-        y={250}
-        s={MS}
+        x={cx - 300 * 1.2}
+        y={180}
+        s={1.2}
         expr={f < 40 ? "smug" : "laugh"}
         turn={0.2}
         gaze={[0.5, 0]}
         blink={f > 20 && f < 24}
         sway={Math.sin(f / 18) * 0.9}
       />
-      <CafeTable x0={520} x1={1300} y={968} />
-      <Kulhad x={1120} y={968 - 58 * 1.15} s={1.15} t={f} />
+      <CafeTable x0={480} x1={1320} y={1000} />
+      <Kulhad x={1180} y={1000 - 58 * 1.2} s={1.2} t={f} />
     </LStage>
   );
 };
@@ -522,11 +529,11 @@ export const End: React.FC = () => {
   const f = useCurrentFrame();
   const pop = (a: number) => interpolate(f, [a, a + 12], [0, 1], { ...clamp, easing: springy });
   const bx = 600;
-  const tx = 1270;
+  const tx = 1375;
   return (
     <LStage>
       <rect width={LW} height={LH} fill="#F4EBDD" />
-      <circle cx={bx} cy={540} r={400} fill="#FDE68A" opacity={0.35} />
+      <circle cx={bx} cy={540} r={370} fill="#FDE68A" opacity={0.35} />
       <Bulb x={bx} y={520} s={1.6 * pop(2)} glow={1} />
       <image href={LOGO} x={tx - 85} y={200} width={170} height={170} opacity={pop(10)} />
       <text x={tx} y={575} textAnchor="middle" fontFamily="Playfair Display" fontSize={180} fill="#1A1433" opacity={pop(16)}>

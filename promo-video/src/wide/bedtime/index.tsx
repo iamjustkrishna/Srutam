@@ -25,7 +25,7 @@ const SEQ: [string, keyof typeof SCENES, React.FC][] = [
 
 /** Top captions over the phone scenes sit over the left (Meera's) side, clear of the phone. */
 const lane = (f: number): [number, number] | undefined =>
-  f >= SCENES.save.from && f < SCENES.later.from ? [60, 820] : undefined;
+  f >= SCENES.save.from && f < SCENES.later.from + 6 ? [60, 820] : undefined;
 
 export const BedtimeLandscape: React.FC = () => (
   <Landscape>

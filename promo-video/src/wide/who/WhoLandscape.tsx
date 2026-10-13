@@ -102,7 +102,7 @@ const Open: React.FC<{ at?: number }> = ({ at }) => {
     <Frame bg={OFFICE}>
       <Camera f={f} zoom={interpolate(f, span(SCENES.open), [1.02, 1.08], { ...clamp, easing: easeInOut })} focus={[900, 520]} shake={sh} drift={3} seed={11}>
         <Depth blur={6}>
-          <OfficeWallL board={false} />
+          <OfficeWallL />
         </Depth>
         <Actor
           x={600}
@@ -179,7 +179,7 @@ const DockStart: React.FC = () => {
           <Hand pose="grip" skin="#F2C3A2" />
         </g>
         <g transform={`translate(${wrist[0]} ${wrist[1]}) rotate(-35) scale(${s * press} ${s})`}>
-          <path d="M-760 -46 L-6 -34 L-6 34 L-760 46 Z" fill="#EFE6D8" stroke={LINE} strokeWidth={5} />
+          <path d="M-760 -78 L-6 -40 L-6 40 L-760 78 Z" fill="#EFE6D8" stroke={LINE} strokeWidth={6} />
           <g transform="scale(1.9)">
             <Hand pose="point" skin="#F2C3A2" />
           </g>
@@ -500,7 +500,7 @@ const Cards: React.FC = () => {
         {ITEMS.map((it, i) => (
           <BigCard key={it.kind} x={900} y={110 + i * 236} kind={it.kind} color={it.color} text={it.text} meta={it.meta} k={appear[i]} />
         ))}
-        <g transform={`translate(1580 860) rotate(${8 - sticker * 4}) scale(${sticker})`} opacity={sticker > 0.02 ? 1 : 0}>
+        <g transform={`translate(1600 880) rotate(${8 - sticker * 4}) scale(${sticker * 1.35})`} opacity={sticker > 0.02 ? 1 : 0}>
           <rect x={-150} y={-60} width={300} height={120} rx={24} fill="#FBBF24" stroke={LINE} strokeWidth={5} />
           <text x={0} y={-8} textAnchor="middle" fontFamily="Kalam" fontWeight={700} fontSize={44} fill="#2B1E1B">
             12:58 pm
@@ -638,7 +638,7 @@ const Raise: React.FC = () => {
           f={f}
           who="meera"
           shadow
-          torso={120}
+          torso={320}
           expr="smug"
           viseme={vis("m-ask", f)}
           turn={0.35}
@@ -898,6 +898,13 @@ const LIST = [
   ["19 End", SCENES.end, End],
 ] as const;
 
+/** Keep captions off the phone: beside the Insights cards, and left of Meera's phone. */
+const captionLane = (f: number): [number, number] | undefined => {
+  if (f >= SCENES.cards.from && f < SCENES.week.from) return [880, 60];
+  if (f >= SCENES.raise.from + 30 && f < SCENES.play.from) return [80, 900];
+  return undefined;
+};
+
 export const WhoLandscape: React.FC = () => (
   <Landscape>
     {LIST.map(([name, s, Comp]) => (
@@ -905,7 +912,7 @@ export const WhoLandscape: React.FC = () => (
         <Comp />
       </Sequence>
     ))}
-    <LCaptions cues={CAPTIONS} k={K} />
+    <LCaptions cues={CAPTIONS} k={K} lane={captionLane} />
     <Soundtrack music="meeting/music-wide.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />
   </Landscape>
 );
