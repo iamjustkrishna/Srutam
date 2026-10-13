@@ -1,0 +1,132 @@
+// "Who Said That?" in 16:9 with English dialogue (story frames at 30 fps, rendered at
+// 60 fps). Same story and beats as src/who/timeline.ts; the scenes are longer where the
+// English lines are, and every beat moves with its scene. scripts/music-wide.py times
+// the music bed to these scenes.
+import type { CaptionCue, Cue, Line } from "../../stories/Story";
+
+export const TOTAL = 1606; // 53.5 s
+
+export const SCENES = {
+  open: { from: 0, duration: 118 },
+  freeze: { from: 118, duration: 36 },
+  dock: { from: 154, duration: 60 },
+  board: { from: 214, duration: 118 },
+  arjun: { from: 332, duration: 108 },
+  final: { from: 440, duration: 94 },
+  deck: { from: 534, duration: 86 },
+  note: { from: 620, duration: 56 },
+  eyes: { from: 676, duration: 66 },
+  table: { from: 742, duration: 94 },
+  cards: { from: 836, duration: 142 },
+  week: { from: 978, duration: 56 },
+  blame: { from: 1034, duration: 100 },
+  raise: { from: 1134, duration: 40 },
+  type: { from: 1174, duration: 108 },
+  detail: { from: 1282, duration: 36 },
+  play: { from: 1318, duration: 92 },
+  payoff: { from: 1410, duration: 100 },
+  end: { from: 1510, duration: TOTAL - 1510 },
+} as const;
+
+export const BEAT = {
+  windup: 2,
+  impact: 14,
+  freeze: 116,
+  tap: 186,
+  boardTap: 246,
+  arjunHand: 368,
+  shake: 444,
+  chop: 506,
+  pointArjun: 538,
+  nodA: 576,
+  thumb: 624,
+  bandA: 682,
+  bandN: 702,
+  bandM: 722,
+  cardDecision: 846,
+  cardStep: 880,
+  cardReminder: 914,
+  lunch: 946,
+  pageTear: 990,
+  pointA: 1046,
+  pointN: 1082,
+  lift: 1138,
+  typeStart: 1182,
+  typeEnd: 1226,
+  send: 1230,
+  answer: 1246,
+  answerEnd: 1266,
+  tapRef: 1272,
+  seek: 1298,
+  playBtn: 1310,
+  play: 1318,
+  realise: 1386,
+  rub: 1414,
+  laugh: 1490,
+  band: 1516,
+} as const;
+
+const V = "voiceover/en/meeting";
+const M = "voiceover/meeting/meera";
+export const VO: (Line & { src: string })[] = [
+  { file: "rao-who", at: 16, frames: 99, src: `${V}/rao/rao-who.wav` },
+  { file: "rao-launch", at: 220, frames: 99, src: `${V}/rao/rao-launch.wav` },
+  { file: "arjun-21", at: 334, frames: 104, src: `${V}/arjun/arjun-21.wav` },
+  { file: "rao-final", at: 442, frames: 87, src: `${V}/rao/rao-final.wav` },
+  { file: "rao-deck", at: 536, frames: 79, src: `${V}/rao/rao-deck.wav` },
+  { file: "rao-note", at: 622, frames: 50, src: `${V}/rao/rao-note.wav` },
+  { file: "w-nobody", at: 746, frames: 90, src: `${M}/w-nobody.mp3` },
+  { file: "w-decision", at: 842, frames: 132, src: `${M}/w-decision.mp3` },
+  { file: "arjun-her", at: 1048, frames: 35, src: `${V}/arjun/arjun-her.wav` },
+  { file: "neha-him", at: 1084, frames: 45, src: `${V}/neha/neha-him.wav` },
+  { file: "m-ask", at: 1138, frames: 82, src: `${M}/m-ask.mp3` },
+  { file: "rao-recording", at: BEAT.play, frames: 85, src: `${V}/rao/rao-recording.wav` },
+  { file: "rao-sheepish", at: 1412, frames: 95, src: `${V}/rao/rao-sheepish.wav` },
+  { file: "w-minuted", at: 1528, frames: 64, src: `${M}/w-minuted.mp3` },
+];
+
+// Effects sit under the story: room tone, soft air on cuts, quiet UI sounds.
+export const SFX: Cue[] = [
+  { file: "meeting/office.wav", at: 0, volume: 0.25, dur: 164, loop: true },
+  { file: "sfx2/thump.wav", at: BEAT.impact, volume: 0.7 },
+  { file: "sfx2/rewind.wav", at: BEAT.freeze + 4, volume: 0.5 },
+  { file: "meeting/office.wav", at: 154, volume: 0.22, dur: 522, loop: true },
+  { file: "sfx2/tap.wav", at: BEAT.tap, volume: 0.5 },
+  { file: "sfx2/tap.wav", at: BEAT.boardTap, volume: 0.35 },
+  { file: "sfx2/air.wav", at: BEAT.bandA - 4, volume: 0.3 },
+  { file: "sfx2/air.wav", at: BEAT.bandN - 4, volume: 0.25 },
+  { file: "sfx2/air.wav", at: BEAT.bandM - 4, volume: 0.25 },
+  { file: "meeting/office.wav", at: 742, volume: 0.18, dur: 94 },
+  { file: "sfx2/blip.wav", at: BEAT.cardDecision, volume: 0.35 },
+  { file: "sfx2/blip.wav", at: BEAT.cardStep, volume: 0.3 },
+  { file: "sfx2/blip.wav", at: BEAT.cardReminder, volume: 0.3 },
+  { file: "meeting/office.wav", at: 972, volume: 0.15, dur: 66 },
+  { file: "sfx2/tick.wav", at: 982, volume: 0.5 },
+  { file: "sfx2/page.wav", at: BEAT.pageTear, volume: 0.5 },
+  { file: "sfx2/tick.wav", at: 1012, volume: 0.5 },
+  { file: "meeting/office.wav", at: 1034, volume: 0.2, dur: 572, loop: true },
+  { file: "sfx2/air.wav", at: BEAT.lift, volume: 0.25 },
+  ...Array.from({ length: 12 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.typeStart + 2 + i * 3.6, volume: 0.22 })),
+  { file: "sfx2/tap.wav", at: BEAT.send, volume: 0.4 },
+  { file: "sfx2/blip.wav", at: BEAT.answer, volume: 0.3 },
+  { file: "sfx2/tap.wav", at: BEAT.tapRef, volume: 0.45 },
+  { file: "sfx2/tap.wav", at: BEAT.seek, volume: 0.4 },
+  { file: "sfx2/tap.wav", at: BEAT.playBtn, volume: 0.4 },
+  { file: "sfx2/swell.wav", at: BEAT.band - 26, volume: 0.35 },
+];
+
+export const CAPTIONS: CaptionCue[] = [
+  { from: 16, to: 114, text: "“The 14th? Who said yes to the 14th?!”" },
+  { from: 220, to: 318, text: "“So... do we launch on the 14th?”" },
+  { from: 334, to: 437, text: "“Sir, the 21st would be safer...”" },
+  { from: 442, to: 528, text: "“No, no. The 14th. Final.”" },
+  { from: 536, to: 614, text: "“Arjun. Pricing deck, by Thursday.”" },
+  { from: 622, to: 670, text: "“Someone note it down!”" },
+  { from: 746, to: 836, text: "Nobody wrote it down. Except Srutam." },
+  { from: 842, to: 974, text: "Decision. Next step. Reminder. Before lunch." },
+  { from: 1048, to: 1082, text: "“Neha did!”" },
+  { from: 1084, to: 1128, text: "“Arjun did!”" },
+  { from: 1138, to: 1220, text: "“Relax. Let's ask Srutam.”" },
+  { from: BEAT.play, to: 1404, text: "▶ Tuesday sync · “No, no. The 14th. Final.”", top: true },
+  { from: 1412, to: 1506, text: "“Okay... so the 14th is final, then.”" },
+];

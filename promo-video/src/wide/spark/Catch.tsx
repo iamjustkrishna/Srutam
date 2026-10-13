@@ -16,7 +16,7 @@ import { HERO } from "./layout";
 
 // The phone, held from below, on the left; the dying spark waits on the right,
 // and the live transcript takes its place once it is caught.
-const PHONE = { x: 300, y: 110, w: 660 };
+const PHONE = { x: 320, y: 110, w: 700 };
 const BEZEL = PHONE.w * 0.03;
 const SCREEN = {
   x: PHONE.x + BEZEL,
@@ -27,8 +27,8 @@ const DP = SCREEN.w / 411;
 const DOCK_TOP = 367 * DP; // inside the screen (same dp as the vertical cut)
 const MIC = { x: SCREEN.x + 27 * DP, y: SCREEN.y + DOCK_TOP + 25 * DP };
 const STOP = { x: SCREEN.x + 127 * DP, y: MIC.y };
-const SPARK_HOME = { x: 1220, y: 400 };
-const CTRL = { x: 430, y: 160 };
+const SPARK_HOME = { x: 1310, y: 410 };
+const CTRL = { x: 460, y: 160 };
 const REST = { x: PHONE.x + PHONE.w - 10, y: 990 };
 const NOTIF = { x: SCREEN.x + SCREEN.w / 2, y: SCREEN.y + 130 };
 
@@ -178,14 +178,14 @@ export const Catch: React.FC = () => {
           scale: `${interpolate(frame, [0, 60], [1.12, 1.05], { ...clamp, easing: easeOut })}`,
         }}
       >
-        <WideBusBackdrop dim={0.25} speed={0.7} poleX={1000} />
+        <WideBusBackdrop dim={0.25} speed={0.7} poleX={1060} />
       </AbsoluteFill>
 
       {/* Camera: punch in on the dock for "tap, tap", ride the dive, pull back */}
       <AbsoluteFill
         style={{
           transformOrigin: `${MIC.x}px ${MIC.y}px`,
-          scale: `${interpolate(frame, [28, 42, 60, 84], [1, 1.45, 1.45, 1], { ...clamp, easing: easeInOut })}`,
+          scale: `${interpolate(frame, [28, 42, 60, 84], [1, 1.4, 1.4, 1], { ...clamp, easing: easeInOut })}`,
         }}
       >
         <Phone x={PHONE.x} y={PHONE.y} width={PHONE.w}>
@@ -279,9 +279,9 @@ export const Catch: React.FC = () => {
       <div
         style={{
           position: "absolute",
-          left: 1060,
-          right: 100,
-          top: 200,
+          left: 1110,
+          right: 90,
+          top: 190,
           padding: "34px 40px",
           borderRadius: 36,
           background: "rgba(15,23,42,0.88)",
@@ -292,7 +292,7 @@ export const Catch: React.FC = () => {
       >
         <div
           style={{
-            fontSize: 50,
+            fontSize: 48,
             fontWeight: 700,
             lineHeight: 1.3,
             color: C.white,

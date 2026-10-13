@@ -19,13 +19,16 @@ export const RENDER_K = 1;
 
 /**
  * Caption lanes: centred over the Lost panels, in the right-hand column while the
- * phone holds the left (Catch, Insights), and sliding left with the Mesh as the AI
- * phone rises on the right (Connect).
+ * phone holds the left (Catch, Insights), and sliding left under the Mesh just
+ * before the AI phone rises on the right (Connect).
  */
 const lane = (f: number): [number, number] => {
-  if (f >= SCENES.catch.from && f < SCENES.connect.from) return [1060, 100];
+  // "Tap, tap" plays during the punch-in on the dock: keep it clear of the phone
+  if (f >= SCENES.catch.from && f < SCENES.catch.from + 82) return [1280, 60];
+  if (f >= SCENES.catch.from && f < SCENES.insights.from) return [1110, 90];
+  if (f >= SCENES.insights.from && f < SCENES.connect.from) return [1060, 140];
   if (f >= SCENES.connect.from) {
-    const t = interpolate(f - SCENES.connect.from, [62, 80], [0, 1], {
+    const t = interpolate(f - SCENES.connect.from, [50, 64], [0, 1], {
       ...clamp,
       easing: easeInOut,
     });

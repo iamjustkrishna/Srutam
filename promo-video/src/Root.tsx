@@ -30,6 +30,13 @@ import { SHEET_H, SHEET_W } from "./storyboards/Board";
 import { IDEA_BOARDS, PRO_BOARDS } from "./storyboards/Ideas";
 import { PRO_H, PRO_W } from "./storyboards/ProBoard";
 import { FPS, HEIGHT, SCENES, TOTAL, WIDTH } from "./timeline";
+import { SparkLandscape, TOTAL as SPARK_L, RENDER_K as SPARK_LK } from "./wide/spark";
+import { BedtimeLandscape, TOTAL as BEDTIME_L, RENDER_K as BEDTIME_LK } from "./wide/bedtime";
+import { NaniLandscape, TOTAL as NANI_L, RENDER_K as NANI_LK } from "./wide/nani";
+import { KnockLandscape, TOTAL as KNOCK_L, RENDER_K as KNOCK_LK } from "./wide/knock";
+import { WhoLandscape, TOTAL as WHO_L, RENDER_K as WHO_LK } from "./wide/who";
+import { ExamLandscape, TOTAL as EXAM_L, RENDER_K as EXAM_LK } from "./wide/exam";
+import { LH, LW } from "./wide/kit";
 
 const calculateMetadata = async () => {
   await fontsReady;
@@ -47,6 +54,14 @@ const scenes = [
 
 export const RemotionRoot: React.FC = () => (
   <>
+    <Folder name="Landscape-16x9">
+      <Composition id="SparkStory-16x9" component={SparkLandscape} durationInFrames={SPARK_L * SPARK_LK} fps={30 * SPARK_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+      <Composition id="TwoAmIdea-16x9" component={BedtimeLandscape} durationInFrames={BEDTIME_L * BEDTIME_LK} fps={30 * BEDTIME_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+      <Composition id="NanisLaddoos-16x9" component={NaniLandscape} durationInFrames={NANI_L * NANI_LK} fps={30 * NANI_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+      <Composition id="KnockKnock-16x9" component={KnockLandscape} durationInFrames={KNOCK_L * KNOCK_LK} fps={30 * KNOCK_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+      <Composition id="WhoSaidThat-16x9" component={WhoLandscape} durationInFrames={WHO_L * WHO_LK} fps={30 * WHO_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+      <Composition id="BeforeTheExam-16x9" component={ExamLandscape} durationInFrames={EXAM_L * EXAM_LK} fps={30 * EXAM_LK} width={LW} height={LH} calculateMetadata={calculateMetadata} />
+    </Folder>
     <Composition
       id="SparkStory30"
       component={SparkStory}

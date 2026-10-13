@@ -10,7 +10,7 @@ import { Spark } from "../../components/Spark";
 import { C, FONT } from "../../theme";
 
 // A horizontal lockup (logo + wordmark) with the line and the pill under it.
-const LOGO = { size: 340, cx: 700, cy: 380 };
+const LOGO = { size: 340, cx: 630, cy: 380 };
 
 /** 0:26.3 - Brand resolve, then fade to the opening's grey so it loops. */
 export const End: React.FC = () => {

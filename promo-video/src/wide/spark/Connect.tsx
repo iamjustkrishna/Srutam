@@ -185,7 +185,15 @@ export const Connect: React.FC = () => {
       </AbsoluteFill>
 
       {/* Just ask: the AI tab */}
-      <Phone x={PHONE.x} y={phoneY} width={PHONE.w} dark>
+      <Phone
+        x={PHONE.x}
+        y={phoneY}
+        width={PHONE.w}
+        dark
+        style={{
+          boxShadow: `0 0 0 3px #2A3142, 0 0 90px ${C.glowPurple}40, 0 40px 80px rgba(0,0,0,0.5)`,
+        }}
+      >
         <div
           style={{
             position: "absolute",

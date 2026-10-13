@@ -62,7 +62,7 @@ export const Hook: React.FC = () => {
         style={{
           position: "absolute",
           left: 130,
-          top: 300,
+          top: 270,
           width: 860,
           fontFamily: FONT.sans,
           textAlign: "left",
