@@ -50,19 +50,19 @@ a cover frame (the time to pick it from), a tagline and a best-fit theme.
 |---|---|---|---|
 | 1 | Spark | `out/spark-story-30s.mp4` (30 s) | `out/wide/spark-story-30s-16x9.mp4` (30 s) |
 | 2 | The 2 a.m. Idea | `out/two-am-idea.mp4` (40 s) | `out/wide/two-am-idea-16x9.mp4` (40 s) |
-| 3 | Knock Knock | `out/knock-knock.mp4` (31.6 s) | `out/wide/knock-knock-16x9.mp4` (32 s) |
-| 4 | Before the Exam | `out/before-the-exam-v4.mp4` (43.2 s) | `out/wide/before-the-exam-16x9.mp4` (45.5 s) |
+| 3 | Nani's Laddoos | `out/nanis-laddoos.mp4` (41.6 s) | `out/wide/nanis-laddoos-16x9.mp4` (42.3 s) |
+| 4 | Knock Knock | `out/knock-knock.mp4` (31.6 s) | `out/wide/knock-knock-16x9.mp4` (32 s) |
 | 5 | Who Said That? | `out/who-said-that-v4.mp4` (48.5 s) | `out/wide/who-said-that-16x9.mp4` (53.5 s) |
-| 6 | Nani's Laddoos | `out/nanis-laddoos.mp4` (41.6 s) | `out/wide/nanis-laddoos-16x9.mp4` (42.3 s) |
+| 6 | Before the Exam | `out/before-the-exam-v4.mp4` (43.2 s) | `out/wide/before-the-exam-16x9.mp4` (45.5 s) |
 
 | # | Video | Cover frame (portrait / landscape) | Tagline | Best fit |
 |---|---|---|---|---|
 | 1 | Spark | 0:02.4 / 0:02.4 | Catch it before it's gone. | Everyone; product intro |
 | 2 | The 2 a.m. Idea | 0:04 / 0:05 | Catch it before it's gone. | Founders, creators |
-| 3 | Knock Knock | 0:21.5 / 0:22 | Say it once. Srutam knocks. | Family; Sunday |
-| 4 | Before the Exam | 0:03 / 0:04 | Listen once. Ask anytime. | Students; exam season |
+| 3 | Nani's Laddoos | 0:37 / 0:37 | Keep the recipe. Keep the voice. | Family; Diwali |
+| 4 | Knock Knock | 0:21.5 / 0:22 | Say it once. Srutam knocks. | Family; Sunday |
 | 5 | Who Said That? | 0:02.5 / 0:02 | Every meeting, minuted. | Office, teams |
-| 6 | Nani's Laddoos | 0:37 / 0:37 | Keep the recipe. Keep the voice. | Family; Diwali |
+| 6 | Before the Exam | 0:03 / 0:04 | Listen once. Ask anytime. | Students; exam season |
 
 ---
 
@@ -105,21 +105,134 @@ a cover frame (the time to pick it from), a tagline and a best-fit theme.
   on both profiles. Good fits: study creators for Before the Exam, food and family creators
   for Nani's Laddoos.
 
-### Calendar
+### Calendar: one reel a day, six days in a row
 
-One reel about twice a week, timed to its theme. Diwali 2026 is Sunday 8 November
-(Dhanteras is 6 November), so Nani's Laddoos goes out three days before.
+The reels go out back to back from Thursday 15 to Tuesday 20 October, one a day, with
+each day's slot matched to its story. Knock Knock lands on Sunday, half an hour before
+the story's 7 pm call. Who Said That? opens the work week on Monday. Before the Exam is a
+weeknight study post. Diwali 2026 is Sunday 8 November (Dhanteras 6 November), so Nani's
+Laddoos comes back as a Story on Diwali morning.
 
 | Date | Time (IST) | Reel | Why then |
 |---|---|---|---|
 | Thu 15 Oct | 7:30 pm | 1 · Spark | Product intro opens the grid; weekday evening |
-| Sun 18 Oct | 6:30 pm | 3 · Knock Knock | Lands on a Sunday half an hour before the story's 7 pm call: "It's Sunday. Call her." |
-| Wed 21 Oct | 9:30 pm | 2 · The 2 a.m. Idea | Late-night thinking crowd |
-| Sun 25 Oct | 9:00 pm | 4 · Before the Exam | Sunday-night study session, ahead of the end-semester season |
-| Wed 28 Oct | 7:30 pm | 5 · Who Said That? | Midweek, after office hours |
-| Thu 5 Nov | 7:30 pm | 6 · Nani's Laddoos | Diwali week, while families are making sweets |
+| Fri 16 Oct | 9:30 pm | 2 · The 2 a.m. Idea | Friday night, the late-night thinking crowd |
+| Sat 17 Oct | 7:00 pm | 3 · Nani's Laddoos | Weekend family time; Diwali prep is starting |
+| Sun 18 Oct | 6:30 pm | 4 · Knock Knock | Sunday, just before the story's 7 pm call: "It's Sunday. Call her." |
+| Mon 19 Oct | 7:30 pm | 5 · Who Said That? | After the first meetings of the week |
+| Tue 20 Oct | 9:00 pm | 6 · Before the Exam | Weeknight study hours |
 | Sun 8 Nov | 10:00 am | Story: reshare Nani's Laddoos | Diwali morning |
 | Mon 23 Nov | 10:00 pm | Story: reshare Before the Exam | End-semester exams |
+
+### Run sheet: every post, in order
+
+All times IST. Each video follows the same pattern:
+- **Reel day:**
+  - Instagram (and Facebook) at the reel time.
+  - Stories 30 minutes later.
+  - YouTube and WhatsApp an hour later.
+  - Snapchat at 1.5 hours.
+  - Pinterest at 2 hours.
+- **Next day:** X at 9:30 am and Threads at 1:00 pm.
+- **LinkedIn:** weekday mornings only, 9:00 am.
+
+Most of these can be scheduled ahead: Meta Business Suite (Instagram, Facebook, Stories),
+YouTube Studio, LinkedIn, X and Pinterest. Snapchat and WhatsApp have to be posted by hand.
+
+**Before Thu 15 Oct**
+- The Spark landscape cut goes up on YouTube, unlisted, with ads off. Add it to the Play
+  listing as the promo video.
+- Spark goes on the srutam.space homepage.
+
+**Thu 15 Oct · Spark**
+
+| Time | Post |
+|---|---|
+| 7:30 pm | Instagram Reel + Facebook Reels: Spark |
+| 8:00 pm | Instagram Stories: Spark |
+| 8:30 pm | YouTube Short + YouTube landscape: Spark · WhatsApp Channel and Status: Spark |
+| 9:00 pm | Snapchat Spotlight: Spark |
+| 9:30 pm | Pinterest: Spark |
+
+**Fri 16 Oct · The 2 a.m. Idea**
+
+| Time | Post |
+|---|---|
+| 9:00 am | LinkedIn: Spark |
+| 9:30 am | X: Spark |
+| 1:00 pm | Threads: Spark |
+| 9:30 pm | Instagram Reel + Facebook Reels: The 2 a.m. Idea |
+| 10:00 pm | Instagram Stories: The 2 a.m. Idea |
+| 10:30 pm | YouTube Short + YouTube landscape · WhatsApp: The 2 a.m. Idea |
+| 11:00 pm | Snapchat Spotlight: The 2 a.m. Idea |
+| 11:30 pm | Pinterest: The 2 a.m. Idea |
+
+**Sat 17 Oct · Nani's Laddoos**
+
+| Time | Post |
+|---|---|
+| 9:30 am | X: The 2 a.m. Idea |
+| 1:00 pm | Threads: The 2 a.m. Idea |
+| 7:00 pm | Instagram Reel + Facebook Reels: Nani's Laddoos |
+| 7:30 pm | Instagram Stories: Nani's Laddoos |
+| 8:00 pm | YouTube Short + YouTube landscape · WhatsApp: Nani's Laddoos |
+| 8:30 pm | Snapchat Spotlight: Nani's Laddoos |
+| 9:00 pm | Pinterest: Nani's Laddoos |
+
+**Sun 18 Oct · Knock Knock**
+
+| Time | Post |
+|---|---|
+| 9:30 am | X: Nani's Laddoos |
+| 1:00 pm | Threads: Nani's Laddoos |
+| 6:30 pm | Instagram Reel + Facebook Reels: Knock Knock |
+| 7:00 pm | Instagram Stories: Knock Knock (right at the story's 7 pm call) |
+| 7:30 pm | YouTube Short + YouTube landscape · WhatsApp: Knock Knock |
+| 8:00 pm | Snapchat Spotlight: Knock Knock |
+| 8:30 pm | Pinterest: Knock Knock |
+
+**Mon 19 Oct · Who Said That?**
+
+| Time | Post |
+|---|---|
+| 9:00 am | LinkedIn: Who Said That? (Monday-meeting morning) |
+| 9:30 am | X: Knock Knock |
+| 1:00 pm | Threads: Knock Knock |
+| 7:30 pm | Instagram Reel + Facebook Reels: Who Said That? |
+| 8:00 pm | Instagram Stories: Who Said That? |
+| 8:30 pm | YouTube Short + YouTube landscape · WhatsApp: Who Said That? |
+| 9:00 pm | Snapchat Spotlight: Who Said That? |
+| 9:30 pm | Pinterest: Who Said That? |
+
+**Tue 20 Oct · Before the Exam**
+
+| Time | Post |
+|---|---|
+| 9:00 am | LinkedIn: The 2 a.m. Idea |
+| 9:30 am | X: Who Said That? |
+| 1:00 pm | Threads: Who Said That? |
+| 9:00 pm | Instagram Reel + Facebook Reels: Before the Exam |
+| 9:30 pm | Instagram Stories: Before the Exam |
+| 10:00 pm | YouTube Short + YouTube landscape · WhatsApp: Before the Exam |
+| 10:30 pm | Snapchat Spotlight: Before the Exam |
+| 11:00 pm | Pinterest: Before the Exam |
+
+**Wed 21 Oct · wrap-up**
+
+| Time | Post |
+|---|---|
+| 9:00 am | LinkedIn: Before the Exam |
+| 9:30 am | X: Before the Exam |
+| 1:00 pm | Threads: Before the Exam |
+| 7:30 pm | Instagram Stories: all six in a recap, with a poll ("Which one is you?") and a link sticker |
+
+**Later**
+
+| Date | Time | Post |
+|---|---|---|
+| Thu 22 Oct | Any time | One Reddit post (see the Reddit row in the next section) |
+| Sun 8 Nov | 10:00 am | Instagram Story reshare: Nani's Laddoos (Diwali) |
+| Mon 23 Nov | 10:00 pm | Instagram Story reshare: Before the Exam (end-semester exams) |
 
 ### On each reel day
 
@@ -132,7 +245,7 @@ One reel about twice a week, timed to its theme. Diwali 2026 is Sunday 8 Novembe
   - Reply to every comment.
   - Pin the best comment.
   - Post the reel in the broadcast channel, if you run one.
-- **After 48 hours:**
+- **After 48 hours** (two reels later, on a daily schedule):
   - Look at reach, the 3-second hold, average watch time, shares and saves.
   - If the 3-second hold is weak, test a new first frame or cover as a Trial Reel.
   - If shares are high, put a small boost behind the reel. This needs the paid voice
@@ -142,22 +255,23 @@ One reel about twice a week, timed to its theme. Diwali 2026 is Sunday 8 Novembe
 
 ## Other platforms
 
-Each platform takes the cut it plays best, posted after Instagram.
+Each platform takes the cut it plays best, posted after Instagram. The exact times are in
+the run sheet above.
 
-| Platform | Cut | When (IST) | Notes |
+| Platform | Cut | When | Notes |
 |---|---|---|---|
-| Facebook Reels | Portrait | Same time as Instagram | Automatic via "Share to Facebook". On the Facebook Page, also post the landscape cut natively for desktop viewers. |
-| YouTube Shorts | Portrait | Same day, 8:30 pm | Set the Short's "Related video" to the landscape version. Up to 3 hashtags in the description appear above the title. |
-| YouTube (landscape) | Landscape | Same day, 8:30 pm | Put all six in a playlist "Srutam Stories". Add the chapter timestamps given below; YouTube needs at least three, each 10 s or longer, and these qualify. Turn off ads on the one used for Play. |
-| Google Play listing | Landscape Spark | Once, before 15 Oct | Use a YouTube URL, public or unlisted. Ads and monetisation off, not age-restricted, embeddable, no timecode in the URL. |
-| srutam.space | Landscape | Once, then as each one launches | Spark in the hero section, autoplaying muted (the captions are burned in). The others go in a "Stories" section. |
-| Snapchat Spotlight | Portrait | Same evening, 9:00 pm | Large Indian user base. Keep the caption short, plus one topic. |
-| WhatsApp Channel and Status | Portrait | Same evening, 8:30 pm | Post the video with a one-line caption and the Play link. Ask the team to put it on their Status. |
+| Facebook Reels | Portrait | With the reel | Automatic via "Share to Facebook". On the Facebook Page, also post the landscape cut natively for desktop viewers. |
+| YouTube Shorts | Portrait | Reel + 1 h | Set the Short's "Related video" to the landscape version. Up to 3 hashtags in the description appear above the title. |
+| YouTube (landscape) | Landscape | Reel + 1 h | Put all six in a playlist "Srutam Stories". Add the chapter timestamps given below; YouTube needs at least three, each 10 s or longer, and these qualify. Turn off ads on the one used for Play. |
+| Google Play listing | Landscape Spark | Once, before Thu 15 Oct | Use a YouTube URL, public or unlisted. Ads and monetisation off, not age-restricted, embeddable, no timecode in the URL. |
+| srutam.space | Landscape | Before Thu 15 Oct, then each one on its day | Spark in the hero section, autoplaying muted (the captions are burned in). The others go in a "Stories" section. |
+| Snapchat Spotlight | Portrait | Reel + 1.5 h | Large Indian user base. Keep the caption short, plus one topic. |
+| WhatsApp Channel and Status | Portrait | Reel + 1 h | Post the video with a one-line caption and the Play link. Ask the team to put it on their Status. |
 | Threads | Portrait | Next day, 1:00 pm | Text-first; one topic tag per post. |
 | X | Landscape | Next day, 9:30 am | Plays well on desktop. One or two hashtags at most. |
-| LinkedIn | Landscape | Tue–Thu, 9:00 am | Only Spark, The 2 a.m. Idea, Who Said That? and Before the Exam. Put the link in the first comment, not the post. |
-| Pinterest | Portrait | Weekend evening, 9:00 pm | Boards: "Productivity", "Study tips", "Family recipes", "Diwali". Nani's Laddoos and Before the Exam fit best. |
-| Reddit | Landscape | Once, not per video | One genuine post (for example, the 2 a.m. Idea story as a "made this for my app" post) in subreddits that allow self-promotion. Read each subreddit's rules first. |
+| LinkedIn | Landscape | Weekdays 9:00 am: Fri 16, Mon 19, Tue 20, Wed 21 Oct | Only Spark, The 2 a.m. Idea, Who Said That? and Before the Exam. Put the link in the first comment, not the post. |
+| Pinterest | Portrait | Reel + 2 h | Boards: "Productivity", "Study tips", "Family recipes", "Diwali". Nani's Laddoos and Before the Exam fit best. |
+| Reddit | Landscape | Once: Thu 22 Oct | One genuine post (for example, the 2 a.m. Idea story as a "made this for my app" post) in subreddits that allow self-promotion. Read each subreddit's rules first. |
 | Product Hunt | Landscape Spark | Launch day | Use the YouTube link as the gallery video. |
 | TikTok | Portrait | Only for audiences abroad | TikTok is still blocked in India. Skip it unless you target the diaspora. |
 | Moj, Josh, ShareChat | — | Later | Hindi-first audiences. Hold these until Hindi transcription ships. |
@@ -170,7 +284,7 @@ Each platform takes the cut it plays best, posted after Instagram.
 - Portrait: `out/spark-story-30s.mp4`
 - Landscape: `out/wide/spark-story-30s-16x9.mp4`
 
-**Instagram:** Thu 15 Oct, 7:30 pm.
+**Posts:** Instagram Thu 15 Oct, 7:30 pm. LinkedIn Fri 16 Oct, 9:00 am.
 
 **Key moments (both cuts):**
 - 0:00 hook, "This idea has 4 seconds to live"
@@ -262,7 +376,7 @@ This idea has 4 seconds to live. Catch it with Srutam ⏳ (Play link)
 - Portrait: `out/two-am-idea.mp4`
 - Landscape: `out/wide/two-am-idea-16x9.mp4`
 
-**Instagram:** Wed 21 Oct, 9:30 pm.
+**Posts:** Instagram Fri 16 Oct, 9:30 pm. LinkedIn Tue 20 Oct, 9:00 am.
 
 **Key moments (both cuts):**
 - 0:00 "2:13 a.m. The best idea I've ever had."
@@ -348,13 +462,95 @@ Description: A 40-second animated short: whisper the idea, go back to sleep, and
 
 ---
 
-## 3 · Knock Knock
+## 3 · Nani's Laddoos
+
+**Files:**
+- Portrait: `out/nanis-laddoos.mp4`
+- Landscape: `out/wide/nanis-laddoos-16x9.mp4`
+
+**Posts:** Instagram Sat 17 Oct, 7:00 pm. Story reshare Sun 8 Nov, 10:00 am (Diwali).
+
+**Key moments (portrait / landscape):**
+
+| Moment | Portrait | Landscape |
+|---|---|---|
+| "My Nani never measured anything." | 0:00 | 0:00 |
+| She lets Srutam listen | 0:08 | 0:08.8 |
+| Diwali, 1,400 km away | 0:12.7 | 0:13.5 |
+| She asks Srutam | 0:20 | 0:20.8 |
+| Nani's voice plays | 0:25.7 | 0:26.5 |
+| The video call | 0:33.7 | 0:34.5 |
+| End card | 0:37.3 | 0:38.1 |
+
+**Story teaser:** 0:00–0:08, with a question sticker: "Which family recipe lives only in someone's head?"
+
+**Instagram:**
+```text
+Nani never measured anything. "You go by the smell!" 🪔
+
+One Sunday, I let Srutam listen while she cooked. This Diwali I'm 1,400 km away, so I asked: how much gur goes in?
+
+"One fistful of gur for every bowl of besan… and a little love." In her own voice.
+
+Record the recipes before they're only memories. Who's the Nani in your family? 👇
+
+Srutam for Android: link in bio.
+
+#Srutam #Diwali #FamilyRecipes #Laddoo #DiwaliSweets
+```
+
+**YouTube Shorts:**
+```text
+Title: Nani never measured anything 🪔 #Shorts
+Description: Keep the recipe. Keep the voice. Diwali is coming: record the family recipes while you can.
+#Srutam #Diwali #FamilyRecipes
+```
+
+**YouTube (landscape):**
+```text
+Title: Nani's Laddoos | A Diwali story from Srutam
+Description: Nani never measured anything, she went by the smell. One Sunday her granddaughter let Srutam listen. This Diwali, 1,400 km away, the recipe comes back in Nani's own voice.
+
+0:00 Nani's kitchen
+0:13 Diwali, far from home
+0:26 In her own voice
+
+Android: https://play.google.com/store/apps/details?id=space.iamjustkrishna.srutam
+```
+
+**X:**
+```text
+Nani never measured anything. "You go by the smell!"
+
+This Diwali, 1,400 km away, her laddoo recipe came back in her own voice. 🪔 Keep the recipe. Keep the voice.
+```
+
+**Threads:**
+```text
+Nani never measured anything. One Sunday I let Srutam listen while she cooked. This Diwali, far from home, her recipe came back in her own voice. Who's the Nani in your family?
+```
+Tag: `Diwali`
+
+**Pinterest:**
+```text
+Title: Save Nani's recipes in her own voice
+Description: A Diwali short about besan laddoos, a grandmother who never measured, and keeping her recipe and her voice. One fistful of gur for every bowl of besan, and a little love. Boards: Family recipes, Diwali.
+```
+
+**Snapchat and WhatsApp:**
+```text
+Diwali is coming 🪔 Save Nani's recipe in her own voice. (Play link)
+```
+
+---
+
+## 4 · Knock Knock
 
 **Files:**
 - Portrait: `out/knock-knock.mp4`
 - Landscape: `out/wide/knock-knock-16x9.mp4`
 
-**Instagram:** Sun 18 Oct, 6:30 pm.
+**Posts:** Instagram Sun 18 Oct, 6:30 pm.
 
 **Key moments:**
 - 0:00 "knock knock!"
@@ -425,110 +621,13 @@ It's Sunday. Call Ma 📞 Say it once, Srutam knocks. (Play link)
 
 ---
 
-## 4 · Before the Exam
-
-**Files:**
-- Portrait: `out/before-the-exam-v4.mp4`
-- Landscape: `out/wide/before-the-exam-16x9.mp4`
-
-**Instagram:** Sun 25 Oct, 9:00 pm. Story reshare on Mon 23 Nov, 10:00 pm.
-
-**Key moments (portrait / landscape):**
-
-| Moment | Portrait | Landscape |
-|---|---|---|
-| "Exam at nine. And I forgot what Prof said." | 0:00 | 0:00 |
-| The group chat | 0:04.4 | 0:04.4 |
-| The flashback lecture | 0:08.5 | 0:08.5 |
-| She asks Srutam | 0:14 | 0:14.7 |
-| The lecture plays the answer | 0:19.2 | 0:19.9 |
-| Shared with the group | 0:25.6 | 0:26.6 |
-| Chai arrives | 0:28.3 | 0:29.3 |
-| Time-lapse | 0:31.9 | 0:34.1 |
-| The reminder | 0:35.5 | 0:37.8 |
-| The exam hall | 0:36.5 | 0:38.8 |
-| End card | 0:39.5 | 0:41.8 |
-
-**Story teaser:** 0:00–0:08, with a poll sticker: "Ever forgotten what the Prof said?" Yes / Every exam.
-
-**Instagram:**
-```text
-2:07 a.m. Exam at nine. And I forgot what Prof said. 😵
-
-Half the class was asleep in that lecture. Srutam wasn't. One question, and the answer comes straight from the recording: chapters 4 and 7, the metro case study, 20 marks.
-
-Then chai, Key Points, and a reminder 15 minutes before the exam.
-
-Send this to your study group. 📚
-
-Srutam for Android: link in bio.
-
-#Srutam #ExamSeason #StudyTips #StudentLife #LectureNotes
-```
-
-**YouTube Shorts:**
-```text
-Title: 2 a.m., exam at 9, forgot what Prof said 😵 #Shorts
-Description: Listen once. Ask anytime. Srutam answers from the lecture recording and cites it.
-#Srutam #StudyTips #ExamSeason
-```
-
-**YouTube (landscape):**
-```text
-Title: 2 a.m. Before the Exam | Srutam (animated short)
-Description: Exam at nine, and nobody remembers what Prof said. Meera asks Srutam, and the answer comes from Monday's lecture, with the moment ready to play.
-
-0:00 2:07 a.m.
-0:14 Ask Srutam
-0:26 Chai, Key Points and the exam
-
-Android: https://play.google.com/store/apps/details?id=space.iamjustkrishna.srutam
-```
-
-**LinkedIn:**
-```text
-Students don't need more notes. They need the one sentence the professor said about the exam.
-
-In our latest short, Meera asks Srutam at 2 a.m. what's coming in tomorrow's Econ exam. The answer comes straight from the lecture recording, with the moment ready to replay.
-
-Listen once. Ask anytime.
-
-#EdTech #Students #Productivity
-```
-
-**X:**
-```text
-2:07 a.m. Exam at 9. Nobody remembers what Prof said.
-
-Srutam does: chapters 4 and 7, the metro case study, 20 marks. Straight from the lecture. 📚
-```
-
-**Threads:**
-```text
-2:07 a.m., exam at nine, and the whole group chat forgot what Prof said. One question to Srutam and the lecture answers. Listen once. Ask anytime.
-```
-Tag: `StudyTips`
-
-**Pinterest:**
-```text
-Title: The study hack for "what did the professor say?"
-Description: A 45-second animated short: record the lecture once, then ask what's on the exam and hear the exact moment. Board: Study tips.
-```
-
-**Snapchat and WhatsApp:**
-```text
-Exam at 9, forgot what Prof said? Ask Srutam 📚 (Play link)
-```
-
----
-
 ## 5 · Who Said That?
 
 **Files:**
 - Portrait: `out/who-said-that-v4.mp4`
 - Landscape: `out/wide/who-said-that-16x9.mp4`
 
-**Instagram:** Wed 28 Oct, 7:30 pm. LinkedIn on Tue 27 Oct, 9:00 am.
+**Posts:** Instagram Mon 19 Oct, 7:30 pm. LinkedIn Mon 19 Oct, 9:00 am.
 
 **Key moments (portrait / landscape):**
 
@@ -622,84 +721,99 @@ Description: A 50-second animated office comedy: the decision was made out loud,
 
 ---
 
-## 6 · Nani's Laddoos
+## 6 · Before the Exam
 
 **Files:**
-- Portrait: `out/nanis-laddoos.mp4`
-- Landscape: `out/wide/nanis-laddoos-16x9.mp4`
+- Portrait: `out/before-the-exam-v4.mp4`
+- Landscape: `out/wide/before-the-exam-16x9.mp4`
 
-**Instagram:** Thu 5 Nov, 7:30 pm. Story reshare on Sun 8 Nov, 10:00 am (Diwali).
+**Posts:** Instagram Tue 20 Oct, 9:00 pm. LinkedIn Wed 21 Oct, 9:00 am. Story reshare Mon 23 Nov, 10:00 pm.
 
 **Key moments (portrait / landscape):**
 
 | Moment | Portrait | Landscape |
 |---|---|---|
-| "My Nani never measured anything." | 0:00 | 0:00 |
-| She lets Srutam listen | 0:08 | 0:08.8 |
-| Diwali, 1,400 km away | 0:12.7 | 0:13.5 |
-| She asks Srutam | 0:20 | 0:20.8 |
-| Nani's voice plays | 0:25.7 | 0:26.5 |
-| The video call | 0:33.7 | 0:34.5 |
-| End card | 0:37.3 | 0:38.1 |
+| "Exam at nine. And I forgot what Prof said." | 0:00 | 0:00 |
+| The group chat | 0:04.4 | 0:04.4 |
+| The flashback lecture | 0:08.5 | 0:08.5 |
+| She asks Srutam | 0:14 | 0:14.7 |
+| The lecture plays the answer | 0:19.2 | 0:19.9 |
+| Shared with the group | 0:25.6 | 0:26.6 |
+| Chai arrives | 0:28.3 | 0:29.3 |
+| Time-lapse | 0:31.9 | 0:34.1 |
+| The reminder | 0:35.5 | 0:37.8 |
+| The exam hall | 0:36.5 | 0:38.8 |
+| End card | 0:39.5 | 0:41.8 |
 
-**Story teaser:** 0:00–0:08, with a question sticker: "Which family recipe lives only in someone's head?"
+**Story teaser:** 0:00–0:08, with a poll sticker: "Ever forgotten what the Prof said?" Yes / Every exam.
 
 **Instagram:**
 ```text
-Nani never measured anything. "You go by the smell!" 🪔
+2:07 a.m. Exam at nine. And I forgot what Prof said. 😵
 
-One Sunday, I let Srutam listen while she cooked. This Diwali I'm 1,400 km away, so I asked: how much gur goes in?
+Half the class was asleep in that lecture. Srutam wasn't. One question, and the answer comes straight from the recording: chapters 4 and 7, the metro case study, 20 marks.
 
-"One fistful of gur for every bowl of besan… and a little love." In her own voice.
+Then chai, Key Points, and a reminder 15 minutes before the exam.
 
-Record the recipes before they're only memories. Who's the Nani in your family? 👇
+Send this to your study group. 📚
 
 Srutam for Android: link in bio.
 
-#Srutam #Diwali #FamilyRecipes #Laddoo #DiwaliSweets
+#Srutam #ExamSeason #StudyTips #StudentLife #LectureNotes
 ```
 
 **YouTube Shorts:**
 ```text
-Title: Nani never measured anything 🪔 #Shorts
-Description: Keep the recipe. Keep the voice. Happy Diwali from Srutam.
-#Srutam #Diwali #FamilyRecipes
+Title: 2 a.m., exam at 9, forgot what Prof said 😵 #Shorts
+Description: Listen once. Ask anytime. Srutam answers from the lecture recording and cites it.
+#Srutam #StudyTips #ExamSeason
 ```
 
 **YouTube (landscape):**
 ```text
-Title: Nani's Laddoos | A Diwali story from Srutam
-Description: Nani never measured anything, she went by the smell. One Sunday her granddaughter let Srutam listen. This Diwali, 1,400 km away, the recipe comes back in Nani's own voice.
+Title: 2 a.m. Before the Exam | Srutam (animated short)
+Description: Exam at nine, and nobody remembers what Prof said. Meera asks Srutam, and the answer comes from Monday's lecture, with the moment ready to play.
 
-0:00 Nani's kitchen
-0:13 Diwali, far from home
-0:26 In her own voice
+0:00 2:07 a.m.
+0:14 Ask Srutam
+0:26 Chai, Key Points and the exam
 
 Android: https://play.google.com/store/apps/details?id=space.iamjustkrishna.srutam
 ```
 
+**LinkedIn:**
+```text
+Students don't need more notes. They need the one sentence the professor said about the exam.
+
+In our latest short, Meera asks Srutam at 2 a.m. what's coming in tomorrow's Econ exam. The answer comes straight from the lecture recording, with the moment ready to replay.
+
+Listen once. Ask anytime.
+
+#EdTech #Students #Productivity
+```
+
 **X:**
 ```text
-Nani never measured anything. "You go by the smell!"
+2:07 a.m. Exam at 9. Nobody remembers what Prof said.
 
-This Diwali, 1,400 km away, her laddoo recipe came back in her own voice. 🪔 Keep the recipe. Keep the voice.
+Srutam does: chapters 4 and 7, the metro case study, 20 marks. Straight from the lecture. 📚
 ```
 
 **Threads:**
 ```text
-Nani never measured anything. One Sunday I let Srutam listen while she cooked. This Diwali, far from home, her recipe came back in her own voice. Who's the Nani in your family?
+2:07 a.m., exam at nine, and the whole group chat forgot what Prof said. One question to Srutam and the lecture answers. Listen once. Ask anytime.
 ```
-Tag: `Diwali`
+Tag: `StudyTips`
 
 **Pinterest:**
 ```text
-Title: Save Nani's recipes in her own voice
-Description: A Diwali short about besan laddoos, a grandmother who never measured, and keeping her recipe and her voice. One fistful of gur for every bowl of besan, and a little love. Boards: Family recipes, Diwali.
+Title: The study hack for "what did the professor say?"
+Description: A 45-second animated short: record the lecture once, then ask what's on the exam and hear the exact moment. Board: Study tips.
 ```
 
 **Snapchat and WhatsApp:**
 ```text
-Happy Diwali 🪔 Keep Nani's recipe, in her voice. (Play link)
+Exam at 9, forgot what Prof said? Ask Srutam 📚 (Play link)
 ```
 
 ---
