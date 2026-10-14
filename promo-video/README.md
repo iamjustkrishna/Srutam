@@ -1,5 +1,7 @@
 # Srutam promo videos
 
+Posting plan, captions for every platform and the calendar: [social/README.md](social/README.md).
+
 ## Cast v2: rig, lip-sync and pro storyboards
 
 - `src/cast/Rig.tsx`: `Actor` wraps Meera or any cast member with two-bone IK arms
