@@ -88,6 +88,9 @@ fun SettingsScreen(
     var askNameAfterRecording by remember {
         mutableStateOf(AppPreferences.isAskNameAfterRecording(context))
     }
+    var isAnalyticsEnabled by remember {
+        mutableStateOf(AppPreferences.isAnalyticsEnabled(context))
+    }
 
     Scaffold(
         topBar = {
@@ -747,6 +750,22 @@ fun SettingsScreen(
                     totalBytes >= 1024 -> String.format(java.util.Locale.US, "%.1f KB", totalBytes / 1024f)
                     else -> "$totalBytes B"
                 }
+            }
+
+            SettingsSection(title = "PRIVACY") {
+                SettingsToggleRow(
+                    icon = Icons.Default.Analytics,
+                    iconBg = Color(0xFFE0F2FE),
+                    iconTint = Color(0xFF0369A1),
+                    title = "Share anonymous usage data",
+                    subtitle = "Helps improve Srutam with anonymous counts, like how often recording is used. Never your audio, transcripts or note content.",
+                    checked = isAnalyticsEnabled,
+                    onCheckedChange = { enabled ->
+                        isAnalyticsEnabled = enabled
+                        AppPreferences.setAnalyticsEnabled(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.setEnabled(context, enabled)
+                    }
+                )
             }
 
             SettingsSection(title = "ABOUT & STORAGE") {

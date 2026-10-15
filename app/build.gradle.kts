@@ -9,6 +9,13 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
+// Firebase is wired only when its config file is present, so the project still builds for anyone
+// without it (CI, a fresh clone). Drop google-services.json into app/ to turn analytics on.
+val googleServicesFile = project.file("google-services.json")
+if (googleServicesFile.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
@@ -140,6 +147,10 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
+    // Firebase Analytics (activates only when app/google-services.json is present; see Analytics.kt)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

@@ -21,6 +21,7 @@ class SrutamApplication : Application() {
         super.onCreate()
         instance = this
         AudioFileReader.init(this)
+        space.iamjustkrishna.srutam.utils.Analytics.init(this)
 
         // Auto-archive completed tasks and reconcile alarms while retaining saved history.
         appScope.launch {

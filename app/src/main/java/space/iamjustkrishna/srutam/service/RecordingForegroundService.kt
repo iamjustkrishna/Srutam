@@ -222,6 +222,7 @@ class RecordingForegroundService : Service() {
                 startMediaRecorderRecording(file)
             }
             startSilenceWatch()
+            space.iamjustkrishna.srutam.utils.Analytics.recordingStarted(applicationContext)
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
             cleanUpStaleNotification()
@@ -397,8 +398,10 @@ class RecordingForegroundService : Service() {
                 if (deleteAfterStop) {
                     AudioStorage.deleteAudioFile(applicationContext, file.absolutePath)
                     Log.d(TAG, "Recording deleted: ${file.absolutePath}")
+                    space.iamjustkrishna.srutam.utils.Analytics.recordingDiscarded(applicationContext)
                 } else {
                     Log.d(TAG, "Recording stopped: ${file.absolutePath}, duration: $duration ms")
+                    space.iamjustkrishna.srutam.utils.Analytics.recordingSaved(applicationContext, duration)
                     saveRecordingToDatabase(file, duration)
                     RecordingCoordinator.clearActiveFile()
                     _recordingSavedEvents.tryEmit(file)
@@ -521,6 +524,7 @@ class RecordingForegroundService : Service() {
     /** Nobody answered: save the note as usual (auto-AI included) and say what happened. */
     private fun stopBecauseNobodySpoke(quietMinutes: Long) {
         Log.d(TAG, "No speech for $quietMinutes minutes and no answer; stopping and saving")
+        space.iamjustkrishna.srutam.utils.Analytics.silenceAutoSaved(applicationContext)
         stopRecording(deleteAfterStop = false)
         val notice = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -563,6 +567,7 @@ class RecordingForegroundService : Service() {
                 if (text.isNotEmpty()) {
                     storeLiveTranscript(file, duration, text)
                     Log.d(TAG, "Stored live transcript for ${file.name} (${text.length} chars)")
+                    space.iamjustkrishna.srutam.utils.Analytics.transcriptStored(applicationContext)
                 } else {
                     Log.d(TAG, "No live transcript for ${file.name}; it will be transcribed from the file when needed")
                 }

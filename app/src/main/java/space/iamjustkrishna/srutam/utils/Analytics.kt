@@ -1,0 +1,124 @@
+package space.iamjustkrishna.srutam.utils
+
+import android.content.Context
+import android.os.Bundle
+import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.analytics.FirebaseAnalytics
+
+/**
+ * Thin wrapper over Firebase Analytics. It only does anything when the app is actually wired to
+ * Firebase, that is when `app/google-services.json` is present at build time so FirebaseApp
+ * initializes. Without it, every call here is a safe no-op, so the app builds and runs for anyone
+ * who does not have the config file (CI, a fresh clone).
+ *
+ * Event and parameter names follow GA4 rules: snake_case, event names up to 40 characters,
+ * parameter names up to 40 characters, string values up to 100 characters.
+ *
+ * Privacy: only product-usage signals are logged here, never transcript text, note content,
+ * file paths, or anything a user said. If you add an event, keep it to counts and short enums.
+ */
+object Analytics {
+    private const val TAG = "Analytics"
+
+    @Volatile
+    private var analytics: FirebaseAnalytics? = null
+
+    @Volatile
+    private var tried = false
+
+    /** Call once from Application.onCreate. Honors the user's opt-out preference. */
+    fun init(context: Context) {
+        val fa = instance(context) ?: return
+        runCatching { fa.setAnalyticsCollectionEnabled(AppPreferences.isAnalyticsEnabled(context)) }
+    }
+
+    /** Lets Settings turn collection on or off at runtime. */
+    fun setEnabled(context: Context, enabled: Boolean) {
+        AppPreferences.setAnalyticsEnabled(context, enabled)
+        runCatching { instance(context)?.setAnalyticsCollectionEnabled(enabled) }
+    }
+
+    private fun instance(context: Context): FirebaseAnalytics? {
+        analytics?.let { return it }
+        if (tried) return analytics
+        synchronized(this) {
+            if (tried) return analytics
+            tried = true
+            analytics = runCatching {
+                if (FirebaseApp.getApps(context).isNotEmpty()) {
+                    FirebaseAnalytics.getInstance(context.applicationContext)
+                } else {
+                    Log.d(TAG, "Firebase not configured (no google-services.json); analytics disabled")
+                    null
+                }
+            }.getOrNull()
+        }
+        return analytics
+    }
+
+    /** Generic escape hatch. Prefer the named helpers below so the event taxonomy stays consistent. */
+    fun log(context: Context, event: String, params: Map<String, Any>? = null) {
+        val fa = instance(context) ?: return
+        runCatching {
+            val bundle = Bundle()
+            params?.forEach { (k, v) ->
+                when (v) {
+                    is Int -> bundle.putLong(k, v.toLong())
+                    is Long -> bundle.putLong(k, v)
+                    is Double -> bundle.putDouble(k, v)
+                    is Boolean -> bundle.putString(k, if (v) "true" else "false")
+                    else -> bundle.putString(k, v.toString().take(100))
+                }
+            }
+            fa.logEvent(event, bundle)
+        }
+    }
+
+    // ---- The recording funnel: start -> saved -> transcript -> insights ----
+
+    /** [source] is where the recording was started from (notification, dock, tile, volume, in_app) when known. */
+    fun recordingStarted(context: Context, source: String? = null) =
+        log(context, EVENT_RECORDING_STARTED, source?.let { mapOf(PARAM_SOURCE to it) })
+
+    fun recordingSaved(context: Context, durationMs: Long) =
+        log(context, EVENT_RECORDING_SAVED, mapOf(PARAM_DURATION_BUCKET to durationBucket(durationMs)))
+
+    fun recordingDiscarded(context: Context) = log(context, EVENT_RECORDING_DISCARDED)
+
+    /** The live transcript was stored on the note. */
+    fun transcriptStored(context: Context) = log(context, EVENT_TRANSCRIPT_STORED)
+
+    fun aiInsightsReady(context: Context) = log(context, EVENT_AI_INSIGHTS_READY)
+
+    fun aiProcessingFailed(context: Context, reason: String) =
+        log(context, EVENT_AI_PROCESSING_FAILED, mapOf(PARAM_REASON to reason.take(100)))
+
+    /** Nobody answered the "still recording?" prompt and the note was saved automatically. */
+    fun silenceAutoSaved(context: Context) = log(context, EVENT_SILENCE_AUTO_SAVED)
+
+    /** A coarse bucket instead of the exact seconds, to keep the data about behavior, not content. */
+    internal fun durationBucket(durationMs: Long): String {
+        val s = durationMs / 1000
+        return when {
+            s < 15 -> "0_15s"
+            s < 60 -> "15_60s"
+            s < 300 -> "1_5m"
+            s < 900 -> "5_15m"
+            s < 3600 -> "15_60m"
+            else -> "60m_plus"
+        }
+    }
+
+    const val EVENT_RECORDING_STARTED = "recording_started"
+    const val EVENT_RECORDING_SAVED = "recording_saved"
+    const val EVENT_RECORDING_DISCARDED = "recording_discarded"
+    const val EVENT_TRANSCRIPT_STORED = "transcript_stored"
+    const val EVENT_AI_INSIGHTS_READY = "ai_insights_ready"
+    const val EVENT_AI_PROCESSING_FAILED = "ai_processing_failed"
+    const val EVENT_SILENCE_AUTO_SAVED = "silence_auto_saved"
+
+    const val PARAM_SOURCE = "source"
+    const val PARAM_DURATION_BUCKET = "duration_bucket"
+    const val PARAM_REASON = "reason"
+}

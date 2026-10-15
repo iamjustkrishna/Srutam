@@ -108,6 +108,7 @@ class AiProcessingWorker(
                 val audioFile = File(recording.audioFilePath)
                 if (!audioFile.exists()) {
                     Log.e(TAG, "Audio file not found: ${recording.audioFilePath}")
+                    space.iamjustkrishna.srutam.utils.Analytics.aiProcessingFailed(applicationContext, "audio_missing")
                     recordingDao.updateRecording(
                         recording.copy(
                             isProcessing = false,
@@ -132,6 +133,7 @@ class AiProcessingWorker(
                     Log.d(TAG, "Local transcription complete for note $recordingId")
                 } catch (e: Exception) {
                     Log.e(TAG, "Transcription failed for note $recordingId", e)
+                    space.iamjustkrishna.srutam.utils.Analytics.aiProcessingFailed(applicationContext, "transcription_failed")
                     recordingDao.updateRecording(
                         recording.copy(
                             isProcessing = false,
@@ -226,6 +228,7 @@ class AiProcessingWorker(
                     completedCount++
                     lastCompletedRecording = finishedRecording
                     Log.d(TAG, "AI insights generated successfully for note $recordingId")
+                    space.iamjustkrishna.srutam.utils.Analytics.aiInsightsReady(applicationContext)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to generate AI insights for note $recordingId", e)
                     try {
