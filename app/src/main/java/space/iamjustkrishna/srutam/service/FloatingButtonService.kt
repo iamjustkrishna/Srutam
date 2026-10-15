@@ -372,7 +372,7 @@ class FloatingButtonService : Service() {
             return
         }
 
-        val started = RecordingCoordinator.requestStart(this)
+        val started = RecordingCoordinator.requestStart(this, "dock")
         if (!started) {
             showElevatedToast("Recording already in progress")
             return

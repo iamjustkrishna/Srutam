@@ -88,9 +88,6 @@ fun SettingsScreen(
     var askNameAfterRecording by remember {
         mutableStateOf(AppPreferences.isAskNameAfterRecording(context))
     }
-    var isAnalyticsEnabled by remember {
-        mutableStateOf(AppPreferences.isAnalyticsEnabled(context))
-    }
 
     Scaffold(
         topBar = {
@@ -247,6 +244,7 @@ fun SettingsScreen(
                         } else {
                             isFloatingDockEnabled = enabled
                             AppPreferences.setFloatingDockEnabled(context, enabled)
+                            space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "dock", enabled)
                             val serviceIntent = Intent(context, FloatingButtonService::class.java)
                             if (enabled) {
                                 ContextCompat.startForegroundService(context, serviceIntent)
@@ -274,6 +272,7 @@ fun SettingsScreen(
                     onCheckedChange = { enabled ->
                         isPersistentNotificationEnabled = enabled
                         QuickRecordNotification.setEnabled(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "quick_notif", enabled)
                     },
                     enabled = !QuickRecordNotification.switchLocked(isFloatingDockEnabled)
                 )
@@ -291,6 +290,7 @@ fun SettingsScreen(
                     onCheckedChange = { enabled ->
                         askNameAfterRecording = enabled
                         AppPreferences.setAskNameAfterRecording(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "ask_name", enabled)
                     }
                 )
             }
@@ -427,6 +427,7 @@ fun SettingsScreen(
                     onCheckedChange = { enabled ->
                         isAutoAiEnabled = enabled
                         AppPreferences.setAutoAiEnabled(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "auto_ai", enabled)
                     }
                 )
 
@@ -752,21 +753,6 @@ fun SettingsScreen(
                 }
             }
 
-            SettingsSection(title = "PRIVACY") {
-                SettingsToggleRow(
-                    icon = Icons.Default.Analytics,
-                    iconBg = Color(0xFFE0F2FE),
-                    iconTint = Color(0xFF0369A1),
-                    title = "Share anonymous usage data",
-                    subtitle = "Helps improve Srutam with anonymous counts, like how often recording is used. Never your audio, transcripts or note content.",
-                    checked = isAnalyticsEnabled,
-                    onCheckedChange = { enabled ->
-                        isAnalyticsEnabled = enabled
-                        AppPreferences.setAnalyticsEnabled(context, enabled)
-                        space.iamjustkrishna.srutam.utils.Analytics.setEnabled(context, enabled)
-                    }
-                )
-            }
 
             SettingsSection(title = "ABOUT & STORAGE") {
                 Column(modifier = Modifier.padding(16.dp)) {

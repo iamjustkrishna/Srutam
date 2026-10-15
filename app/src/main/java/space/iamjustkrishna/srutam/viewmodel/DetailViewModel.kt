@@ -60,6 +60,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadRecording(recordingId: Long) {
+        space.iamjustkrishna.srutam.utils.Analytics.noteOpened(getApplication())
         viewModelScope.launch {
             repository.getRecordingByIdFlow(recordingId).collect { recording ->
                 _recording.value = recording

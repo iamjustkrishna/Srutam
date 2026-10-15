@@ -97,6 +97,38 @@ object Analytics {
     /** Nobody answered the "still recording?" prompt and the note was saved automatically. */
     fun silenceAutoSaved(context: Context) = log(context, EVENT_SILENCE_AUTO_SAVED)
 
+    // ---- Note actions ----
+
+    fun noteOpened(context: Context) = log(context, EVENT_NOTE_OPENED)
+
+    fun noteRenamed(context: Context) = log(context, EVENT_NOTE_RENAMED)
+
+    /** [keptContent] true when only the audio was deleted and the insights/tasks stayed. */
+    fun noteDeleted(context: Context, keptContent: Boolean) =
+        log(context, EVENT_NOTE_DELETED, mapOf(PARAM_KEPT_CONTENT to keptContent))
+
+    fun aiRetried(context: Context) = log(context, EVENT_AI_RETRIED)
+
+    // ---- Settings ----
+
+    /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */
+    fun settingChanged(context: Context, setting: String, enabled: Boolean) =
+        log(context, EVENT_SETTING_CHANGED, mapOf(PARAM_SETTING to setting, PARAM_ENABLED to enabled))
+
+    /**
+     * Durable traits for segmenting users in the console (which features they keep on). Set at startup.
+     * Only on/off flags, never content. Register each name in Analytics > Custom definitions to chart it.
+     */
+    fun setUserProperties(context: Context) {
+        val fa = instance(context) ?: return
+        runCatching {
+            fa.setUserProperty("auto_ai_on", AppPreferences.isAutoAiEnabled(context).toString())
+            fa.setUserProperty("dock_on", AppPreferences.isFloatingDockEnabled(context).toString())
+            fa.setUserProperty("quick_notif_on", AppPreferences.isPersistentNotificationEnabled(context).toString())
+            fa.setUserProperty("ask_name_on", AppPreferences.isAskNameAfterRecording(context).toString())
+        }
+    }
+
     /** A coarse bucket instead of the exact seconds, to keep the data about behavior, not content. */
     internal fun durationBucket(durationMs: Long): String {
         val s = durationMs / 1000
@@ -117,8 +149,16 @@ object Analytics {
     const val EVENT_AI_INSIGHTS_READY = "ai_insights_ready"
     const val EVENT_AI_PROCESSING_FAILED = "ai_processing_failed"
     const val EVENT_SILENCE_AUTO_SAVED = "silence_auto_saved"
+    const val EVENT_NOTE_OPENED = "note_opened"
+    const val EVENT_NOTE_RENAMED = "note_renamed"
+    const val EVENT_NOTE_DELETED = "note_deleted"
+    const val EVENT_AI_RETRIED = "ai_retried"
+    const val EVENT_SETTING_CHANGED = "setting_changed"
 
     const val PARAM_SOURCE = "source"
     const val PARAM_DURATION_BUCKET = "duration_bucket"
     const val PARAM_REASON = "reason"
+    const val PARAM_KEPT_CONTENT = "kept_content"
+    const val PARAM_SETTING = "setting"
+    const val PARAM_ENABLED = "enabled"
 }

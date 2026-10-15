@@ -22,7 +22,7 @@ class QuickRecordingTileService : TileService() {
         if (RecordingCoordinator.isRecording || RecordingForegroundService.isRecording) {
             RecordingCoordinator.requestStop(this)
         } else {
-            RecordingCoordinator.requestStart(this)
+            RecordingCoordinator.requestStart(this, "tile")
         }
 
         updateTileState()

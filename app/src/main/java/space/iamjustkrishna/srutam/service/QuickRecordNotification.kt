@@ -262,7 +262,8 @@ object QuickRecordNotification {
     private fun start(context: Context): PendingIntent = PendingIntent.getForegroundService(
         context,
         REQUEST_START,
-        Intent(context, RecordingForegroundService::class.java).setAction(RecordingForegroundService.ACTION_START_RECORDING),
+        Intent(context, RecordingForegroundService::class.java).setAction(RecordingForegroundService.ACTION_START_RECORDING)
+            .putExtra(RecordingForegroundService.EXTRA_SOURCE, "notification"),
         flags()
     )
 

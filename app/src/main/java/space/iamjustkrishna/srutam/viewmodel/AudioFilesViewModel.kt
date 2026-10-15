@@ -167,6 +167,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
     /** [deleteContent] false deletes only the audio; the note's transcript, insights, tasks and reminders stay. */
     fun deleteAudioFile(audioFile: AudioFileInfo, deleteContent: Boolean = true) {
+        space.iamjustkrishna.srutam.utils.Analytics.noteDeleted(getApplication(), keptContent = !deleteContent)
         // Optimistic UI update to remove item immediately
         _audioFiles.value = _audioFiles.value.filterNot { it.filePath == audioFile.filePath }
         viewModelScope.launch(Dispatchers.IO) {
@@ -224,6 +225,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                     timestamp = audioFile.timestamp
                 )) {
                     is RenameResult.Renamed -> {
+                        space.iamjustkrishna.srutam.utils.Analytics.noteRenamed(getApplication())
                         // Optimistic UI update for immediate feedback
                         val renamed = File(result.newPath)
                         _audioFiles.value = _audioFiles.value.map { file ->
@@ -374,6 +376,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun retryAiProcessing(recording: Recording) {
+        space.iamjustkrishna.srutam.utils.Analytics.aiRetried(getApplication())
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.updateRecording(
@@ -529,6 +532,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 for (audioFile in audioFiles) {
+                    space.iamjustkrishna.srutam.utils.Analytics.noteDeleted(getApplication(), keptContent = !deleteContent)
                     try {
                         if (audioPlayer.playbackState.value.currentFilePath == audioFile.filePath) {
                             withContext(Dispatchers.Main) {

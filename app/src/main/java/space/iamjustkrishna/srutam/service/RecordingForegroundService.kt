@@ -62,6 +62,7 @@ class RecordingForegroundService : Service() {
 
     // How long the note just saved is, for the "Saved" notification; null after a discard.
     private var savedDurationMs: Long? = null
+    private var startSource: String = "unknown"
 
     /** The speech model and live transcription of the note being recorded. */
     private class LiveSession(val transcriber: LocalTranscriber, val live: LiveTranscription)
@@ -124,7 +125,10 @@ class RecordingForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand called with action: ${intent?.action}")
         when (intent?.action) {
-            ACTION_START_RECORDING -> startRecording()
+            ACTION_START_RECORDING -> {
+                startSource = intent?.getStringExtra(EXTRA_SOURCE) ?: "unknown"
+                startRecording()
+            }
             ACTION_PAUSE_RECORDING -> {
                 if (!isRecording) {
                     cleanUpStaleNotification()
@@ -222,7 +226,7 @@ class RecordingForegroundService : Service() {
                 startMediaRecorderRecording(file)
             }
             startSilenceWatch()
-            space.iamjustkrishna.srutam.utils.Analytics.recordingStarted(applicationContext)
+            space.iamjustkrishna.srutam.utils.Analytics.recordingStarted(applicationContext, startSource)
         } catch (e: Exception) {
             Log.e(TAG, "Error starting recording", e)
             cleanUpStaleNotification()
@@ -803,6 +807,7 @@ class RecordingForegroundService : Service() {
         const val ACTION_DELETE_RECORDING = "space.iamjustkrishna.srutam.DELETE_RECORDING"
         const val ACTION_KEEP_RECORDING = "space.iamjustkrishna.srutam.KEEP_RECORDING"
         const val EXTRA_DEFER_AUTO_AI = "space.iamjustkrishna.srutam.DEFER_AUTO_AI"
+        const val EXTRA_SOURCE = "space.iamjustkrishna.srutam.SOURCE"
 
         private val _recordingSavedEvents = MutableSharedFlow<File>(extraBufferCapacity = 1)
         val recordingSavedEvents: SharedFlow<File> = _recordingSavedEvents.asSharedFlow()

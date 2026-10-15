@@ -526,7 +526,7 @@ private fun RootScreen(
 private fun sendRecordingAction(context: Context, action: String, deferAutoAi: Boolean = false) {
     when (action) {
         RecordingForegroundService.ACTION_START_RECORDING -> {
-            RecordingCoordinator.requestStart(context)
+            RecordingCoordinator.requestStart(context, "in_app")
         }
         RecordingForegroundService.ACTION_PAUSE_RECORDING -> {
             RecordingCoordinator.requestPause(context)

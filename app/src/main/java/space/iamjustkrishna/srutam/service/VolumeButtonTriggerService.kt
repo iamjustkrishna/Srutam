@@ -68,7 +68,7 @@ class VolumeButtonTriggerService : AccessibilityService() {
             RecordingCoordinator.requestStop(this)
             Log.d(TAG, "Requested recording stop via VolumeButtonTriggerService")
         } else {
-            RecordingCoordinator.requestStart(this)
+            RecordingCoordinator.requestStart(this, "volume")
             Log.d(TAG, "Requested recording start via VolumeButtonTriggerService")
         }
     }

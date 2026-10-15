@@ -1478,7 +1478,7 @@ fun SettingsDialog(
 }
 
 private fun startRecording(context: Context) {
-    RecordingCoordinator.requestStart(context)
+    RecordingCoordinator.requestStart(context, "in_app")
 }
 
 private fun pauseRecording(context: Context) {
@@ -1499,7 +1499,7 @@ private fun deleteRecordingInProgress(context: Context) {
 
 private fun sendRecordingAction(context: Context, action: String) {
     when (action) {
-        RecordingForegroundService.ACTION_START_RECORDING -> RecordingCoordinator.requestStart(context)
+        RecordingForegroundService.ACTION_START_RECORDING -> RecordingCoordinator.requestStart(context, "in_app")
         RecordingForegroundService.ACTION_PAUSE_RECORDING -> RecordingCoordinator.requestPause(context)
         RecordingForegroundService.ACTION_RESUME_RECORDING -> RecordingCoordinator.requestResume(context)
         RecordingForegroundService.ACTION_STOP_RECORDING -> RecordingCoordinator.requestStop(context)
