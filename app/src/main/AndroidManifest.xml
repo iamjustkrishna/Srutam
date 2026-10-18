@@ -22,6 +22,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- Firebase Analytics pulls in the advertising ID permission by default. Srutam has no ads and
+         does not use the advertising ID, so remove it: the ad ID is zeroed and Play's AD_ID
+         declaration can be answered "No". Analytics for usage events still works. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+
     <application
         android:name=".SrutamApplication"
         android:allowBackup="true"
