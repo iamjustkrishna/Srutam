@@ -149,18 +149,42 @@ fun InsightsContent(
     LaunchedEffect(createdTaskId) {
         createdTaskId?.let { taskId ->
             creatingFrom = null
-            if (snack.showSnackbar("Next step created", "View") == SnackbarResult.ActionPerformed) {
-                val createdTask = state.items.find { it.id == taskId }
-                val parentIdea = createdTask?.sourceInsightId?.let { sId ->
-                    state.ideas.find { it.id == sId } ?: state.items.find { it.id == sId }
-                }
-                if (parentIdea != null && parentIdea.kind == InsightKind.IDEA) {
-                    viewingIdeaId = parentIdea.id
-                } else {
-                    viewingTask = taskId
+            // Clear first so the event can't replay; the snackbar runs in [scope] because
+            // clearing the key restarts this effect.
+            consumeCreatedTask()
+            scope.launch {
+                val result = snack.showSnackbar(
+                    message = "Next step created",
+                    actionLabel = "View",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    val createdTask = state.items.find { it.id == taskId }
+                    val parentIdea = createdTask?.sourceInsightId?.let { sId ->
+                        state.ideas.find { it.id == sId } ?: state.items.find { it.id == sId }
+                    }
+                    if (parentIdea != null && parentIdea.kind == InsightKind.IDEA) {
+                        viewingIdeaId = parentIdea.id
+                    } else {
+                        viewingTask = taskId
+                    }
                 }
             }
-            consumeCreatedTask()
+        }
+    }
+
+    fun showThemeDismissed(key: String) {
+        scope.launch {
+            val result = snack.showSnackbar(
+                message = "Theme dismissed",
+                actionLabel = "Undo",
+                withDismissAction = true,
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                actions.restoreTheme(key)
+            }
         }
     }
 
@@ -181,14 +205,14 @@ fun InsightsContent(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f, fill = false)
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
@@ -216,6 +240,19 @@ fun InsightsContent(
                                         fontWeight = FontWeight.Bold,
                                         color = if (dark) CosmicGlowBlue else Color(0xFF93C5FD),
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    )
+                                }
+                            }
+                            if (data.visuals.withDismissAction) {
+                                IconButton(
+                                    onClick = { data.dismiss() },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
@@ -278,11 +315,7 @@ fun InsightsContent(
                     onSelectTheme = { selectedThemeKey = it },
                     onDismissTheme = { key ->
                         actions.dismissTheme(key)
-                        scope.launch {
-                            if (snack.showSnackbar("Theme dismissed", "Undo") == SnackbarResult.ActionPerformed) {
-                                actions.restoreTheme(key)
-                            }
-                        }
+                        showThemeDismissed(key)
                     }
                 )
 
@@ -406,11 +439,7 @@ fun InsightsContent(
                                                 }
                                                 IconButton(onClick = {
                                                     actions.dismissTheme(theme.key)
-                                                    scope.launch {
-                                                        if (snack.showSnackbar("Theme dismissed", "Undo") == SnackbarResult.ActionPerformed) {
-                                                            actions.restoreTheme(theme.key)
-                                                        }
-                                                    }
+                                                    showThemeDismissed(theme.key)
                                                 }) {
                                                     Icon(Icons.Default.Close, contentDescription = "Dismiss this theme")
                                                 }
