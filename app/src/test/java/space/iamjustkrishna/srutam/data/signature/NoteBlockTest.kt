@@ -43,6 +43,28 @@ class NoteBlockTest {
         assertEquals("""{"transcript":"hello"}""", NoteBlock.read(file))
     }
 
+    /** How a previous install's recording is written once allowed: through a file descriptor's channels. */
+    private fun writeThroughChannels(json: String) {
+        java.io.RandomAccessFile(file, "rw").use { raf ->
+            java.io.FileInputStream(raf.fd).channel.use { reader ->
+                java.io.FileOutputStream(raf.fd).channel.use { writer ->
+                    NoteBlock.write(NoteBlock.ChannelSeekable(reader, writer), json)
+                }
+            }
+        }
+    }
+
+    @Test fun writingThroughChannelsMatchesWritingByPath() {
+        val before = NoteBlock.audioHash(file)
+
+        writeThroughChannels("""{"v":"${"z".repeat(3_000)}"}""")
+        writeThroughChannels("""{"v":2}""")
+
+        assertEquals("""{"v":2}""", NoteBlock.read(file))
+        assertArrayEquals(audio, file.readBytes().copyOfRange(0, audio.size))
+        assertEquals(before, NoteBlock.audioHash(file))
+    }
+
     @Test fun audioHashIgnoresTheBlockAndSurvivesRewrites() {
         val before = NoteBlock.audioHash(file)
 

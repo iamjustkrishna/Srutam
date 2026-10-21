@@ -482,6 +482,8 @@ object AppPreferences {
 
     private const val KEY_CLOUD_USER_ID = "cloud_user_id"
     private const val KEY_CLOUD_RESTORE_PENDING = "cloud_restore_pending"
+    private const val KEY_FOUND_RECORDINGS_CHOICE = "found_recordings_choice"
+    const val FOUND_CHOICE_AI = "ai"
     private const val KEY_RESTORE_SUMMARY_RESTORED = "restore_summary_restored"
     private const val KEY_RESTORE_SUMMARY_WITHOUT_AUDIO = "restore_summary_without_audio"
     private const val KEY_RESTORE_SUMMARY_SHOWN = "restore_summary_shown"
@@ -586,6 +588,21 @@ object AppPreferences {
         val withoutAudio = prefs.getInt(KEY_RESTORE_SUMMARY_WITHOUT_AUDIO, 0)
         prefs.edit().putBoolean(KEY_RESTORE_SUMMARY_SHOWN, true).apply()
         return if (restored > 0) restored to withoutAudio else null
+    }
+
+    /**
+     * What to do with recordings found from a previous install that have no note saved inside them:
+     * null until the user picks, then [FOUND_CHOICE_AI] to process them like new recordings.
+     */
+    fun getFoundRecordingsChoice(context: Context): String? =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_FOUND_RECORDINGS_CHOICE, null)
+
+    fun setFoundRecordingsChoice(context: Context, choice: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_FOUND_RECORDINGS_CHOICE, choice)
+            .apply()
     }
 
     fun clearCloudSession(context: Context) {

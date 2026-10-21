@@ -127,6 +127,7 @@ import space.iamjustkrishna.srutam.utils.NetworkUtils
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.ui.components.RecordingAccessBanners
 import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.sample.SampleNoteCard
 import space.iamjustkrishna.srutam.ui.sample.SampleNoteDialog
@@ -971,6 +972,14 @@ fun FeedScreenContent(
                     )
                 }
             }
+
+            // Recordings a previous install left: find them, restore or process them, save notes into them.
+            RecordingAccessBanners(
+                viewModel = viewModel,
+                hasRealNotes = audioFiles.isNotEmpty(),
+                isCloudSignedIn = isCloudSignedIn,
+                onOpenSettings = onSettingsClick
+            )
 
             // Ambient Capture Activation & Nudge Cards
             if (!isFloatingDockEnabled && !hasCompletedCaptureSetup && isByokCompleted) {

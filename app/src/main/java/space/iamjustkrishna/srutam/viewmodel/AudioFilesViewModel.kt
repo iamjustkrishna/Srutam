@@ -47,6 +47,7 @@ import space.iamjustkrishna.srutam.analytics.UserActivityAnalytics
 import space.iamjustkrishna.srutam.analytics.UserActivityMetrics
 import java.io.File
 import space.iamjustkrishna.srutam.data.AppDatabase
+import space.iamjustkrishna.srutam.data.signature.BlockWriteAccess
 import space.iamjustkrishna.srutam.data.signature.NoteSignature
 import space.iamjustkrishna.srutam.cloud.isTextOnly
 import space.iamjustkrishna.srutam.repository.InsightsRepository
@@ -73,6 +74,13 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _processingError = MutableStateFlow<String?>(null)
     val processingError: StateFlow<String?> = _processingError.asStateFlow()
+
+    /**
+     * Recordings from a previous install with no note saved inside them, held back from AI until
+     * the user picks: sign in and restore them from Srutam Cloud, or process them with AI.
+     */
+    private val _foundRecordings = MutableStateFlow(0)
+    val foundRecordings: StateFlow<Int> = _foundRecordings.asStateFlow()
 
     private val _recordingsByPath = MutableStateFlow<Map<String, Recording>>(emptyMap())
     val recordingsByPath: StateFlow<Map<String, Recording>> = _recordingsByPath.asStateFlow()
@@ -472,7 +480,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 val currentMap = _recordingsByPath.value + restored
 
                 // Find all audio files that either have no summary, are pending offline, or have fallback summary
-                val pendingFiles = currentFiles.filter { audioFile ->
+                val needingAi = currentFiles.filter { audioFile ->
                     // Fresh lookup: a note restored from its audio file a moment ago must not be re-run.
                     val rec = currentMap[audioFile.filePath] ?: repository.getRecordingByPath(audioFile.filePath)
                     rec == null ||
@@ -480,6 +488,15 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                         rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||
                         rec.summary?.startsWith("This recording contains approximately") == true
                 }
+
+                // A previous install's recordings with no note inside: their notes may be in Srutam
+                // Cloud, so AI waits until the user picks (a forced run, like "Process All", doesn't).
+                val held = if (force || !shouldHoldFoundRecordings()) emptyList() else needingAi.filter { audioFile ->
+                    (currentMap[audioFile.filePath] ?: repository.getRecordingByPath(audioFile.filePath)) == null &&
+                        !BlockWriteAccess.isWritableByPath(File(audioFile.filePath))
+                }
+                _foundRecordings.value = held.size
+                val pendingFiles = needingAi - held.toSet()
 
                 if (pendingFiles.isEmpty()) {
                     Log.d(TAG, "No pending offline recordings found")
@@ -542,6 +559,23 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
         }
+    }
+
+    /**
+     * Found recordings wait for the user's choice, unless they already chose AI, or they're signed in
+     * and the restore is done (whatever the cloud didn't have is new to it).
+     */
+    private fun shouldHoldFoundRecordings(): Boolean {
+        val app = getApplication<Application>()
+        if (AppPreferences.getFoundRecordingsChoice(app) == AppPreferences.FOUND_CHOICE_AI) return false
+        return !AppPreferences.isCloudSignedIn(app) || AppPreferences.isCloudRestorePending(app)
+    }
+
+    /** The user chose AI for the recordings found from a previous install. */
+    fun processFoundRecordingsWithAi() {
+        AppPreferences.setFoundRecordingsChoice(getApplication(), AppPreferences.FOUND_CHOICE_AI)
+        _foundRecordings.value = 0
+        processPendingOfflineRecordings(force = true)
     }
 
     fun processBatchAI(audioFiles: List<AudioFileInfo>) {

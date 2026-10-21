@@ -732,6 +732,10 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsSection(title = "YOUR RECORDINGS") {
+                space.iamjustkrishna.srutam.ui.components.RecordingAccessSettings()
+            }
+
             // =========================================================
             // Section 3.5: Cloud Sync & Developer Brain (MCP)
             // =========================================================

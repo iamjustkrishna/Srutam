@@ -2,9 +2,12 @@ package space.iamjustkrishna.srutam.data.signature
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.EOFException
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
@@ -43,28 +46,75 @@ object NoteBlock {
     /** Where Srutam's box sits in a file: byte offset and total size including its header. */
     data class Location(val offset: Long, val size: Long)
 
+    /**
+     * Random access to an audio file, either by path or through a content URI's file descriptor.
+     * Files left by a previous install can only be written through their MediaStore URI, once
+     * the user has allowed it.
+     */
+    interface Seekable {
+        fun length(): Long
+        fun readFully(pos: Long, dst: ByteArray)
+        fun write(pos: Long, src: ByteArray)
+        fun truncate(size: Long)
+    }
+
+    private class RafSeekable(private val raf: RandomAccessFile) : Seekable {
+        override fun length() = raf.length()
+        override fun readFully(pos: Long, dst: ByteArray) { raf.seek(pos); raf.readFully(dst) }
+        override fun write(pos: Long, src: ByteArray) { raf.seek(pos); raf.write(src) }
+        override fun truncate(size: Long) = raf.setLength(size)
+    }
+
+    /**
+     * Channels over one read-write file descriptor, for example from
+     * `ContentResolver.openFileDescriptor(uri, "rw")`: [reader] from a FileInputStream and
+     * [writer] from a FileOutputStream, since each of those channels only goes one way.
+     */
+    class ChannelSeekable(private val reader: FileChannel, private val writer: FileChannel) : Seekable {
+        override fun length() = reader.size()
+        override fun readFully(pos: Long, dst: ByteArray) {
+            val buffer = ByteBuffer.wrap(dst)
+            var at = pos
+            while (buffer.hasRemaining()) {
+                val read = reader.read(buffer, at)
+                if (read < 0) throw EOFException()
+                at += read
+            }
+        }
+        override fun write(pos: Long, src: ByteArray) {
+            val buffer = ByteBuffer.wrap(src)
+            var at = pos
+            while (buffer.hasRemaining()) at += writer.write(buffer, at)
+        }
+        override fun truncate(size: Long) { writer.truncate(size) }
+    }
+
     /** Finds Srutam's box among the file's top-level boxes, or null. Stops at the first malformed box. */
-    fun locate(raf: RandomAccessFile): Location? {
-        val length = raf.length()
+    fun locate(raf: RandomAccessFile): Location? = locate(RafSeekable(raf))
+
+    fun locate(io: Seekable): Location? {
+        val length = io.length()
         var pos = 0L
         var found: Location? = null
-        val type = ByteArray(4)
+        val header8 = ByteArray(8)
+        val large = ByteArray(8)
         val userType = ByteArray(16)
         while (pos + 8 <= length) {
-            raf.seek(pos)
-            var size = raf.readInt().toLong() and 0xFFFFFFFFL
-            raf.readFully(type)
+            io.readFully(pos, header8)
+            var size = ByteBuffer.wrap(header8, 0, 4).int.toLong() and 0xFFFFFFFFL
+            val type = header8.copyOfRange(4, 8)
             var header = 8L
             if (size == 1L) {
                 if (pos + 16 > length) break
-                size = raf.readLong()
+                io.readFully(pos + 8, large)
+                size = ByteBuffer.wrap(large).long
                 header = 16L
             } else if (size == 0L) {
                 size = length - pos
             }
             if (size < header || pos + size > length) break
             if (type.contentEquals(UUID_TYPE) && size >= header + 16) {
-                raf.readFully(userType)
+                io.readFully(pos + header, userType)
                 if (userType.contentEquals(USER_TYPE)) found = Location(pos, size)
             }
             pos += size
@@ -117,26 +167,26 @@ object NoteBlock {
      * written, for example an audio file left by a previous install, which this one can only read.
      */
     fun write(file: File, json: String): Boolean = try {
-        RandomAccessFile(file, "rw").use { raf ->
-            val existing = locate(raf)
-            if (existing != null) {
-                if (existing.offset + existing.size == raf.length()) {
-                    raf.setLength(existing.offset)
-                } else {
-                    // Something was appended after our box: retire it in place as a "free" box.
-                    raf.seek(existing.offset + 4)
-                    raf.write(FREE_TYPE)
-                }
-            }
-            val box = encodeBox(json)
-            raf.seek(raf.length())
-            raf.write(box)
-        }
+        RandomAccessFile(file, "rw").use { raf -> write(RafSeekable(raf), json) }
         true
     } catch (e: IOException) {
         false
     } catch (e: SecurityException) {
         false
+    }
+
+    /** Stores [json] through [io], replacing any earlier block. Throws on I/O failure. */
+    fun write(io: Seekable, json: String) {
+        val existing = locate(io)
+        if (existing != null) {
+            if (existing.offset + existing.size == io.length()) {
+                io.truncate(existing.offset)
+            } else {
+                // Something was appended after our box: retire it in place as a "free" box.
+                io.write(existing.offset + 4, FREE_TYPE)
+            }
+        }
+        io.write(io.length(), encodeBox(json))
     }
 
     /** Removes Srutam's box, for example before sharing the audio. Returns false if the file can't be written. */

@@ -82,17 +82,38 @@ object NoteSignature {
      * Writes the block for one note. Private notes never get one: the file sits in a public folder
      * and travels with the audio when shared. Returns whether a block was written.
      */
-    suspend fun writeFor(database: AppDatabase, recordingId: Long): Boolean {
+    suspend fun writeFor(database: AppDatabase, recordingId: Long): Boolean =
+        writeForResult(database, recordingId) == WriteResult.WRITTEN
+
+    /** What happened to a note's block. */
+    enum class WriteResult {
+        WRITTEN,
+        /** Nothing to write: no note, no file, a private note, or the recording still in progress. */
+        SKIPPED,
+        /** The file belongs to a previous install; the user has to allow Srutam to modify it. */
+        NEEDS_ACCESS
+    }
+
+    /**
+     * Like [writeFor], but says why nothing was written. When the file can't be written by path,
+     * [fallbackWriter] gets a try: it writes through the file's MediaStore URI, which works once
+     * the user has allowed Srutam to modify recordings from a previous install.
+     */
+    suspend fun writeForResult(
+        database: AppDatabase,
+        recordingId: Long,
+        fallbackWriter: ((File, String) -> Boolean)? = null
+    ): WriteResult {
         val dao = database.recordingDao()
-        var recording = dao.getRecordingById(recordingId) ?: return false
+        var recording = dao.getRecordingById(recordingId) ?: return WriteResult.SKIPPED
         val file = File(recording.audioFilePath)
-        if (!file.isFile || file.absolutePath == RecordingCoordinator.activeFilePath) return false
+        if (!file.isFile || file.absolutePath == RecordingCoordinator.activeFilePath) return WriteResult.SKIPPED
         if (recording.isPrivate) {
             NoteBlock.strip(file)
-            return false
+            return WriteResult.SKIPPED
         }
         if (recording.audioHash == null) {
-            val hash = runCatching { NoteBlock.audioHash(file) }.getOrNull() ?: return false
+            val hash = runCatching { NoteBlock.audioHash(file) }.getOrNull() ?: return WriteResult.SKIPPED
             dao.setAudioHash(recording.id, hash)
             recording = recording.copy(audioHash = hash)
         }
@@ -101,9 +122,11 @@ object NoteSignature {
             database.insightDao().getInsightsByRecordingId(recording.id),
             database.reminderDao().getRemindersByRecordingId(recording.id)
         )
-        val written = NoteBlock.write(file, toJson(payload))
-        if (!written) Log.d(TAG, "Could not write the block for ${file.name}; it may belong to a previous install")
-        return written
+        val json = toJson(payload)
+        if (NoteBlock.write(file, json)) return WriteResult.WRITTEN
+        if (fallbackWriter?.invoke(file, json) == true) return WriteResult.WRITTEN
+        Log.d(TAG, "Could not write the block for ${file.name}; it belongs to a previous install")
+        return WriteResult.NEEDS_ACCESS
     }
 
     /**
@@ -167,7 +190,15 @@ class NoteSignatureWorker(context: Context, params: WorkerParameters) : Coroutin
         val id = inputData.getLong(KEY_RECORDING_ID, -1L)
         if (id <= 0) return Result.success()
         return try {
-            NoteSignature.writeFor(AppDatabase.getDatabase(applicationContext), id)
+            val result = NoteSignature.writeForResult(
+                AppDatabase.getDatabase(applicationContext),
+                id,
+                fallbackWriter = { file, json -> BlockWriteAccess.writeViaUri(applicationContext, file, json) }
+            )
+            when (result) {
+                NoteSignature.WriteResult.NEEDS_ACCESS -> BlockWriteAccess.markPending(applicationContext, id)
+                else -> BlockWriteAccess.clearPending(applicationContext, id)
+            }
             Result.success()
         } catch (e: Exception) {
             Log.w(TAG, "Writing the note block failed for $id", e)

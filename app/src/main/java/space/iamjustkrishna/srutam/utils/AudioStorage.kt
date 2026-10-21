@@ -91,7 +91,8 @@ object AudioStorage {
         return findAudioUri(context, file)
     }
 
-    private fun findAudioUri(context: Context, file: File): Uri? {
+    /** The file's MediaStore URI in Music/Srutam, or null when MediaStore doesn't know it (yet). */
+    fun findAudioUri(context: Context, file: File): Uri? {
         val projection = arrayOf(MediaStore.Audio.Media._ID)
         val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
         val selectionArgs = arrayOf(file.name, "Music/Srutam/")
