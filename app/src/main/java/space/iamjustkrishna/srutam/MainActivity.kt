@@ -126,11 +126,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Storage access lets the app read recordings left in Music/Srutam by a previous install. */
-private fun storagePermission(): String =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
-    else Manifest.permission.READ_EXTERNAL_STORAGE
-
 /** Android 10 also needs storage write access to save recordings into Music/Srutam. */
 private fun micPermissions(): Array<String> =
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
@@ -153,12 +148,6 @@ fun SrutamApp(
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
     var dockShownAt by remember { mutableLongStateOf(0L) }
-
-    // Restore: storage is the only permission onboarding asks for, and only when the user picks it.
-    val storageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        Analytics.permissionResult(context, "storage", granted, "restore")
-        appStage = AppStage.CAPTURE_SETUP
-    }
 
     // Mic: asked on the first record tap from any entry point, then the recording starts.
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -271,17 +260,8 @@ fun SrutamApp(
                 )
             }
             AppStage.INTRO -> {
-                OnboardingIntroScreen(
-                    onFinished = { appStage = AppStage.CAPTURE_SETUP },
-                    onRestoreNotes = {
-                        val permission = storagePermission()
-                        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
-                            appStage = AppStage.CAPTURE_SETUP
-                        } else {
-                            storageLauncher.launch(permission)
-                        }
-                    }
-                )
+                // Asks for access to recordings on its first page, so a reinstall finds its notes.
+                OnboardingIntroScreen(onFinished = { appStage = AppStage.CAPTURE_SETUP })
             }
             AppStage.CAPTURE_SETUP -> {
                 CaptureSetupScreen(
