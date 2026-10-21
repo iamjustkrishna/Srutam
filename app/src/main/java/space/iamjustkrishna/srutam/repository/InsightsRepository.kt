@@ -12,6 +12,7 @@ import space.iamjustkrishna.srutam.ai.ResolvedReminderTime
 import space.iamjustkrishna.srutam.cloud.CloudSyncTrigger
 import space.iamjustkrishna.srutam.cloud.WorkManagerSyncTrigger
 import space.iamjustkrishna.srutam.data.*
+import space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker
 import space.iamjustkrishna.srutam.service.*
 import java.security.MessageDigest
 import java.text.Normalizer
@@ -23,7 +24,9 @@ class InsightsRepository(
     val database: AppDatabase,
     private val alarms: ReminderAlarmService,
     private val clock: Clock = Clock.systemUTC(),
-    private val syncTrigger: CloudSyncTrigger = CloudSyncTrigger.None
+    private val syncTrigger: CloudSyncTrigger = CloudSyncTrigger.None,
+    /** Rewrites a note's block in its audio file after its insights or reminders change. */
+    private val signatureTrigger: (Long) -> Unit = {}
 ) {
     val insights = database.insightDao().getAllInsightsFlow()
     val reminders = database.reminderDao().getAllFlow()
@@ -42,6 +45,8 @@ class InsightsRepository(
     private suspend fun markDirty(recordingId: Long) {
         if (SourceIds.isChat(recordingId)) return
         database.recordingDao().markForSync(recordingId)
+        database.recordingDao().touch(recordingId, clock.millis())
+        signatureTrigger(recordingId)
     }
 
     suspend fun merge(recordingId: Long, result: AIProcessor.AIInsights) {
@@ -465,7 +470,8 @@ class InsightsRepository(
         fun from(context: Context) = InsightsRepository(
             AppDatabase.getDatabase(context),
             AndroidReminderAlarms(context.applicationContext),
-            syncTrigger = WorkManagerSyncTrigger(context)
+            syncTrigger = WorkManagerSyncTrigger(context),
+            signatureTrigger = { NoteSignatureWorker.enqueue(context, it) }
         )
         fun fingerprint(kind: String, text: String): String {
             val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).trim()

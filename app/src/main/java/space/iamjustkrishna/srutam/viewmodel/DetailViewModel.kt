@@ -233,6 +233,8 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             database.recordingDao().updatePrivacy(recordingId, isPrivate)
             _recording.value = _recording.value?.copy(isPrivate = isPrivate)
+            // Private notes keep no copy of their content inside the (public) audio file.
+            space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker.enqueue(getApplication(), recordingId)
             space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSyncForRecording(
                 getApplication<Application>().applicationContext,
                 recordingId

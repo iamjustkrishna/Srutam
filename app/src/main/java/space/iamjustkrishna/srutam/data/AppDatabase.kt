@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Recording::class, InsightEntity::class, ReminderEntity::class, AiQueryCache::class, ExtractionSuppression::class], version = 8, exportSchema = true)
+@Database(entities = [Recording::class, InsightEntity::class, ReminderEntity::class, AiQueryCache::class, ExtractionSuppression::class], version = 9, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun recordingDao(): RecordingDao
     abstract fun insightDao(): InsightDao
@@ -24,7 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "srutam_database"
                 )
-                    .addMigrations(INSIGHTS_MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(INSIGHTS_MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build()
                 INSTANCE = instance
                 instance

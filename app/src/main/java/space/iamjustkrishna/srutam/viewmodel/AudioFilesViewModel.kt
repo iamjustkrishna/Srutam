@@ -41,9 +41,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import space.iamjustkrishna.srutam.analytics.UserActivityAnalytics
 import space.iamjustkrishna.srutam.analytics.UserActivityMetrics
 import java.io.File
+import space.iamjustkrishna.srutam.data.AppDatabase
+import space.iamjustkrishna.srutam.data.signature.NoteSignature
+import space.iamjustkrishna.srutam.repository.InsightsRepository
 
 data class ThemeCluster(
     val key: String,
@@ -149,6 +154,8 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
             val files = AudioFileReader.getAudioFiles()
             _audioFiles.value = files
             _isLoading.value = false
+            // Notes from a previous install come back from their audio files, even offline.
+            restoreNotesFromAudioBlocks(files)
         }
     }
 
@@ -399,20 +406,48 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun processPendingOfflineRecordings(force: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
-        if (!force && !AppPreferences.isAutoAiEnabled(getApplication())) {
-            Log.d(TAG, "Auto AI processing is disabled in Settings. Skipping automatic pending recordings sync.")
-            onComplete?.invoke(0)
-            return
+    /**
+     * After a reinstall, rebuilds notes from the block inside their audio files: instantly,
+     * offline, and without AI. Returns the restored notes by path.
+     */
+    private suspend fun restoreNotesFromAudioBlocks(files: List<AudioFileInfo>): Map<String, Recording> = restoreLock.withLock {
+        val known = _recordingsByPath.value
+        val database = AppDatabase.getDatabase(getApplication())
+        val restored = mutableMapOf<String, Recording>()
+        for (audioFile in files) {
+            if (known.containsKey(audioFile.filePath)) continue
+            if (repository.getRecordingByPath(audioFile.filePath) != null) continue
+            val id = runCatching { NoteSignature.restoreFromFile(database, File(audioFile.filePath)) }
+                .onFailure { Log.w(TAG, "Could not restore ${audioFile.fileName} from its note block", it) }
+                .getOrNull() ?: continue
+            repository.getRecordingById(id)?.let { restored[audioFile.filePath] = it }
         }
+        if (restored.isNotEmpty()) {
+            Log.d(TAG, "Restored ${restored.size} notes from their audio files")
+            // Future reminders come back scheduled.
+            runCatching { InsightsRepository.from(getApplication()).reconcile() }
+        }
+        restored
+    }
+
+    private val restoreLock = Mutex()
+
+    fun processPendingOfflineRecordings(force: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentFiles = _audioFiles.value.ifEmpty { AudioFileReader.getAudioFiles() }
-                val currentMap = _recordingsByPath.value
+                val restored = restoreNotesFromAudioBlocks(currentFiles)
+                if (!force && !AppPreferences.isAutoAiEnabled(getApplication())) {
+                    Log.d(TAG, "Auto AI processing is disabled in Settings. Skipping automatic pending recordings sync.")
+                    withContext(Dispatchers.Main) { onComplete?.invoke(0) }
+                    return@launch
+                }
+                val currentMap = _recordingsByPath.value + restored
 
                 // Find all audio files that either have no summary, are pending offline, or have fallback summary
                 val pendingFiles = currentFiles.filter { audioFile ->
-                    val rec = currentMap[audioFile.filePath]
+                    // Fresh lookup: a note restored from its audio file a moment ago must not be re-run.
+                    val rec = currentMap[audioFile.filePath] ?: repository.getRecordingByPath(audioFile.filePath)
                     rec == null ||
                         rec.summary.isNullOrBlank() ||
                         rec.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE ||

@@ -336,17 +336,7 @@ private fun RootScreen(
                     try {
                         val file = File(audioFile.filePath)
                         if (file.exists()) {
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.provider",
-                                file
-                            )
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "audio/*"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Voice Note"))
+                            space.iamjustkrishna.srutam.utils.AudioShare.share(context, file)
                         } else {
                             showAboveToast("File not found")
                         }

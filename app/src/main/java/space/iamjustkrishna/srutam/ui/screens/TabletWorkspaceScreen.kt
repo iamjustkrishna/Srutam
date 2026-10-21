@@ -3473,13 +3473,7 @@ fun TabletNotes3PanelWorkspace(
                     try {
                         val file = File(audio.filePath)
                         if (file.exists()) {
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "audio/*"
-                                putExtra(Intent.EXTRA_STREAM, uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Voice Note"))
+                            space.iamjustkrishna.srutam.utils.AudioShare.share(context, file)
                         }
                     } catch (e: Exception) {
                         Toast.makeText(context, "Unable to share audio: ${e.message}", Toast.LENGTH_SHORT).show()

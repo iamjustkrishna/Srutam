@@ -75,4 +75,17 @@ interface RecordingDao {
      */
     @Query("UPDATE recordings SET syncStatus = 'PENDING' WHERE syncStatus = 'SYNCED' AND aiStatus = 'READY'")
     suspend fun markSyncedForReupload(): Int
+
+    @Query("SELECT * FROM recordings WHERE noteUuid = :noteUuid LIMIT 1")
+    suspend fun getRecordingByNoteUuid(noteUuid: String): Recording?
+
+    @Query("SELECT * FROM recordings WHERE audioHash = :audioHash LIMIT 1")
+    suspend fun getRecordingByAudioHash(audioHash: String): Recording?
+
+    @Query("UPDATE recordings SET audioHash = :audioHash WHERE id = :id")
+    suspend fun setAudioHash(id: Long, audioHash: String)
+
+    /** Records that the note's content changed, for merges between the file block and the cloud. */
+    @Query("UPDATE recordings SET updatedAt = :updatedAt WHERE id = :id")
+    suspend fun touch(id: Long, updatedAt: Long)
 }

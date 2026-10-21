@@ -56,7 +56,7 @@ class InsightsMigrationTest {
 
     private fun openWithMigrations(context: Context, name: String): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addMigrations(INSIGHTS_MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(INSIGHTS_MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
 
@@ -90,7 +90,7 @@ class InsightsMigrationTest {
         val upgraded = openWithMigrations(context, name)
         try {
             // Opening performs Room's complete schema validation against the current version.
-            assertEquals(8, upgraded.openHelper.writableDatabase.version)
+            assertEquals(9, upgraded.openHelper.writableDatabase.version)
             val note = upgraded.recordingDao().getRecordingById(17)!!
             assertEquals("Original transcript", note.transcript)
             assertEquals("preserve.m4a", note.audioFilePath)
@@ -146,7 +146,7 @@ class InsightsMigrationTest {
         }
         val upgraded = openWithMigrations(context, name)
         try {
-            assertEquals(8, upgraded.openHelper.writableDatabase.version)
+            assertEquals(9, upgraded.openHelper.writableDatabase.version)
             val note = upgraded.recordingDao().getRecordingById(21)!!
             assertEquals("Confidential transcript", note.transcript)
             assertEquals("Board meeting", note.name)
@@ -185,10 +185,45 @@ class InsightsMigrationTest {
         }
         val upgraded = openWithMigrations(context, name)
         try {
-            assertEquals(8, upgraded.openHelper.writableDatabase.version)
+            assertEquals(9, upgraded.openHelper.writableDatabase.version)
             val note = upgraded.recordingDao().getRecordingById(33)!!
             assertEquals("SYNCED", note.syncStatus)
             assertEquals("cloud-abc", note.cloudId)
+        } finally {
+            upgraded.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /** 2.5.x users: every note gets its own stable id, and nothing else changes. */
+    @Test fun versionEightMigratesToNineWithAStableIdPerNote() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "note-signature-migration-fixture"
+        val path = createLegacyDatabase(context, name, 8)
+        SQLiteDatabase.openDatabase(path.path, null, SQLiteDatabase.OPEN_READWRITE).use { old ->
+            for (id in listOf(41L, 42L)) {
+                old.insertOrThrow("recordings", null, ContentValues().apply {
+                    put("id", id); put("timestamp", 1700000000000L + id); put("audioFilePath", "note$id.m4a")
+                    put("duration", 1000L); put("name", "Note $id"); put("aiStatus", "READY")
+                    put("isProcessing", 0); put("insightsImported", 1); put("transcript", "Kept $id")
+                    put("syncStatus", "SYNCED"); put("isPrivate", 0); put("cloudId", "cloud-$id")
+                })
+            }
+            old.version = 8
+        }
+        val upgraded = openWithMigrations(context, name)
+        try {
+            assertEquals(9, upgraded.openHelper.writableDatabase.version)
+            val first = upgraded.recordingDao().getRecordingById(41)!!
+            val second = upgraded.recordingDao().getRecordingById(42)!!
+            assertEquals("Kept 41", first.transcript)
+            assertEquals("cloud-41", first.cloudId)
+            assertTrue(first.noteUuid.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")))
+            assertNotEquals(first.noteUuid, second.noteUuid)
+            assertNull(first.audioHash)
+            assertNull(first.topics)
+            assertEquals(first.timestamp, first.updatedAt)
+            assertEquals(NoteSource.AI, first.contentSource)
         } finally {
             upgraded.close()
             context.deleteDatabase(name)

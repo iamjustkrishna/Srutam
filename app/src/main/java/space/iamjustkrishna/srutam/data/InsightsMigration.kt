@@ -60,6 +60,35 @@ private fun SupportSQLiteDatabase.hasColumn(table: String, column: String): Bool
     return false
 }
 
+/**
+ * 8 -> 9: notes get a stable [Recording.noteUuid] (the autoincrement id restarts after a
+ * reinstall, so it can't match a note to its cloud copy or its audio file), plus the audio
+ * hash, AI topics, a last-updated time and where the content came from.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.addColumnIfMissing("recordings", "noteUuid", "noteUuid TEXT NOT NULL DEFAULT ''")
+        db.addColumnIfMissing("recordings", "audioHash", "audioHash TEXT")
+        db.addColumnIfMissing("recordings", "topics", "topics TEXT")
+        db.addColumnIfMissing("recordings", "updatedAt", "updatedAt INTEGER NOT NULL DEFAULT 0")
+        db.addColumnIfMissing("recordings", "contentSource", "contentSource TEXT NOT NULL DEFAULT 'AI'")
+        // A random version-4 UUID per existing note, in the usual 8-4-4-4-12 form.
+        db.execSQL(
+            """
+            UPDATE recordings SET noteUuid =
+                lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' ||
+                substr(lower(hex(randomblob(2))), 2) || '-' ||
+                substr('89ab', 1 + (abs(random()) % 4), 1) ||
+                substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))
+            WHERE noteUuid = ''
+            """.trimIndent()
+        )
+        db.execSQL("UPDATE recordings SET updatedAt = timestamp WHERE updatedAt = 0")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_recordings_noteUuid ON recordings(noteUuid)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_recordings_audioHash ON recordings(audioHash)")
+    }
+}
+
 private fun SupportSQLiteDatabase.addColumnIfMissing(table: String, column: String, definition: String) {
     if (!hasColumn(table, column)) {
         execSQL("ALTER TABLE `$table` ADD COLUMN $definition")

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import space.iamjustkrishna.srutam.data.Recording
 import space.iamjustkrishna.srutam.data.RecordingDao
+import space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker
 import space.iamjustkrishna.srutam.utils.AudioStorage
 import space.iamjustkrishna.srutam.utils.RecordingFileNames
 import kotlinx.coroutines.Dispatchers
@@ -40,11 +41,12 @@ class RecordingRepository(
     }
 
     suspend fun insertRecording(recording: Recording): Long {
-        return recordingDao.insertRecording(recording)
+        return recordingDao.insertRecording(recording).also { NoteSignatureWorker.enqueue(context, it) }
     }
 
     suspend fun updateRecording(recording: Recording) {
         recordingDao.updateRecording(recording)
+        NoteSignatureWorker.enqueue(context, recording.id)
     }
 
     suspend fun deleteRecording(recording: Recording) {
@@ -101,6 +103,7 @@ class RecordingRepository(
             if (!sameFile) target.renameTo(current)
             return@withContext RenameResult.Failed
         }
+        recordingDao.getRecordingByPath(target.absolutePath)?.let { NoteSignatureWorker.enqueue(context, it.id) }
         RenameResult.Renamed(target.absolutePath, title)
     }
 
@@ -129,6 +132,7 @@ class RecordingRepository(
 
     suspend fun setTranscriptIfBlank(id: Long, text: String) {
         recordingDao.setTranscriptIfBlank(id, text)
+        NoteSignatureWorker.enqueue(context, id)
     }
 
     /** Points a note at its renamed file. Returns whether a note existed for [oldPath]. */

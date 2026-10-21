@@ -33,6 +33,7 @@ import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.data.ReminderDao
 import space.iamjustkrishna.srutam.data.ReminderEntity
 import space.iamjustkrishna.srutam.data.ReminderStatus
+import space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import java.io.File
 
@@ -220,9 +221,12 @@ class AiProcessingWorker(
                         isProcessing = false,
                         aiStatus = RecordingAiStatus.READY,
                         syncStatus = space.iamjustkrishna.srutam.data.SyncStatus.PENDING,
-                        processingError = null
+                        processingError = null,
+                        updatedAt = System.currentTimeMillis(),
+                        contentSource = space.iamjustkrishna.srutam.data.NoteSource.AI
                     )
                     recordingDao.updateRecording(finishedRecording)
+                    NoteSignatureWorker.enqueue(applicationContext, finishedRecording.id)
                     space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(applicationContext)
 
                     completedCount++
@@ -253,6 +257,7 @@ class AiProcessingWorker(
                             processingError = null
                         )
                         recordingDao.updateRecording(fallbackRecording)
+                        NoteSignatureWorker.enqueue(applicationContext, fallbackRecording.id)
                         space.iamjustkrishna.srutam.cloud.CloudSyncManager.enqueueSync(applicationContext)
                         completedCount++
                         lastCompletedRecording = fallbackRecording
