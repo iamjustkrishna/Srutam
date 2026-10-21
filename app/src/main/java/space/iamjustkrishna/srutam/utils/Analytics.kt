@@ -139,8 +139,6 @@ object Analytics {
 
     fun sampleNoteOpened(context: Context) = log(context, EVENT_SAMPLE_NOTE_OPENED)
 
-    fun sampleNoteDismissed(context: Context) = log(context, EVENT_SAMPLE_NOTE_DISMISSED)
-
     // ---- Settings ----
 
     /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */
@@ -192,7 +190,6 @@ object Analytics {
     const val EVENT_ONBOARDING_COMPLETED = "onboarding_completed"
     const val EVENT_PERMISSION_RESULT = "permission_result"
     const val EVENT_SAMPLE_NOTE_OPENED = "sample_note_opened"
-    const val EVENT_SAMPLE_NOTE_DISMISSED = "sample_note_dismissed"
 
     const val PARAM_SOURCE = "source"
     const val PARAM_DURATION_BUCKET = "duration_bucket"

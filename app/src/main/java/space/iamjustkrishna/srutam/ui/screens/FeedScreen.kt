@@ -128,9 +128,8 @@ import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.ui.components.RecordingAccessBanners
+import space.iamjustkrishna.srutam.ui.sample.SampleBadge
 import space.iamjustkrishna.srutam.ui.sample.SampleNote
-import space.iamjustkrishna.srutam.ui.sample.SampleNoteCard
-import space.iamjustkrishna.srutam.ui.sample.SampleNoteDialog
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
@@ -554,8 +553,6 @@ fun FeedScreenContent(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isCloudSignedIn by remember { mutableStateOf(AppPreferences.isCloudSignedIn(context)) }
-    var sampleNoteDismissed by remember { mutableStateOf(AppPreferences.isSampleNoteDismissed(context)) }
-    var showSampleNote by remember { mutableStateOf(false) }
     val syncWorkInfos by remember(context) {
         CloudSyncManager.getSyncWorkInfoFlow(context)
     }.collectAsState(initial = emptyList())
@@ -1044,27 +1041,43 @@ fun FeedScreenContent(
                         }
                     } else if (selectedFilter == FeedFilter.UNPROCESSED) {
                         PendingAiEmptyState()
-                    } else if (SampleNote.shouldShow(hasRealNotes = audioFiles.isNotEmpty(), dismissed = sampleNoteDismissed)) {
+                    } else if (SampleNote.shouldShow(hasRealNotes = audioFiles.isNotEmpty())) {
+                        // The welcome note: a normal note card that opens the normal note screen.
+                        var sampleClipReady by remember { mutableStateOf(SampleNote.clipFile(context).isFile) }
+                        val sampleScope = rememberCoroutineScope()
+                        LaunchedEffect(Unit) {
+                            if (!sampleClipReady) sampleClipReady = SampleNote.ensureClip(context) != null
+                        }
+                        val sampleFile = remember(sampleClipReady) { SampleNote.audioFile(context) }
+                        val sampleRecording = remember(sampleClipReady) { SampleNote.recording(context) }
                         Column(Modifier.fillMaxSize()) {
-                            SampleNoteCard(
-                                onOpen = {
+                            AudioFileCard(
+                                audioFile = sampleFile,
+                                recording = sampleRecording,
+                                isPlaying = playbackState.isPlaying && playbackState.currentFilePath == sampleFile.filePath,
+                                onPlayClick = {
+                                    sampleScope.launch {
+                                        if (SampleNote.ensureClip(context) != null) {
+                                            sampleClipReady = true
+                                            onPlayFile(SampleNote.audioFile(context))
+                                        }
+                                    }
+                                },
+                                onProcessAI = {},
+                                onRenameClick = {},
+                                onDelete = {},
+                                onRecordingClick = {
                                     Analytics.sampleNoteOpened(context)
-                                    showSampleNote = true
+                                    onRecordingClick(SampleNote.ID)
                                 },
-                                onDismiss = {
-                                    Analytics.sampleNoteDismissed(context)
-                                    AppPreferences.setSampleNoteDismissed(context, true)
-                                    sampleNoteDismissed = true
-                                },
+                                viewModel = viewModel,
+                                isSample = true,
                                 modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp)
                             )
                             NotesEmptyState(Modifier.weight(1f))
                         }
                     } else {
                         NotesEmptyState()
-                    }
-                    if (showSampleNote) {
-                        SampleNoteDialog(onDismiss = { showSampleNote = false })
                     }
                 } else {
                     AudioFilesList(
@@ -1801,6 +1814,8 @@ fun AudioFileCard(
     isSelected: Boolean = false,
     onSelectionToggle: () -> Unit = {},
     isSelectionMode: Boolean = false,
+    /** The built-in welcome note: same card, but read-only (no menu, no swipe to delete). */
+    isSample: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -1818,7 +1833,7 @@ fun AudioFileCard(
 
     // Restored from the cloud without its audio, or its audio was deleted: no player.
     val textOnly = remember(audioFile.filePath) {
-        CloudRestore.isTextOnlyPath(audioFile.filePath) || !File(audioFile.filePath).exists()
+        !isSample && (CloudRestore.isTextOnlyPath(audioFile.filePath) || !File(audioFile.filePath).exists())
     }
 
     val selectionModeState by rememberUpdatedState(isSelectionMode)
@@ -1886,7 +1901,7 @@ fun AudioFileCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        enableDismissFromStartToEnd = !isSelectionMode,
+        enableDismissFromStartToEnd = !isSelectionMode && !isSample,
         enableDismissFromEndToStart = false,
         backgroundContent = {
             val swiping = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
@@ -1943,7 +1958,9 @@ fun AudioFileCard(
                 .clip(RoundedCornerShape(26.dp))
                 .combinedClickable(
                     onClick = {
-                        if (isSelectionMode) {
+                        if (isSample) {
+                            onRecordingClick(recording?.id ?: 0L)
+                        } else if (isSelectionMode) {
                             onSelectionToggle()
                         } else {
                             if (viewModel != null) {
@@ -1956,7 +1973,7 @@ fun AudioFileCard(
                         }
                     },
                     onLongClick = {
-                        onSelectionToggle()
+                        if (!isSample) onSelectionToggle()
                     }
                 )
         ) {
@@ -2151,12 +2168,18 @@ fun AudioFileCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = formatHumanRelativeDate(audioFile.timestamp),
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = formatHumanRelativeDate(audioFile.timestamp),
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) TextOnDarkSecondary else Color(0xFF64748B)
+                            )
+                            if (isSample) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                SampleBadge()
+                            }
+                        }
                         if (!recording?.actionItems.isNullOrBlank() && recording?.actionItems != "[]") {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
@@ -2272,7 +2295,7 @@ fun AudioFileCard(
                         }
 
                         // MoreVert button with custom redesigned dropdown menu in the last row
-                        Box {
+                        if (!isSample) Box {
                             IconButton(
                                 onClick = { showDropdown = true },
                                 modifier = Modifier.size(28.dp)

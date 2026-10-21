@@ -26,7 +26,6 @@ object AppPreferences {
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
     private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
-    private const val KEY_SAMPLE_NOTE_DISMISSED = "sample_note_dismissed"
     private const val KEY_REMINDER_NOTIF_ASK_PENDING = "reminder_notif_ask_pending"
     private const val KEY_REMINDER_NOTIF_ASKED = "reminder_notif_asked"
     private const val KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT = "capture_skip_banner_dismiss_count"
@@ -248,18 +247,6 @@ object AppPreferences {
             .edit()
             .putBoolean(KEY_ONBOARDING_COMPLETED, completed)
             .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
-            .apply()
-    }
-
-    fun isSampleNoteDismissed(context: Context): Boolean {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_SAMPLE_NOTE_DISMISSED, false)
-    }
-
-    fun setSampleNoteDismissed(context: Context, dismissed: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_SAMPLE_NOTE_DISMISSED, dismissed)
             .apply()
     }
 

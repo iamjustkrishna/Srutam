@@ -14,10 +14,24 @@ import org.robolectric.annotation.Config
 class SampleNoteTest {
 
     @Test
-    fun showsOnlyBeforeTheFirstRealNoteAndUntilDismissed() {
-        assertTrue(SampleNote.shouldShow(hasRealNotes = false, dismissed = false))
-        assertFalse(SampleNote.shouldShow(hasRealNotes = true, dismissed = false))
-        assertFalse(SampleNote.shouldShow(hasRealNotes = false, dismissed = true))
+    fun showsOnlyBeforeTheFirstRealNote() {
+        assertTrue(SampleNote.shouldShow(hasRealNotes = false))
+        assertFalse(SampleNote.shouldShow(hasRealNotes = true))
+    }
+
+    @Test
+    fun opensLikeARealNoteWithItsInsights() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val note = SampleNote.recording(context)
+
+        assertTrue(SampleNote.isSample(note.id))
+        assertFalse(SampleNote.isSample(1L))
+        assertEquals(space.iamjustkrishna.srutam.data.RecordingAiStatus.READY, note.aiStatus)
+        val kinds = SampleNote.insights().groupingBy { it.kind }.eachCount()
+        assertEquals(2, kinds[space.iamjustkrishna.srutam.data.InsightKind.ACTION])
+        assertEquals(1, kinds[space.iamjustkrishna.srutam.data.InsightKind.IDEA])
+        assertEquals(1, kinds[space.iamjustkrishna.srutam.data.InsightKind.DECISION])
+        assertTrue(SampleNote.insights().all { it.recordingId == SampleNote.ID })
     }
 
     @Test

@@ -1,63 +1,54 @@
 package space.iamjustkrishna.srutam.ui.sample
 
+import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import space.iamjustkrishna.srutam.data.InsightEntity
+import space.iamjustkrishna.srutam.data.InsightKind
+import space.iamjustkrishna.srutam.data.InsightStatus
+import space.iamjustkrishna.srutam.data.Recording
+import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.ui.theme.Sem
+import space.iamjustkrishna.srutam.utils.AudioFileInfo
+import java.io.File
 import java.util.Locale
+import kotlin.coroutines.resume
 
 /**
- * The built-in "Srutam welcome note" shown on Home before the first real note. It lives only in
- * memory: never saved to the database, never synced, never fed to themes, and its reminder is an
- * example that is never scheduled. Phone and tablet both read their content from here.
+ * The built-in "Srutam welcome note" shown on Home before the first real note. It looks and
+ * opens exactly like a real note (same feed card, same note screen), but it lives only in memory:
+ * never saved to the database, never synced, never fed to themes, read-only, and its reminder is
+ * an example that is never scheduled. It disappears once the first real note exists.
+ *
+ * Its clip is the transcript read aloud by the phone's text-to-speech, saved once to the app's
+ * cache so the normal player can play it.
  */
 object SampleNote {
+    /** The sample's id. Negative, so it never collides with a real note (ids start at 1; 0 is chat). */
+    const val ID = -100L
     const val PATH = "srutam://welcome"
     const val TITLE = "Srutam welcome note"
     const val DURATION_MS = 38_000L
+    private const val CLIP_FILE = "srutam_welcome_note.wav"
+    private const val TAG = "SampleNote"
 
     const val TRANSCRIPT =
         "Okay, quick note before the team sync. We're going with the Friday launch for the new " +
@@ -76,7 +67,8 @@ object SampleNote {
     val KEY_POINTS = listOf(
         "The new onboarding launches on Friday",
         "Release notes go to Priya",
-        "A sample note could show new users what Srutam does"
+        "A sample note could show new users what Srutam does",
+        "Reminder: check the install numbers on Monday, 9:00 AM"
     )
     val TASKS = listOf("Send the release notes to Priya", "Book a call with the design team")
     const val IDEA = "Show a sample note so new users see what Srutam does before they record"
@@ -85,20 +77,135 @@ object SampleNote {
 
     /** Key points as the JSON array the Recording entity stores. */
     val keyPointsJson: String
-        get() = KEY_POINTS.joinToString(prefix = "[", postfix = "]") {
-            "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-        }
+        get() = jsonArray(KEY_POINTS)
 
-    /** Shown until the first real note exists or the user dismisses it. */
-    fun shouldShow(hasRealNotes: Boolean, dismissed: Boolean) = !hasRealNotes && !dismissed
+    private fun jsonArray(items: List<String>) = items.joinToString(prefix = "[", postfix = "]") {
+        "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    }
+
+    /** Shown until the first real note exists. */
+    fun shouldShow(hasRealNotes: Boolean) = !hasRealNotes
+
+    fun isSample(recordingId: Long?) = recordingId == ID
+
+    fun clipFile(context: Context) = File(context.applicationContext.cacheDir, CLIP_FILE)
+
+    /** When the sample "was recorded": the install time, so it reads like the newest note. */
+    private fun timestamp(context: Context): Long = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+    }.getOrDefault(System.currentTimeMillis())
+
+    private fun durationOf(file: File): Long {
+        if (!file.isFile) return DURATION_MS
+        return runCatching {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(file.absolutePath)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            } finally {
+                retriever.release()
+            }
+        }.getOrNull() ?: DURATION_MS
+    }
+
+    /** The sample as a feed item. Its path is the clip, so the feed's player plays it. */
+    fun audioFile(context: Context): AudioFileInfo {
+        val clip = clipFile(context)
+        return AudioFileInfo(
+            filePath = clip.absolutePath,
+            fileName = "$TITLE.m4a",
+            duration = durationOf(clip),
+            timestamp = timestamp(context),
+            sizeBytes = clip.length()
+        )
+    }
+
+    /** The sample as a note, for the feed card and the note screen. */
+    fun recording(context: Context): Recording {
+        val clip = clipFile(context)
+        return Recording(
+            id = ID,
+            timestamp = timestamp(context),
+            audioFilePath = clip.absolutePath,
+            duration = durationOf(clip),
+            name = TITLE,
+            transcript = TRANSCRIPT,
+            summary = SUMMARY,
+            keyPoints = keyPointsJson,
+            actionItems = jsonArray(TASKS.map { "[ ] $it" }),
+            wiifm = WIIFM,
+            aiStatus = RecordingAiStatus.READY,
+            isProcessing = false
+        )
+    }
+
+    /** Its tasks, idea and decision, as the note screen shows them. */
+    fun insights(): List<InsightEntity> {
+        val tasks = TASKS.mapIndexed { i, text ->
+            InsightEntity(id = "sample-task-$i", recordingId = ID, recordingName = TITLE, kind = InsightKind.ACTION, text = text, sourceOrder = i)
+        }
+        return tasks + listOf(
+            InsightEntity(id = "sample-idea", recordingId = ID, recordingName = TITLE, kind = InsightKind.IDEA, text = IDEA, status = InsightStatus.OPEN),
+            InsightEntity(id = "sample-decision", recordingId = ID, recordingName = TITLE, kind = InsightKind.DECISION, text = DECISION)
+        )
+    }
+
+    private val clipLock = Mutex()
+
+    /**
+     * Makes the clip once with text-to-speech and returns it, or null when the phone has no
+     * text-to-speech voice. Safe to call repeatedly.
+     */
+    suspend fun ensureClip(context: Context): File? = clipLock.withLock {
+        val clip = clipFile(context)
+        if (clip.isFile && clip.length() > 0) return clip
+        val app = context.applicationContext
+        val made = withContext(Dispatchers.Main) {
+            withTimeoutOrNull(15_000L) { synthesize(app, clip) }
+        } == true
+        if (made && clip.isFile && clip.length() > 0) clip else null.also { clip.delete() }
+    }
+
+    private suspend fun synthesize(context: Context, target: File): Boolean = suspendCancellableCoroutine { cont ->
+        var engine: TextToSpeech? = null
+        fun finish(ok: Boolean) {
+            engine?.shutdown()
+            if (cont.isActive) cont.resume(ok)
+        }
+        engine = TextToSpeech(context) { status ->
+            val tts = engine
+            if (status != TextToSpeech.SUCCESS || tts == null) {
+                finish(false)
+                return@TextToSpeech
+            }
+            val english = listOf(Locale.US, Locale.UK, Locale.ENGLISH)
+                .firstOrNull { tts.isLanguageAvailable(it) >= TextToSpeech.LANG_AVAILABLE }
+            tts.language = english ?: Locale.getDefault()
+            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) = finish(true)
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) = finish(false)
+                override fun onError(utteranceId: String?, errorCode: Int) = finish(false)
+            })
+            val queued = tts.synthesizeToFile(TRANSCRIPT, null, target, "srutam_welcome_note")
+            if (queued != TextToSpeech.SUCCESS) {
+                Log.w(TAG, "Text-to-speech couldn't make the sample clip")
+                finish(false)
+            }
+        }
+        cont.invokeOnCancellation { engine?.shutdown() }
+    }
 }
 
+/** The small tag that marks the sample note on its card and screen. */
 @Composable
-private fun SampleBadge() {
+fun SampleBadge(modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(6.dp),
         color = Sem.amberContainer,
-        border = BorderStroke(1.dp, Sem.amberBorder)
+        border = BorderStroke(1.dp, Sem.amberBorder),
+        modifier = modifier
     ) {
         Text(
             text = "Sample",
@@ -107,199 +214,5 @@ private fun SampleBadge() {
             color = Sem.amberText,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
-    }
-}
-
-/** Feed card for the sample note. */
-@Composable
-fun SampleNoteCard(
-    onOpen: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Sem.card,
-        border = BorderStroke(1.dp, Sem.border),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-    ) {
-        Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SampleBadge()
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "0:38 · Example",
-                    fontSize = 12.sp,
-                    color = Sem.textMuted,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Dismiss sample note", tint = Sem.textMuted, modifier = Modifier.size(18.dp))
-                }
-            }
-            Text(
-                text = SampleNote.TITLE,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Sem.text
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = SampleNote.SUMMARY,
-                fontSize = 13.5.sp,
-                lineHeight = 19.sp,
-                color = Sem.textSecondary,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "2 tasks · 1 idea · 1 decision · 1 reminder",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Sem.accent
-            )
-        }
-    }
-}
-
-/** Full view of the sample note. The "clip" is the transcript read aloud with text-to-speech. */
-@Composable
-fun SampleNoteDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    var speaking by remember { mutableStateOf(false) }
-    val tts = remember { mutableStateOf<TextToSpeech?>(null) }
-
-    DisposableEffect(Unit) {
-        var engine: TextToSpeech? = null
-        engine = TextToSpeech(context.applicationContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                engine?.setLanguage(Locale.getDefault())
-                engine?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {}
-                    override fun onDone(utteranceId: String?) { speaking = false }
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) { speaking = false }
-                })
-                tts.value = engine
-            }
-        }
-        onDispose {
-            engine?.stop()
-            engine?.shutdown()
-        }
-    }
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = Sem.scaffold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .heightIn(max = 640.dp)
-        ) {
-            Column(
-                Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SampleBadge()
-                    Spacer(Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Sem.textSecondary)
-                    }
-                }
-                Text(SampleNote.TITLE, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Sem.text)
-                Spacer(Modifier.height(14.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Sem.accentContainer,
-                    border = BorderStroke(1.dp, Sem.accentBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = tts.value != null) {
-                            val engine = tts.value ?: return@clickable
-                            if (speaking) {
-                                engine.stop()
-                                speaking = false
-                            } else {
-                                engine.speak(SampleNote.TRANSCRIPT, TextToSpeech.QUEUE_FLUSH, null, "sample_note")
-                                speaking = true
-                            }
-                        }
-                ) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Surface(shape = CircleShape, color = Sem.accent, modifier = Modifier.size(36.dp)) {}
-                            Icon(
-                                imageVector = if (speaking) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                contentDescription = if (speaking) "Stop" else "Play sample clip",
-                                tint = Sem.card
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text("Sample clip · 0:38", color = Sem.text, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                Section("Summary") { Body(SampleNote.SUMMARY) }
-                Section("Transcript") { Body(SampleNote.TRANSCRIPT) }
-                Section("Tasks") {
-                    SampleNote.TASKS.forEach { Item(Icons.Default.RadioButtonUnchecked, it) }
-                }
-                Section("Idea") { Item(Icons.Default.Lightbulb, SampleNote.IDEA) }
-                Section("Decision") { Item(Icons.Default.Gavel, SampleNote.DECISION) }
-                Section("Reminder") {
-                    Item(Icons.Default.NotificationsActive, SampleNote.REMINDER)
-                    Text(
-                        text = "Example only. This reminder won't notify you.",
-                        fontSize = 12.sp,
-                        color = Sem.textMuted,
-                        modifier = Modifier.padding(start = 30.dp, top = 2.dp)
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Record your first note and it will look like this. The sample disappears once you do.",
-                    fontSize = 13.sp,
-                    color = Sem.textSecondary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(18.dp))
-    Text(
-        text = title.uppercase(),
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
-        color = Sem.accent
-    )
-    Spacer(Modifier.height(6.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { content() }
-}
-
-@Composable
-private fun Body(text: String) {
-    Text(text, fontSize = 14.sp, lineHeight = 20.sp, color = Sem.text)
-}
-
-@Composable
-private fun Item(icon: ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.Top) {
-        Icon(icon, contentDescription = null, tint = Sem.textSecondary, modifier = Modifier.size(18.dp).padding(top = 2.dp))
-        Spacer(Modifier.width(12.dp))
-        Body(text)
     }
 }

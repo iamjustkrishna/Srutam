@@ -11,6 +11,7 @@ import space.iamjustkrishna.srutam.player.AudioPlayer
 import space.iamjustkrishna.srutam.repository.RecordingRepository
 import space.iamjustkrishna.srutam.repository.RenameResult
 import space.iamjustkrishna.srutam.service.AiProcessingWorker
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +60,14 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         audioPlayer = AudioPlayer(application)
     }
 
+    /** The welcome note: shown like any note, but from memory and read-only. */
+    private val isSample: Boolean get() = SampleNote.isSample(_recording.value?.id)
+
     fun loadRecording(recordingId: Long) {
+        if (SampleNote.isSample(recordingId)) {
+            loadSample()
+            return
+        }
         space.iamjustkrishna.srutam.utils.Analytics.noteOpened(getApplication())
         viewModelScope.launch {
             repository.getRecordingByIdFlow(recordingId).collect { recording ->
@@ -80,7 +88,30 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun loadSample() {
+        val app = getApplication<Application>()
+        _recording.value = SampleNote.recording(app)
+        _noteInsights.value = SampleNote.insights()
+        viewModelScope.launch {
+            val clip = SampleNote.ensureClip(app) ?: return@launch
+            _recording.value = SampleNote.recording(app)
+            audioPlayer.prepare(clip)
+        }
+    }
+
     fun toggleActionComplete(insight: space.iamjustkrishna.srutam.data.InsightEntity) {
+        if (isSample) {
+            // Ticking a sample task works on screen only, to show how it feels.
+            _noteInsights.value = _noteInsights.value.map {
+                if (it.id != insight.id) it
+                else it.copy(status = if (it.status == space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED) {
+                    space.iamjustkrishna.srutam.data.InsightStatus.OPEN
+                } else {
+                    space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED
+                })
+            }
+            return
+        }
         viewModelScope.launch {
             val newStatus = if (insight.status == space.iamjustkrishna.srutam.data.InsightStatus.COMPLETED) {
                 space.iamjustkrishna.srutam.data.InsightStatus.OPEN
@@ -102,6 +133,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     /** Renames the file and the title together; [onError] gets a message to show if that was not possible. */
     fun renameRecording(newName: String, onError: (String) -> Unit = {}) {
         val current = _recording.value ?: return
+        if (isSample) return
         viewModelScope.launch {
             when (val result = repository.renameRecording(current.audioFilePath, newName, current.duration, current.timestamp)) {
                 is RenameResult.Renamed ->
@@ -167,6 +199,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     fun generateAiSummary() {
         val currentRecording = _recording.value ?: return
+        if (isSample) return
         val audioFile = File(currentRecording.audioFilePath)
         if (!audioFile.exists()) {
             updateRecordingError("Audio file not found")
@@ -178,6 +211,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteRecording() {
         val currentRecording = _recording.value ?: return
+        if (isSample) return
         viewModelScope.launch {
             try {
                 if (audioPlayer.playbackState.value.currentFilePath == currentRecording.audioFilePath) {
@@ -192,6 +226,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     fun retryAiProcessing() {
         val currentRecording = _recording.value ?: return
+        if (isSample) return
         val audioFile = File(currentRecording.audioFilePath)
         if (!audioFile.exists()) {
             updateRecordingError("Audio file not found")
@@ -203,6 +238,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     fun reprocessWithAi() {
         val currentRecording = _recording.value ?: return
+        if (isSample) return
         val audioFile = File(currentRecording.audioFilePath)
         if (!audioFile.exists()) {
             updateRecordingError("Audio file not found")
@@ -230,6 +266,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun updatePrivacy(recordingId: Long, isPrivate: Boolean) {
+        if (SampleNote.isSample(recordingId)) return
         viewModelScope.launch {
             database.recordingDao().updatePrivacy(recordingId, isPrivate)
             _recording.value = _recording.value?.copy(isPrivate = isPrivate)
@@ -248,6 +285,7 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun updateRecordingError(message: String) {
         val currentRecording = _recording.value ?: return
+        if (isSample) return
         viewModelScope.launch {
             val updated = currentRecording.copy(
                 isProcessing = false,

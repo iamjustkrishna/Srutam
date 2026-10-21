@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.cloud.isTextOnly
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.components.*
 
 
@@ -243,7 +244,9 @@ fun DetailScreenContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val askQuestionsEnabled = recording?.let {
+    // The welcome note is read-only: no privacy, delete, rename, re-processing or AI questions.
+    val isSample = SampleNote.isSample(recording?.id)
+    val askQuestionsEnabled = !isSample && recording?.let {
         !it.isProcessing && !it.transcript.isNullOrBlank()
     } == true
 
@@ -320,7 +323,7 @@ fun DetailScreenContent(
                     }
                 },
                 actions = {
-                    recording?.let { rec ->
+                    if (!isSample) recording?.let { rec ->
                         IconButton(
                             onClick = {
                                 val newPrivate = !rec.isPrivate
@@ -341,7 +344,7 @@ fun DetailScreenContent(
                         }
                     }
 
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    if (!isSample) IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Sem.textSecondary)
                     }
                 },
@@ -441,6 +444,7 @@ fun RecordingDetailsContent(
 ) {
     var selectedDetailTabIndex by remember { mutableStateOf(initialTabIndex) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    val isSample = SampleNote.isSample(recording.id)
     // Audio not on this device: no player, and nothing for AI to re-run on.
     val textOnly = remember(recording.audioFilePath) { recording.isTextOnly() }
 
@@ -490,7 +494,7 @@ fun RecordingDetailsContent(
             MetadataCard(
                 recording = recording,
                 displayName = displayName,
-                onRenameClick = { showRenameDialog = true }
+                onRenameClick = { if (!isSample) showRenameDialog = true }
             )
         }
 
@@ -771,7 +775,7 @@ fun RecordingDetailsContent(
             }
 
             // Re-process option for notes with existing summary
-            if (!textOnly && !recording.isProcessing && !isFallbackSummary && recording.summary != null) {
+            if (!textOnly && !isSample && !recording.isProcessing && !isFallbackSummary && recording.summary != null) {
                 item {
                     OutlinedButton(
                         onClick = onReprocess,
