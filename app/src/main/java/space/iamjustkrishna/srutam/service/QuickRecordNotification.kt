@@ -259,13 +259,18 @@ object QuickRecordNotification {
     private fun flags() = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
     /** Start promotes the service to the foreground itself, so it goes out as a foreground-service intent. */
-    private fun start(context: Context): PendingIntent = PendingIntent.getForegroundService(
-        context,
-        REQUEST_START,
-        Intent(context, RecordingForegroundService::class.java).setAction(RecordingForegroundService.ACTION_START_RECORDING)
-            .putExtra(RecordingForegroundService.EXTRA_SOURCE, "notification"),
-        flags()
-    )
+    private fun start(context: Context): PendingIntent = if (MicPermission.isGranted(context)) {
+        PendingIntent.getForegroundService(
+            context,
+            REQUEST_START,
+            Intent(context, RecordingForegroundService::class.java).setAction(RecordingForegroundService.ACTION_START_RECORDING)
+                .putExtra(RecordingForegroundService.EXTRA_SOURCE, "notification"),
+            flags()
+        )
+    } else {
+        // No mic yet: open the app to ask; it rebuilds this notification once granted.
+        PendingIntent.getActivity(context, REQUEST_START, MicPermission.requestIntent(context, "notification"), flags())
+    }
 
     private fun service(context: Context, requestCode: Int, action: String): PendingIntent = PendingIntent.getService(
         context,

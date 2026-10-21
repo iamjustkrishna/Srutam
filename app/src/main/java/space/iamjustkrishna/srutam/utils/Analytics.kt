@@ -109,6 +109,38 @@ object Analytics {
 
     fun aiRetried(context: Context) = log(context, EVENT_AI_RETRIED)
 
+    // ---- Onboarding funnel: step viewed -> step result -> completed ----
+
+    /** [step] is a short id: intro_1, intro_2, intro_3, dock. */
+    fun onboardingStepViewed(context: Context, step: String) =
+        log(context, EVENT_ONBOARDING_STEP_VIEWED, mapOf(PARAM_STEP to step))
+
+    /** [result] is granted, skipped, denied or next. [timeOnStepMs] is how long the step was on screen. */
+    fun onboardingStepResult(context: Context, step: String, result: String, timeOnStepMs: Long) =
+        log(
+            context,
+            EVENT_ONBOARDING_STEP_RESULT,
+            mapOf(PARAM_STEP to step, PARAM_RESULT to result, PARAM_TIME_ON_STEP_MS to timeOnStepMs)
+        )
+
+    fun onboardingCompleted(context: Context) = log(context, EVENT_ONBOARDING_COMPLETED)
+
+    /** [permission] is mic, notifications, storage or overlay; [trigger] is what asked for it. */
+    fun permissionResult(context: Context, permission: String, granted: Boolean, trigger: String) =
+        log(
+            context,
+            EVENT_PERMISSION_RESULT,
+            mapOf(
+                PARAM_PERMISSION to permission,
+                PARAM_RESULT to if (granted) RESULT_GRANTED else RESULT_DENIED,
+                PARAM_TRIGGER to trigger
+            )
+        )
+
+    fun sampleNoteOpened(context: Context) = log(context, EVENT_SAMPLE_NOTE_OPENED)
+
+    fun sampleNoteDismissed(context: Context) = log(context, EVENT_SAMPLE_NOTE_DISMISSED)
+
     // ---- Settings ----
 
     /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */
@@ -155,10 +187,27 @@ object Analytics {
     const val EVENT_AI_RETRIED = "ai_retried"
     const val EVENT_SETTING_CHANGED = "setting_changed"
 
+    const val EVENT_ONBOARDING_STEP_VIEWED = "onboarding_step_viewed"
+    const val EVENT_ONBOARDING_STEP_RESULT = "onboarding_step_result"
+    const val EVENT_ONBOARDING_COMPLETED = "onboarding_completed"
+    const val EVENT_PERMISSION_RESULT = "permission_result"
+    const val EVENT_SAMPLE_NOTE_OPENED = "sample_note_opened"
+    const val EVENT_SAMPLE_NOTE_DISMISSED = "sample_note_dismissed"
+
     const val PARAM_SOURCE = "source"
     const val PARAM_DURATION_BUCKET = "duration_bucket"
     const val PARAM_REASON = "reason"
     const val PARAM_KEPT_CONTENT = "kept_content"
     const val PARAM_SETTING = "setting"
     const val PARAM_ENABLED = "enabled"
+    const val PARAM_STEP = "step"
+    const val PARAM_RESULT = "result"
+    const val PARAM_TIME_ON_STEP_MS = "time_on_step_ms"
+    const val PARAM_PERMISSION = "permission"
+    const val PARAM_TRIGGER = "trigger"
+
+    const val RESULT_GRANTED = "granted"
+    const val RESULT_DENIED = "denied"
+    const val RESULT_SKIPPED = "skipped"
+    const val RESULT_NEXT = "next"
 }

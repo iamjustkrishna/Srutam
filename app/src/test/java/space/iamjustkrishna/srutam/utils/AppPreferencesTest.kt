@@ -29,6 +29,30 @@ class AppPreferencesTest {
     }
 
     @Test
+    fun onboarding_isNotCompletedOnAFreshInstall() {
+        assertFalse(AppPreferences.isOnboardingCompleted(context))
+    }
+
+    @Test
+    fun onboarding_countsUsersWhoFinishedTheOldByokFlow() {
+        AppPreferences.setByokOnboardingCompleted(context, true)
+
+        assertTrue(AppPreferences.isOnboardingCompleted(context))
+    }
+
+    @Test
+    fun reminderNotificationAsk_isPendingUntilAskedOnce() {
+        assertFalse(AppPreferences.isReminderNotificationAskPending(context))
+
+        AppPreferences.setReminderNotificationAskPending(context, true)
+        assertTrue(AppPreferences.isReminderNotificationAskPending(context))
+
+        AppPreferences.setReminderNotificationAsked(context)
+        AppPreferences.setReminderNotificationAskPending(context, true)
+        assertFalse(AppPreferences.isReminderNotificationAskPending(context))
+    }
+
+    @Test
     fun autoAiEnabled_isOnForANewInstall() {
         setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L)
 

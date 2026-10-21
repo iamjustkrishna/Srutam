@@ -25,6 +25,10 @@ object AppPreferences {
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
+    private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+    private const val KEY_SAMPLE_NOTE_DISMISSED = "sample_note_dismissed"
+    private const val KEY_REMINDER_NOTIF_ASK_PENDING = "reminder_notif_ask_pending"
+    private const val KEY_REMINDER_NOTIF_ASKED = "reminder_notif_asked"
     private const val KEY_CAPTURE_SKIP_BANNER_DISMISS_COUNT = "capture_skip_banner_dismiss_count"
     private const val KEY_CAPTURE_SKIP_BANNER_DISMISSED = "capture_skip_banner_dismissed"
     private const val KEY_FIRST_RECORDING_NUDGE_SHOWN = "first_recording_nudge_shown"
@@ -226,6 +230,61 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
+            .apply()
+    }
+
+    /**
+     * Whether the user has finished first-run onboarding (intro pages and the dock step).
+     * Users who finished the older permissions + bring-your-own-key flow count as done.
+     */
+    fun isOnboardingCompleted(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false) ||
+            prefs.getBoolean(KEY_BYOK_ONBOARDING_COMPLETED, false)
+    }
+
+    fun setOnboardingCompleted(context: Context, completed: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ONBOARDING_COMPLETED, completed)
+            .putBoolean(KEY_BYOK_ONBOARDING_COMPLETED, completed)
+            .apply()
+    }
+
+    fun isSampleNoteDismissed(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_SAMPLE_NOTE_DISMISSED, false)
+    }
+
+    fun setSampleNoteDismissed(context: Context, dismissed: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SAMPLE_NOTE_DISMISSED, dismissed)
+            .apply()
+    }
+
+    /**
+     * Set when a reminder is scheduled while notifications are off, so the app asks for
+     * the permission the next time it is in the foreground. Asked at most once.
+     */
+    fun isReminderNotificationAskPending(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_REMINDER_NOTIF_ASK_PENDING, false) &&
+            !prefs.getBoolean(KEY_REMINDER_NOTIF_ASKED, false)
+    }
+
+    fun setReminderNotificationAskPending(context: Context, pending: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_REMINDER_NOTIF_ASK_PENDING, pending)
+            .apply()
+    }
+
+    fun setReminderNotificationAsked(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_REMINDER_NOTIF_ASKED, true)
+            .putBoolean(KEY_REMINDER_NOTIF_ASK_PENDING, false)
             .apply()
     }
 

@@ -362,13 +362,9 @@ class FloatingButtonService : Service() {
     }
 
     private fun startRecording() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Toast.makeText(this, "Microphone permission required to record", Toast.LENGTH_SHORT).show()
-            openMainActivity()
+        if (!MicPermission.isGranted(this)) {
+            Toast.makeText(this, "Allow the microphone to record", Toast.LENGTH_SHORT).show()
+            MicPermission.openAppToAsk(this, "dock")
             return
         }
 

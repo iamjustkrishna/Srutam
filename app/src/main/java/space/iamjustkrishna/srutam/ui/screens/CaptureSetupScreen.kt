@@ -1,10 +1,14 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseInOutCubic
@@ -101,7 +105,13 @@ import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkSecondary
 import space.iamjustkrishna.srutam.ui.theme.TextPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextSecondary
+import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.AppPreferences
+
+private fun needsNotificationPermission(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+        PackageManager.PERMISSION_GRANTED
 
 /**
  * First-launch capture activation screen that highlights the floating dock
@@ -130,6 +140,7 @@ fun CaptureSetupScreen(
     // Start service and advance when permission is newly detected
     fun onPermissionNewlyGranted() {
         if (!hasAdvanced) {
+            Analytics.permissionResult(context, "overlay", true, "dock")
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             AppPreferences.setFloatingDockEnabled(context, true)
             val serviceIntent = Intent(context, FloatingButtonService::class.java)
@@ -146,6 +157,30 @@ fun CaptureSetupScreen(
                 }
             }
         }
+    }
+
+    fun openOverlaySettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}")
+                )
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback without package URI if device doesn't support specific intent
+                val fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                context.startActivity(fallbackIntent)
+            }
+        } else {
+            isGranted = true
+            onPermissionNewlyGranted()
+        }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        Analytics.permissionResult(context, "notifications", granted, "dock")
+        openOverlaySettings()
     }
 
     // Auto-detect overlay permission upon returning to the app
@@ -289,23 +324,11 @@ fun CaptureSetupScreen(
                                 hasAdvanced = true
                                 onComplete()
                             }
+                        } else if (needsNotificationPermission(context)) {
+                            // The dock lives in a notification, so ask for notifications first.
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                try {
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        Uri.parse("package:${context.packageName}")
-                                    )
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    // Fallback without package URI if device doesn't support specific intent
-                                    val fallbackIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                                    context.startActivity(fallbackIntent)
-                                }
-                            } else {
-                                isGranted = true
-                                onPermissionNewlyGranted()
-                            }
+                            openOverlaySettings()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = buttonColor),

@@ -20,6 +20,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.cloud.CloudSyncManager
 import androidx.compose.ui.graphics.graphicsLayer
 import space.iamjustkrishna.srutam.service.FloatingButtonService
@@ -125,6 +126,9 @@ import space.iamjustkrishna.srutam.utils.NetworkUtils
 import space.iamjustkrishna.srutam.utils.RecordingNameFormatter
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
+import space.iamjustkrishna.srutam.ui.sample.SampleNoteCard
+import space.iamjustkrishna.srutam.ui.sample.SampleNoteDialog
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
@@ -547,6 +551,8 @@ fun FeedScreenContent(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isCloudSignedIn by remember { mutableStateOf(AppPreferences.isCloudSignedIn(context)) }
+    var sampleNoteDismissed by remember { mutableStateOf(AppPreferences.isSampleNoteDismissed(context)) }
+    var showSampleNote by remember { mutableStateOf(false) }
     val syncWorkInfos by remember(context) {
         CloudSyncManager.getSyncWorkInfoFlow(context)
     }.collectAsState(initial = emptyList())
@@ -1014,8 +1020,27 @@ fun FeedScreenContent(
                         }
                     } else if (selectedFilter == FeedFilter.UNPROCESSED) {
                         PendingAiEmptyState()
+                    } else if (SampleNote.shouldShow(hasRealNotes = audioFiles.isNotEmpty(), dismissed = sampleNoteDismissed)) {
+                        Column(Modifier.fillMaxSize()) {
+                            SampleNoteCard(
+                                onOpen = {
+                                    Analytics.sampleNoteOpened(context)
+                                    showSampleNote = true
+                                },
+                                onDismiss = {
+                                    Analytics.sampleNoteDismissed(context)
+                                    AppPreferences.setSampleNoteDismissed(context, true)
+                                    sampleNoteDismissed = true
+                                },
+                                modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp)
+                            )
+                            NotesEmptyState(Modifier.weight(1f))
+                        }
                     } else {
                         NotesEmptyState()
+                    }
+                    if (showSampleNote) {
+                        SampleNoteDialog(onDismiss = { showSampleNote = false })
                     }
                 } else {
                     AudioFilesList(

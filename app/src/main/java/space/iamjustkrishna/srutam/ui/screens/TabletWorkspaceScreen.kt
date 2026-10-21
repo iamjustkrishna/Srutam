@@ -1,5 +1,6 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import android.content.Intent
 import android.content.res.Configuration
 import android.widget.Toast
@@ -288,8 +289,8 @@ fun TabletWorkspaceLayout(
     val welcomeAudioInfo = remember {
         AudioFileInfo(
             filePath = "srutam://welcome",
-            fileName = "Welcome to Srutam.m4a",
-            duration = 90_000L,
+            fileName = "${SampleNote.TITLE}.m4a",
+            duration = SampleNote.DURATION_MS,
             timestamp = System.currentTimeMillis() - 86_400_000L,
             sizeBytes = 0L
         )
@@ -298,11 +299,12 @@ fun TabletWorkspaceLayout(
         Recording(
             id = Long.MIN_VALUE,
             audioFilePath = "srutam://welcome",
-            duration = 90_000L,
-            name = "Welcome to Srutam ✦",
-            summary = "Srutam is your AI-powered voice intelligence companion. It transcribes your voice notes in real-time, extracts key insights, action items, and decisions using on-device AI, and lets you search and query across all your notes with the built-in AI Copilot.",
-            wiifm = "You'll never lose a brilliant idea or miss a follow-up again. Srutam turns your spoken thoughts into structured, searchable, AI-enhanced notes — privately on your device.",
-            keyPoints = "[\"Record voice notes anywhere \u2014 in meetings, on walks, or brainstorming sessions\",\"Get automatic AI summaries, key points, action items, and decisions\",\"Search and query across all notes with Srutam AI Copilot\",\"Works with on-device transcription for full privacy\",\"Premium dark/light cosmic design with smooth animations\"]",
+            duration = SampleNote.DURATION_MS,
+            name = SampleNote.TITLE,
+            transcript = SampleNote.TRANSCRIPT,
+            summary = SampleNote.SUMMARY,
+            wiifm = SampleNote.WIIFM,
+            keyPoints = SampleNote.keyPointsJson,
             isProcessing = false,
             aiStatus = RecordingAiStatus.READY
         )

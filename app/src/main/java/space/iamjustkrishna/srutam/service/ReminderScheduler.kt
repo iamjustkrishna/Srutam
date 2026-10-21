@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import space.iamjustkrishna.srutam.data.ReminderEntity
+import space.iamjustkrishna.srutam.utils.AppPreferences
 
 class AndroidReminderAlarms(private val context: Context) : ReminderAlarmService {
     override fun schedule(reminder: ReminderEntity) = ReminderScheduler.scheduleReminder(context, reminder)
@@ -18,7 +19,11 @@ object ReminderScheduler {
     fun scheduleReminder(context: Context, reminder: ReminderEntity): String? {
         val now = System.currentTimeMillis()
         if (!ReminderPolicy.canSchedule(reminder, now)) return null
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return "Notifications are disabled. Enable them in system settings, then retry."
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            // Notifications are asked for at the first reminder; the app asks next time it's open.
+            AppPreferences.setReminderNotificationAskPending(context, true)
+            return "Notifications are disabled. Enable them in system settings, then retry."
+        }
         val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
             ?: return "Could not access reminder scheduling. Retry."
         return try {

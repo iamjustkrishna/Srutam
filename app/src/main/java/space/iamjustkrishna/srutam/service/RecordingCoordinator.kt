@@ -96,6 +96,11 @@ object RecordingCoordinator {
      * Returns true if the request was accepted and dispatched, false if rejected due to an existing session.
      */
     fun requestStart(context: Context, source: String = "unknown"): Boolean {
+        if (!MicPermission.isGranted(context)) {
+            logW("No microphone permission; opening the app to ask (source=$source)")
+            MicPermission.openAppToAsk(context, source)
+            return false
+        }
         synchronized(sessionLock) {
             if (_state.value !is RecordingSessionState.Idle) {
                 logW("Rejecting requestStart: current state is ${_state.value}")
