@@ -34,7 +34,10 @@ object CloudSyncManager {
      */
     fun enqueueSync(context: Context, forceAll: Boolean = false) {
         if (!AppPreferences.isCloudSignedIn(context)) return
-        if (!forceAll && !AppPreferences.isAutoCloudSyncEnabled(context)) return
+        // A pending restore runs even with auto-sync off: it's what brings the notes back.
+        if (!forceAll && !AppPreferences.isAutoCloudSyncEnabled(context) &&
+            !AppPreferences.isCloudRestorePending(context)
+        ) return
 
         CoroutineScope(Dispatchers.IO).launch {
             if (forceAll) {

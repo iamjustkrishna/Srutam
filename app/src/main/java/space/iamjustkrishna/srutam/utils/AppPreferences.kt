@@ -481,6 +481,10 @@ object AppPreferences {
     // ==============================================================================
 
     private const val KEY_CLOUD_USER_ID = "cloud_user_id"
+    private const val KEY_CLOUD_RESTORE_PENDING = "cloud_restore_pending"
+    private const val KEY_RESTORE_SUMMARY_RESTORED = "restore_summary_restored"
+    private const val KEY_RESTORE_SUMMARY_WITHOUT_AUDIO = "restore_summary_without_audio"
+    private const val KEY_RESTORE_SUMMARY_SHOWN = "restore_summary_shown"
     private const val KEY_CLOUD_USER_EMAIL = "cloud_user_email"
     private const val KEY_CLOUD_ACCESS_TOKEN = "cloud_access_token"
     private const val KEY_CLOUD_REFRESH_TOKEN = "cloud_refresh_token"
@@ -537,14 +541,51 @@ object AppPreferences {
         accessToken: String,
         refreshToken: String?
     ) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // A fresh sign-in (not a token refresh) pulls the account's notes back before anything uploads.
+        val freshSignIn = prefs.getString(KEY_CLOUD_ACCESS_TOKEN, null).isNullOrBlank() ||
+            prefs.getString(KEY_CLOUD_USER_ID, null) != userId
+        prefs
             .edit()
+            .apply { if (freshSignIn) putBoolean(KEY_CLOUD_RESTORE_PENDING, true) }
             .putString(KEY_CLOUD_USER_ID, userId)
             .putString(KEY_CLOUD_USER_EMAIL, email)
             .putString(KEY_CLOUD_ACCESS_TOKEN, accessToken)
             .putString(KEY_CLOUD_REFRESH_TOKEN, refreshToken)
             .apply()
         _cloudAuthStateFlow.value = true
+    }
+
+    /** True from a fresh sign-in until the cloud restore has finished; uploads wait for it. */
+    fun isCloudRestorePending(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_CLOUD_RESTORE_PENDING, false)
+
+    fun setCloudRestorePending(context: Context, pending: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_CLOUD_RESTORE_PENDING, pending)
+            .apply()
+    }
+
+    /** The last restore's result for the one-time "Restored 42 notes · 5 without audio" message. */
+    fun setRestoreSummary(context: Context, restored: Int, withoutAudio: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_RESTORE_SUMMARY_RESTORED, restored)
+            .putInt(KEY_RESTORE_SUMMARY_WITHOUT_AUDIO, withoutAudio)
+            .putBoolean(KEY_RESTORE_SUMMARY_SHOWN, false)
+            .apply()
+    }
+
+    /** Returns (restored, withoutAudio) once, then null until the next restore. */
+    fun consumeRestoreSummary(context: Context): Pair<Int, Int>? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_RESTORE_SUMMARY_SHOWN, true)) return null
+        val restored = prefs.getInt(KEY_RESTORE_SUMMARY_RESTORED, 0)
+        val withoutAudio = prefs.getInt(KEY_RESTORE_SUMMARY_WITHOUT_AUDIO, 0)
+        prefs.edit().putBoolean(KEY_RESTORE_SUMMARY_SHOWN, true).apply()
+        return if (restored > 0) restored to withoutAudio else null
     }
 
     fun clearCloudSession(context: Context) {
@@ -554,6 +595,7 @@ object AppPreferences {
             .remove(KEY_CLOUD_USER_EMAIL)
             .remove(KEY_CLOUD_ACCESS_TOKEN)
             .remove(KEY_CLOUD_REFRESH_TOKEN)
+            .remove(KEY_CLOUD_RESTORE_PENDING)
             .apply()
         _cloudAuthStateFlow.value = false
     }

@@ -30,6 +30,18 @@ class CloudSyncWorker(
 
         var hasFailures = false
 
+        // 0. After a fresh sign-in, pull the account's notes back first. Nothing uploads until
+        //    this has finished, so a reinstalled phone can't push duplicates of notes the cloud has.
+        if (AppPreferences.isCloudRestorePending(applicationContext)) {
+            val restore = CloudRestore(applicationContext, database, client).run()
+            if (restore.isFailure) {
+                return@withContext if (runAttemptCount < 5) Result.retry() else Result.failure()
+            }
+            val summary = restore.getOrThrow()
+            AppPreferences.setRestoreSummary(applicationContext, summary.restored, summary.withoutAudio)
+            AppPreferences.setCloudRestorePending(applicationContext, false)
+        }
+
         // 1. Push pending recordings & action items to cloud
         try {
             val pending = recordingDao.getPendingSyncRecordings()

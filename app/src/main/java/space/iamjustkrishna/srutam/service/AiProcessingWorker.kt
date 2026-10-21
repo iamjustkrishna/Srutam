@@ -33,6 +33,7 @@ import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.data.ReminderDao
 import space.iamjustkrishna.srutam.data.ReminderEntity
 import space.iamjustkrishna.srutam.data.ReminderStatus
+import space.iamjustkrishna.srutam.data.NoteSource
 import space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker
 import space.iamjustkrishna.srutam.utils.NetworkUtils
 import java.io.File
@@ -82,6 +83,12 @@ class AiProcessingWorker(
         var offlinePendingCount = 0
 
         for ((index, recordingId) in recordingIds.withIndex()) {
+            // A sign-in restore that lands while this note is processing wins: the cloud copy is the
+            // original (with any agent edits), so this run's result is thrown away.
+            val startedAt = System.currentTimeMillis()
+            suspend fun cloudTookOver(): Boolean = recordingDao.getRecordingById(recordingId)?.let {
+                it.contentSource == NoteSource.CLOUD && (it.lastSyncedAt ?: 0L) >= startedAt
+            } == true
             var recording = recordingDao.getRecordingById(recordingId)
             if (recording == null) {
                 Log.w(TAG, "Recording ID $recordingId not found in database")
@@ -129,6 +136,7 @@ class AiProcessingWorker(
                         )
                     )
                     transcript = aiProcessor.transcribeAudio(audioFile)
+                    if (cloudTookOver()) continue
                     recording = recording.copy(transcript = transcript)
                     recordingDao.updateRecording(recording)
                     Log.d(TAG, "Local transcription complete for note $recordingId")
@@ -186,6 +194,7 @@ class AiProcessingWorker(
                     max = totalCount * 2
                 )
 
+                if (cloudTookOver()) continue
                 try {
                     recordingDao.updateRecording(
                         recording.copy(
@@ -208,6 +217,7 @@ class AiProcessingWorker(
                         recording.name
                     }
 
+                    if (cloudTookOver()) continue
                     space.iamjustkrishna.srutam.repository.InsightsRepository.from(applicationContext)
                         .merge(recording.id, insights)
 
@@ -237,6 +247,7 @@ class AiProcessingWorker(
                     Log.e(TAG, "Failed to generate AI insights for note $recordingId", e)
                     try {
                         val fallback = aiProcessor.generateFallbackInsights(transcript)
+                        if (cloudTookOver()) continue
                         val updatedName = if (recording.name.isBlank() ||
                             recording.name == "Voice Note" ||
                             recording.name.startsWith("Voice note", ignoreCase = true)

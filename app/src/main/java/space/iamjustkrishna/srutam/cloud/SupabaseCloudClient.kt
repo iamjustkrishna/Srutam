@@ -121,6 +121,50 @@ class SupabaseCloudClient(
         }
     }
 
+    /** The note's stable identity and topics (migration 09). The embedding is never sent, so it's never wiped. */
+    private fun addIdentity(json: JsonObject, recording: Recording) {
+        json.addProperty("note_uuid", recording.noteUuid)
+        json.addProperty("audio_hash", recording.audioHash)
+        json.addProperty("client_updated_at", formatIso8601(recording.updatedAt))
+        val topics = try {
+            recording.topics?.takeIf { it.isNotBlank() }?.let { JsonParser.parseString(it) }?.takeIf { it.isJsonArray }
+        } catch (e: Exception) {
+            null
+        }
+        json.add("topics", topics ?: JsonArray())
+    }
+
+    /**
+     * Reads every row of [table] the signed-in user can see, a page at a time.
+     * [select] is a PostgREST column list.
+     */
+    suspend fun fetchAll(table: String, select: String, pageSize: Int = 500): Result<List<JsonObject>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val rows = mutableListOf<JsonObject>()
+                var offset = 0
+                while (true) {
+                    val request = Request.Builder()
+                        .url("$baseUrl/rest/v1/$table?select=$select&order=id.asc&limit=$pageSize&offset=$offset")
+                        .get()
+                    getAuthHeaders(request)
+                    val page = client.newCall(request.build()).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            val err = response.body?.string() ?: "HTTP ${response.code}"
+                            return@withContext Result.failure(Exception("Failed to read $table: $err"))
+                        }
+                        JsonParser.parseString(response.body?.string() ?: "[]").asJsonArray
+                    }
+                    page.forEach { rows.add(it.asJsonObject) }
+                    if (page.size() < pageSize) break
+                    offset += pageSize
+                }
+                Result.success(rows)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     /**
      * Uploads or syncs a voice recording and its action items to Supabase.
      * Returns the Supabase UUID string of the note.
@@ -145,6 +189,7 @@ class SupabaseCloudClient(
                 addProperty("duration_ms", recording.duration)
                 addProperty("is_private", recording.isPrivate)
                 addProperty("timestamp", formatIso8601(recording.timestamp))
+                addIdentity(this, recording)
 
                 // Parse keyPoints JSON array safely
                 try {
@@ -172,6 +217,8 @@ class SupabaseCloudClient(
                     addProperty("duration_ms", recording.duration)
                     addProperty("is_private", recording.isPrivate)
                     addProperty("updated_at", formatIso8601(System.currentTimeMillis()))
+                    // Fills in the stable id on rows uploaded before 2.6.0.
+                    addIdentity(this, recording)
                     try {
                         if (!recording.keyPoints.isNullOrBlank()) {
                             add("key_points", JsonParser.parseString(recording.keyPoints))
@@ -196,9 +243,11 @@ class SupabaseCloudClient(
                 }
                 noteId = cloudId
             } else {
+                // Upsert on the note's stable id: a re-upload after a reinstall updates the
+                // existing row instead of adding a duplicate (migration 09).
                 val postRequest = Request.Builder()
-                    .url("$baseUrl/rest/v1/notes")
-                    .addHeader("Prefer", "return=representation")
+                    .url("$baseUrl/rest/v1/notes?on_conflict=user_id,note_uuid")
+                    .addHeader("Prefer", "resolution=merge-duplicates,return=representation")
                     .post(noteJson.toString().toRequestBody(jsonMediaType))
                 getAuthHeaders(postRequest)
 
