@@ -1,6 +1,7 @@
 package space.iamjustkrishna.srutam
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -162,13 +164,29 @@ fun SrutamApp(
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         val granted = results[Manifest.permission.RECORD_AUDIO] == true
         val source = micRequestSource ?: "in_app"
-        Analytics.permissionResult(context, "mic", granted, source)
+        if (granted) Analytics.permissionResult(context, "mic", true, source)
         onMicRequestHandled()
         if (granted) {
             QuickRecordNotification.restoreIdle(context)
             RecordingCoordinator.requestStart(context, source)
         } else {
-            Toast.makeText(context, "Srutam needs the microphone to record", Toast.LENGTH_SHORT).show()
+            // No rationale after a denial means Android won't ask again: only Settings can turn it on.
+            val blocked = (context as? Activity)?.let {
+                !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.RECORD_AUDIO)
+            } ?: false
+            if (blocked) {
+                Analytics.log(context, Analytics.EVENT_PERMISSION_RESULT, mapOf(
+                    Analytics.PARAM_PERMISSION to "mic", Analytics.PARAM_RESULT to "blocked", Analytics.PARAM_TRIGGER to source
+                ))
+                Toast.makeText(
+                    context,
+                    "Microphone is off for Srutam. Turn it on in Settings › Apps › Srutam › Permissions.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Analytics.permissionResult(context, "mic", false, source)
+                Toast.makeText(context, "Srutam needs the microphone to record. Tap record again to allow it.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 

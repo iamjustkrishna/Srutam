@@ -363,7 +363,7 @@ class FloatingButtonService : Service() {
 
     private fun startRecording() {
         if (!MicPermission.isGranted(this)) {
-            Toast.makeText(this, "Allow the microphone to record", Toast.LENGTH_SHORT).show()
+            // The app asks, or explains how to turn the mic on if it's blocked.
             MicPermission.openAppToAsk(this, "dock")
             return
         }

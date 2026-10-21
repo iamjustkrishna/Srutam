@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.MainActivity
 
@@ -35,6 +36,10 @@ object MicPermission {
             context.startActivity(requestIntent(context, source))
         } catch (e: Exception) {
             Log.w(TAG, "Could not open the app to ask for the microphone", e)
+            // Can't reach the app from here: at least say what's wrong.
+            runCatching {
+                Toast.makeText(context, "Open Srutam and allow the microphone to record.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

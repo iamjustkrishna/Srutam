@@ -475,7 +475,7 @@ fun DeleteConfirmationDialog(
         subtitle = if (everything) {
             "Permanently delete \"$recordingName\" and its linked insights, tasks, and reminders? Notifications will be cancelled. This cannot be undone."
         } else {
-            "Delete the audio of \"$recordingName\"? Its transcript, insights, tasks, and reminders are kept. This cannot be undone."
+            "Delete only the audio of \"$recordingName\"? The note stays in your feed as text, with its transcript, insights, tasks and reminders. The audio can't be recovered."
         },
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
@@ -538,7 +538,7 @@ fun MultiDeleteConfirmationDialog(
         subtitle = if (deleteContent) {
             "Permanently delete these recordings and their linked insights, tasks, and reminders. Their notifications will be cancelled:"
         } else {
-            "Delete the audio of these recordings? Their transcripts, insights, tasks, and reminders are kept:"
+            "Delete the audio of these recordings? They stay in your feed as text, with their transcripts, insights, tasks and reminders:"
         },
         icon = Icons.Outlined.Delete,
         badgeType = DialogBadgeType.DESTRUCTIVE,
