@@ -117,4 +117,25 @@ class NoteSignatureTest {
     @Test fun aFileWithoutABlockIsNotRestored() = runBlocking {
         assertNull(NoteSignature.restoreFromFile(after, audio))
     }
+
+    /** 2.6.0 release builds were shrunk by R8 without a keep rule and wrote one-letter names. */
+    @Test fun aBlockWrittenWithShrunkNamesStillRestores() = runBlocking {
+        val shrunk = """{"a":"uuid-old","b":"hash","c":"GitHub plan","d":1000,"e":60000,"f":null,
+            |"g":"the transcript","h":"The speaker aims to maximize","i":"[\"x\"]","j":null,"k":null,"l":null,
+            |"m":"READY","n":2000,
+            |"o":[{"id":"t1","recordingId":5,"recordingName":"GitHub plan","kind":"ACTION","text":"Apply for the pack","status":"OPEN","createdAt":1,"sourceOrder":0}],
+            |"p":[]}""".trimMargin()
+        NoteBlock.write(audio, shrunk)
+
+        val id = NoteSignature.restoreFromFile(after, audio)
+
+        assertNotNull(id)
+        val note = after.recordingDao().getRecordingById(id!!)!!
+        assertEquals("uuid-old", note.noteUuid)
+        assertEquals("The speaker aims to maximize", note.summary)
+        assertEquals(RecordingAiStatus.READY, note.aiStatus)
+        val task = after.insightDao().getInsightsByRecordingId(id).single()
+        assertEquals("Apply for the pack", task.text)
+        assertEquals(InsightKind.ACTION, task.kind)
+    }
 }

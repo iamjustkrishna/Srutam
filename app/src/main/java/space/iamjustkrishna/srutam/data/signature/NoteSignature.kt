@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.InsightEntity
 import space.iamjustkrishna.srutam.data.NoteSource
@@ -22,25 +23,31 @@ import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/** What a note's block holds: everything needed to rebuild the note without AI. */
+/**
+ * What a note's block holds: everything needed to rebuild the note without AI.
+ *
+ * Kept from R8 (proguard-rules.pro), because the JSON's names must not change between app
+ * versions. 2.6.0 builds were shrunk without that rule and wrote one-letter names in field
+ * order; the alternates read those blocks.
+ */
 data class NotePayload(
     val v: Int = 1,
-    val noteUuid: String,
-    val audioHash: String?,
-    val name: String,
-    val timestamp: Long,
-    val duration: Long,
-    val recordedZoneId: String?,
-    val transcript: String?,
-    val summary: String?,
-    val keyPoints: String?,
-    val actionItems: String?,
-    val wiifm: String?,
-    val topics: String?,
-    val aiStatus: String,
-    val updatedAt: Long,
-    val insights: List<InsightEntity>,
-    val reminders: List<ReminderEntity>
+    @SerializedName("noteUuid", alternate = ["a"]) val noteUuid: String,
+    @SerializedName("audioHash", alternate = ["b"]) val audioHash: String?,
+    @SerializedName("name", alternate = ["c"]) val name: String,
+    @SerializedName("timestamp", alternate = ["d"]) val timestamp: Long,
+    @SerializedName("duration", alternate = ["e"]) val duration: Long,
+    @SerializedName("recordedZoneId", alternate = ["f"]) val recordedZoneId: String?,
+    @SerializedName("transcript", alternate = ["g"]) val transcript: String?,
+    @SerializedName("summary", alternate = ["h"]) val summary: String?,
+    @SerializedName("keyPoints", alternate = ["i"]) val keyPoints: String?,
+    @SerializedName("actionItems", alternate = ["j"]) val actionItems: String?,
+    @SerializedName("wiifm", alternate = ["k"]) val wiifm: String?,
+    @SerializedName("topics", alternate = ["l"]) val topics: String?,
+    @SerializedName("aiStatus", alternate = ["m"]) val aiStatus: String,
+    @SerializedName("updatedAt", alternate = ["n"]) val updatedAt: Long,
+    @SerializedName("insights", alternate = ["o"]) val insights: List<InsightEntity>,
+    @SerializedName("reminders", alternate = ["p"]) val reminders: List<ReminderEntity>
 )
 
 /**

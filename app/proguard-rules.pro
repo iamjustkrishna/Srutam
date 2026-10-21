@@ -73,3 +73,8 @@
 # Srutam AI chat history is saved as JSON with Gson
 -keep class space.iamjustkrishna.srutam.ai.copilot.** { *; }
 -keep class kotlin.Pair { *; }
+
+# Note blocks stored inside recordings (data.signature) and merge files (cloud.MergeBase) are
+# Gson JSON that must read back in later app versions: keep their names and generic types.
+-keep class space.iamjustkrishna.srutam.data.signature.NotePayload { *; }
+-keep class space.iamjustkrishna.srutam.cloud.RestoreMerge$Conflict { *; }
