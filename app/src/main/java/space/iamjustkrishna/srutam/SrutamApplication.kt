@@ -38,6 +38,10 @@ class SrutamApplication : Application() {
                     context = this@SrutamApplication,
                     recordingDao = database.recordingDao()
                 )
+                // Older notes get AI topics once, so recurring themes cover them too.
+                if (database.recordingDao().getNotesWithoutTopics(1).isNotEmpty()) {
+                    space.iamjustkrishna.srutam.service.TopicBackfillWorker.enqueue(this@SrutamApplication)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {

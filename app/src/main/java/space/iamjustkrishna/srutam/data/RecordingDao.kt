@@ -88,4 +88,11 @@ interface RecordingDao {
     /** Records that the note's content changed, for merges between the file block and the cloud. */
     @Query("UPDATE recordings SET updatedAt = :updatedAt WHERE id = :id")
     suspend fun touch(id: Long, updatedAt: Long)
+
+    /** Finished notes that have no topics yet, oldest first. */
+    @Query("SELECT * FROM recordings WHERE topics IS NULL AND aiStatus = 'READY' AND summary IS NOT NULL AND summary != '' ORDER BY timestamp ASC LIMIT :limit")
+    suspend fun getNotesWithoutTopics(limit: Int): List<Recording>
+
+    @Query("UPDATE recordings SET topics = :topics WHERE id = :id")
+    suspend fun setTopics(id: Long, topics: String)
 }

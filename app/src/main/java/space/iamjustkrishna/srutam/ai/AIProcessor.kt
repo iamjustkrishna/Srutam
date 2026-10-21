@@ -167,6 +167,7 @@ class AIProcessor(private val context: Context) {
             Required output format (JSON):
             {
               "title": "Concise 2 to 4 word topic title (e.g. Design Sync, Budget Review, Apartment Hunt)",
+              "topics": ["2 to 4 real subjects this note is about, 1 to 3 words each (e.g. Apartment hunt, Team hiring, Product launch)"],
               "summary": "Executive Summary in exactly 2 sentences maximum. First sentence states the main topic. Second sentence highlights the key takeaway.",
               "keyPoints": [
                 "Key insight 1 - specific and actionable",
@@ -208,6 +209,7 @@ class AIProcessor(private val context: Context) {
             - Ideas: 0-4 distinct proposals, concepts, or thoughts worth remembering. Empty array [] if none.
             - Decisions: Only include explicit conclusions, choices, or agreements made in the transcript. Empty array [] if none.
             - Reminders: Extract only explicitly mentioned events, deadlines or target dates. timeDescription MUST be a verbatim quote from the original transcript. Never invent a time for a date-only mention. Use MILESTONE for projections/strategic goals. All are suggestions requiring confirmation. Empty array [] if none.
+            - Topics: 2-4 concrete subjects that would group this note with other notes on the same subject over weeks (a project, a person, a goal, a place). Never filler or speech habits ("right now", "kind of", "today", "thing"), and never generic labels ("Work", "Life", "Thoughts", "Meeting", "Ideas").
             - WIIFM: Must start with "What's In It For Me:", explain personal utility and value.
             - summary, keyPoints, and wiifm must be present and non-empty. actionItems, ideas, decisions, and reminders may be empty [].
         """.trimIndent()
@@ -323,6 +325,9 @@ class AIProcessor(private val context: Context) {
 
             AIInsights(
                 title = (jsonObject["title"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                topics = space.iamjustkrishna.srutam.viewmodel.ThemeClusterEngine.cleanTopics(
+                    (jsonObject["topics"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+                ),
                 summary = jsonObject["summary"] as? String ?: "Summary not available",
                 keyPoints = rawKeyPoints,
                 actionItems = rawActionItems,
@@ -380,6 +385,8 @@ class AIProcessor(private val context: Context) {
 
     data class AIInsights(
         val title: String? = null,
+        /** 2-4 subjects the note is about; recurring themes group notes by these. */
+        val topics: List<String> = emptyList(),
         val summary: String,
         val keyPoints: List<String>,
         val actionItems: List<String>,
@@ -445,6 +452,37 @@ class AIProcessor(private val context: Context) {
     }
 
     /** Sends a fully built prompt to the configured provider. Used by the tool-using AI chat. */
+    /**
+     * Tags older notes with topics in one cheap call. [notes] maps a note id to its summary and
+     * key points. Returns the cleaned topics per note id; notes the reply skips are left out.
+     */
+    suspend fun suggestTopics(notes: Map<Long, String>): Map<Long, List<String>> = withContext(Dispatchers.IO) {
+        if (notes.isEmpty()) return@withContext emptyMap()
+        val listed = notes.entries.joinToString("\n\n") { (id, text) -> "Note $id:\n${text.take(600)}" }
+        val prompt = """
+            For each voice note below, give 2 to 4 concrete topics it is about, 1 to 3 words each
+            (e.g. "Apartment hunt", "Team hiring", "Product launch"). Use the same wording for the same
+            subject across notes. Never filler ("right now", "kind of", "today") or generic labels
+            ("Work", "Life", "Thoughts", "Meeting", "Ideas").
+
+            $listed
+
+            Reply with JSON only, mapping each note number to its topics:
+            {"<note number>": ["Topic", "Topic"]}
+        """.trimIndent()
+        val reply = getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS)
+        val json = if (reply.contains("```")) reply.substringAfter("```").removePrefix("json").substringBefore("```") else reply
+        val parsed = gson.fromJson(json.trim(), Map::class.java) ?: return@withContext emptyMap()
+        parsed.entries.mapNotNull { (key, value) ->
+            val id = key?.toString()?.trim()?.toLongOrNull() ?: return@mapNotNull null
+            if (id !in notes) return@mapNotNull null
+            val topics = space.iamjustkrishna.srutam.viewmodel.ThemeClusterEngine.cleanTopics(
+                (value as? List<*>)?.mapNotNull { it as? String } ?: emptyList()
+            )
+            if (topics.isEmpty()) null else id to topics
+        }.toMap()
+    }
+
     suspend fun generateRaw(prompt: String): String = withContext(Dispatchers.IO) {
         try {
             getLlmClient().generateText(prompt, QUERY_TIMEOUT_MS).trim()

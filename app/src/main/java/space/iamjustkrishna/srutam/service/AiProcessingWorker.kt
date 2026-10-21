@@ -233,7 +233,8 @@ class AiProcessingWorker(
                         syncStatus = space.iamjustkrishna.srutam.data.SyncStatus.PENDING,
                         processingError = null,
                         updatedAt = System.currentTimeMillis(),
-                        contentSource = space.iamjustkrishna.srutam.data.NoteSource.AI
+                        contentSource = space.iamjustkrishna.srutam.data.NoteSource.AI,
+                        topics = insights.topics.takeIf { it.isNotEmpty() }?.let { gson.toJson(it) } ?: recording.topics
                     )
                     recordingDao.updateRecording(finishedRecording)
                     NoteSignatureWorker.enqueue(applicationContext, finishedRecording.id)

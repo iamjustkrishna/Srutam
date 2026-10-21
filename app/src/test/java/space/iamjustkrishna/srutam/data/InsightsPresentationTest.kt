@@ -28,7 +28,7 @@ class InsightsPresentationTest {
 
     @Test fun themesRequireDistinctNotesAndDoNotInventPhrasesAcrossStopWords() {
         val notes = (1L..3L).map { Recording(id = it, audioFilePath = "$it", name = "Recording",
-            transcript = "Product strategy. Budget and planning. Future life work.", timestamp = it) }
+            summary = "Product strategy. Budget and planning. Future life work.", timestamp = it) }
         val themes = ThemeClusterEngine.build(notes, emptySet())
         assertEquals(1, themes.size)
         assertEquals("product strategy", themes.single().key)
@@ -52,7 +52,7 @@ class InsightsPresentationTest {
             name = "No Audible Speech Detected", transcript = "No audible speech detected.",
             summary = "Audio captured offline and ready for AI insights when connected.", timestamp = it) }
         assertTrue(ThemeClusterEngine.build(notes, emptySet()).isEmpty())
-        val realNotes = notes.map { it.copy(transcript = "Speech recognition research.") }
+        val realNotes = notes.map { it.copy(summary = "Speech recognition research.") }
         assertEquals("speech recognition research", ThemeClusterEngine.build(realNotes, emptySet()).single().key)
     }
 }
