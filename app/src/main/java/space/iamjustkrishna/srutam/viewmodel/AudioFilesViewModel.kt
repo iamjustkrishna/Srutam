@@ -49,6 +49,7 @@ import java.io.File
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.signature.BlockWriteAccess
 import space.iamjustkrishna.srutam.data.signature.NoteSignature
+import space.iamjustkrishna.srutam.cloud.MergeBase
 import space.iamjustkrishna.srutam.cloud.isTextOnly
 import space.iamjustkrishna.srutam.repository.InsightsRepository
 
@@ -79,6 +80,8 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
      * Recordings from a previous install with no note saved inside them, held back from AI until
      * the user picks: sign in and restore them from Srutam Cloud, or process them with AI.
      */
+    private val mergeBase by lazy { MergeBase(getApplication<Application>()) }
+
     private val _foundRecordings = MutableStateFlow(0)
     val foundRecordings: StateFlow<Int> = _foundRecordings.asStateFlow()
 
@@ -451,7 +454,8 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         for (audioFile in files) {
             if (known.containsKey(audioFile.filePath)) continue
             if (repository.getRecordingByPath(audioFile.filePath) != null) continue
-            val id = runCatching { NoteSignature.restoreFromFile(database, File(audioFile.filePath)) }
+            // The restored block is the merge base for a later sign-in (edits made before it get merged, not overwritten).
+            val id = runCatching { NoteSignature.restoreFromFile(database, File(audioFile.filePath)) { mergeBase.save(it) } }
                 .onFailure { Log.w(TAG, "Could not restore ${audioFile.fileName} from its note block", it) }
                 .getOrNull() ?: continue
             repository.getRecordingById(id)?.let { restored[audioFile.filePath] = it }

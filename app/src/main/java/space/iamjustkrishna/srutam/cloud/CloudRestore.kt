@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.flow.first
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.InsightEntity
@@ -16,6 +17,7 @@ import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.data.ReminderEntity
 import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.data.SyncStatus
+import space.iamjustkrishna.srutam.data.signature.NotePayload
 import space.iamjustkrishna.srutam.data.signature.NoteSignatureWorker
 import space.iamjustkrishna.srutam.repository.InsightsRepository
 import space.iamjustkrishna.srutam.service.ReminderScheduler
@@ -37,7 +39,8 @@ class CloudRestore(
         AudioFileReader.getAudioFiles().map {
             LocalAudio(it.filePath, RecordingFileNames.titleOf(it.fileName), it.timestamp, it.duration)
         }
-    }
+    },
+    private val mergeBase: MergeBase = MergeBase(context)
 ) {
 
     data class Summary(val restored: Int, val withoutAudio: Int)
@@ -125,7 +128,12 @@ class CloudRestore(
                 continue
             }
 
-            when (RestoreMerge.winner(local, cloud)) {
+            // Restored from its recording: merge both sides' changes against that block, like git.
+            val base = if (local.contentSource == NoteSource.FILE) mergeBase.load(local.noteUuid) else null
+            if (base != null) {
+                mergeThreeWay(local, cloud, base, children, uuidFor(local, cloud), now)
+                restored++
+            } else when (RestoreMerge.winner(local, cloud)) {
                 RestoreMerge.Winner.CLOUD -> database.withTransaction {
                     dao.updateRecording(
                         fromCloud(cloud, local.audioFilePath, now).copy(
@@ -135,8 +143,16 @@ class CloudRestore(
                             recordedZoneId = local.recordedZoneId
                         )
                     )
-                    // Extras made by a re-run of AI after the reinstall are duplicates of the cloud's.
-                    replaceChildren(local.id, cloud.title, children, keepLocalExtras = local.contentSource != NoteSource.AI)
+                    // Extras made by a re-run of AI after the reinstall are duplicates of the cloud's,
+                    // but a task done on one of them before signing in stays done on the cloud's.
+                    val reprocessed = local.contentSource == NoteSource.AI
+                    replaceChildren(
+                        local.id,
+                        cloud.title,
+                        children,
+                        keepLocalExtras = !reprocessed,
+                        matchByText = reprocessed
+                    )
                     restored++
                 }
                 RestoreMerge.Winner.LOCAL -> database.withTransaction {
@@ -258,13 +274,24 @@ class CloudRestore(
      * "done" on either side is kept. Local rows the cloud doesn't have are dropped unless
      * [keepLocalExtras].
      */
-    private suspend fun replaceChildren(recordingId: Long, name: String, cloud: Children, keepLocalExtras: Boolean) {
+    private suspend fun replaceChildren(
+        recordingId: Long,
+        name: String,
+        cloud: Children,
+        keepLocalExtras: Boolean,
+        matchByText: Boolean = false
+    ) {
         val insightDao = database.insightDao()
         val reminderDao = database.reminderDao()
         val localInsights = insightDao.getInsightsByRecordingId(recordingId).associateBy { it.id }
         val localReminders = reminderDao.getRemindersByRecordingId(recordingId).associateBy { it.id }
+        val cloudInsights = if (matchByText) {
+            RestoreMerge.carryProgressByText(localInsights.values.toList(), cloud.insights)
+        } else {
+            cloud.insights
+        }
 
-        insightDao.insertInsights(cloud.insights.map { remote ->
+        insightDao.insertInsights(cloudInsights.map { remote ->
             val status = localInsights[remote.id]?.let { RestoreMerge.mostProgressedInsight(remote.status, it.status) } ?: remote.status
             remote.copy(recordingId = recordingId, recordingName = name, status = status)
         })
@@ -281,6 +308,89 @@ class CloudRestore(
                 reminderDao.delete(it)
             }
         }
+    }
+
+    /**
+     * Merges a note restored from its recording with its cloud copy, using the restored block as
+     * the common ancestor: a change on only one side is kept, a field both sides changed goes to
+     * the newer edit (the other value is kept in [MergeBase]'s conflicts), and tasks, ideas and
+     * reminders merge by id with statuses only moving forward. The result uploads afterwards.
+     */
+    private suspend fun mergeThreeWay(
+        local: Recording,
+        cloud: CloudNote,
+        base: NotePayload,
+        children: Children,
+        noteUuid: String,
+        now: Long
+    ) {
+        val sides = RestoreMerge.Sides(
+            phoneNewer = local.updatedAt >= cloud.updatedAtMs,
+            cloudMovedOn = cloud.updatedAtMs > base.updatedAt,
+            now = now
+        )
+        // JSON lists compare by value: the cloud's jsonb may be spaced differently from the phone's text.
+        fun json(text: String?): String? = text?.let { runCatching { JsonParser.parseString(it).toString() }.getOrDefault(it) }
+        val merged = RestoreMerge.mergeContent(
+            base = RestoreMerge.NoteContent(base.name, base.transcript, base.summary, json(base.keyPoints), base.wiifm, json(base.topics), local.isPrivate),
+            phone = RestoreMerge.NoteContent(local.name, local.transcript, local.summary, json(local.keyPoints), local.wiifm, json(local.topics), local.isPrivate),
+            cloud = RestoreMerge.NoteContent(cloud.title, cloud.transcript, cloud.summary, json(cloud.keyPoints), cloud.wiifm, json(cloud.topics), cloud.isPrivate),
+            sides = sides
+        )
+        val insightDao = database.insightDao()
+        val reminderDao = database.reminderDao()
+        val conflicts = merged.conflicts.toMutableList()
+        database.withTransaction {
+            val content = merged.content
+            database.recordingDao().updateRecording(
+                local.copy(
+                    name = content.title,
+                    transcript = content.transcript,
+                    summary = content.summary,
+                    keyPoints = content.keyPoints,
+                    wiifm = content.wiifm,
+                    topics = content.topics,
+                    isPrivate = content.isPrivate,
+                    aiStatus = RecordingAiStatus.READY,
+                    isProcessing = false,
+                    processingError = null,
+                    cloudId = cloud.id,
+                    noteUuid = noteUuid,
+                    audioHash = local.audioHash ?: cloud.audioHash,
+                    // The merge may hold phone changes the cloud lacks: upload it once the restore is done.
+                    syncStatus = SyncStatus.PENDING,
+                    // Lets an AI run that started before this restore see that the note was settled.
+                    contentSource = NoteSource.CLOUD,
+                    lastSyncedAt = now,
+                    updatedAt = maxOf(local.updatedAt, cloud.updatedAtMs)
+                )
+            )
+
+            val insights = RestoreMerge.mergeInsights(
+                base.insights,
+                insightDao.getInsightsByRecordingId(local.id),
+                children.insights,
+                sides
+            )
+            insightDao.insertInsights(insights.write.map { it.copy(recordingId = local.id, recordingName = content.title) })
+            insights.deleteLocal.forEach { insightDao.deleteInsight(it) }
+            conflicts += insights.conflicts
+
+            val reminders = RestoreMerge.mergeReminders(
+                base.reminders,
+                reminderDao.getRemindersByRecordingId(local.id),
+                children.reminders,
+                sides
+            )
+            reminderDao.insertReminders(reminders.write.map { it.copy(recordingId = local.id, recordingName = content.title) })
+            reminders.deleteLocal.forEach {
+                ReminderScheduler.cancelReminder(context, it)
+                reminderDao.delete(it)
+            }
+            conflicts += reminders.conflicts
+        }
+        mergeBase.recordConflicts(local.noteUuid, conflicts)
+        mergeBase.clear(local.noteUuid)
     }
 
     /** The local note wins, but a status the cloud moved further (an agent's "done") is kept. */

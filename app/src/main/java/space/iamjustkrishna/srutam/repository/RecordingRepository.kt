@@ -45,7 +45,8 @@ class RecordingRepository(
     }
 
     suspend fun updateRecording(recording: Recording) {
-        recordingDao.updateRecording(recording)
+        // Merging with Srutam Cloud compares edit times, so an edit (a rename, privacy) counts as one.
+        recordingDao.updateRecording(recording.copy(updatedAt = System.currentTimeMillis()))
         NoteSignatureWorker.enqueue(context, recording.id)
     }
 

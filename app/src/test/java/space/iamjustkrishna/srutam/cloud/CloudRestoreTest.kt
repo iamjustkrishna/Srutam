@@ -102,6 +102,45 @@ class CloudRestoreTest {
         assertEquals(InsightStatus.COMPLETED, db.insightDao().getById("task-1")!!.status)
     }
 
+    @Test fun aNoteRestoredFromItsRecordingMergesPhoneAndCloudEdits() = runBlocking {
+        val dir = kotlin.io.path.createTempDirectory("merge-base").toFile()
+        val mergeBase = MergeBase(dir)
+        val merging = CloudRestore(context, db, audioFiles = { emptyList() }, mergeBase = mergeBase)
+        val baseTask = InsightEntity(id = "task-1", recordingId = 0, kind = InsightKind.ACTION, text = "Send notes", createdAt = 0)
+        // What the recording's block held when the reinstall restored it.
+        mergeBase.save(
+            space.iamjustkrishna.srutam.data.signature.NotePayload(
+                noteUuid = "u1", audioHash = null, name = "Cloud title", timestamp = 1_000_000L, duration = 60_000L,
+                recordedZoneId = null, transcript = "cloud transcript", summary = "cloud summary", keyPoints = "[]",
+                actionItems = null, wiifm = null, topics = "[\"Hiring\"]", aiStatus = RecordingAiStatus.READY,
+                updatedAt = 1_500_000L, insights = listOf(baseTask), reminders = emptyList()
+            )
+        )
+        // Then, before signing in, the note was renamed on the phone.
+        val id = db.recordingDao().insertRecording(
+            Recording(
+                audioFilePath = "/music/a.m4a", noteUuid = "u1", name = "Renamed on phone", transcript = "cloud transcript",
+                summary = "cloud summary", keyPoints = "[]", topics = "[\"Hiring\"]", aiStatus = RecordingAiStatus.READY,
+                contentSource = NoteSource.FILE, updatedAt = 3_000_000L
+            )
+        )
+        db.insightDao().insertInsight(baseTask.copy(recordingId = id))
+        // Meanwhile an agent edited the summary in the cloud and completed the task.
+        val agentEdited = cloudNote("c1", "u1", updatedAt = 2_000_000L).copy(title = "Cloud title", summary = "Agent summary")
+
+        merging.apply(listOf(agentEdited), mapOf("c1" to listOf(doneTask("c1"))), emptyMap(), emptyMap())
+
+        val note = db.recordingDao().getRecordingById(id)!!
+        assertEquals("Renamed on phone", note.name)
+        assertEquals("Agent summary", note.summary)
+        assertEquals("c1", note.cloudId)
+        assertEquals(SyncStatus.PENDING, note.syncStatus)
+        assertEquals(InsightStatus.COMPLETED, db.insightDao().getById("task-1")!!.status)
+        assertEquals(null, mergeBase.load("u1"))
+        dir.deleteRecursively()
+        Unit
+    }
+
     @Test fun aNoteOnlyOnThePhoneIsLeftToUpload() = runBlocking {
         val id = db.recordingDao().insertRecording(
             Recording(audioFilePath = "/music/b.m4a", noteUuid = "phone-only", aiStatus = RecordingAiStatus.READY, syncStatus = SyncStatus.PENDING, timestamp = 50_000_000L)

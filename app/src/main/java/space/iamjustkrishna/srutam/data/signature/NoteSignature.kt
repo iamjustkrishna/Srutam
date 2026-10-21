@@ -134,7 +134,11 @@ object NoteSignature {
      * id, or null when the file has no valid block. A note that already exists (same id) is only
      * pointed at this file if its old one is gone.
      */
-    suspend fun restoreFromFile(database: AppDatabase, file: File): Long? {
+    suspend fun restoreFromFile(
+        database: AppDatabase,
+        file: File,
+        onRestored: ((NotePayload) -> Unit)? = null
+    ): Long? {
         val payload = NoteBlock.read(file)?.let(::fromJson) ?: return null
         val dao = database.recordingDao()
         dao.getRecordingByNoteUuid(payload.noteUuid)?.let { existing ->
@@ -144,6 +148,7 @@ object NoteSignature {
             return existing.id
         }
         val audioHash = runCatching { NoteBlock.audioHash(file) }.getOrNull() ?: payload.audioHash
+        onRestored?.invoke(payload)
         return database.withTransaction {
             val id = dao.insertRecording(recordingFrom(payload, file, audioHash))
             database.insightDao().insertInsights(
