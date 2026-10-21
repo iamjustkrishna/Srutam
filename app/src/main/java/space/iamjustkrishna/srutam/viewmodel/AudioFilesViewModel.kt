@@ -62,6 +62,9 @@ data class ThemeCluster(
 
 class AudioFilesViewModel(application: Application) : AndroidViewModel(application) {
 
+    /** Serializes restores from audio files, so two passes can't rebuild the same note twice. */
+    private val restoreLock = Mutex()
+
     private val _audioFiles = MutableStateFlow<List<AudioFileInfo>>(emptyList())
     val audioFiles: StateFlow<List<AudioFileInfo>> = _audioFiles.asStateFlow()
 
@@ -453,8 +456,6 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
         restored
     }
-
-    private val restoreLock = Mutex()
 
     fun processPendingOfflineRecordings(force: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {

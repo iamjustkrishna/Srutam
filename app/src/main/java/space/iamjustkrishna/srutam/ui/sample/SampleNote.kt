@@ -175,7 +175,7 @@ fun SampleNoteDialog(onDismiss: () -> Unit) {
         var engine: TextToSpeech? = null
         engine = TextToSpeech(context.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                engine?.language = Locale.getDefault()
+                engine?.setLanguage(Locale.getDefault())
                 engine?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {}
                     override fun onDone(utteranceId: String?) { speaking = false }

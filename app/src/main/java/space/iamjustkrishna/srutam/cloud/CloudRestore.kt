@@ -65,7 +65,7 @@ class CloudRestore(
         return try {
             Result.success(
                 apply(
-                    notes.map(::parseNote),
+                    notes.map { parseNote(it) },
                     tasks.groupBy { it.str("note_id").orEmpty() },
                     insights.groupBy { it.str("note_id").orEmpty() },
                     reminders.groupBy { it.str("note_id").orEmpty() }
