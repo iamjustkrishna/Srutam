@@ -18,6 +18,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import space.iamjustkrishna.srutam.ui.theme.*
+import space.iamjustkrishna.srutam.cloud.isTextOnly
 import space.iamjustkrishna.srutam.ui.components.*
 
 
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -439,6 +441,8 @@ fun RecordingDetailsContent(
 ) {
     var selectedDetailTabIndex by remember { mutableStateOf(initialTabIndex) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    // Audio not on this device: no player, and nothing for AI to re-run on.
+    val textOnly = remember(recording.audioFilePath) { recording.isTextOnly() }
 
     val displayName = remember(recording.audioFilePath, recording.timestamp, recording.name) {
         RecordingNameFormatter.displayName(
@@ -490,15 +494,19 @@ fun RecordingDetailsContent(
             )
         }
 
-        // Audio Player
+        // Audio Player, or why there's none
         item {
-            AudioPlayerCard(
-                playbackState = playbackState,
-                onPlayPause = onPlayPause,
-                onSeek = onSeek,
-                onSpeedChange = onSpeedChange,
-                fallbackDuration = recording?.duration ?: 0L
-            )
+            if (textOnly) {
+                TextOnlyInfoCard()
+            } else {
+                AudioPlayerCard(
+                    playbackState = playbackState,
+                    onPlayPause = onPlayPause,
+                    onSeek = onSeek,
+                    onSpeedChange = onSpeedChange,
+                    fallbackDuration = recording?.duration ?: 0L
+                )
+            }
         }
 
         // Segmented Control Tabs matching Apple Studio Mockup
@@ -549,7 +557,7 @@ fun RecordingDetailsContent(
             }
 
             // Fallback summary indicator card with one-click re-process
-            if (!recording.isProcessing && isFallbackSummary) {
+            if (!textOnly && !recording.isProcessing && isFallbackSummary) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -683,7 +691,8 @@ fun RecordingDetailsContent(
             }
 
             // Error State with Retry
-            if (!recording.isProcessing &&
+            if (!textOnly &&
+                !recording.isProcessing &&
                 recording.aiStatus == RecordingAiStatus.ERROR &&
                 recording.processingError != null) {
                 item {
@@ -762,7 +771,7 @@ fun RecordingDetailsContent(
             }
 
             // Re-process option for notes with existing summary
-            if (!recording.isProcessing && !isFallbackSummary && recording.summary != null) {
+            if (!textOnly && !recording.isProcessing && !isFallbackSummary && recording.summary != null) {
                 item {
                     OutlinedButton(
                         onClick = onReprocess,
@@ -1281,6 +1290,37 @@ fun BulletListCard(
                         modifier = Modifier.weight(1f)
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Stands in for the player when a note's audio isn't on this device. */
+@Composable
+fun TextOnlyInfoCard(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Sem.chip,
+        border = BorderStroke(1.dp, Sem.border),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Sem.textSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Text only", fontWeight = FontWeight.SemiBold, color = Sem.text)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "The audio for this note isn't on this device. Its transcript, summary, tasks and reminders are all here.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = Sem.textSecondary
+                )
             }
         }
     }

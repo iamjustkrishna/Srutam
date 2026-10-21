@@ -21,6 +21,7 @@ import android.provider.Settings
 import android.widget.Toast
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.Analytics
+import space.iamjustkrishna.srutam.cloud.CloudRestore
 import space.iamjustkrishna.srutam.cloud.CloudSyncManager
 import androidx.compose.ui.graphics.graphicsLayer
 import space.iamjustkrishna.srutam.service.FloatingButtonService
@@ -133,6 +134,7 @@ import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -558,6 +560,19 @@ fun FeedScreenContent(
     }.collectAsState(initial = emptyList())
     val isSyncing = remember(syncWorkInfos) {
         syncWorkInfos.any { it.state == androidx.work.WorkInfo.State.RUNNING }
+    }
+
+    // Once a sign-in restore finishes: "Restored 42 notes · 5 without audio".
+    LaunchedEffect(isSyncing, audioFiles.size) {
+        if (!isSyncing) {
+            AppPreferences.consumeRestoreSummary(context)?.let { (restored, withoutAudio) ->
+                val message = buildString {
+                    append("Restored $restored note${if (restored == 1) "" else "s"}")
+                    if (withoutAudio > 0) append(" · $withoutAudio without audio")
+                }
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -1597,6 +1612,28 @@ fun RecordingIndicatorBanner() {
     }
 }
 
+/** Marks a note whose audio isn't on this device. */
+@Composable
+fun TextOnlyChip(modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = Sem.chip,
+            border = BorderStroke(1.dp, Sem.border)
+        ) {
+            Text(
+                text = "Text only · audio not on this device",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = Sem.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
 @Composable
 fun NotesEmptyState(modifier: Modifier = Modifier) {
     Box(
@@ -1768,6 +1805,11 @@ fun AudioFileCard(
             timestamp = audioFile.timestamp,
             savedName = recording?.name
         )
+    }
+
+    // Restored from the cloud without its audio, or its audio was deleted: no player.
+    val textOnly = remember(audioFile.filePath) {
+        CloudRestore.isTextOnlyPath(audioFile.filePath) || !File(audioFile.filePath).exists()
     }
 
     val selectionModeState by rememberUpdatedState(isSelectionMode)
@@ -2156,65 +2198,69 @@ fun AudioFileCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Circular Ultramarine Blue Play Button
-                        Surface(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .shadow(
-                                    elevation = 4.dp,
-                                    shape = CircleShape,
-                                    spotColor = Color(0xFF0066FF).copy(alpha = 0.4f)
-                                )
-                                .clip(CircleShape)
-                                .clickable(enabled = !isSelectionMode, onClick = onPlayClick),
-                            shape = CircleShape,
-                            color = Color(0xFF0066FF)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
-                        }
-
-                        // Inline Audio Waveform Bars
-                        val totalDur = if (isPlaybackActive && playerState.duration > 0) {
-                            playerState.duration.toLong()
+                        if (textOnly) {
+                            TextOnlyChip(modifier = Modifier.weight(1f))
                         } else {
-                            audioFile.duration.coerceAtLeast(1)
-                        }
-                        val currentPos = if (isPlaybackActive) playerState.currentPosition else 0
-                        val playbackProgress = (currentPos.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
-
-                        CardWaveformVisualizer(
-                            progress = playbackProgress,
-                            isPlaying = isPlaybackActive,
-                            onSeekFraction = { fraction ->
-                                val targetMs = (fraction * totalDur).toInt()
-                                if (isPlaybackActive) {
-                                    viewModel?.audioPlayer?.seekTo(targetMs)
-                                } else {
-                                    viewModel?.playAudio(audioFile)
-                                    viewModel?.audioPlayer?.seekTo(targetMs)
+                            // Circular Ultramarine Blue Play Button
+                            Surface(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .shadow(
+                                        elevation = 4.dp,
+                                        shape = CircleShape,
+                                        spotColor = Color(0xFF0066FF).copy(alpha = 0.4f)
+                                    )
+                                    .clip(CircleShape)
+                                    .clickable(enabled = !isSelectionMode, onClick = onPlayClick),
+                                shape = CircleShape,
+                                color = Color(0xFF0066FF)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isPlaying) "Pause" else "Play",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(19.dp)
+                                    )
                                 }
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
+                            }
 
-                        // Current Timestamp or Total Duration
-                        Text(
-                            text = if (isPlaybackActive) {
-                                formatDuration(currentPos.toLong())
+                            // Inline Audio Waveform Bars
+                            val totalDur = if (isPlaybackActive && playerState.duration > 0) {
+                                playerState.duration.toLong()
                             } else {
-                                formatDuration(audioFile.duration)
-                            },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
-                        )
+                                audioFile.duration.coerceAtLeast(1)
+                            }
+                            val currentPos = if (isPlaybackActive) playerState.currentPosition else 0
+                            val playbackProgress = (currentPos.toFloat() / totalDur.toFloat()).coerceIn(0f, 1f)
+
+                            CardWaveformVisualizer(
+                                progress = playbackProgress,
+                                isPlaying = isPlaybackActive,
+                                onSeekFraction = { fraction ->
+                                    val targetMs = (fraction * totalDur).toInt()
+                                    if (isPlaybackActive) {
+                                        viewModel?.audioPlayer?.seekTo(targetMs)
+                                    } else {
+                                        viewModel?.playAudio(audioFile)
+                                        viewModel?.audioPlayer?.seekTo(targetMs)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Current Timestamp or Total Duration
+                            Text(
+                                text = if (isPlaybackActive) {
+                                    formatDuration(currentPos.toLong())
+                                } else {
+                                    formatDuration(audioFile.duration)
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) TextOnDarkPrimary else Color(0xFF0F172A)
+                            )
+                        }
 
                         // MoreVert button with custom redesigned dropdown menu in the last row
                         Box {

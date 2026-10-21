@@ -48,6 +48,7 @@ import space.iamjustkrishna.srutam.analytics.UserActivityMetrics
 import java.io.File
 import space.iamjustkrishna.srutam.data.AppDatabase
 import space.iamjustkrishna.srutam.data.signature.NoteSignature
+import space.iamjustkrishna.srutam.cloud.isTextOnly
 import space.iamjustkrishna.srutam.repository.InsightsRepository
 
 data class ThemeCluster(
@@ -152,10 +153,12 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             val files = AudioFileReader.getAudioFiles()
-            _audioFiles.value = files
+            _audioFiles.value = withTextOnlyNotes(files)
             _isLoading.value = false
             // Notes from a previous install come back from their audio files, even offline.
-            restoreNotesFromAudioBlocks(files)
+            if (restoreNotesFromAudioBlocks(files).isNotEmpty()) {
+                _audioFiles.value = withTextOnlyNotes(files)
+            }
         }
     }
 
@@ -407,6 +410,26 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
+     * The feed lists audio files; notes whose audio isn't on this device (restored from the cloud
+     * as text, or audio deleted with "keep content") are added so they still show, as text only.
+     */
+    private suspend fun withTextOnlyNotes(files: List<AudioFileInfo>): List<AudioFileInfo> {
+        val onDisk = files.mapTo(HashSet()) { it.filePath }
+        val textOnly = repository.allRecordings.first()
+            .filter { it.audioFilePath !in onDisk && it.isTextOnly() }
+            .map {
+                AudioFileInfo(
+                    filePath = it.audioFilePath,
+                    fileName = it.name,
+                    duration = it.duration,
+                    timestamp = it.timestamp,
+                    sizeBytes = 0L
+                )
+            }
+        return if (textOnly.isEmpty()) files else (files + textOnly).sortedByDescending { it.timestamp }
+    }
+
+    /**
      * After a reinstall, rebuilds notes from the block inside their audio files: instantly,
      * offline, and without AI. Returns the restored notes by path.
      */
@@ -424,6 +447,7 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
         }
         if (restored.isNotEmpty()) {
             Log.d(TAG, "Restored ${restored.size} notes from their audio files")
+            AppPreferences.setRestoreSummary(getApplication(), restored.size, 0)
             // Future reminders come back scheduled.
             runCatching { InsightsRepository.from(getApplication()).reconcile() }
         }
@@ -435,7 +459,9 @@ class AudioFilesViewModel(application: Application) : AndroidViewModel(applicati
     fun processPendingOfflineRecordings(force: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Text-only notes have no audio to process.
                 val currentFiles = _audioFiles.value.ifEmpty { AudioFileReader.getAudioFiles() }
+                    .filter { File(it.filePath).exists() }
                 val restored = restoreNotesFromAudioBlocks(currentFiles)
                 if (!force && !AppPreferences.isAutoAiEnabled(getApplication())) {
                     Log.d(TAG, "Auto AI processing is disabled in Settings. Skipping automatic pending recordings sync.")
