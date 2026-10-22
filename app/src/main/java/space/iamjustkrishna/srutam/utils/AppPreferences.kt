@@ -18,10 +18,10 @@ object AppPreferences {
     private const val KEY_COMPLETED_TASKS = "completed_action_items"
     private const val KEY_ARCHIVED_TASKS = "archived_action_item_ids"
     private const val KEY_AUTO_AI_ENABLED = "auto_ai_enabled"
+    private const val KEY_AUTO_AI_USER_SET = "auto_ai_user_set"
     private const val KEY_ASK_NAME_AFTER_RECORDING = "ask_name_after_recording"
     private const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
     private const val KEY_DELETE_CONTENT_WITH_RECORDING = "delete_content_with_recording"
-    private const val FRESH_INSTALL_WINDOW_MS = 60_000L
     private const val KEY_BYOK_ONBOARDING_COMPLETED = "byok_onboarding_completed"
     private const val KEY_INSIGHT_PARITY_BACKFILL_DONE = "backfill_insight_parity_v1"
     private const val KEY_HAS_COMPLETED_CAPTURE_SETUP = "has_completed_capture_setup"
@@ -146,29 +146,26 @@ object AppPreferences {
     private val _autoAiEnabledFlow = MutableStateFlow<Boolean?>(null)
     val autoAiEnabledFlow: StateFlow<Boolean?> = _autoAiEnabledFlow.asStateFlow()
 
+    /**
+     * Auto AI is on unless the user turned it off in Settings. Safe for any install: before AI
+     * runs, notes are restored from the block inside their recording, so only recordings with no
+     * saved note are processed (and an earlier install's ones wait for the user's choice).
+     *
+     * Earlier versions guessed off for installs older than the default and saved that guess; only a
+     * choice made in Settings ([KEY_AUTO_AI_USER_SET]) counts now.
+     */
     fun isAutoAiEnabled(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val enabled = if (prefs.contains(KEY_AUTO_AI_ENABLED)) {
-            prefs.getBoolean(KEY_AUTO_AI_ENABLED, false)
+        val enabled = if (prefs.getBoolean(KEY_AUTO_AI_USER_SET, false)) {
+            prefs.getBoolean(KEY_AUTO_AI_ENABLED, true)
         } else {
-            // Not chosen yet: decide once and remember it, so a later app update cannot change it.
-            isFreshInstall(context).also { prefs.edit().putBoolean(KEY_AUTO_AI_ENABLED, it).apply() }
+            true
         }
         if (_autoAiEnabledFlow.value == null) {
             _autoAiEnabledFlow.value = enabled
         }
         return enabled
     }
-
-    /**
-     * Auto AI starts on for a new install, so insights run right after you stop recording. An install
-     * that predates this never chose a value and keeps it off: turning it on would make the app process
-     * every older note it finds, which nobody asked for.
-     */
-    private fun isFreshInstall(context: Context): Boolean = runCatching {
-        val info = context.packageManager.getPackageInfo(context.packageName, 0)
-        info.lastUpdateTime - info.firstInstallTime < FRESH_INSTALL_WINDOW_MS
-    }.getOrDefault(true)
 
     /** Whether stopping a recording in the app opens the "name this note" dialog. Off: notes are saved right away. */
     fun isAskNameAfterRecording(context: Context): Boolean {
@@ -212,20 +209,11 @@ object AppPreferences {
             .apply()
     }
 
-    /**
-     * Someone going through first run is new to Srutam, whatever the install dates say (an update
-     * followed by "Clear data" looks like an old install): Auto AI starts on unless they chose.
-     * Recordings from an earlier install still wait for the user's choice before any AI runs.
-     */
-    fun enableAutoAiIfUnchosen(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (!prefs.contains(KEY_AUTO_AI_ENABLED)) setAutoAiEnabled(context, true)
-    }
-
     fun setAutoAiEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_AUTO_AI_ENABLED, enabled)
+            .putBoolean(KEY_AUTO_AI_USER_SET, true)
             .apply()
         _autoAiEnabledFlow.value = enabled
     }

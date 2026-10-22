@@ -53,35 +53,31 @@ class AppPreferencesTest {
     }
 
     @Test
-    fun autoAiEnabled_isOnForANewInstall() {
+    fun autoAiEnabled_isOnByDefaultForANewInstall() {
         setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L)
 
         assertTrue(AppPreferences.isAutoAiEnabled(context))
     }
 
     @Test
-    fun autoAiEnabled_staysOffForAnInstallThatPredatesTheDefault() {
-        // Updated a week after it was installed, and never chose a value: turning it on would make the
-        // app process every older note it finds.
-        setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L + 7 * 24 * 60 * 60 * 1000L)
-
-        assertFalse(AppPreferences.isAutoAiEnabled(context))
-    }
-
-    @Test
-    fun autoAiEnabled_theFirstAnswerIsRemembered() {
-        setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L)
-        assertTrue(AppPreferences.isAutoAiEnabled(context))
-
-        // A later app update must not flip it.
+    fun autoAiEnabled_isOnByDefaultForAnUpdatedInstallToo() {
+        // Updated over an older install, then "Clear data": still someone who never chose.
         setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L + 7 * 24 * 60 * 60 * 1000L)
 
         assertTrue(AppPreferences.isAutoAiEnabled(context))
     }
 
     @Test
-    fun autoAiEnabled_aStoredChoiceAlwaysWins() {
-        setInstallTimes(firstInstall = 1_000L, lastUpdate = 1_000L)
+    fun autoAiEnabled_anOldGuessedOffIsNotAChoice() {
+        // Earlier versions saved "off" for older installs without the user choosing it.
+        context.getSharedPreferences("srutam_prefs", Context.MODE_PRIVATE).edit()
+            .putBoolean("auto_ai_enabled", false).commit()
+
+        assertTrue(AppPreferences.isAutoAiEnabled(context))
+    }
+
+    @Test
+    fun autoAiEnabled_aChoiceInSettingsAlwaysWins() {
         AppPreferences.setAutoAiEnabled(context, false)
 
         assertFalse(AppPreferences.isAutoAiEnabled(context))

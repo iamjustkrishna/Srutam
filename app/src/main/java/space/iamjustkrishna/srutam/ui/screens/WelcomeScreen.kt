@@ -172,8 +172,7 @@ fun WelcomeScreen(
                     micPermissions = micPermissions,
                     onStartRecording = {
                         // So the first note gets its summary the moment recording stops.
-                        AppPreferences.enableAutoAiIfUnchosen(context)
-                        QuickRecordNotification.restoreIdle(context)
+                                        QuickRecordNotification.restoreIdle(context)
                         if (RecordingCoordinator.requestStart(context, "onboarding")) stage = FirstRunStage.RECORDING
                     },
                     onSkip = { onFinished("skip") }
