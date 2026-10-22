@@ -37,11 +37,14 @@ class NoteShareTest {
         ReminderEntity(id = "r2", recordingId = 7, title = "Old one", originalText = "", eventTimeMs = at, status = ReminderStatus.DISMISSED)
     )
 
-    private fun text(content: NoteShare.Content, footer: Boolean = true) =
-        NoteShare.text(note, insights, reminders, NoteShare.Options(content = content, footer = footer), zone, java.util.Locale.US)
+    private fun text(summary: Boolean, transcript: Boolean, footer: Boolean = true) = NoteShare.text(
+        note, insights, reminders,
+        NoteShare.Options(summary = summary, transcript = transcript, footer = footer),
+        zone, java.util.Locale.US
+    )
 
     @Test fun theSummaryHasTheInsightsButNotTheTranscript() {
-        val text = text(NoteShare.Content.SUMMARY)
+        val text = text(summary = true, transcript = false)
 
         assertTrue(text.startsWith("*Team sync* — Oct 21, 5:40 PM"))
         assertTrue(text.contains("The new onboarding launches Friday."))
@@ -58,12 +61,12 @@ class NoteShareTest {
     }
 
     @Test fun theTranscriptIsJustTheTranscript() {
-        val text = text(NoteShare.Content.TRANSCRIPT, footer = false)
+        val text = text(summary = false, transcript = true, footer = false)
         assertEquals("*Team sync* — Oct 21, 5:40 PM\n\nOkay, quick note before the team sync.", text)
     }
 
-    @Test fun everythingHasBothWithATranscriptHeading() {
-        val text = text(NoteShare.Content.EVERYTHING)
+    @Test fun bothHaveTheInsightsAndATranscriptHeading() {
+        val text = text(summary = true, transcript = true)
         assertTrue(text.contains("☐ Send the release notes"))
         assertTrue(text.contains("Transcript\nOkay, quick note before the team sync."))
     }

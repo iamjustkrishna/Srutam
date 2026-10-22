@@ -26,17 +26,23 @@ import java.util.Locale
  */
 object NoteShare {
 
-    enum class Content(val label: String) {
-        SUMMARY("Summary"),
-        TRANSCRIPT("Transcript"),
-        EVERYTHING("Everything")
+    /** What goes out: the note as text, its recording, or both. */
+    enum class Mode(val label: String) {
+        TEXT("Text"),
+        AUDIO("Audio"),
+        BOTH("Text + audio")
     }
 
     data class Options(
-        val content: Content = Content.SUMMARY,
-        val attachAudio: Boolean = false,
+        val mode: Mode = Mode.TEXT,
+        /** Summary, key points, tasks, ideas, decisions and reminders. */
+        val summary: Boolean = true,
+        val transcript: Boolean = false,
         val footer: Boolean = true
-    )
+    ) {
+        val sendsText: Boolean get() = mode != Mode.AUDIO
+        val sendsAudio: Boolean get() = mode != Mode.TEXT
+    }
 
     const val FOOTER = "— shared from Srutam"
 
@@ -73,7 +79,7 @@ object NoteShare {
             lines.forEach { append("\n").append(it) }
         }
 
-        if (options.content != Content.TRANSCRIPT) {
+        if (options.summary) {
             recording.summary?.trim()?.takeIf { it.isNotEmpty() }?.let { append("\n\n").append(it) }
             section("Key points", jsonList(recording.keyPoints).map { "• $it" })
 
@@ -95,10 +101,10 @@ object NoteShare {
             section("Reminders", reminders.filter { it.status == ReminderStatus.ACTIVE }.map { "🔔 " + reminderLine(it, zone, formats) })
         }
 
-        if (options.content != Content.SUMMARY) {
+        if (options.transcript) {
             recording.transcript?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 append("\n\n")
-                if (options.content == Content.EVERYTHING) append("Transcript\n")
+                if (options.summary) append("Transcript\n")
                 append(it)
             }
         }
@@ -121,10 +127,14 @@ object NoteShare {
         return if (time != null) "${reminder.title} · $time" else reminder.title
     }
 
-    /** Opens the share sheet with [text], and the note's audio (without its note block) if given. */
-    fun share(context: Context, text: String, audio: File?) {
+    /**
+     * Opens the share sheet with [text] and/or the note's audio (without its note block).
+     * With both, the text rides along as the caption; apps that drop captions on files (WhatsApp)
+     * get it from the clipboard, so callers copy it too.
+     */
+    fun share(context: Context, text: String?, audio: File?) {
         val intent = Intent(Intent.ACTION_SEND).apply {
-            putExtra(Intent.EXTRA_TEXT, text)
+            if (text != null) putExtra(Intent.EXTRA_TEXT, text)
             if (audio != null) {
                 type = "audio/*"
                 putExtra(Intent.EXTRA_STREAM, AudioShare.cleanUri(context, audio))
@@ -147,17 +157,21 @@ object NoteShare {
 
     fun savedOptions(context: Context): Options {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val summary = prefs.getBoolean("summary", true)
+        val transcript = prefs.getBoolean("transcript", false)
         return Options(
-            content = runCatching { Content.valueOf(prefs.getString("content", null) ?: "") }.getOrDefault(Content.SUMMARY),
-            attachAudio = prefs.getBoolean("attach_audio", false),
+            mode = runCatching { Mode.valueOf(prefs.getString("mode", null) ?: "") }.getOrDefault(Mode.TEXT),
+            summary = summary || !transcript,
+            transcript = transcript,
             footer = prefs.getBoolean("footer", true)
         )
     }
 
     fun saveOptions(context: Context, options: Options) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString("content", options.content.name)
-            .putBoolean("attach_audio", options.attachAudio)
+            .putString("mode", options.mode.name)
+            .putBoolean("summary", options.summary)
+            .putBoolean("transcript", options.transcript)
             .putBoolean("footer", options.footer)
             .apply()
     }
