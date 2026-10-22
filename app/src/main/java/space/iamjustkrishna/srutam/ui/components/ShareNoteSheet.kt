@@ -1,18 +1,29 @@
 package space.iamjustkrishna.srutam.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -28,6 +39,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
@@ -47,19 +61,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -153,74 +166,93 @@ fun ShareNoteSheet(recording: Recording, onDismiss: () -> Unit) {
 
             // Text, audio or both: only when there's audio to send.
             if (audio != null) {
-                SectionLabel("SEND")
-                StepSelector(
-                    steps = NoteShare.Mode.entries.map { it.label },
-                    selected = options.mode.ordinal,
-                    onSelect = { update(options.copy(mode = NoteShare.Mode.entries[it])) }
+                ModeSelector(
+                    selected = options.mode,
+                    onSelect = { update(options.copy(mode = it)) }
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
             }
 
-            if (options.sendsText) {
+            // Everything below keeps its place whatever is picked, so the sheet doesn't jump:
+            // parts that don't apply dim instead of disappearing.
+            val textAlpha by animateFloatAsState(if (options.sendsText) 1f else 0.35f, tween(220), label = "textAlpha")
+            Column(Modifier.alpha(textAlpha)) {
                 SectionLabel("INCLUDE")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // At least one stays on: unticking the last one does nothing.
-                    ContentChip("Summary & insights", options.summary) {
+                    ContentChip("Summary & insights", options.summary, enabled = options.sendsText) {
                         if (!options.summary || options.transcript) update(options.copy(summary = !options.summary))
                     }
-                    ContentChip("Transcript", options.transcript) {
+                    ContentChip("Transcript", options.transcript, enabled = options.sendsText) {
                         if (!options.transcript || options.summary) update(options.copy(transcript = !options.transcript))
                     }
                 }
-                Spacer(Modifier.height(14.dp))
             }
+            Spacer(Modifier.height(16.dp))
 
             SectionLabel("PREVIEW")
-            if (options.sendsText) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Sem.card,
-                    border = BorderStroke(1.dp, Sem.border),
-                    modifier = Modifier.fillMaxWidth().heightIn(max = if (options.sendsAudio) 210.dp else 260.dp)
-                ) {
-                    Text(
-                        text = if (onlyMissingTranscript) "This note has no transcript yet." else text,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        color = if (onlyMissingTranscript) Sem.textMuted else Sem.text,
-                        modifier = Modifier
-                            .verticalScroll(rememberScrollState())
-                            .padding(14.dp)
-                    )
+            Box(Modifier.fillMaxWidth().height(if (audio != null) 280.dp else 300.dp)) {
+                AnimatedContent(
+                    targetState = options.mode,
+                    transitionSpec = {
+                        (fadeIn(tween(220, delayMillis = 60)) + scaleIn(tween(220, delayMillis = 60), initialScale = 0.97f))
+                            .togetherWith(fadeOut(tween(120)))
+                    },
+                    label = "preview"
+                ) { mode ->
+                    Column(
+                        Modifier.fillMaxSize(),
+                        verticalArrangement = if (mode == NoteShare.Mode.AUDIO) Arrangement.Center else Arrangement.Top
+                    ) {
+                        if (mode != NoteShare.Mode.AUDIO) {
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Sem.card,
+                                border = BorderStroke(1.dp, Sem.border),
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            ) {
+                                Crossfade(targetState = if (onlyMissingTranscript) null else text, animationSpec = tween(180), label = "previewText") { shown ->
+                                    Text(
+                                        text = shown ?: "This note has no transcript yet.",
+                                        fontSize = 13.sp,
+                                        lineHeight = 19.sp,
+                                        color = if (shown == null) Sem.textMuted else Sem.text,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (mode != NoteShare.Mode.TEXT && audio != null) {
+                            if (mode == NoteShare.Mode.BOTH) Spacer(Modifier.height(8.dp))
+                            AudioAttachment(audio.name, durationMs = recording.duration)
+                        }
+                    }
                 }
-            }
-            if (options.sendsAudio && audio != null) {
-                if (options.sendsText) Spacer(Modifier.height(8.dp))
-                AudioAttachment(audio.name)
             }
 
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (options.sendsText) {
-                    Checkbox(
-                        checked = options.footer,
-                        onCheckedChange = { update(options.copy(footer = it)) },
-                        colors = CheckboxDefaults.colors(checkedColor = Sem.accent),
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Text(
-                        "Add \"shared from Srutam\"",
-                        fontSize = 12.5.sp,
-                        color = Sem.textSecondary,
-                        modifier = Modifier.clickable { update(options.copy(footer = !options.footer)) }
-                    )
-                }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.alpha(textAlpha), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = options.footer,
+                    onCheckedChange = { update(options.copy(footer = it)) },
+                    enabled = options.sendsText,
+                    colors = CheckboxDefaults.colors(checkedColor = Sem.accent),
+                    modifier = Modifier.size(32.dp)
+                )
+                Text(
+                    "Add \"shared from Srutam\"",
+                    fontSize = 12.5.sp,
+                    color = Sem.textSecondary,
+                    modifier = Modifier.clickable(enabled = options.sendsText) { update(options.copy(footer = !options.footer)) }
+                )
             }
 
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (options.sendsText) {
+                run {
                     OutlinedButton(
                         onClick = {
                             NoteShare.copy(context, text)
@@ -228,7 +260,7 @@ fun ShareNoteSheet(recording: Recording, onDismiss: () -> Unit) {
                             Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                             onDismiss()
                         },
-                        enabled = canSend,
+                        enabled = canSend && options.sendsText,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.weight(1f).height(50.dp)
                     ) {
@@ -275,78 +307,65 @@ private fun SectionLabel(text: String) {
     Spacer(Modifier.height(8.dp))
 }
 
-/**
- * A stepped slider: a track with a stop per option and a knob that snaps to the nearest stop.
- * Tap a stop or its label, or drag the knob.
- */
+/** Text / Audio / Text + audio, as a segmented control with a pill that slides to the choice. */
 @Composable
-private fun StepSelector(steps: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    val density = LocalDensity.current
-    val onSelectNow by rememberUpdatedState(onSelect)
-    val knob = 22.dp
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val segment = maxWidth / steps.size
-        val widthPx = with(density) { maxWidth.toPx() }
-        fun stepAt(x: Float) = (x / widthPx * steps.size).toInt().coerceIn(0, steps.lastIndex)
-        val knobX by animateDpAsState(segment * selected + segment / 2 - knob / 2, label = "knob")
-
-        Column(
-            Modifier.pointerInput(steps.size) {
-                detectTapGestures { onSelectNow(stepAt(it.x)) }
-            }.pointerInput(steps.size) {
-                detectHorizontalDragGestures { change, _ -> onSelectNow(stepAt(change.position.x)) }
-            }
-        ) {
-            Box(Modifier.fillMaxWidth().height(knob), contentAlignment = Alignment.CenterStart) {
-                // Track between the first and last stop, filled up to the knob.
-                Box(
-                    Modifier
-                        .padding(horizontal = segment / 2)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Sem.chip, CircleShape)
-                )
-                Box(
-                    Modifier
-                        .offset(x = segment / 2)
-                        .width(segment * selected)
-                        .height(4.dp)
-                        .background(Sem.accent, CircleShape)
-                )
-                steps.indices.forEach { i ->
-                    Box(
-                        Modifier
-                            .offset(x = segment * i + segment / 2 - 4.dp)
-                            .size(8.dp)
-                            .background(if (i <= selected) Sem.accent else Sem.border, CircleShape)
+private fun ModeSelector(selected: NoteShare.Mode, onSelect: (NoteShare.Mode) -> Unit) {
+    val modes = NoteShare.Mode.entries
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(Sem.chip, RoundedCornerShape(16.dp))
+            .padding(4.dp)
+    ) {
+        val segment = maxWidth / modes.size
+        val pillX by animateDpAsState(
+            segment * selected.ordinal,
+            spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+            label = "pill"
+        )
+        Box(
+            Modifier
+                .offset(x = pillX)
+                .width(segment)
+                .fillMaxHeight()
+                .shadow(2.dp, RoundedCornerShape(12.dp))
+                .background(Sem.selected, RoundedCornerShape(12.dp))
+        )
+        Row(Modifier.fillMaxSize()) {
+            modes.forEach { mode ->
+                val isSelected = mode == selected
+                val color by animateColorAsState(if (isSelected) Sem.accent else Sem.textMuted, tween(200), label = "modeColor")
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect(mode) }
+                        .semantics {
+                            role = Role.RadioButton
+                            this.selected = isSelected
+                        },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when (mode) {
+                            NoteShare.Mode.TEXT -> Icons.Default.Notes
+                            NoteShare.Mode.AUDIO -> Icons.Default.GraphicEq
+                            NoteShare.Mode.BOTH -> Icons.Default.Layers
+                        },
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(16.dp)
                     )
-                }
-                Box(
-                    Modifier
-                        .offset(x = knobX)
-                        .size(knob)
-                        .background(Sem.card, CircleShape)
-                        .background(Sem.accent.copy(alpha = 0.15f), CircleShape)
-                        .padding(4.dp)
-                        .background(Sem.accent, CircleShape)
-                )
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(Modifier.fillMaxWidth()) {
-                steps.forEachIndexed { i, label ->
-                    val isSelected = i == selected
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        label,
+                        mode.label,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) Sem.text else Sem.textMuted,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics {
-                                role = Role.RadioButton
-                                this.selected = isSelected
-                            }
+                        maxLines = 1
                     )
                 }
             }
@@ -355,13 +374,13 @@ private fun StepSelector(steps: List<String>, selected: Int, onSelect: (Int) -> 
 }
 
 @Composable
-private fun ContentChip(label: String, checked: Boolean, onClick: () -> Unit) {
+private fun ContentChip(label: String, checked: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (checked) Sem.accentContainer else Sem.card,
         border = BorderStroke(1.dp, if (checked) Sem.accentBorder else Sem.border),
         modifier = Modifier
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .semantics { role = Role.Checkbox; selected = checked }
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -380,7 +399,7 @@ private fun ContentChip(label: String, checked: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AudioAttachment(fileName: String) {
+private fun AudioAttachment(fileName: String, durationMs: Long) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = Sem.card,
@@ -397,7 +416,13 @@ private fun AudioAttachment(fileName: String) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(fileName, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Sem.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("The recording only; its notes stay on your phone", fontSize = 12.sp, color = Sem.textSecondary)
+                val seconds = durationMs / 1000
+                val length = if (seconds > 0) "%d:%02d · ".format(seconds / 60, seconds % 60) else ""
+                Text(
+                    length + "the recording only; its notes stay on your phone",
+                    fontSize = 12.sp,
+                    color = Sem.textSecondary
+                )
             }
         }
     }
