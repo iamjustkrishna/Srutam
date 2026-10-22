@@ -212,6 +212,16 @@ object AppPreferences {
             .apply()
     }
 
+    /**
+     * Someone going through first run is new to Srutam, whatever the install dates say (an update
+     * followed by "Clear data" looks like an old install): Auto AI starts on unless they chose.
+     * Recordings from an earlier install still wait for the user's choice before any AI runs.
+     */
+    fun enableAutoAiIfUnchosen(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_AUTO_AI_ENABLED)) setAutoAiEnabled(context, true)
+    }
+
     fun setAutoAiEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

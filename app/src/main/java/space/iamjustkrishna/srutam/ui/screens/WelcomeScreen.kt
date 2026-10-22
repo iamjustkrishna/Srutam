@@ -112,6 +112,7 @@ import space.iamjustkrishna.srutam.data.InsightKind
 import space.iamjustkrishna.srutam.data.RecordingAiStatus
 import space.iamjustkrishna.srutam.data.ReminderStatus
 import space.iamjustkrishna.srutam.navigation.FirstNote
+import space.iamjustkrishna.srutam.service.AiProcessingWorker
 import space.iamjustkrishna.srutam.service.LiveLevel
 import space.iamjustkrishna.srutam.service.MicPermission
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
@@ -121,6 +122,7 @@ import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
+import space.iamjustkrishna.srutam.utils.AppPreferences
 
 /** Where the first-run flow is. */
 private enum class FirstRunStage { WELCOME, RECORDING, RESULT }
@@ -169,6 +171,8 @@ fun WelcomeScreen(
                 FirstRunStage.WELCOME -> WelcomeStage(
                     micPermissions = micPermissions,
                     onStartRecording = {
+                        // So the first note gets its summary the moment recording stops.
+                        AppPreferences.enableAutoAiIfUnchosen(context)
                         QuickRecordNotification.restoreIdle(context)
                         if (RecordingCoordinator.requestStart(context, "onboarding")) stage = FirstRunStage.RECORDING
                     },
@@ -583,6 +587,29 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
     val failed = note?.aiStatus == RecordingAiStatus.ERROR
 
     LaunchedEffect(ready) { if (ready) Analytics.log(context, "first_run_note_ready") }
+
+    // Make sure the note is being worked on: if it was saved but AI wasn't queued (Auto AI off,
+    // or the recording service didn't get to it), queue it here. Waits briefly first, so the
+    // recording service's own queueing wins when it happens.
+    LaunchedEffect(noteId) {
+        val id = noteId ?: return@LaunchedEffect
+        delay(1_500L)
+        val dao = db.recordingDao()
+        val current = dao.getRecordingById(id) ?: return@LaunchedEffect
+        val untouched = !current.isProcessing && current.summary.isNullOrBlank() &&
+            current.aiStatus != RecordingAiStatus.SUMMARY_PENDING_OFFLINE &&
+            current.aiStatus != RecordingAiStatus.READY
+        if (untouched) {
+            dao.updateRecording(
+                current.copy(
+                    isProcessing = true,
+                    aiStatus = if (current.transcript.isNullOrBlank()) RecordingAiStatus.TRANSCRIBING else RecordingAiStatus.SUMMARY_PROCESSING,
+                    processingError = null
+                )
+            )
+            AiProcessingWorker.enqueueProcessing(context, listOf(id))
+        }
+    }
 
     if (notFound) {
         Column(

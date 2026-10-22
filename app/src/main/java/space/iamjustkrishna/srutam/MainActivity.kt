@@ -230,6 +230,7 @@ fun SrutamApp(
      */
     fun finishOnboarding(result: String) {
         Analytics.log(context, Analytics.EVENT_ONBOARDING_COMPLETED, mapOf(Analytics.PARAM_RESULT to result))
+        AppPreferences.enableAutoAiIfUnchosen(context)
         AppPreferences.setByokOnboardingCompleted(context, true)
         AppPreferences.setHasCompletedCaptureSetup(context, false)
         AppPreferences.setOnboardingCompleted(context, true)
