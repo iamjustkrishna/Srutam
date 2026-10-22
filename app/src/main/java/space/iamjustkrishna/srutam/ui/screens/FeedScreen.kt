@@ -980,7 +980,8 @@ fun FeedScreenContent(
             )
 
             // Ambient Capture Activation & Nudge Cards
-            if (!isFloatingDockEnabled && !hasCompletedCaptureSetup && isByokCompleted) {
+            // The floating button is offered once there's a note: after the first one, it means something.
+            if (!isFloatingDockEnabled && !hasCompletedCaptureSetup && isByokCompleted && audioFiles.isNotEmpty()) {
                 ExistingUserCaptureUpgradeCard(
                     onEnable = onEnableFloatingDock,
                     onDismiss = onDismissUpgradeCard,
@@ -1178,7 +1179,7 @@ private fun ExistingUserCaptureUpgradeCard(
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = "NEW",
+                            text = "TIP",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = CobaltBlue,
@@ -1204,14 +1205,14 @@ private fun ExistingUserCaptureUpgradeCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Instant Voice Capture from Any App",
+                text = "Capture from any app, in one tap",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isDark) TextOnDarkPrimary else TextPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Turn on the on-screen floating dock so you never forget to capture a thought, meeting, or idea.",
+                text = "A small floating button sits at the edge of your screen. Tap it to record without opening Srutam.",
                 fontSize = 13.sp,
                 color = if (isDark) TextOnDarkSecondary else TextSecondary,
                 lineHeight = 18.sp

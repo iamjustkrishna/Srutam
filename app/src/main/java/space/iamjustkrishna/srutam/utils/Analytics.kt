@@ -81,15 +81,54 @@ object Analytics {
     fun recordingStarted(context: Context, source: String? = null) =
         log(context, EVENT_RECORDING_STARTED, source?.let { mapOf(PARAM_SOURCE to it) })
 
-    fun recordingSaved(context: Context, durationMs: Long) =
+    fun recordingSaved(context: Context, durationMs: Long) {
         log(context, EVENT_RECORDING_SAVED, mapOf(PARAM_DURATION_BUCKET to durationBucket(durationMs)))
+        when (countNoteSaved(context)) {
+            1 -> milestone(context, MILESTONE_FIRST_NOTE)
+            2 -> milestone(context, MILESTONE_SECOND_NOTE)
+        }
+    }
 
     fun recordingDiscarded(context: Context) = log(context, EVENT_RECORDING_DISCARDED)
 
     /** The live transcript was stored on the note. */
-    fun transcriptStored(context: Context) = log(context, EVENT_TRANSCRIPT_STORED)
+    fun transcriptStored(context: Context) {
+        log(context, EVENT_TRANSCRIPT_STORED)
+        milestone(context, MILESTONE_FIRST_TRANSCRIPT)
+    }
 
-    fun aiInsightsReady(context: Context) = log(context, EVENT_AI_INSIGHTS_READY)
+    fun aiInsightsReady(context: Context) {
+        log(context, EVENT_AI_INSIGHTS_READY)
+        milestone(context, MILESTONE_FIRST_INSIGHTS)
+    }
+
+    // ---- First-use milestones, each logged once per install ----
+    // The numbers that say whether onboarding works: a first transcript in the first session,
+    // then a second note. minutes_since_install tells how quickly people get there.
+
+    private const val MILESTONE_PREFS = "srutam_milestones"
+    const val MILESTONE_FIRST_NOTE = "first_note_saved"
+    const val MILESTONE_FIRST_TRANSCRIPT = "first_transcript_saved"
+    const val MILESTONE_FIRST_INSIGHTS = "first_insights_ready"
+    const val MILESTONE_SECOND_NOTE = "second_note_saved"
+
+    private fun countNoteSaved(context: Context): Int = runCatching {
+        val prefs = context.getSharedPreferences(MILESTONE_PREFS, Context.MODE_PRIVATE)
+        val count = prefs.getInt("notes_saved", 0) + 1
+        prefs.edit().putInt("notes_saved", count).apply()
+        count
+    }.getOrDefault(0)
+
+    fun milestone(context: Context, name: String) {
+        val prefs = runCatching { context.getSharedPreferences(MILESTONE_PREFS, Context.MODE_PRIVATE) }.getOrNull() ?: return
+        if (prefs.getBoolean(name, false)) return
+        prefs.edit().putBoolean(name, true).apply()
+        val installedAt = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+        }.getOrNull()
+        val minutes = installedAt?.let { (System.currentTimeMillis() - it) / 60_000L }
+        log(context, name, minutes?.let { mapOf(PARAM_MINUTES_SINCE_INSTALL to it) })
+    }
 
     fun aiProcessingFailed(context: Context, reason: String) =
         log(context, EVENT_AI_PROCESSING_FAILED, mapOf(PARAM_REASON to reason.take(100)))
@@ -202,6 +241,7 @@ object Analytics {
     const val PARAM_TIME_ON_STEP_MS = "time_on_step_ms"
     const val PARAM_PERMISSION = "permission"
     const val PARAM_TRIGGER = "trigger"
+    const val PARAM_MINUTES_SINCE_INSTALL = "minutes_since_install"
 
     const val RESULT_GRANTED = "granted"
     const val RESULT_DENIED = "denied"

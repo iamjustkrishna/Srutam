@@ -63,6 +63,7 @@ import space.iamjustkrishna.srutam.ui.components.SaveRecordingDialog
 import space.iamjustkrishna.srutam.ui.screens.SettingsScreen
 import space.iamjustkrishna.srutam.ui.screens.TabletWorkspaceLayout
 import androidx.activity.compose.BackHandler
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.utils.AppPreferences
 import space.iamjustkrishna.srutam.utils.AudioFileInfo
 import space.iamjustkrishna.srutam.utils.AudioFileReader
@@ -90,7 +91,7 @@ fun SrutamNavigation(
     initialReminderId: String? = null
 ) {
     LaunchedEffect(initialRecordingId) {
-        if (initialRecordingId != null && initialRecordingId > 0L) {
+        if (initialRecordingId != null && (initialRecordingId > 0L || SampleNote.isSample(initialRecordingId))) {
             navController.navigate(Screen.Detail.createRoute(initialRecordingId))
         }
     }
@@ -239,13 +240,25 @@ private fun RootScreen(
     // Observe background service recording status via RecordingCoordinator
     LaunchedEffect(Unit) {
         var wasRecording = false
+        var lastRecordingPath: String? = null
         launch {
             RecordingCoordinator.state.collect { state ->
                 val currentRecording = state is RecordingCoordinator.RecordingSessionState.Recording ||
                         state is RecordingCoordinator.RecordingSessionState.Paused
+                if (currentRecording) RecordingCoordinator.activeFilePath?.let { lastRecordingPath = it }
                 if (wasRecording && !currentRecording) {
                     // Recording just stopped in background service (e.g. via floating dock)
                     viewModel.loadAudioFiles()
+                    // The first note, recorded from the welcome screen, opens by itself: its
+                    // transcript and insights are the user's first real result.
+                    if (AppPreferences.isFirstNoteOpenPending(context)) {
+                        AppPreferences.setFirstNoteOpenPending(context, false)
+                        launch {
+                            FirstNote.awaitSavedId(context, lastRecordingPath)?.let { id ->
+                                navController.navigate(Screen.Detail.createRoute(id))
+                            }
+                        }
+                    }
                 }
                 wasRecording = currentRecording
                 isServiceRecording = currentRecording

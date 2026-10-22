@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,9 +36,9 @@ import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.MicPermission
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.service.RecordingCoordinator
-import space.iamjustkrishna.srutam.ui.screens.CaptureSetupScreen
-import space.iamjustkrishna.srutam.ui.screens.OnboardingIntroScreen
+import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
+import space.iamjustkrishna.srutam.ui.screens.WelcomeScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
 import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import space.iamjustkrishna.srutam.utils.Analytics
@@ -48,8 +46,7 @@ import space.iamjustkrishna.srutam.utils.AppPreferences
 
 enum class AppStage {
     SPLASH,
-    INTRO,
-    CAPTURE_SETUP,
+    WELCOME,
     MAIN
 }
 
@@ -127,7 +124,7 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Android 10 also needs storage write access to save recordings into Music/Srutam. */
-private fun micPermissions(): Array<String> =
+internal fun micPermissions(): Array<String> =
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
         arrayOf(
             Manifest.permission.RECORD_AUDIO,
@@ -147,7 +144,8 @@ fun SrutamApp(
 ) {
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
-    var dockShownAt by remember { mutableLongStateOf(0L) }
+    // "See a sample" on the welcome screen opens the welcome note once Home is up.
+    var openAfterWelcome by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // Mic: asked on the first record tap from any entry point, then the recording starts.
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -229,17 +227,14 @@ fun SrutamApp(
         }
     }
 
-    LaunchedEffect(appStage) {
-        if (appStage == AppStage.CAPTURE_SETUP) {
-            dockShownAt = SystemClock.elapsedRealtime()
-            Analytics.onboardingStepViewed(context, "dock")
-        }
-    }
-
-    fun finishOnboarding(dockResult: String) {
-        Analytics.onboardingStepResult(context, "dock", dockResult, SystemClock.elapsedRealtime() - dockShownAt)
-        Analytics.onboardingCompleted(context)
-        AppPreferences.setHasCompletedCaptureSetup(context, true)
+    /**
+     * First run ends straight on Home. The floating button isn't set up here any more: Home
+     * offers it once the first note exists, when it means something.
+     */
+    fun finishOnboarding(result: String) {
+        Analytics.log(context, Analytics.EVENT_ONBOARDING_COMPLETED, mapOf(Analytics.PARAM_RESULT to result))
+        AppPreferences.setByokOnboardingCompleted(context, true)
+        AppPreferences.setHasCompletedCaptureSetup(context, false)
         AppPreferences.setOnboardingCompleted(context, true)
         appStage = AppStage.MAIN
     }
@@ -255,22 +250,31 @@ fun SrutamApp(
             AppStage.SPLASH -> {
                 SrutamSplashScreen(
                     onSplashFinished = {
-                        appStage = if (AppPreferences.isOnboardingCompleted(context)) AppStage.MAIN else AppStage.INTRO
+                        appStage = if (AppPreferences.isOnboardingCompleted(context)) AppStage.MAIN else AppStage.WELCOME
                     }
                 )
             }
-            AppStage.INTRO -> {
-                // Asks for access to recordings on its first page, so a reinstall finds its notes.
-                OnboardingIntroScreen(onFinished = { appStage = AppStage.CAPTURE_SETUP })
-            }
-            AppStage.CAPTURE_SETUP -> {
-                CaptureSetupScreen(
-                    onComplete = { finishOnboarding(Analytics.RESULT_GRANTED) },
-                    onSkip = { finishOnboarding(Analytics.RESULT_SKIPPED) }
+            AppStage.WELCOME -> {
+                WelcomeScreen(
+                    micPermissions = micPermissions(),
+                    onRecord = {
+                        // The note this makes opens on its own once saved: the first real result.
+                        AppPreferences.setFirstNoteOpenPending(context, true)
+                        finishOnboarding("record")
+                        QuickRecordNotification.restoreIdle(context)
+                        RecordingCoordinator.requestStart(context, "onboarding")
+                    },
+                    onSeeSample = {
+                        Analytics.sampleNoteOpened(context)
+                        openAfterWelcome = SampleNote.ID
+                        finishOnboarding("sample")
+                    },
+                    onRestored = { finishOnboarding("restore") },
+                    onSkip = { finishOnboarding("skip") }
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId)
+                SrutamNavigation(initialRecordingId = initialRecordingId ?: openAfterWelcome, initialReminderId = initialReminderId)
             }
         }
     }
