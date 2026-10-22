@@ -36,7 +36,6 @@ import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.MicPermission
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.service.RecordingCoordinator
-import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.screens.SrutamSplashScreen
 import space.iamjustkrishna.srutam.ui.screens.WelcomeScreen
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
@@ -144,8 +143,6 @@ fun SrutamApp(
 ) {
     val context = LocalContext.current
     var appStage by rememberSaveable { mutableStateOf(AppStage.SPLASH) }
-    // "See a sample" on the welcome screen opens the welcome note once Home is up.
-    var openAfterWelcome by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // Mic: asked on the first record tap from any entry point, then the recording starts.
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -255,26 +252,14 @@ fun SrutamApp(
                 )
             }
             AppStage.WELCOME -> {
+                // Welcome, the first recording and its note, all in one place; then Home.
                 WelcomeScreen(
                     micPermissions = micPermissions(),
-                    onRecord = {
-                        // The note this makes opens on its own once saved: the first real result.
-                        AppPreferences.setFirstNoteOpenPending(context, true)
-                        finishOnboarding("record")
-                        QuickRecordNotification.restoreIdle(context)
-                        RecordingCoordinator.requestStart(context, "onboarding")
-                    },
-                    onSeeSample = {
-                        Analytics.sampleNoteOpened(context)
-                        openAfterWelcome = SampleNote.ID
-                        finishOnboarding("sample")
-                    },
-                    onRestored = { finishOnboarding("restore") },
-                    onSkip = { finishOnboarding("skip") }
+                    onFinished = { result -> finishOnboarding(result) }
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation(initialRecordingId = initialRecordingId ?: openAfterWelcome, initialReminderId = initialReminderId)
+                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId)
             }
         }
     }

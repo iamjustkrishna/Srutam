@@ -1076,7 +1076,7 @@ fun FeedScreenContent(
                                 isSample = true,
                                 modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 8.dp)
                             )
-                            NotesEmptyState(Modifier.weight(1f))
+                            FirstNoteHint(Modifier.padding(start = 14.dp, end = 14.dp, top = 6.dp))
                         }
                     } else {
                         NotesEmptyState()
@@ -1653,6 +1653,37 @@ fun TextOnlyChip(modifier: Modifier = Modifier) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+/** Under the welcome note: one quiet line saying where the user's own notes will go. */
+@Composable
+fun FirstNoteHint(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(BorderStroke(1.dp, Sem.border), RoundedCornerShape(20.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(34.dp)
+                .background(Sem.accentContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Mic, contentDescription = null, tint = Sem.accent, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Your notes will show up here", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Sem.text)
+            Text(
+                "Tap the mic to record one. Open the welcome note above to see what each note becomes.",
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                color = Sem.textSecondary
             )
         }
     }

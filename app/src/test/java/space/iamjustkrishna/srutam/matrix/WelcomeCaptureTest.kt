@@ -29,11 +29,11 @@ class WelcomeCaptureTest {
             SrutamTheme(themeMode = mode) {
                 WelcomeScreen(
                     micPermissions = arrayOf(android.Manifest.permission.RECORD_AUDIO),
-                    onRecord = {}, onSeeSample = {}, onRestored = {}, onSkip = {}
+                    onFinished = {}
                 )
             }
         }
-        composeRule.mainClock.advanceTimeBy(700)
+        composeRule.mainClock.advanceTimeBy(1200)
         val file = File("../screenshots/screen-matrix/welcome/$name.png").canonicalFile
         file.parentFile?.mkdirs()
         composeRule.onRoot().captureRoboImage(file.absolutePath)

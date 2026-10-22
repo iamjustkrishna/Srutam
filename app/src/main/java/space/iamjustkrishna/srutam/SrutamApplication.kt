@@ -20,6 +20,8 @@ class SrutamApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // First: before anything creates Music/Srutam, note whether an earlier install left it.
+        space.iamjustkrishna.srutam.utils.PriorInstall.checkOnce(this)
         AudioFileReader.init(this)
         space.iamjustkrishna.srutam.utils.Analytics.init(this)
         space.iamjustkrishna.srutam.utils.Analytics.setUserProperties(this)

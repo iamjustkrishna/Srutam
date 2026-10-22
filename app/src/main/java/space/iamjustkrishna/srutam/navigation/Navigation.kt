@@ -240,25 +240,13 @@ private fun RootScreen(
     // Observe background service recording status via RecordingCoordinator
     LaunchedEffect(Unit) {
         var wasRecording = false
-        var lastRecordingPath: String? = null
         launch {
             RecordingCoordinator.state.collect { state ->
                 val currentRecording = state is RecordingCoordinator.RecordingSessionState.Recording ||
                         state is RecordingCoordinator.RecordingSessionState.Paused
-                if (currentRecording) RecordingCoordinator.activeFilePath?.let { lastRecordingPath = it }
                 if (wasRecording && !currentRecording) {
                     // Recording just stopped in background service (e.g. via floating dock)
                     viewModel.loadAudioFiles()
-                    // The first note, recorded from the welcome screen, opens by itself: its
-                    // transcript and insights are the user's first real result.
-                    if (AppPreferences.isFirstNoteOpenPending(context)) {
-                        AppPreferences.setFirstNoteOpenPending(context, false)
-                        launch {
-                            FirstNote.awaitSavedId(context, lastRecordingPath)?.let { id ->
-                                navController.navigate(Screen.Detail.createRoute(id))
-                            }
-                        }
-                    }
                 }
                 wasRecording = currentRecording
                 isServiceRecording = currentRecording

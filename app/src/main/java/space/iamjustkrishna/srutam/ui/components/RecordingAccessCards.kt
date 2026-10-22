@@ -8,6 +8,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,12 +63,15 @@ import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.data.signature.BlockWriteAccess
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
+import space.iamjustkrishna.srutam.utils.PriorInstall
 import space.iamjustkrishna.srutam.utils.StoragePermission
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 
 /**
- * Home's cards for recordings a previous install left behind:
- *  - "Find your recordings" while Srutam can't see them (no "Music and audio" access).
+ * Home's cards for recordings a previous install left behind. New users see none of this:
+ *  - Welcome back: when an earlier install's Music/Srutam folder was found ([PriorInstall]) and
+ *    Srutam can't see its recordings yet, a sheet offers to bring them back, once; a small card
+ *    stays until it's allowed.
  *  - "Sign in to restore, or process with AI?" for ones with no note saved inside.
  *  - "Save your notes into their recordings" when notes can't be written into those files yet.
  */
@@ -132,6 +144,25 @@ fun RecordingAccessBanners(
     var foundDialogDismissed by rememberSaveable { mutableStateOf(false) }
     val showFound = found > 0 && !isCloudSignedIn
 
+    // Recordings from an earlier install, detected without asking anything
+    val offerRestore = !storageGranted && PriorInstall.recordingsFromBefore(context)
+    var showWelcomeBack by remember { mutableStateOf(offerRestore && !PriorInstall.wasPrompted(context)) }
+    if (showWelcomeBack && offerRestore) {
+        WelcomeBackSheet(
+            onAllow = {
+                PriorInstall.markPrompted(context)
+                showWelcomeBack = false
+                Analytics.log(context, EVENT_WELCOME_BACK, mapOf(Analytics.PARAM_RESULT to "allow"))
+                storageLauncher.launch(StoragePermission.permission)
+            },
+            onLater = {
+                PriorInstall.markPrompted(context)
+                showWelcomeBack = false
+                Analytics.log(context, EVENT_WELCOME_BACK, mapOf(Analytics.PARAM_RESULT to "later"))
+            }
+        )
+    }
+
     if (showFound && !foundDialogDismissed) {
         FoundRecordingsDialog(
             count = found,
@@ -153,12 +184,12 @@ fun RecordingAccessBanners(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        if (!storageGranted && !hasRealNotes) {
+        if (offerRestore && !showWelcomeBack) {
             AccessCard(
                 icon = Icons.Default.FolderOpen,
-                title = "Used Srutam before? Find your recordings",
-                body = "Allow access to Music and audio so Srutam can bring back the notes saved in your recordings.",
-                action = "Find recordings",
+                title = "Your recordings from before",
+                body = "Allow access to Music and audio and their notes come back, even offline.",
+                action = "Bring them back",
                 onAction = { storageLauncher.launch(StoragePermission.permission) }
             )
         }
@@ -277,6 +308,64 @@ private fun SettingsAccessRow(
 }
 
 private const val EVENT_FOUND_RECORDINGS = "found_recordings_choice"
+private const val EVENT_WELCOME_BACK = "welcome_back_choice"
+
+/** Shown once when an earlier install's recordings are found: one clear offer, easy to decline. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WelcomeBackSheet(onAllow: () -> Unit, onLater: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onLater,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Sem.scaffold
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp)
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                Modifier
+                    .size(64.dp)
+                    .background(Sem.accentContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Sem.accent, modifier = Modifier.size(30.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Welcome back",
+                fontSize = 24.sp,
+                fontFamily = PlayfairDisplayFontFamily,
+                fontWeight = FontWeight.Bold,
+                color = Sem.text
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Srutam found recordings from an earlier install on this phone. Allow access to Music and audio and their notes come back as they were, even offline.",
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = Sem.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onAllow,
+                colors = ButtonDefaults.buttonColors(containerColor = Sem.accent),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) {
+                Text("Bring back my notes", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+            TextButton(onClick = onLater, modifier = Modifier.padding(top = 4.dp)) {
+                Text("Not now", color = Sem.textSecondary)
+            }
+        }
+    }
+}
 
 private fun openAppSettings(context: android.content.Context) {
     runCatching {

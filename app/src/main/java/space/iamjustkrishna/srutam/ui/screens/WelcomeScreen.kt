@@ -5,108 +5,215 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import com.google.gson.Gson
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import space.iamjustkrishna.srutam.data.AppDatabase
+import space.iamjustkrishna.srutam.data.InsightKind
+import space.iamjustkrishna.srutam.data.RecordingAiStatus
+import space.iamjustkrishna.srutam.data.ReminderStatus
+import space.iamjustkrishna.srutam.navigation.FirstNote
+import space.iamjustkrishna.srutam.service.LiveLevel
 import space.iamjustkrishna.srutam.service.MicPermission
+import space.iamjustkrishna.srutam.service.QuickRecordNotification
+import space.iamjustkrishna.srutam.service.RecordingCoordinator
+import space.iamjustkrishna.srutam.service.RecordingForegroundService
 import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
-import space.iamjustkrishna.srutam.utils.StoragePermission
-import kotlin.math.PI
-import kotlin.math.sin
+
+/** Where the first-run flow is. */
+private enum class FirstRunStage { WELCOME, RECORDING, RESULT }
+
+private val RecordRed = Color(0xFFE53935)
 
 /**
- * First run, one screen: what Srutam does, and a way to try it right away. "Record your first
- * thought" asks for the microphone only when tapped and starts recording; the note it makes is
- * the user's first real taste of the app. "See a sample" opens the welcome note instead. People
- * who used Srutam before can restore their notes (that's when Music and audio access is asked).
- * Nothing else is asked here: the floating button is offered after the first note.
+ * First run, start to first note, without leaving onboarding:
+ *  1. Welcome: what Srutam does, and one action, the app's own mic button.
+ *  2. Recording: a focused screen with a live waveform and a timer. The mic is asked for only
+ *     when the button is tapped; a denial keeps the user on the welcome screen.
+ *  3. Srutam at work: the note being written and understood, step by step, then the user's own
+ *     summary, tasks and reminders. Continue goes to Home.
+ * Nothing else is asked here. Recordings from an earlier install, the floating button and the
+ * welcome note all come later, on Home, when they mean something.
  */
 @Composable
 fun WelcomeScreen(
     /** The microphone, plus storage on Android 10, where saving into Music/Srutam needs it. */
     micPermissions: Array<String>,
-    onRecord: () -> Unit,
-    onSeeSample: () -> Unit,
-    onRestored: () -> Unit,
-    onSkip: () -> Unit,
+    /** [result] is how first run ended: note, skip. */
+    onFinished: (result: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    // null: not asked yet; false: denied (and Android can still ask); "blocked": only Settings can turn it on.
-    var micState by remember { mutableStateOf<String?>(null) }
+    var stage by rememberSaveable { mutableStateOf(FirstRunStage.WELCOME) }
+    var recordingPath by rememberSaveable { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) { Analytics.log(context, EVENT_WELCOME_VIEWED) }
+    LaunchedEffect(stage) { Analytics.onboardingStepViewed(context, "first_run_${stage.name.lowercase()}") }
+
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(Sem.scaffold)
+            .systemBarsPadding()
+    ) {
+        AnimatedContent(
+            targetState = stage,
+            transitionSpec = {
+                (fadeIn(tween(320, delayMillis = 80)) + slideInVertically(tween(320, delayMillis = 80)) { it / 12 })
+                    .togetherWith(fadeOut(tween(160)))
+            },
+            label = "firstRun"
+        ) { current ->
+            when (current) {
+                FirstRunStage.WELCOME -> WelcomeStage(
+                    micPermissions = micPermissions,
+                    onStartRecording = {
+                        QuickRecordNotification.restoreIdle(context)
+                        if (RecordingCoordinator.requestStart(context, "onboarding")) stage = FirstRunStage.RECORDING
+                    },
+                    onSkip = { onFinished("skip") }
+                )
+                FirstRunStage.RECORDING -> RecordingStage(
+                    onStopped = { path ->
+                        recordingPath = path
+                        stage = FirstRunStage.RESULT
+                    },
+                    onStartOver = {
+                        RecordingCoordinator.requestCancel(context)
+                        stage = FirstRunStage.WELCOME
+                    }
+                )
+                FirstRunStage.RESULT -> ResultStage(
+                    recordingPath = recordingPath,
+                    onRetry = { stage = FirstRunStage.WELCOME },
+                    onContinue = { onFinished("note") }
+                )
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// 1. Welcome
+// -------------------------------------------------------------------------------------------
+
+@Composable
+private fun WelcomeStage(
+    micPermissions: Array<String>,
+    onStartRecording: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    // null: not asked yet; "denied": Android can still ask; "blocked": only Settings can turn it on.
+    var micState by rememberSaveable { mutableStateOf<String?>(null) }
 
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         val granted = results[Manifest.permission.RECORD_AUDIO] == true
         Analytics.permissionResult(context, "mic", granted, "welcome")
         if (granted) {
-            onRecord()
+            onStartRecording()
         } else {
             val activity = context as? Activity
             val blocked = activity != null &&
@@ -114,150 +221,589 @@ fun WelcomeScreen(
             micState = if (blocked) "blocked" else "denied"
         }
     }
-    val storageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        Analytics.permissionResult(context, "storage", granted, "welcome_restore")
-        // Home finds the recordings and brings their notes back; if denied, its card offers it again.
-        onRestored()
-    }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Sem.scaffold)
-            .systemBarsPadding()
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Everything fits on one screen: the illustration gives way on short phones.
+        val illustrationHeight = (maxHeight * 0.24f).coerceIn(110.dp, 190.dp)
+        val compact = maxHeight < 640.dp
+
         Column(Modifier.fillMaxSize()) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = {
-                    Analytics.log(context, EVENT_WELCOME_CHOICE, mapOf(Analytics.PARAM_RESULT to "skip"))
-                    onSkip()
-                }) {
-                    Text("Skip", color = Sem.textSecondary)
-                }
+                TextButton(onClick = onSkip) { Text("Skip", color = Sem.textSecondary) }
             }
 
             Column(
-                modifier = Modifier
+                Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                ListenIllustration(Modifier.size(width = 260.dp, height = 190.dp))
-                Spacer(Modifier.height(28.dp))
-                Text(
-                    text = "Capture a thought.\nGet a useful note.",
-                    fontSize = 30.sp,
-                    lineHeight = 36.sp,
-                    fontFamily = PlayfairDisplayFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = Sem.text
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                    textAlign = TextAlign.Center,
-                    color = Sem.textSecondary,
-                    modifier = Modifier.widthIn(max = 340.dp)
-                )
-                Spacer(Modifier.height(22.dp))
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.widthIn(max = 340.dp)
-                ) {
-                    ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
-                    ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks, ideas and decisions")
-                    ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
+                Entrance(0) {
+                    ListenIllustration(Modifier.size(width = illustrationHeight * 1.37f, height = illustrationHeight))
+                }
+                Spacer(Modifier.height(if (compact) 16.dp else 26.dp))
+                Entrance(1) {
+                    Text(
+                        text = "Capture a thought.\nGet a useful note.",
+                        fontSize = if (compact) 26.sp else 30.sp,
+                        lineHeight = if (compact) 31.sp else 36.sp,
+                        fontFamily = PlayfairDisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = Sem.text
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Entrance(2) {
+                    Text(
+                        text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
+                        textAlign = TextAlign.Center,
+                        color = Sem.textSecondary,
+                        modifier = Modifier.widthIn(max = 330.dp)
+                    )
+                }
+                Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
+                Entrance(3) {
+                    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp)) {
+                        ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
+                        ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
+                        ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
+                    }
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 12.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = {
-                        Analytics.log(context, EVENT_WELCOME_CHOICE, mapOf(Analytics.PARAM_RESULT to "record"))
-                        when {
-                            MicPermission.isGranted(context) -> onRecord()
-                            micState == "blocked" -> openAppSettings(context)
-                            else -> micLauncher.launch(micPermissions)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier
+            Entrance(4) {
+                Column(
+                    Modifier
                         .fillMaxWidth()
-                        .height(58.dp)
+                        .padding(horizontal = 28.dp)
+                        .padding(bottom = if (compact) 14.dp else 22.dp, top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(10.dp))
+                    MicButton(
+                        recording = false,
+                        size = if (compact) 72.dp else 84.dp,
+                        description = "Record your first note",
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            when {
+                                MicPermission.isGranted(context) -> onStartRecording()
+                                micState == "blocked" -> openAppSettings(context)
+                                else -> micLauncher.launch(micPermissions)
+                            }
+                        }
+                    )
+                    Spacer(Modifier.height(14.dp))
                     Text(
-                        text = if (micState == "blocked") "Allow the microphone in Settings" else "Record your first thought",
+                        text = if (micState == "blocked") "Allow the microphone to start" else "Tap to record your first note",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = Sem.text
                     )
-                }
-                Spacer(Modifier.height(8.dp))
-                AnimatedContent(
-                    targetState = micState,
-                    transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
-                    label = "micNote"
-                ) { state ->
-                    Text(
-                        text = when (state) {
-                            null -> "Srutam will ask for the microphone. Your audio stays on this phone."
-                            "blocked" -> "The microphone is off for Srutam. You can still look around first."
-                            else -> "No problem. Look at a sample first, and record whenever you like."
-                        },
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp,
-                        textAlign = TextAlign.Center,
-                        color = if (state == null) Sem.textMuted else Sem.amberText,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = {
-                        Analytics.log(context, EVENT_WELCOME_CHOICE, mapOf(Analytics.PARAM_RESULT to "sample"))
-                        onSeeSample()
-                    },
-                    border = BorderStroke(1.dp, Sem.border),
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text("See a sample note", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Sem.text)
-                }
-                TextButton(onClick = {
-                    Analytics.log(context, EVENT_WELCOME_CHOICE, mapOf(Analytics.PARAM_RESULT to "restore"))
-                    if (StoragePermission.isGranted(context)) onRestored() else storageLauncher.launch(StoragePermission.permission)
-                }) {
-                    Text("Used Srutam before? Restore your notes", fontSize = 13.sp, color = Sem.accent, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    AnimatedContent(
+                        targetState = micState,
+                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
+                        label = "micNote"
+                    ) { state ->
+                        Text(
+                            text = when (state) {
+                                null -> "Say anything on your mind. Your audio stays on this phone."
+                                "blocked" -> "The microphone is off for Srutam. Tap to open Settings, or skip for now."
+                                else -> "Srutam needs the microphone to hear you. Tap again whenever you're ready."
+                            },
+                            fontSize = 12.5.sp,
+                            lineHeight = 17.sp,
+                            textAlign = TextAlign.Center,
+                            color = if (state == null) Sem.textMuted else Sem.amberText,
+                            modifier = Modifier.widthIn(max = 320.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-private const val EVENT_WELCOME_VIEWED = "welcome_viewed"
-private const val EVENT_WELCOME_CHOICE = "welcome_choice"
+/** Fades and lifts content in, one beat after the previous item, so the screen settles in. */
+@Composable
+private fun Entrance(index: Int, content: @Composable () -> Unit) {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(90L * index)
+        progress.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
+    }
+    Box(
+        Modifier.graphicsLayer {
+            alpha = progress.value
+            translationY = (1f - progress.value) * 18.dp.toPx()
+        }
+    ) { content() }
+}
+
+/** The app's record button: blue with a mic when ready, red with a stop square while recording. */
+@Composable
+private fun MicButton(recording: Boolean, size: Dp, description: String, onClick: () -> Unit) {
+    val color by animateColorAsState(if (recording) RecordRed else CobaltBlue, tween(250), label = "micColor")
+    val transition = rememberInfiniteTransition(label = "micPulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(if (recording) 1100 else 1800, easing = LinearEasing)),
+        label = "pulse"
+    )
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size * 1.7f)) {
+        Canvas(Modifier.size(size * 1.7f)) {
+            val base = size.toPx() / 2
+            for (ring in 0 until 2) {
+                val t = (pulse + ring * 0.5f) % 1f
+                drawCircle(
+                    color = color.copy(alpha = (1f - t) * if (recording) 0.28f else 0.18f),
+                    radius = base + t * base * 0.7f
+                )
+            }
+        }
+        Surface(
+            shape = CircleShape,
+            color = color,
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .size(size)
+                .clickable(onClick = onClick)
+                .semantics {
+                    contentDescription = description
+                    role = Role.Button
+                }
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(size * 0.42f)
+                )
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// 2. Recording
+// -------------------------------------------------------------------------------------------
+
+private val prompts = listOf(
+    "“Tomorrow I need to…”",
+    "an idea you don't want to lose",
+    "what was decided in a meeting",
+    "“Remind me to… on Friday”"
+)
+
+@Composable
+private fun RecordingStage(onStopped: (path: String?) -> Unit, onStartOver: () -> Unit) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    var elapsedMs by remember { mutableLongStateOf(0L) }
+    var path by remember { mutableStateOf<String?>(null) }
+    var promptIndex by remember { mutableIntStateOf(0) }
+    val levels = remember { mutableStateListOf<Float>().apply { repeat(BAR_COUNT) { add(0f) } } }
+    val level by LiveLevel.level.collectAsState()
+
+    BackHandler { onStartOver() }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            elapsedMs = RecordingForegroundService.elapsedDurationMs
+            RecordingCoordinator.activeFilePath?.let { path = it }
+            levels.removeAt(0)
+            levels.add(level)
+            delay(80)
+        }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3200)
+            promptIndex = (promptIndex + 1) % prompts.size
+        }
+    }
+
+    val canStop = elapsedMs >= 1_000L
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.weight(1f))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val dot = rememberInfiniteTransition(label = "dot").animateFloat(
+                0.3f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "dotAlpha"
+            )
+            Box(Modifier.size(9.dp).alpha(dot.value).background(RecordRed, CircleShape))
+            Spacer(Modifier.width(8.dp))
+            Text("Listening", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Sem.textSecondary)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "%d:%02d".format(elapsedMs / 60_000, (elapsedMs / 1000) % 60),
+            fontSize = 56.sp,
+            fontWeight = FontWeight.Light,
+            color = Sem.text
+        )
+        Spacer(Modifier.height(28.dp))
+        LiveWaveform(levels, Modifier.fillMaxWidth().height(96.dp))
+        Spacer(Modifier.height(32.dp))
+        Text("Talk about anything, like", fontSize = 13.sp, color = Sem.textMuted)
+        Spacer(Modifier.height(4.dp))
+        AnimatedContent(
+            targetState = promptIndex,
+            transitionSpec = {
+                (fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 2 })
+                    .togetherWith(fadeOut(tween(200)) + slideOutVertically(tween(200)) { -it / 2 })
+            },
+            label = "prompt"
+        ) { index ->
+            Text(
+                prompts[index],
+                fontSize = 18.sp,
+                fontFamily = PlayfairDisplayFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                color = Sem.text,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(Modifier.weight(1f))
+
+        MicButton(
+            recording = true,
+            size = 84.dp,
+            description = "Finish recording",
+            onClick = {
+                if (!canStop) return@MicButton
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                val finished = RecordingCoordinator.activeFilePath ?: path
+                RecordingCoordinator.requestStop(context)
+                onStopped(finished)
+            }
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            if (canStop) "Tap to finish" else "Keep talking…",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Sem.text
+        )
+        TextButton(onClick = onStartOver) {
+            Text("Start over", fontSize = 13.sp, color = Sem.textSecondary)
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+private const val BAR_COUNT = 36
+
+/** Bars for the last few seconds of sound, newest on the right, mirrored around the middle. */
+@Composable
+private fun LiveWaveform(levels: List<Float>, modifier: Modifier = Modifier) {
+    val accent = Sem.accent
+    val quiet = Sem.border
+    Canvas(modifier.semantics { contentDescription = "Live sound level" }) {
+        val gap = size.width / levels.size
+        val barWidth = gap * 0.55f
+        levels.forEachIndexed { i, raw ->
+            val level = raw.coerceIn(0f, 1f)
+            val h = (size.height * (0.06f + 0.94f * level)).coerceAtLeast(4.dp.toPx())
+            val x = i * gap + (gap - barWidth) / 2
+            // Older bars fade a little, so the eye follows the newest sound.
+            val age = i.toFloat() / levels.size
+            drawRoundRect(
+                color = if (level < 0.04f) quiet else accent.copy(alpha = 0.35f + 0.65f * age),
+                topLeft = Offset(x, (size.height - h) / 2),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(barWidth / 2)
+            )
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// 3. Srutam at work, then the user's own note
+// -------------------------------------------------------------------------------------------
+
+@Composable
+private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue: () -> Unit) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    var noteId by remember { mutableStateOf<Long?>(null) }
+    var notFound by remember { mutableStateOf(false) }
+    var waitedLong by remember { mutableStateOf(false) }
+
+    LaunchedEffect(recordingPath) {
+        val id = FirstNote.awaitSavedId(context, recordingPath, timeoutMs = 15_000L)
+        if (id == null) notFound = true else noteId = id
+    }
+    LaunchedEffect(Unit) {
+        delay(45_000L)
+        waitedLong = true
+    }
+
+    val recording by remember(noteId) {
+        noteId?.let { db.recordingDao().getRecordingByIdFlow(it) } ?: flowOf(null)
+    }.collectAsState(initial = null)
+    val insights by remember(noteId) {
+        noteId?.let { db.insightDao().getInsightsByRecordingIdFlow(it) } ?: flowOf(emptyList())
+    }.collectAsState(initial = emptyList())
+    val reminders by remember(noteId) {
+        noteId?.let { db.reminderDao().getRemindersByRecordingIdFlow(it) } ?: flowOf(emptyList())
+    }.collectAsState(initial = emptyList())
+
+    val note = recording
+    val transcript = note?.transcript?.takeIf { it.isNotBlank() }
+    val ready = note?.aiStatus == RecordingAiStatus.READY && !note.summary.isNullOrBlank()
+    val waitingForInternet = note?.aiStatus == RecordingAiStatus.SUMMARY_PENDING_OFFLINE
+    val failed = note?.aiStatus == RecordingAiStatus.ERROR
+
+    LaunchedEffect(ready) { if (ready) Analytics.log(context, "first_run_note_ready") }
+
+    if (notFound) {
+        Column(
+            Modifier.fillMaxSize().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("That recording didn't save", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Sem.text)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "It may have been too short. Try again and say a sentence or two.",
+                fontSize = 15.sp, color = Sem.textSecondary, textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue), shape = RoundedCornerShape(16.dp)) {
+                Text("Try again", fontWeight = FontWeight.SemiBold)
+            }
+            TextButton(onClick = onContinue) { Text("Continue to Srutam", color = Sem.textSecondary) }
+        }
+        return
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(top = 28.dp, bottom = 12.dp)
+        ) {
+            AnimatedContent(
+                targetState = ready,
+                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) },
+                label = "heading"
+            ) { done ->
+                Text(
+                    text = if (done) "Your first note" else "Srutam is on it",
+                    fontSize = 28.sp,
+                    fontFamily = PlayfairDisplayFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = Sem.text
+                )
+            }
+            Spacer(Modifier.height(18.dp))
+
+            // The work, step by step.
+            Surface(shape = RoundedCornerShape(18.dp), color = Sem.card, border = BorderStroke(1.dp, Sem.border)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    WorkStep("Saved on your phone", done = noteId != null)
+                    WorkStep("Writing down what you said", done = transcript != null, active = noteId != null)
+                    WorkStep(
+                        label = when {
+                            waitingForInternet -> "Summary waits for the internet. It'll finish on its own."
+                            failed -> "Couldn't finish the summary. Srutam will try again."
+                            else -> "Finding the summary, tasks and reminders"
+                        },
+                        done = ready,
+                        active = transcript != null && !waitingForInternet && !failed,
+                        warning = waitingForInternet || failed
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = transcript != null,
+                enter = fadeIn(tween(350)) + expandVertically(tween(350))
+            ) {
+                Column {
+                    Spacer(Modifier.height(18.dp))
+                    SectionTitle("WHAT YOU SAID")
+                    Text(
+                        text = "“${transcript.orEmpty()}”",
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = Sem.text,
+                        maxLines = 5,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (!ready && transcript != null && !waitingForInternet && !failed) {
+                Spacer(Modifier.height(18.dp))
+                ShimmerLines()
+            }
+
+            AnimatedVisibility(
+                visible = ready,
+                enter = fadeIn(tween(400, delayMillis = 100)) + slideInVertically(tween(400, delayMillis = 100)) { it / 6 }
+            ) {
+                Column {
+                    Spacer(Modifier.height(20.dp))
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Sem.accentContainer,
+                        border = BorderStroke(1.dp, Sem.accentBorder)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text(note?.name.orEmpty(), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Sem.text)
+                            Spacer(Modifier.height(6.dp))
+                            Text(note?.summary.orEmpty(), fontSize = 14.5.sp, lineHeight = 21.sp, color = Sem.text)
+                            val tasks = insights.filter { it.kind == InsightKind.ACTION }.map { it.text }.ifEmpty { legacyTasks(note?.actionItems) }
+                            if (tasks.isNotEmpty()) {
+                                Spacer(Modifier.height(14.dp))
+                                SectionTitle("TASKS")
+                                tasks.take(3).forEach { task ->
+                                    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+                                        Icon(Icons.Default.RadioButtonUnchecked, null, tint = Sem.accent, modifier = Modifier.size(17.dp).padding(top = 2.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(task, fontSize = 14.sp, color = Sem.text)
+                                    }
+                                }
+                            }
+                            val upcoming = reminders.filter { it.status == ReminderStatus.ACTIVE }
+                            if (upcoming.isNotEmpty()) {
+                                Spacer(Modifier.height(12.dp))
+                                SectionTitle("REMINDERS")
+                                upcoming.take(2).forEach { reminder ->
+                                    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+                                        Icon(Icons.Default.NotificationsActive, null, tint = Sem.accent, modifier = Modifier.size(17.dp).padding(top = 2.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(reminder.title, fontSize = 14.sp, color = Sem.text)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Every note works like this. Find it, and the welcome note, on your Home screen.",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = Sem.textSecondary
+                    )
+                }
+            }
+        }
+
+        val primary = ready || waitingForInternet || failed || waitedLong
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 18.dp, top = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (primary) {
+                Button(
+                    onClick = onContinue,
+                    colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                ) {
+                    Text("Continue to Srutam", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                }
+            } else {
+                TextButton(onClick = onContinue, modifier = Modifier.height(56.dp)) {
+                    Text("Continue, it'll finish in the background", fontSize = 14.sp, color = Sem.textSecondary)
+                }
+            }
+        }
+    }
+}
+
+private fun legacyTasks(json: String?): List<String> = runCatching {
+    Gson().fromJson(json ?: "[]", Array<String>::class.java).orEmpty()
+        .map { it.removePrefix("[ ]").removePrefix("[x]").trim() }
+        .filter { it.isNotBlank() }
+}.getOrDefault(emptyList())
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Sem.accent)
+    Spacer(Modifier.height(6.dp))
+}
+
+@Composable
+private fun WorkStep(label: String, done: Boolean, active: Boolean = true, warning: Boolean = false) {
+    val textAlpha by animateFloatAsState(if (done || active) 1f else 0.45f, tween(250), label = "stepAlpha")
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(textAlpha)) {
+        Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
+            AnimatedContent(
+                targetState = when {
+                    done -> 2
+                    warning -> 3
+                    active -> 1
+                    else -> 0
+                },
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
+                label = "stepIcon"
+            ) { state ->
+                when (state) {
+                    2 -> Box(Modifier.size(22.dp).background(Sem.emerald, CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(14.dp).scale(1f))
+                    }
+                    1 -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Sem.accent)
+                    3 -> Box(Modifier.size(10.dp).background(Sem.amber, CircleShape))
+                    else -> Box(Modifier.size(10.dp).background(Sem.border, CircleShape))
+                }
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(label, fontSize = 14.5.sp, color = if (warning) Sem.amberText else Sem.text, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Placeholder lines with a moving sheen while the summary is being written. */
+@Composable
+private fun ShimmerLines() {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val x by transition.animateFloat(-1f, 2f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "x")
+    val base = Sem.chip
+    val shine = Sem.card
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(1f, 0.92f, 0.7f, 0.5f).forEach { fraction ->
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(12.dp)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(base, shine, base),
+                            start = Offset(x * 600f, 0f),
+                            end = Offset(x * 600f + 300f, 0f)
+                        ),
+                        RoundedCornerShape(6.dp)
+                    )
+            )
+        }
+    }
+}
 
 private fun openAppSettings(context: android.content.Context) {
     runCatching {
@@ -342,7 +888,7 @@ private fun ListenIllustration(modifier: Modifier = Modifier) {
         val barW = (phoneW - barGap * (bars + 1)) / bars
         val midY = phoneTopLeft.y + phoneH * 0.45f
         for (i in 0 until bars) {
-            val wave = (sin((phase * 2 * PI) + i * 0.9).toFloat() + 1f) / 2f
+            val wave = (kotlin.math.sin((phase * 2 * Math.PI) + i * 0.9).toFloat() + 1f) / 2f
             val barH = phoneH * (0.08f + 0.30f * wave)
             val x = phoneTopLeft.x + barGap + i * (barW + barGap)
             drawRoundRect(

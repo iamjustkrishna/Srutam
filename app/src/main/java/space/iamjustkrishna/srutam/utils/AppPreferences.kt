@@ -470,7 +470,6 @@ object AppPreferences {
     private const val KEY_CLOUD_USER_ID = "cloud_user_id"
     private const val KEY_CLOUD_RESTORE_PENDING = "cloud_restore_pending"
     private const val KEY_FOUND_RECORDINGS_CHOICE = "found_recordings_choice"
-    private const val KEY_FIRST_NOTE_OPEN_PENDING = "first_note_open_pending"
     const val FOUND_CHOICE_AI = "ai"
     private const val KEY_RESTORE_SUMMARY_RESTORED = "restore_summary_restored"
     private const val KEY_RESTORE_SUMMARY_WITHOUT_AUDIO = "restore_summary_without_audio"
@@ -590,18 +589,6 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_FOUND_RECORDINGS_CHOICE, choice)
-            .apply()
-    }
-
-    /** Set when the first recording starts from the welcome screen: its note opens once saved. */
-    fun isFirstNoteOpenPending(context: Context): Boolean =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_FIRST_NOTE_OPEN_PENDING, false)
-
-    fun setFirstNoteOpenPending(context: Context, pending: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_FIRST_NOTE_OPEN_PENDING, pending)
             .apply()
     }
 

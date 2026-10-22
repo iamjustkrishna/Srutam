@@ -188,11 +188,14 @@ internal class AacRecordingPipeline(
             captureFailed = true
         } finally {
             if (sourceRunning) runCatching { source.stop() }
+            LiveLevel.reset()
         }
     }
 
     private fun handle(buffer: ShortArray, count: Int) {
-        if (isLoud(buffer, count)) lastLoudAtMs = monotonicMs()
+        val rms = rms(buffer, count)
+        LiveLevel.update(rms)
+        if (rms > LOUD_RMS) lastLoudAtMs = monotonicMs()
         encode(buffer, count)
         if (live != null && toSpeechRate != null) {
             val floats = FloatArray(count) { buffer[it] / 32768f }
@@ -200,13 +203,13 @@ internal class AacRecordingPipeline(
         }
     }
 
-    private fun isLoud(pcm: ShortArray, count: Int): Boolean {
+    private fun rms(pcm: ShortArray, count: Int): Double {
         var sum = 0.0
         for (i in 0 until count) {
             val value = pcm[i].toDouble()
             sum += value * value
         }
-        return Math.sqrt(sum / count) > LOUD_RMS
+        return Math.sqrt(sum / count)
     }
 
     private fun encode(pcm: ShortArray, count: Int) {
