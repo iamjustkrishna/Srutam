@@ -29,6 +29,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,7 +61,6 @@ import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -223,60 +223,70 @@ private fun WelcomeStage(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        // Everything fits on one screen: the illustration gives way on short phones.
-        val illustrationHeight = (maxHeight * 0.24f).coerceIn(110.dp, 190.dp)
-        val compact = maxHeight < 640.dp
+        // Everything fits on one screen: the illustration and spacing give way on shorter phones
+        // (a 1080x2400 phone has about 750 dp once the system bars are taken out).
+        val roomy = maxHeight >= 820.dp
+        val compact = maxHeight < 720.dp
+        val illustrationHeight = (maxHeight * 0.19f).coerceIn(84.dp, 170.dp)
+        val micSize = if (roomy) 84.dp else 74.dp
 
         Column(Modifier.fillMaxSize()) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                    .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onSkip) { Text("Skip", color = Sem.textSecondary) }
             }
 
-            Column(
+            // Centred in the space left, and never clipped: on a very small screen it scrolls.
+            Box(
                 Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Entrance(0) {
-                    ListenIllustration(Modifier.size(width = illustrationHeight * 1.37f, height = illustrationHeight))
-                }
-                Spacer(Modifier.height(if (compact) 16.dp else 26.dp))
-                Entrance(1) {
-                    Text(
-                        text = "Capture a thought.\nGet a useful note.",
-                        fontSize = if (compact) 26.sp else 30.sp,
-                        lineHeight = if (compact) 31.sp else 36.sp,
-                        fontFamily = PlayfairDisplayFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        color = Sem.text
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                Entrance(2) {
-                    Text(
-                        text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
-                        fontSize = 15.sp,
-                        lineHeight = 21.sp,
-                        textAlign = TextAlign.Center,
-                        color = Sem.textSecondary,
-                        modifier = Modifier.widthIn(max = 330.dp)
-                    )
-                }
-                Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
-                Entrance(3) {
-                    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 10.dp)) {
-                        ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
-                        ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
-                        ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Entrance(0) {
+                        ListenIllustration(Modifier.size(width = illustrationHeight * 1.37f, height = illustrationHeight))
+                    }
+                    Spacer(Modifier.height(if (roomy) 26.dp else 16.dp))
+                    Entrance(1) {
+                        Text(
+                            text = "Capture a thought.\nGet a useful note.",
+                            fontSize = if (compact) 25.sp else 28.sp,
+                            lineHeight = if (compact) 30.sp else 34.sp,
+                            fontFamily = PlayfairDisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            color = Sem.text
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Entrance(2) {
+                        Text(
+                            text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
+                            fontSize = 14.5.sp,
+                            lineHeight = 20.sp,
+                            textAlign = TextAlign.Center,
+                            color = Sem.textSecondary,
+                            modifier = Modifier.widthIn(max = 330.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(if (roomy) 22.dp else 16.dp))
+                    Entrance(3) {
+                        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 9.dp)) {
+                            ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
+                            ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
+                            ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
+                        }
                     }
                 }
             }
@@ -286,12 +296,12 @@ private fun WelcomeStage(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 28.dp)
-                        .padding(bottom = if (compact) 14.dp else 22.dp, top = 8.dp),
+                        .padding(bottom = if (compact) 10.dp else 18.dp, top = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     MicButton(
                         recording = false,
-                        size = if (compact) 72.dp else 84.dp,
+                        size = micSize,
                         description = "Record your first note",
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -302,7 +312,7 @@ private fun WelcomeStage(
                             }
                         }
                     )
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = if (micState == "blocked") "Allow the microphone to start" else "Tap to record your first note",
                         fontSize = 16.sp,
@@ -361,14 +371,14 @@ private fun MicButton(recording: Boolean, size: Dp, description: String, onClick
         animationSpec = infiniteRepeatable(tween(if (recording) 1100 else 1800, easing = LinearEasing)),
         label = "pulse"
     )
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size * 1.7f)) {
-        Canvas(Modifier.size(size * 1.7f)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size * 1.5f)) {
+        Canvas(Modifier.size(size * 1.5f)) {
             val base = size.toPx() / 2
             for (ring in 0 until 2) {
                 val t = (pulse + ring * 0.5f) % 1f
                 drawCircle(
-                    color = color.copy(alpha = (1f - t) * if (recording) 0.28f else 0.18f),
-                    radius = base + t * base * 0.7f
+                    color = color.copy(alpha = (1f - t) * if (recording) 0.28f else 0.2f),
+                    radius = base + t * base * 0.5f
                 )
             }
         }
@@ -768,7 +778,7 @@ private fun WorkStep(label: String, done: Boolean, active: Boolean = true, warni
                     2 -> Box(Modifier.size(22.dp).background(Sem.emerald, CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(14.dp).scale(1f))
                     }
-                    1 -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Sem.accent)
+                    1 -> Spinner(Modifier.size(20.dp))
                     3 -> Box(Modifier.size(10.dp).background(Sem.amber, CircleShape))
                     else -> Box(Modifier.size(10.dp).background(Sem.border, CircleShape))
                 }
@@ -779,12 +789,29 @@ private fun WorkStep(label: String, done: Boolean, active: Boolean = true, warni
     }
 }
 
+/** A ring with an arc that turns: the step being worked on. */
+@Composable
+private fun Spinner(modifier: Modifier = Modifier) {
+    val track = Sem.accentBorder
+    val arc = Sem.accent
+    val angle by rememberInfiniteTransition(label = "spin").animateFloat(
+        0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "angle"
+    )
+    Canvas(modifier) {
+        val stroke = 2.5.dp.toPx()
+        val inset = stroke / 2
+        val arcSize = Size(size.width - stroke, size.height - stroke)
+        drawArc(track, 0f, 360f, false, topLeft = Offset(inset, inset), size = arcSize, style = Stroke(stroke))
+        drawArc(arc, angle, 100f, false, topLeft = Offset(inset, inset), size = arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+    }
+}
+
 /** Placeholder lines with a moving sheen while the summary is being written. */
 @Composable
 private fun ShimmerLines() {
     val transition = rememberInfiniteTransition(label = "shimmer")
     val x by transition.animateFloat(-1f, 2f, infiniteRepeatable(tween(1400, easing = LinearEasing)), label = "x")
-    val base = Sem.chip
+    val base = Sem.border.copy(alpha = 0.7f)
     val shine = Sem.card
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(1f, 0.92f, 0.7f, 0.5f).forEach { fraction ->
@@ -820,7 +847,8 @@ private fun ValueLine(icon: ImageVector, text: String) {
         Box(
             Modifier
                 .size(30.dp)
-                .background(Sem.accentContainer, RoundedCornerShape(9.dp)),
+                .background(Sem.accentContainer, RoundedCornerShape(9.dp))
+                .border(1.dp, Sem.accentBorder, RoundedCornerShape(9.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = Sem.accent, modifier = Modifier.size(17.dp))

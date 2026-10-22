@@ -14,10 +14,10 @@ import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
 import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import java.io.File
 
-/** The first-run welcome screen, in light and dark. */
+/** The first-run welcome screen at a common phone size (1080x2400 at 480 dpi), in light and dark. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h891dp-420dpi", sdk = [34])
+@Config(qualifiers = "w360dp-h752dp-480dpi", sdk = [34])
 class WelcomeCaptureTest {
 
     @get:Rule
