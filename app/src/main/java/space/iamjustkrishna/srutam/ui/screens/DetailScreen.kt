@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lightbulb
@@ -251,6 +252,11 @@ fun DetailScreenContent(
     } == true
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
+
+    if (showShareSheet && recording != null) {
+        ShareNoteSheet(recording = recording, onDismiss = { showShareSheet = false })
+    }
 
     if (showDeleteDialog && recording != null) {
         val displayName = RecordingNameFormatter.displayName(
@@ -323,6 +329,11 @@ fun DetailScreenContent(
                     }
                 },
                 actions = {
+                    if (!isSample && recording != null) {
+                        IconButton(onClick = { showShareSheet = true }) {
+                            Icon(Icons.Default.Share, contentDescription = "Share note", tint = Sem.textSecondary, modifier = Modifier.size(20.dp))
+                        }
+                    }
                     if (!isSample) recording?.let { rec ->
                         IconButton(
                             onClick = {

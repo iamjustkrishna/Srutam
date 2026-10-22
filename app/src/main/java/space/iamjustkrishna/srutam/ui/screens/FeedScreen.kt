@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1822,6 +1823,11 @@ fun AudioFileCard(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
     var showDropdown by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
+
+    if (showShareSheet && recording != null) {
+        ShareNoteSheet(recording = recording, onDismiss = { showShareSheet = false })
+    }
 
     val displayName = remember(audioFile.fileName, audioFile.timestamp, recording?.name) {
         RecordingNameFormatter.displayName(
@@ -2349,6 +2355,32 @@ fun AudioFileCard(
                                         },
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                     )
+                                    if (recording != null) {
+                                        HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    "Share",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Sem.text
+                                                )
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Share,
+                                                    contentDescription = null,
+                                                    tint = Sem.textSecondary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            },
+                                            onClick = {
+                                                showDropdown = false
+                                                showShareSheet = true
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                                        )
+                                    }
                                     HorizontalDivider(color = Sem.chip, thickness = 0.8.dp)
                                     DropdownMenuItem(
                                         text = {
