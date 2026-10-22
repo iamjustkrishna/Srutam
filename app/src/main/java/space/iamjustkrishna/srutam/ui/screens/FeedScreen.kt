@@ -201,8 +201,10 @@ fun FeedScreen(
         mutableStateOf(AppPreferences.isFirstRecordingNudgeShown(context))
     }
 
-    LaunchedEffect(Unit) {
-        if (hasCompletedCaptureSetup && !isFloatingDockEnabled && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
+    // Counts the visits the floating-button offer was shown on (it stops after three).
+    val hasNotes = audioFiles.isNotEmpty()
+    LaunchedEffect(hasNotes) {
+        if (hasNotes && !isFloatingDockEnabled && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
             AppPreferences.incrementCaptureSkipBannerDismissCount(context)
             captureSkipBannerDismissCount = AppPreferences.getCaptureSkipBannerDismissCount(context)
         }
@@ -979,15 +981,9 @@ fun FeedScreenContent(
                 onOpenSettings = onSettingsClick
             )
 
-            // Ambient Capture Activation & Nudge Cards
-            // The floating button is offered once there's a note: after the first one, it means something.
-            if (!isFloatingDockEnabled && !hasCompletedCaptureSetup && isByokCompleted && audioFiles.isNotEmpty()) {
-                ExistingUserCaptureUpgradeCard(
-                    onEnable = onEnableFloatingDock,
-                    onDismiss = onDismissUpgradeCard,
-                    isDark = isDark
-                )
-            } else if (!isFloatingDockEnabled && hasCompletedCaptureSetup && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
+            // The floating button is offered as one compact line, once there's a note (after the first
+            // one it means something), until it's turned on or dismissed, for a few visits at most.
+            if (!isFloatingDockEnabled && audioFiles.isNotEmpty() && !captureSkipBannerDismissed && captureSkipBannerDismissCount < 3) {
                 SkipReengagementBanner(
                     onEnable = onEnableFloatingDock,
                     onDismiss = onDismissSkipBanner,
@@ -1126,134 +1122,6 @@ fun FeedScreenContent(
 }
 
 @Composable
-private fun ExistingUserCaptureUpgradeCard(
-    onEnable: () -> Unit,
-    onDismiss: () -> Unit,
-    isDark: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDark) CosmicVoidCard else CeramicWhite
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isDark) CobaltBorder.copy(alpha = 0.5f) else CobaltBorder.copy(alpha = 0.35f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        color = CobaltContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.PictureInPicture,
-                                contentDescription = null,
-                                tint = CobaltBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    Surface(
-                        color = CobaltBlue.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "TIP",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CobaltBlue,
-                            letterSpacing = 0.5.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss",
-                        tint = if (isDark) TextOnDarkSecondary else TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Capture from any app, in one tap",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isDark) TextOnDarkPrimary else TextPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "A small floating button sits at the edge of your screen. Tap it to record without opening Srutam.",
-                fontSize = 13.sp,
-                color = if (isDark) TextOnDarkSecondary else TextSecondary,
-                lineHeight = 18.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(
-                        text = "Later",
-                        color = if (isDark) TextOnDarkSecondary else TextSecondary,
-                        fontSize = 13.sp
-                    )
-                }
-                Button(
-                    onClick = onEnable,
-                    colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "Enable Dock",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun SkipReengagementBanner(
     onEnable: () -> Unit,
     onDismiss: () -> Unit,
@@ -1287,11 +1155,11 @@ private fun SkipReengagementBanner(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Quick capture makes recording effortless",
-                    fontSize = 12.sp,
+                    text = "Record from any app in one tap",
+                    fontSize = 12.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (isDark) TextOnDarkPrimary else TextPrimary,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
