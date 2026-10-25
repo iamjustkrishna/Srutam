@@ -21,6 +21,7 @@ import { K as STORY_K, RENDER_FPS } from "./stories/time";
 import { ExamVideo } from "./exam/ExamVideo";
 import { TOTAL as EXAM_TOTAL } from "./exam/timeline";
 import { SlidesVideo } from "./slides/SlidesVideo";
+import { TestFrame } from "./drawn/TestFrame";
 import { TOTAL as SLIDES_TOTAL } from "./slides/timeline";
 import { TOTAL as WHO_TOTAL } from "./who/timeline";
 import { MeetingTest, TEST_TOTAL } from "./meeting/MeetingTest";
@@ -151,6 +152,7 @@ export const RemotionRoot: React.FC = () => (
       height={HEIGHT}
       calculateMetadata={calculateMetadata}
     />
+    <Still id="DrawnTest" component={TestFrame} width={WIDTH} height={HEIGHT} calculateMetadata={calculateMetadata} />
     <Composition
       id="WhoDidSlides"
       component={SlidesVideo}
