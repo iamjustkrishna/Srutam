@@ -20,6 +20,8 @@ import { WhoVideo } from "./who/WhoVideo";
 import { K as STORY_K, RENDER_FPS } from "./stories/time";
 import { ExamVideo } from "./exam/ExamVideo";
 import { TOTAL as EXAM_TOTAL } from "./exam/timeline";
+import { SlidesVideo } from "./slides/SlidesVideo";
+import { TOTAL as SLIDES_TOTAL } from "./slides/timeline";
 import { TOTAL as WHO_TOTAL } from "./who/timeline";
 import { MeetingTest, TEST_TOTAL } from "./meeting/MeetingTest";
 import { TOTAL as NANI_TOTAL } from "./nani/timeline";
@@ -144,6 +146,15 @@ export const RemotionRoot: React.FC = () => (
       id="WhoSaidThat"
       component={WhoVideo}
       durationInFrames={WHO_TOTAL * STORY_K}
+      fps={RENDER_FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      calculateMetadata={calculateMetadata}
+    />
+    <Composition
+      id="WhoDidSlides"
+      component={SlidesVideo}
+      durationInFrames={SLIDES_TOTAL * STORY_K}
       fps={RENDER_FPS}
       width={WIDTH}
       height={HEIGHT}

@@ -187,3 +187,34 @@ Loudness for social: `ffmpeg -i in.mp4 -c:v copy -af loudnorm=I=-14:TP=-1.5:LRA=
 - The voiceover was generated on an ElevenLabs free plan; commercial use needs a paid plan.
 - Swap the synthesized music bed for a licensed track.
 - Fonts: Inter, Playfair Display and Kalam (SIL Open Font License).
+
+## "Who was doing slides 8–12?" (38 s, 1080x1920, 60 fps): `WhoDidSlides`
+
+1:43 a.m., presentation at nine, and the group chat finds nobody did slides 8–12
+("not me bro 💀"). Last Tuesday in the canteen Meera recorded the group meeting; Riya
+assigned the parts out loud ("And Kabir, you'll do eight to twelve") and wrote them in
+her planner while Kabir ate Maggi ("Done. Easy."). Meera asks Srutam AI; the answer
+quotes that line by its words, cites the meeting and plays it. She drops it in the
+group, and at 4:10 a.m. Kabir is still on it: "Who records a canteen?!"
+
+Srutam finds the line by what was said, not by who said it (no speaker diarization):
+the name is in the sentence.
+
+```bash
+node scripts/generate-voiceover-elevenlabs.mjs scripts/vo/en/slides-riya.json   # and -meera, -kabir
+python scripts/lipsync-rhubarb.py path/to/rhubarb slides
+python scripts/music-slides.py
+scripts/render/render.sh WhoDidSlides 2280 out/who-did-slides.mp4
+scripts/render/verify.sh out/who-did-slides.mp4 out/who-did-slides-sheet.png
+```
+
+## Rendering and checking any video
+
+- `scripts/render/render.sh <composition> <render frames> <out.mp4> [audio]`: resumable
+  chunked render; normalises the composition's own audio to -14 LUFS, or muxes a given
+  audio file.
+- `scripts/render/verify.sh <video> <sheet.png>`: specs, loudness, long silences and a
+  12-frame contact sheet.
+- `node scripts/stills.mjs --id=<composition> <frames...>` then
+  `python scripts/render/sheet.py out.png out/stills/<composition>-*.png` to review frames
+  before a full render.

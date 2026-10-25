@@ -73,6 +73,12 @@ LINES = {
         ("kabir-chai", VO / "en/exam/kabir/kabir-chai.wav", "Chai's here!"),
         ("riya-study", VO / "en/exam/riya/riya-study.wav", "Come on, let's start!"),
     ],
+    "slides": [
+        ("s-record", VO / "en/slides/meera/s-record.mp3", "Recording this. Nobody remembers anything anyway."),
+        ("s-assign", VO / "en/slides/riya/s-assign.mp3", "Okay. Meera, intro. I'll do one to seven. And Kabir, you'll do eight to twelve."),
+        ("s-easy", VO / "en/slides/kabir/s-easy.mp3", "Done. Easy."),
+        ("s-canteen", VO / "en/slides/kabir/s-canteen.mp3", "Who records a canteen?!"),
+    ],
 }
 
 
