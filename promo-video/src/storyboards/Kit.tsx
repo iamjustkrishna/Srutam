@@ -7,6 +7,7 @@ import { Img } from "remotion";
 import { BellIcon, BulbIcon, LockIcon, MicIcon, WaveIcon } from "../components/Icons";
 import { LOGO } from "../spirit/logoData";
 import { useCanvas } from "../stories/canvas";
+import { useT } from "../stories/time";
 import { C } from "../theme";
 
 export const W = 1080;
@@ -18,9 +19,14 @@ export const Frame: React.FC<{
   bg: [string, string];
   children: React.ReactNode;
   night?: boolean;
-}> = ({ bg, children, night = false }) => {
+  /** Hand-drawn line boil: px of wobble, re-drawn with a new seed every drawing (0 = off). */
+  boil?: number;
+  /** Paper grain strength (default 0.08). */
+  paper?: number;
+}> = ({ bg, children, night = false, boil = 0, paper = 0.08 }) => {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const { w: W, h: H } = useCanvas();
+  const drawing = Math.floor(useT());
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" style={{ display: "block" }}>
       <defs>
@@ -37,10 +43,16 @@ export const Frame: React.FC<{
           <feColorMatrix type="saturate" values="0" />
         </filter>
       </defs>
+      {boil > 0 && (
+        <filter id={`boil${id}`} x="-2%" y="-2%" width="104%" height="104%">
+          <feTurbulence type="fractalNoise" baseFrequency={0.018} numOctaves={2} seed={(drawing % 97) + 1} />
+          <feDisplacementMap in="SourceGraphic" scale={boil} xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      )}
       <rect width={W} height={H} fill={`url(#bg${id})`} />
-      {children}
+      {boil > 0 ? <g filter={`url(#boil${id})`}>{children}</g> : children}
       <rect width={W} height={H} fill={`url(#vg${id})`} />
-      <rect width={W} height={H} filter={`url(#grain${id})`} opacity={0.08} style={{ mixBlendMode: "overlay" }} />
+      <rect width={W} height={H} filter={`url(#grain${id})`} opacity={paper} style={{ mixBlendMode: "overlay" }} />
     </svg>
   );
 };

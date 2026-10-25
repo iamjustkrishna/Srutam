@@ -14,7 +14,7 @@ import { Camera, Depth, Grade } from "../stories/Camera";
 import { HandsOnPhone } from "../stories/Hands";
 import { damped, springAt, springPt } from "../stories/physics";
 import { Captions, Soundtrack } from "../stories/Story";
-import { K, useT } from "../stories/time";
+import { DrawnStep, K, useT } from "../stories/time";
 import { thumbs, typed } from "../stories/typing";
 import { voice } from "../stories/voice";
 import { AskFlow, ChatScreen, EndBand, Frame, GripHand, H, Lamp, LINE, NoteDetail, Phone, W, Window } from "../storyboards/Kit";
@@ -91,8 +91,22 @@ const ChatShot: React.FC = () => {
   const f = useT() + SCENES.chat.from;
   const appear = BEAT.msg.map((at) => springAt(f, 0, [{ at, to: 1 }], 14, 170));
   const lift = springAt(f, 0, [{ at: 0, to: 1 }], 14, 110);
+  if (f >= BEAT.msg[4] + 16) {
+    // ECU: her eyes narrow at "not me bro".
+    const push = interpolate(f, [BEAT.msg[4] + 16, SCENES.chat.duration], [2.6, 3.0], clamp);
+    return (
+      <Frame bg={NIGHT} night boil={2.4} paper={0.14}>
+        <Camera f={f} zoom={push} focus={[470, 900]} center={[540, 960]} drift={2} seed={31}>
+          <HostelRoom f={f} />
+          <Actor x={40} y={380} s={1.45} f={f} who="meera" expr="smug" gaze={[0.7, 0.35]} tilt={-4} blink={0.45} />
+          <ellipse cx={760} cy={1100} rx={420} ry={460} fill="#BFDBFE" opacity={0.2} style={{ mixBlendMode: "screen" }} />
+        </Camera>
+        <Grade warm="#93C5FD" cool="#0B1033" from="right" amount={0.2} />
+      </Frame>
+    );
+  }
   return (
-    <Frame bg={NIGHT} night>
+    <Frame bg={NIGHT} night boil={1.2} paper={0.12}>
       <Camera f={f} zoom={interpolate(f, span(SCENES.chat), [1, 1.06], clamp)} focus={[540, 1000]} drift={3} seed={3}>
         <Depth blur={9}>
           <HostelRoom f={f} />
@@ -196,8 +210,19 @@ const Planner: React.FC<{ f: number }> = ({ f }) => {
       {row(BEAT.oneToSeven, "1–7 – Riya", 40)}
       {row(BEAT.eightTwelve, "8–12 – KABIR", 115, true)}
       {under > 0 && <path d={`M-210 132 h${310 * under}`} stroke="#B91C1C" strokeWidth={5} />}
+      {f > BEAT.eightTwelve + 22 && (
+        <ellipse cx={-50} cy={100} rx={200} ry={56} fill="none" stroke="#DC2626" strokeWidth={7} strokeDasharray={1400} strokeDashoffset={1400 * (1 - interpolate(f, [BEAT.eightTwelve + 22, BEAT.eightTwelve + 32], [0, 1], clamp))} transform="rotate(-4 -50 100)" />
+      )}
     </g>
   );
+};
+
+/** The flashback's cuts: a wide, then close-ups on the line that matters. */
+const flashShot = (f: number): { zoom: number; focus: Pt; center: Pt } => {
+  if (f < BEAT.kabirName) return { zoom: interpolate(f, [SCENES.flash.from, BEAT.kabirName], [1.02, 1.1], { ...clamp, easing: easeInOut }), focus: [540, 1100], center: [540, 1100] };
+  if (f < BEAT.eightTwelve) return { zoom: 1.9, focus: [300, 980], center: [540, 960] }; // CU Riya, pen up: "And Kabir..."
+  if (f < 470) return { zoom: interpolate(f, [BEAT.eightTwelve, 470], [2.5, 2.8], clamp), focus: [330, 1450], center: [540, 960] }; // ECU planner
+  return { zoom: interpolate(f, [470, SCENES.ask.from], [1.9, 2.1], clamp), focus: [880, 990], center: [540, 900] }; // CU Kabir
 };
 
 /* 2. Last Tuesday, the canteen: Meera taps record ("Nobody remembers anything anyway"),
@@ -215,9 +240,9 @@ const FlashShot: React.FC = () => {
   const thumb = springPt(f, [440, 980], [{ at: BEAT.easy - 2, to: [470, 560] }], 13, 170);
   const chip = interpolate(f, [SCENES.flash.from + 4, SCENES.flash.from + 14, SCENES.flash.from + 70, SCENES.flash.from + 84], [0, 1, 1, 0], clamp);
   return (
-    <Frame bg={["#F3E7C9", "#E8D7B0"]}>
+    <Frame bg={["#F3E7C9", "#E8D7B0"]} boil={2.4} paper={0.16}>
       <Flashback>
-        <Camera f={f} zoom={interpolate(f, span(SCENES.flash), [1.02, 1.08], { ...clamp, easing: easeInOut })} focus={[540, 1100]} drift={3} seed={6}>
+        <Camera f={f} {...flashShot(f)} drift={3} seed={6}>
           <Depth blur={4}>
             <Canteen f={f} />
           </Depth>
@@ -312,7 +337,7 @@ const AskShot: React.FC = () => {
   const thumbR: Pt | null = f >= BEAT.send - 4 && f < BEAT.send + 4 ? [PW - 70, ph - 330] : th.r;
   const point: Pt | null = f >= BEAT.tapRef - 10 && f < BEAT.tapRef + 10 ? [PW * 0.3, ph * 0.7 + (f < BEAT.tapRef ? (BEAT.tapRef - f) * 14 : 0)] : null;
   return (
-    <Frame bg={NIGHT} night>
+    <Frame bg={NIGHT} night boil={1.2} paper={0.12}>
       <Camera f={f} zoom={interpolate(f, span(SCENES.ask), [1, 1.04], clamp)} focus={[540, 900]} drift={2} seed={14}>
         <Depth blur={9}>
           <HostelRoom f={f} />
@@ -346,8 +371,40 @@ const PlayShot: React.FC = () => {
   const PW = 680;
   const slide = interpolate(f, [SCENES.play.from, SCENES.play.from + 8], [1, 0], { ...clamp, easing: easeOut });
   const progress = 0.46 + interpolate(f, [BEAT.play, BEAT.play + 127], [0, 0.004], clamp);
+  if (f >= 742) {
+    // CU Meera as Kabir's own "Done. Easy." comes out of the speaker.
+    const PH: Pt = [40 + 545 * 1.45 + 40, 380 + 430 * 1.45 - 120];
+    return (
+      <Frame bg={NIGHT} night boil={2.4} paper={0.14}>
+        <Camera f={f} zoom={interpolate(f, [742, SCENES.share.from], [1.5, 1.7], clamp)} focus={[520, 960]} center={[540, 900]} drift={2} seed={33}>
+          <HostelRoom f={f} />
+          <Actor
+            x={40}
+            y={380}
+            s={1.45}
+            f={f}
+            who="meera"
+            shadow
+            screen={<rect x={-38} y={-84} width={76} height={164} rx={9} fill="#0C1225" />}
+            expr={f < BEAT.playEasy ? "smug" : "laugh"}
+            tilt={f < BEAT.playEasy ? 3 : 6 + Math.sin(f / 5) * 2}
+            gaze={[0.7, 0.2]}
+            blink={blinkK(f, 1)}
+            arms={{ r: { to: [545, 430], pose: "phone", upright: true } }}
+          />
+          {f < BEAT.play + 127 &&
+            [0, 1, 2].map((i) => {
+              const k = ((f - BEAT.play + i * 12) % 36) / 36;
+              return <path key={i} d={`M${PH[0] + 60 + k * 110} ${PH[1] - 80 - k * 50} q${36 + k * 36} ${80 + k * 40} 0 ${160 + k * 100}`} stroke="#93C5FD" strokeWidth={8} fill="none" opacity={(1 - k) * 0.55} strokeLinecap="round" />;
+            })}
+          <ellipse cx={PH[0] - 120} cy={PH[1] - 60} rx={420} ry={460} fill="#BFDBFE" opacity={0.18} style={{ mixBlendMode: "screen" }} />
+        </Camera>
+        <Grade warm="#93C5FD" cool="#1E1B4B" from="right" amount={0.16} />
+      </Frame>
+    );
+  }
   return (
-    <Frame bg={NIGHT} night>
+    <Frame bg={NIGHT} night boil={1.2} paper={0.12}>
       <Camera f={f} zoom={interpolate(f, span(SCENES.play), [1, 1.05], clamp)} focus={[540, 800]} drift={2} seed={15}>
         <Depth blur={9}>
           <HostelRoom f={f} />
@@ -390,7 +447,7 @@ const ShareShot: React.FC = () => {
   ];
   const appear = [1, 1, 1, ...[BEAT.mine, ...BEAT.replies].map((at) => springAt(f, 0, [{ at, to: 1 }], 14, 170))];
   return (
-    <Frame bg={NIGHT} night>
+    <Frame bg={NIGHT} night boil={1.2} paper={0.12}>
       <Camera f={f} zoom={interpolate(f, span(SCENES.share), [1, 1.05], clamp)} focus={[540, 1000]} drift={3} seed={18}>
         <Depth blur={9}>
           <HostelRoom f={f} />
@@ -421,8 +478,8 @@ const KabirShot: React.FC = () => {
   const deskY = 1340;
   const typingBob = !yell ? Math.sin(f * 1.3) * 3 : 0;
   return (
-    <Frame bg={["#111827", "#0B1033"]} night>
-      <Camera f={f} zoom={interpolate(f, span(SCENES.kabir), [1, 1.06], clamp)} focus={[540, 1000]} drift={3} seed={20} shake={yell && f < BEAT.canteen + 10 ? [damped(f, BEAT.canteen, 6, 5, 6), 0] : [0, 0]}>
+    <Frame bg={["#111827", "#0B1033"]} night boil={2.4} paper={0.16}>
+      <Camera f={f} {...(yell && f < 1042 ? { zoom: 2.25, focus: [535, 760] as Pt, center: [540, 820] as Pt } : { zoom: interpolate(f, span(SCENES.kabir), [1, 1.06], clamp), focus: [540, 1000] as Pt })} drift={3} seed={20} shake={yell && f < BEAT.canteen + 10 ? [damped(f, BEAT.canteen, 6, 5, 6), 0] : [0, 0]}>
         <Depth blur={4}>
           <rect width={W} height={H} fill="#1F2937" />
           {/* a band poster and the timetable */}
@@ -482,10 +539,24 @@ const KabirShot: React.FC = () => {
             DEADLINES? 😎
           </text>
         </g>
-        <ChaiGlass x={130} y={deskY + 90} />
-        <ChaiGlass x={210} y={deskY + 110} />
+        {/* the night so far: a tower of empty chai glasses */}
+        {Array.from({ length: 11 }, (_, i) => {
+          const row = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 4][i];
+          const col = [0, 1, 2, 3, 0, 1, 2, 0, 1, 0, 0][i];
+          const n = [4, 3, 2, 1, 1][row];
+          return <ChaiGlass key={i} x={150 + (col - (n - 1) / 2) * 62 + Math.sin(i * 3.1) * 4} y={deskY + 40 - row * 92} />;
+        })}
         <ChaiGlass x={900} y={deskY + 100} />
       </Camera>
+      {yell && f < 1042 && (
+        <g transform={`translate(${540 + Math.sin(f * 2.3) * 8} ${1460 + Math.cos(f * 1.7) * 6}) rotate(-6) scale(${interpolate(f, [BEAT.canteen - 4, BEAT.canteen + 4], [0.6, 1], { ...clamp, easing: easeOut })})`}>
+          {["WHO RECORDS", "A CANTEEN?!"].map((l, i) => (
+            <text key={l} x={0} y={i * 150} textAnchor="middle" fontFamily="Kalam" fontWeight={700} fontSize={150} fill="#FFFDF8" stroke="#1F1512" strokeWidth={14} paintOrder="stroke" letterSpacing={2}>
+              {l}
+            </text>
+          ))}
+        </g>
+      )}
       <g transform={`translate(0 ${(1 - band) * 420})`}>
         <EndBand tagline="Listen once. Ask anytime." />
       </g>
@@ -508,11 +579,13 @@ export const SlidesVideo: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <AbsoluteFill style={{ filter: sepia > 0 ? `sepia(${sepia})` : undefined }}>
-        {LIST.map(([name, s, Comp]) => (
-          <Sequence key={name} name={name} from={s.from * K} durationInFrames={s.duration * K}>
-            <Comp />
-          </Sequence>
-        ))}
+        <DrawnStep.Provider value={2}>
+          {LIST.map(([name, s, Comp]) => (
+            <Sequence key={name} name={name} from={s.from * K} durationInFrames={s.duration * K}>
+              <Comp />
+            </Sequence>
+          ))}
+        </DrawnStep.Provider>
       </AbsoluteFill>
       <Captions cues={CAPTIONS} k={K} />
       <Soundtrack music="slides/music.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />

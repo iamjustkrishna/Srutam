@@ -77,5 +77,4 @@ export const CAPTIONS: CaptionCue[] = [
   { from: 420, to: 490, text: "“And Kabir, you'll do eight to twelve.”" },
   { from: BEAT.easy, to: 545, text: "“Done. Easy.”" },
   { from: BEAT.play, to: 822, text: "▶ Group meeting · “And Kabir, you'll do eight to twelve.” … “Done. Easy.”", top: true },
-  { from: BEAT.canteen, to: 1040, text: "“Who records a canteen?!”" },
 ];
