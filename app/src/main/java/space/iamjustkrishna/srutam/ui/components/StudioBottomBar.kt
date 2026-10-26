@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -431,6 +432,15 @@ fun StudioBottomBar(
             }
         }
     }
+
+        // One-time "Tap to record · hold to talk" above the record button.
+        RecordHint(
+            enabled = !isBarActiveRecording,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(y = (-46).dp)
+                .padding(end = 16.dp)
+        )
     }
 }
 
