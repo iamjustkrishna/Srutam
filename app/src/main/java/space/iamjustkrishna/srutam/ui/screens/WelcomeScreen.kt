@@ -26,6 +26,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.draw.shadow
+import space.iamjustkrishna.srutam.ui.components.RecordShutter
+import kotlin.math.sin
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -258,7 +265,7 @@ private fun WelcomeStage(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Entrance(0) {
-                        ListenIllustration(Modifier.size(width = illustrationHeight * 1.37f, height = illustrationHeight))
+                        NoteHeroIllustration(illustrationHeight)
                     }
                     Spacer(Modifier.height(if (roomy) 26.dp else 16.dp))
                     Entrance(1) {
@@ -363,49 +370,45 @@ private fun Entrance(index: Int, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** The app's record button: blue with a mic when ready, red with a stop square while recording. */
+/**
+ * The app's own record button ([RecordShutter], as in the bottom bar), larger, with a soft red
+ * pulse around it and a little give when pressed.
+ */
 @Composable
 private fun MicButton(recording: Boolean, size: Dp, description: String, onClick: () -> Unit) {
-    val color by animateColorAsState(if (recording) RecordRed else CobaltBlue, tween(250), label = "micColor")
     val transition = rememberInfiniteTransition(label = "micPulse")
     val pulse by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(if (recording) 1100 else 1800, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(if (recording) 1100 else 2000, easing = LinearEasing)),
         label = "pulse"
     )
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.92f else 1f, spring(dampingRatio = 0.5f), label = "press")
     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size * 1.5f)) {
         Canvas(Modifier.size(size * 1.5f)) {
             val base = size.toPx() / 2
             for (ring in 0 until 2) {
                 val t = (pulse + ring * 0.5f) % 1f
                 drawCircle(
-                    color = color.copy(alpha = (1f - t) * if (recording) 0.28f else 0.2f),
+                    color = RecordRed.copy(alpha = (1f - t) * if (recording) 0.26f else 0.16f),
                     radius = base + t * base * 0.5f
                 )
             }
         }
-        Surface(
-            shape = CircleShape,
-            color = color,
-            shadowElevation = 8.dp,
+        RecordShutter(
+            recording = recording,
+            size = size,
             modifier = Modifier
-                .size(size)
-                .clickable(onClick = onClick)
+                .scale(press)
+                .shadow(10.dp, CircleShape, ambientColor = RecordRed, spotColor = RecordRed)
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
                 .semantics {
                     contentDescription = description
                     role = Role.Button
                 }
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(size * 0.42f)
-                )
-            }
-        }
+        )
     }
 }
 
@@ -884,78 +887,145 @@ private fun ValueLine(icon: ImageVector, text: String) {
     }
 }
 
-/** A person speaking towards a phone: sound waves travel across and the phone's waveform moves. */
+/**
+ * What Srutam does, in one picture: a phone hearing you (a live waveform), writing it down (lines
+ * filling in), and what comes out of it floating around: a summary, a task and a reminder.
+ * Everything gently moves; the chips drift in one after another.
+ */
 @Composable
-private fun ListenIllustration(modifier: Modifier = Modifier) {
-    val accent = Sem.accent
-    val soft = Sem.accentContainer
-    val card = Sem.card
-    val border = Sem.border
-    val figure = Sem.textSecondary
-    val transition = rememberInfiniteTransition(label = "listen")
+private fun NoteHeroIllustration(height: Dp) {
+    val transition = rememberInfiniteTransition(label = "hero")
     val phase by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)),
         label = "phase"
     )
-    Canvas(modifier.semantics { contentDescription = "A person speaking to a phone that shows a moving waveform" }) {
-        val w = size.width
-        val h = size.height
-        drawCircle(soft, radius = h * 0.48f, center = Offset(w * 0.5f, h * 0.52f))
+    val phoneHeight = height * 0.92f
+    val phoneWidth = phoneHeight * 0.58f
+    val showChips = height >= 110.dp
+    val accent = Sem.accent
+    val soft = Sem.accentContainer
+    val muted = Sem.textSecondary
 
-        // Person: head and shoulders on the left.
-        val headCenter = Offset(w * 0.24f, h * 0.38f)
-        val headRadius = h * 0.12f
-        drawCircle(figure.copy(alpha = 0.85f), radius = headRadius, center = headCenter)
-        val shoulders = Path().apply {
-            moveTo(w * 0.08f, h * 0.86f)
-            cubicTo(w * 0.08f, h * 0.58f, w * 0.40f, h * 0.58f, w * 0.40f, h * 0.86f)
-            close()
-        }
-        drawPath(shoulders, figure.copy(alpha = 0.85f))
-
-        // Sound waves: three arcs that brighten one after another.
-        for (i in 0 until 3) {
-            val local = ((phase * 3f) - i).mod(3f) / 3f
-            val alpha = (1f - local).coerceIn(0.15f, 1f)
-            val r = h * (0.10f + i * 0.07f)
-            drawArc(
-                color = accent.copy(alpha = alpha),
-                startAngle = -40f,
-                sweepAngle = 80f,
-                useCenter = false,
-                topLeft = Offset(headCenter.x + headRadius * 0.6f - r, headCenter.y - r),
-                size = Size(r * 2, r * 2),
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+    Box(
+        modifier = Modifier
+            .size(width = height * 1.85f, height = height)
+            .semantics { contentDescription = "A phone turning what you say into a note with a summary, a task and a reminder" },
+        contentAlignment = Alignment.Center
+    ) {
+        // Soft glow behind the phone.
+        Canvas(Modifier.size(height)) {
+            drawCircle(
+                Brush.radialGradient(listOf(soft, soft.copy(alpha = 0f))),
+                radius = size.minDimension / 2
             )
         }
 
-        // Phone on the right with a live waveform.
-        val phoneW = w * 0.30f
-        val phoneH = h * 0.74f
-        val phoneTopLeft = Offset(w * 0.62f, h * 0.14f)
-        drawRoundRect(card, phoneTopLeft, Size(phoneW, phoneH), CornerRadius(18.dp.toPx()))
-        drawRoundRect(border, phoneTopLeft, Size(phoneW, phoneH), CornerRadius(18.dp.toPx()), style = Stroke(1.5.dp.toPx()))
-        val bars = 7
-        val barGap = phoneW * 0.07f
-        val barW = (phoneW - barGap * (bars + 1)) / bars
-        val midY = phoneTopLeft.y + phoneH * 0.45f
-        for (i in 0 until bars) {
-            val wave = (kotlin.math.sin((phase * 2 * Math.PI) + i * 0.9).toFloat() + 1f) / 2f
-            val barH = phoneH * (0.08f + 0.30f * wave)
-            val x = phoneTopLeft.x + barGap + i * (barW + barGap)
-            drawRoundRect(
-                color = accent,
-                topLeft = Offset(x, midY - barH / 2),
-                size = Size(barW, barH),
-                cornerRadius = CornerRadius(barW / 2)
+        // The phone.
+        Surface(
+            shape = RoundedCornerShape(phoneWidth * 0.2f),
+            color = Sem.card,
+            border = BorderStroke(1.dp, Sem.border),
+            shadowElevation = 10.dp,
+            modifier = Modifier.size(width = phoneWidth, height = phoneHeight)
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                // Speaker slot.
+                drawRoundRect(
+                    muted.copy(alpha = 0.25f),
+                    topLeft = Offset(w * 0.38f, h * 0.06f),
+                    size = Size(w * 0.24f, h * 0.025f),
+                    cornerRadius = CornerRadius(h * 0.0125f)
+                )
+                // Live waveform.
+                val bars = 9
+                val gap = w * 0.06f
+                val barW = (w * 0.8f - gap * (bars - 1)) / bars
+                val midY = h * 0.3f
+                for (i in 0 until bars) {
+                    val wave = (sin(phase * 2 * Math.PI * 2 + i * 0.8).toFloat() + 1f) / 2f
+                    val barH = h * (0.04f + 0.16f * wave)
+                    drawRoundRect(
+                        accent,
+                        topLeft = Offset(w * 0.1f + i * (barW + gap), midY - barH / 2),
+                        size = Size(barW, barH),
+                        cornerRadius = CornerRadius(barW / 2)
+                    )
+                }
+                // The note being written: lines fill in, one after another.
+                val lineH = h * 0.03f
+                listOf(0.8f, 0.68f, 0.74f, 0.5f).forEachIndexed { i, full ->
+                    val start = i * 0.18f
+                    val progress = ((phase - start) / 0.3f).coerceIn(0f, 1f)
+                    val y = h * (0.52f + i * 0.085f)
+                    drawRoundRect(
+                        muted.copy(alpha = 0.14f),
+                        topLeft = Offset(w * 0.1f, y),
+                        size = Size(w * full, lineH),
+                        cornerRadius = CornerRadius(lineH / 2)
+                    )
+                    drawRoundRect(
+                        muted.copy(alpha = 0.42f),
+                        topLeft = Offset(w * 0.1f, y),
+                        size = Size(w * full * progress, lineH),
+                        cornerRadius = CornerRadius(lineH / 2)
+                    )
+                }
+            }
+        }
+
+        if (showChips) {
+            val drift = sin(phase * 2 * Math.PI).toFloat()
+            HeroChip(
+                index = 0, icon = Icons.Outlined.AutoAwesome, label = "Summary",
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = height * 0.12f)
+                    .graphicsLayer { translationY = drift * 4.dp.toPx() }
+            )
+            HeroChip(
+                index = 1, icon = Icons.Default.RadioButtonUnchecked, label = "Send notes",
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = height * 0.05f)
+                    .graphicsLayer { translationY = -drift * 4.dp.toPx() }
+            )
+            HeroChip(
+                index = 2, icon = Icons.Outlined.NotificationsActive, label = "Fri, 9 AM",
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = height * 0.1f, start = height * 0.06f)
+                    .graphicsLayer { translationY = drift * 3.dp.toPx() }
             )
         }
-        // Text lines appearing under the waveform: the transcript.
-        val lineY = phoneTopLeft.y + phoneH * 0.74f
-        val lineW = phoneW * 0.7f * (0.4f + 0.6f * phase)
-        drawRoundRect(figure.copy(alpha = 0.35f), Offset(phoneTopLeft.x + phoneW * 0.15f, lineY), Size(lineW, 4.dp.toPx()), CornerRadius(2.dp.toPx()))
-        drawRoundRect(figure.copy(alpha = 0.25f), Offset(phoneTopLeft.x + phoneW * 0.15f, lineY + 9.dp.toPx()), Size(phoneW * 0.45f, 4.dp.toPx()), CornerRadius(2.dp.toPx()))
+    }
+}
+
+/** A small floating card in the illustration, drifting in after the ones before it. */
+@Composable
+private fun HeroChip(index: Int, icon: ImageVector, label: String, modifier: Modifier = Modifier) {
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(450L + 220L * index)
+        appear.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow))
+    }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Sem.card,
+        border = BorderStroke(1.dp, Sem.accentBorder),
+        modifier = modifier.graphicsLayer {
+            alpha = appear.value.coerceIn(0f, 1f)
+            scaleX = 0.8f + 0.2f * appear.value
+            scaleY = 0.8f + 0.2f * appear.value
+        }
+    ) {
+        Row(Modifier.padding(horizontal = 9.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = Sem.accent, modifier = Modifier.size(13.dp))
+            Spacer(Modifier.width(5.dp))
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Sem.text, maxLines = 1)
+        }
     }
 }
