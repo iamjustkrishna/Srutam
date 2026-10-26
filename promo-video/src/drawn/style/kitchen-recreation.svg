@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs>
+  <filter id="boil" x="-2%" y="-2%" width="104%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"/>
+    <feDisplacementMap in="SourceGraphic" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="8"/><feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.55  0 0 0 0.09 0"/></filter>
+  <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+  <radialGradient id="lamp" cx="757" cy="40" r="520" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#EAF1FF" stop-opacity=".55"/><stop offset=".45" stop-color="#C9D4EA" stop-opacity=".18"/><stop offset="1" stop-color="#C9D4EA" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="shadeL" x1="0" x2="1"><stop offset="0" stop-color="#2E3550" stop-opacity=".55"/><stop offset=".45" stop-color="#2E3550" stop-opacity="0"/></linearGradient>
+  <linearGradient id="hoodie" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#D15B43"/><stop offset="1" stop-color="#B4452F"/></linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D5A56C"/><stop offset="1" stop-color="#B98650"/></linearGradient>
+  <linearGradient id="ceil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C88A2"/><stop offset="1" stop-color="#A3AEC4"/></linearGradient>
+</defs>
+
+<!-- ============ BACKGROUND (thin cool lines, flat cool paint) ============ -->
+<g filter="url(#boil)" stroke="#5A6580" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round">
+  <rect width="1280" height="720" fill="#AEB8CB" stroke="none"/>
+  <!-- sloped ceiling + right wall -->
+  <path d="M650 0 L1280 0 L1280 134 L920 138 L700 395 L650 395 Z" fill="url(#ceil)" stroke="none"/>
+  <path d="M920 138 L1280 134 L1280 720 L920 720 Z" fill="#B2BCCE"/>
+  <path d="M920 150 L1280 146" fill="none" stroke-width="1.2"/>
+  <path d="M700 395 L920 138 M712 405 L920 160" fill="none"/>
+  <path d="M700 395 L920 395 L920 720 L700 720 Z" fill="#BCC5D5" stroke="none"/>
+  <path d="M660 395 L700 395 L700 720" fill="none"/>
+  <!-- hallway opening -->
+  <path d="M648 430 L700 430 L700 720 L648 720 Z" fill="#7E89A2"/>
+  <!-- vent -->
+  <rect x="1088" y="188" width="120" height="44" rx="3" fill="#A6B0C3"/>
+  <path d="M1096 198 H1200 M1096 206 H1200 M1096 214 H1200 M1096 222 H1200" stroke-width="1.1"/>
+  <!-- door -->
+  <path d="M1040 262 L1250 262 L1250 640 L1040 640 Z" fill="#A9B3C7"/>
+  <path d="M1052 274 L1238 274 L1238 640" fill="none" stroke-width="1.2"/>
+  <path d="M1070 546 h34 a6 6 0 0 1 0 12 h-34 a6 6 0 0 1 0-12z" fill="#D8DEE8"/>
+  <circle cx="1074" cy="552" r="9" fill="#D8DEE8"/>
+  <path d="M920 690 L1280 684" fill="none"/>
+  <!-- ceiling light dot -->
+  <ellipse cx="684" cy="356" rx="8" ry="4" fill="#D7DEEA"/>
+
+  <!-- center tall pantry/fridge column -->
+  <path d="M330 82 L645 128 L655 720 L330 720 Z" fill="#C4CCDA"/>
+  <path d="M338 96 L640 140" fill="none" stroke-width="1.2"/>
+  <path d="M404 92 L404 720" fill="none" stroke-width="1.2"/>
+  <!-- clock -->
+  <circle cx="540" cy="186" r="37" fill="#D3DAE5"/>
+  <circle cx="540" cy="186" r="31" fill="none" stroke-width="1.1"/>
+  <path d="M540 186 V164 M540 186 L552 194" fill="none" stroke-width="2"/>
+  <!-- dark doorway behind her -->
+  <path d="M556 330 L640 330 L645 720 L556 720 Z" fill="#3A4462"/>
+  <path d="M600 330 L600 720" stroke="#55607E" fill="none"/>
+
+  <!-- left: upper cabinets + range hood in shadow -->
+  <path d="M0 0 L330 0 L330 250 L0 250 Z" fill="#5E6983"/>
+  <path d="M215 0 L330 40 L330 250 L215 250 Z" fill="#6D7891"/>
+  <path d="M240 60 L320 85 L320 235 L240 235 Z" fill="#5D6782"/>
+  <rect x="258" y="150" width="30" height="74" fill="#8A7E78"/>
+  <rect x="294" y="160" width="20" height="64" fill="#7C766E"/>
+  <path d="M0 40 L170 100 L178 160 L0 160 Z" fill="#7B86A0"/>
+  <path d="M8 58 L120 98 L60 128 L8 124 Z" fill="#2F3650"/>
+  <path d="M20 84 L48 104 M44 82 L78 106 M70 94 L98 110" stroke="#9AA4BA" stroke-width="5" fill="none"/>
+  <path d="M168 104 L182 104 L182 210 L168 210 Z" fill="#9AA4BA"/>
+  <!-- fridge -->
+  <path d="M115 240 L395 248 L395 720 L115 720 Z" fill="#CBD2DE"/>
+  <path d="M290 248 L300 450 L395 450" fill="none" stroke-width="1.2"/>
+  <path d="M286 256 L286 720" fill="none"/>
+  <rect x="140" y="353" width="132" height="124" fill="#B3BCCC"/>
+  <rect x="150" y="363" width="112" height="104" fill="#DDE2EA"/>
+  <path d="M164 384 q8-8 14 0 t14 0 t14 0 M168 408 q10 6 20-2 M178 440 a10 6 0 1 0 1 0 M220 380 h28 M220 392 h30 M220 404 h22 M224 420 h24 M220 432 h26" fill="none" stroke-width="1.2"/>
+  <path d="M234 256 h40 v52 h-40z" fill="#D8C9A8"/>
+  <path d="M242 270 h24 M242 282 h20 M242 294 h22" stroke-width="1" fill="none"/>
+  <path d="M322 266 l30 4 l-2 40 l-30 -4z" fill="#D3C4A6"/>
+  <path d="M328 340 l26 2 l-2 50 l-26 -2z" fill="#C4B8A6"/>
+  <path d="M362 330 l22 2 l-2 76 l-22 -2z" fill="#DDD3BC"/>
+  <path d="M372 300 l20 2 l-2 44 l-20 -2z" fill="#C8BBA2"/>
+  <rect x="82" y="462" width="18" height="30" rx="3" fill="#D5DBE6"/>
+  <circle cx="91" cy="471" r="3" fill="none"/><circle cx="91" cy="483" r="3" fill="none"/>
+  <!-- rice cooker -->
+  <path d="M88 516 Q88 494 120 494 L176 494 Q204 494 204 516 L204 584 Q204 592 196 592 L96 592 Q88 592 88 584 Z" fill="#8C6E77"/>
+  <path d="M92 518 H200" fill="none" stroke-width="1.2"/>
+  <rect x="180" y="540" width="10" height="16" rx="3" fill="#5E4650"/>
+  <!-- counter + stove -->
+  <path d="M0 586 L290 586 L290 610 L0 610 Z" fill="#9BA5BA"/>
+  <path d="M0 610 L290 610 L290 720 L0 720 Z" fill="#7C87A0"/>
+  <path d="M0 640 L215 640 L215 720" fill="none"/>
+  <path d="M30 652 h150 a10 10 0 0 1 0 20 h-150" fill="#A6AFC2"/>
+  <path d="M60 662 q-6 40 6 60 L120 722 q10-30 0-60z" fill="#6E5F69"/>
+  <path d="M140 662 q-6 40 6 60 L210 722 q10-30 -4-60z" fill="#77686F"/>
+  <rect x="236" y="616" width="40" height="40" fill="#8D97AE"/>
+  <rect x="236" y="664" width="40" height="56" fill="#8D97AE"/>
+
+  <!-- table -->
+  <path d="M672 598 L1280 590 L1280 720 L690 720 Z" fill="url(#wood)"/>
+  <path d="M672 598 L680 620 L1280 612" fill="none" stroke-width="1.2"/>
+  <path d="M680 620 L690 720 L700 720 L688 622 Z" fill="#9A6D3F"/>
+  <path d="M730 664 q30 4 60 0 M980 650 q40 5 80 1 M1120 700 q30-4 60 0" fill="none" stroke="#A27445" stroke-width="1.2"/>
+  <!-- bowl -->
+  <ellipse cx="880" cy="604" rx="40" ry="6" fill="#8F6740" stroke="none" opacity=".5"/>
+  <path d="M818 552 Q820 600 880 608 Q940 600 942 552 Z" fill="#F4F4F2"/>
+  <ellipse cx="880" cy="552" rx="62" ry="10" fill="#E6E8EB"/>
+  <path d="M824 548 q10-14 26-8 q10-10 24-2 q14-10 30 0 q14-8 28 4 q-24 10-108 6z" fill="#D9AE5C"/>
+  <path d="M732 606 q6-16 26-12 q14-6 22 6 q12 2 14 8 q-30 6-62-2z" fill="#D9AE5C"/>
+  <circle cx="838" cy="614" r="4" fill="#D9AE5C"/>
+  <path d="M806 632 q10-8 30-6 L950 626 q6 2 0 8 L836 638 q-22 4-30-6z" fill="#E8EAEE"/>
+</g>
+<!-- night light: lamp glow + left shadow + atmosphere -->
+<rect width="1280" height="720" fill="url(#lamp)"/>
+<rect width="1280" height="720" fill="url(#shadeL)"/>
+<g filter="url(#boil)" stroke="#46506A" stroke-width="1.6">
+  <path d="M757 0 V14" />
+  <path d="M742 14 h30 l4 26 h-38z" fill="#55607A"/>
+  <ellipse cx="757" cy="36" rx="16" ry="6" fill="#F6FAFF" stroke="none"/>
+</g>
+
+<!-- ============ CHARACTER (warm flat cels, ink) ============ -->
+<g filter="url(#boil)" stroke="#2B2230" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+  <!-- back hair: round dome, long sides flicking out at the jaw -->
+  <path d="M440 318 Q432 248 486 228 Q540 212 594 226 Q646 246 642 318 L644 404 Q648 418 652 424 Q630 428 612 420 L470 420 Q452 428 432 422 Q440 410 440 396 Z" fill="#27232F"/>
+  <!-- pigtail tufts -->
+  <path d="M482 236 Q446 200 404 208 Q386 220 382 272 Q396 240 418 236 Q406 252 410 268 Q436 238 476 252 Z" fill="#27232F"/>
+  <path d="M556 228 Q584 184 622 186 Q648 198 664 232 Q636 212 614 216 Q632 228 636 248 Q604 224 574 242 Z" fill="#27232F"/>
+  <!-- neck -->
+  <path d="M502 398 L504 444 L524 444 L522 398 Z" fill="#EE8E86"/>
+  <path d="M506 430 q8 4 16 0" fill="none" stroke-width="1.6"/>
+  <!-- face: wide cheeks, soft chin -->
+  <path d="M458 290 Q460 256 500 250 L584 250 Q626 258 628 300 Q632 348 614 382 Q592 414 540 416 Q494 416 472 390 Q456 368 456 330 Z" fill="#EE8E86"/>
+  <!-- ear (in front of back hair) -->
+  <path d="M458 350 Q434 336 432 360 Q434 390 462 392" fill="#EE8E86"/>
+  <path d="M446 356 q-2 12 8 20" fill="none" stroke-width="1.6"/>
+  <!-- front hair: centre part, forehead shows -->
+  <path d="M452 330 Q446 262 494 240 Q530 228 540 244 Q552 228 590 240 Q636 260 632 330 Q622 290 600 270 Q588 262 576 266 Q566 256 546 262 Q536 270 532 262 Q520 256 504 266 Q490 262 478 276 Q462 296 460 330 Z" fill="#27232F"/>
+  <path d="M460 300 Q452 360 460 418 Q470 420 476 416 Q466 360 474 300 Z" fill="#27232F"/>
+  <path d="M624 300 Q634 360 628 420 Q620 424 612 420 Q620 360 614 306 Z" fill="#27232F"/>
+  <!-- cereal crumb -->
+  <path d="M484 238 q8-14 24-10 q10-12 26-4 q16-8 26 6 q-36 14-76 8z" fill="#D9AE5C" stroke-width="1.8"/>
+  <!-- brows -->
+  <path d="M472 302 Q482 284 506 286 Q528 286 546 298 L544 308 Q520 302 498 304 Q482 306 474 314 Z" fill="#27232F" stroke-width="1.6"/>
+  <path d="M566 298 Q586 284 606 286 Q620 288 624 304 L618 310 Q602 302 584 304 Q574 304 566 308 Z" fill="#27232F" stroke-width="1.6"/>
+  <!-- eyes -->
+  <path d="M476 340 Q502 332 540 338 Q536 360 508 362 Q482 360 476 340 Z" fill="#FBF6EE" stroke-width="2"/>
+  <path d="M564 338 Q590 330 616 334 Q612 356 592 358 Q568 358 564 338 Z" fill="#FBF6EE" stroke-width="2"/>
+  <path d="M490 337 Q503 351 520 337 Z M576 335 Q588 349 604 334 Z" fill="#27232F" stroke-width="1.2"/>
+  <path d="M472 342 Q502 328 544 337 M560 338 Q590 326 620 334" fill="none" stroke-width="4.4"/>
+  <path d="M494 366 q14 3 28 0 M578 362 q12 3 24 0" fill="none" stroke-width="1.4"/>
+  <!-- nose + mouth -->
+  <path d="M548 378 q4 4 8 0" fill="none" stroke-width="1.8"/>
+  <path d="M532 398 q8 -2 16 0" fill="none" stroke-width="2.2"/>
+
+  <!-- jeans -->
+  <path d="M424 628 L572 628 L576 720 L422 720 Z" fill="#8EAFBC"/>
+  <path d="M500 646 Q498 690 494 720" fill="none" stroke-width="1.8"/>
+  <!-- hoodie body, 3/4 turned -->
+  <path d="M440 452 Q476 436 502 438 L528 438 Q562 436 586 452 Q606 486 614 546 Q622 590 612 606 Q600 612 596 610 L598 630 Q520 640 432 630 L434 608 Q420 600 422 576 Q426 530 432 500 Q434 470 440 452 Z" fill="url(#hoodie)"/>
+  <path d="M434 608 Q520 618 598 610" fill="none" stroke-width="1.8"/>
+  <path d="M470 610 l2 14 M540 612 l1 16" fill="none" stroke-width="1.4"/>
+  <!-- hood collar -->
+  <path d="M474 440 Q512 476 560 440 Q556 428 542 426 Q514 456 488 426 Q476 428 474 440 Z" fill="#B5442E"/>
+  <!-- drawstrings -->
+  <path d="M496 456 Q494 500 492 552 M518 456 Q516 500 518 548" fill="none" stroke="#2B2230" stroke-width="8"/>
+  <path d="M496 456 Q494 500 492 552 M518 456 Q516 500 518 548" fill="none" stroke="#F1E8D6" stroke-width="4.4"/>
+  <path d="M492 472 l4 -4 M492 488 l5 -4 M492 504 l4 -4 M492 520 l4 -4 M492 536 l4 -4 M516 474 l4 -4 M516 490 l4 -4 M516 506 l4 -4 M517 522 l4 -4 M517 538 l4 -4" fill="none" stroke="#B89F7E" stroke-width="1.4"/>
+  <path d="M452 500 q8 30 6 70 M590 500 q-6 30 -2 60" fill="none" stroke-width="1.4" stroke="#8E3424"/>
+
+  <!-- her right arm (viewer left): elbow out, fist on hip -->
+  <path d="M446 452 Q394 444 356 470 Q318 498 296 532 Q290 552 306 566 Q324 580 348 584 L358 562 Q346 556 342 550 Q378 528 434 512 Z" fill="#C8533D"/>
+  <path d="M336 516 q-6 10 -2 22 M360 498 q-6 10 -2 22" fill="none" stroke-width="1.6"/>
+  <path d="M310 548 Q324 566 350 572 L356 584 Q326 584 306 562 Z" fill="#B5442E"/>
+  <path d="M348 578 Q366 600 374 636 L392 632 Q384 596 356 562 Z" fill="#EE8E86"/>
+  <!-- fist on hip -->
+  <path d="M366 634 Q356 652 366 672 Q380 688 400 682 Q418 676 420 656 Q420 636 402 628 Q380 624 366 634 Z" fill="#EE8E86"/>
+  <path d="M372 646 q12 -6 24 0 M372 660 q12 -6 24 0 M378 674 q10 -4 18 0 M402 632 q8 12 4 28" fill="none" stroke-width="1.6"/>
+
+  <!-- her left arm (viewer right): sleeve bunched at the elbow, fist up -->
+  <path d="M576 450 Q618 460 634 510 Q646 556 642 590 Q620 606 596 594 Q588 556 584 520 Z" fill="#C8533D"/>
+  <path d="M598 518 q10 6 20 4 M602 548 q10 6 22 2" fill="none" stroke-width="1.6"/>
+  <path d="M592 576 Q610 590 630 582 L632 594 Q612 606 594 592 Z" fill="#B5442E"/>
+  <path d="M612 584 Q652 524 698 458 L718 472 Q672 534 630 592 Z" fill="#EE8E86"/>
+  <!-- fist: knuckles to camera -->
+  <path d="M698 460 Q690 428 712 410 L738 390 Q758 382 768 394 Q778 406 772 422 Q778 440 768 452 Q754 470 730 472 Q708 474 698 460 Z" fill="#EE8E86"/>
+  <path d="M738 390 q10 8 8 20 M754 386 q12 8 16 20 M746 410 q14 2 24 14 M742 428 q14 4 24 14" fill="none" stroke-width="1.6"/>
+  <path d="M712 410 q-6 20 6 34 q10 4 20 -2" fill="none" stroke-width="1.6"/>
+</g>
+<rect width="1280" height="720" filter="url(#grain)"/>
+</svg>

@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<defs>
+  <filter id="boil" x="-2%" y="-2%" width="104%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="5"/>
+    <feDisplacementMap in="SourceGraphic" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="8"/><feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.55  0 0 0 0.09 0"/></filter>
+  <filter id="blur"><feGaussianBlur stdDeviation="14"/></filter>
+  <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6F7C99"/><stop offset=".55" stop-color="#94A0BA"/><stop offset="1" stop-color="#7F8BA6"/></linearGradient>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E2B52"/><stop offset="1" stop-color="#40558A"/></linearGradient>
+  <linearGradient id="tee" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#E7AB42"/><stop offset="1" stop-color="#C78727"/></linearGradient>
+  <linearGradient id="quilt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A05E7E"/><stop offset="1" stop-color="#7A4462"/></linearGradient>
+  <radialGradient id="phoneGlow" cx="760" cy="1030" r="560" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#BFE6FF" stop-opacity=".55"/><stop offset=".4" stop-color="#9CCBF2" stop-opacity=".2"/><stop offset="1" stop-color="#9CCBF2" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="vig" cx="540" cy="960" r="1150" gradientUnits="userSpaceOnUse">
+    <stop offset=".55" stop-color="#141A30" stop-opacity="0"/><stop offset="1" stop-color="#141A30" stop-opacity=".6"/>
+  </radialGradient>
+  <pattern id="print" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="rotate(-6)">
+    <circle cx="16" cy="16" r="7" fill="none" stroke="#D69AB2" stroke-width="2.4"/>
+    <circle cx="16" cy="16" r="2" fill="#D69AB2"/>
+    <path d="M48 40 l8 8 l-8 8 l-8 -8z" fill="#C47E9C"/>
+  </pattern>
+</defs>
+
+<!-- ================= ROOM (cool, thin lines) ================= -->
+<g filter="url(#boil)" stroke="#4B5674" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+  <rect width="1080" height="1920" fill="url(#wall)" stroke="none"/>
+  <!-- wall corner + skirting -->
+  <path d="M600 0 L600 1300" fill="none" stroke-width="1.8"/>
+  <path d="M600 0 L1080 0 L1080 1300 L600 1300 Z" fill="#8995B0" stroke="none" opacity=".55"/>
+
+  <!-- window with curtain -->
+  <path d="M650 250 L1030 250 L1030 790 L650 790 Z" fill="#C2CADB"/>
+  <path d="M672 272 L1008 272 L1008 768 L672 768 Z" fill="url(#sky)"/>
+  <circle cx="930" cy="372" r="40" fill="#F3EDD8" stroke="#C9C2AC"/>
+  <path d="M672 600 L720 600 L720 540 L780 540 L780 620 L820 620 L820 500 L880 500 L880 590 L930 590 L930 560 L1008 560 L1008 768 L672 768 Z" fill="#1B254A" stroke="#2F3B66" stroke-width="1.6"/>
+  <g fill="#F2C46D" stroke="none">
+    <rect x="732" y="556" width="10" height="13"/><rect x="756" y="556" width="10" height="13"/><rect x="732" y="590" width="10" height="13"/>
+    <rect x="834" y="520" width="10" height="13"/><rect x="858" y="548" width="10" height="13"/><rect x="834" y="578" width="10" height="13"/>
+    <rect x="946" y="582" width="10" height="13"/><rect x="972" y="610" width="10" height="13"/><rect x="688" y="640" width="10" height="13"/>
+  </g>
+  <path d="M840 272 L840 768 M672 520 L1008 520" fill="none" stroke="#C2CADB" stroke-width="12"/>
+  <path d="M840 272 L840 768 M672 520 L1008 520" fill="none" stroke-width="1.6"/>
+  <path d="M640 236 L1042 236 L1042 252 L640 252 Z" fill="#B0B9CC"/>
+  <path d="M960 236 Q936 400 968 560 Q990 700 960 860 L1060 860 Q1080 700 1062 520 Q1050 380 1068 236 Z" fill="#6B7BA0"/>
+  <path d="M990 260 Q980 420 1004 600 Q1014 720 1000 850 M1030 250 Q1022 420 1036 600" fill="none" stroke-width="1.8"/>
+
+  <!-- fairy lights -->
+  <path d="M0 150 Q270 230 560 160 Q800 110 1080 180" fill="none" stroke="#3B4560" stroke-width="2"/>
+  <g stroke="none">
+    <circle cx="70" cy="174" r="34" fill="#FFD27A" opacity=".18"/><circle cx="210" cy="203" r="34" fill="#FFD27A" opacity=".18"/><circle cx="360" cy="208" r="34" fill="#FFD27A" opacity=".18"/><circle cx="500" cy="176" r="34" fill="#FFD27A" opacity=".18"/><circle cx="650" cy="140" r="34" fill="#FFD27A" opacity=".18"/><circle cx="800" cy="125" r="34" fill="#FFD27A" opacity=".18"/><circle cx="950" cy="146" r="34" fill="#FFD27A" opacity=".18"/>
+  </g>
+  <g fill="#FFE2A0" stroke-width="1.6">
+    <ellipse cx="70" cy="180" rx="8" ry="11"/><ellipse cx="210" cy="209" rx="8" ry="11"/><ellipse cx="360" cy="214" rx="8" ry="11"/><ellipse cx="500" cy="182" rx="8" ry="11"/><ellipse cx="650" cy="146" rx="8" ry="11"/><ellipse cx="800" cy="131" rx="8" ry="11"/><ellipse cx="950" cy="152" rx="8" ry="11"/>
+  </g>
+
+  <!-- clock: 1:43 -->
+  <circle cx="190" cy="360" r="74" fill="#D3D9E5"/>
+  <circle cx="190" cy="360" r="62" fill="#E6EAF1" stroke-width="1.6"/>
+  <g stroke-width="3"><path d="M190 306 v10 M190 404 v10 M136 360 h10 M234 360 h10" fill="none"/></g>
+  <path d="M190 360 L210 344" fill="none" stroke="#2B2230" stroke-width="7"/>
+  <path d="M190 360 L164 394" fill="none" stroke="#2B2230" stroke-width="4"/>
+  <circle cx="190" cy="360" r="6" fill="#2B2230" stroke="none"/>
+
+  <!-- corkboard with notes -->
+  <path d="M70 500 L420 486 L428 760 L78 772 Z" fill="#A98B6C"/>
+  <path d="M86 514 L408 502 L414 748 L92 758 Z" fill="#C2A27E" stroke-width="1.4"/>
+  <g transform="rotate(-7 170 600)">
+    <rect x="104" y="540" width="150" height="150" fill="#F2DC6B" stroke="#4B5674"/>
+    <circle cx="179" cy="552" r="6" fill="#D2524A"/>
+    <text x="118" y="600" font-family="Kalam" font-weight="700" font-size="34" fill="#2B2230" stroke="none">DBMS PPT</text>
+    <text x="122" y="650" font-family="Kalam" font-weight="700" font-size="38" fill="#C9372C" stroke="none">9 AM!!</text>
+    <path d="M122 662 q50 8 110 -2" fill="none" stroke="#C9372C" stroke-width="3"/>
+  </g>
+  <g transform="rotate(5 330 590)">
+    <rect x="276" y="522" width="120" height="96" fill="#E7EEF5"/>
+    <path d="M290 548 h80 M290 568 h90 M290 588 h60" fill="none" stroke-width="2"/>
+  </g>
+  <g transform="rotate(-3 330 700)">
+    <rect x="280" y="642" width="110" height="90" fill="#9FC7C2"/>
+    <circle cx="335" cy="687" r="22" fill="#F3EDD8" stroke-width="2"/>
+  </g>
+
+  <!-- shelf with books -->
+  <path d="M40 850 L470 850 L470 870 L40 870 Z" fill="#7A6A63"/>
+  <rect x="70" y="752" width="30" height="98" fill="#6F8BA8"/><rect x="100" y="770" width="26" height="80" fill="#B5675B"/>
+  <rect x="126" y="744" width="34" height="106" fill="#C9B28A"/><path d="M164 850 L176 760 L202 764 L190 850 Z" fill="#7F9A7A"/>
+  <path d="M390 850 Q380 816 402 806 L436 806 Q456 816 446 850 Z" fill="#B27A5E"/>
+  <path d="M418 806 q-30 -40 -14 -70 M418 806 q10 -50 40 -60 M418 806 q-4 -30 -36 -36" fill="none" stroke="#3F6B4E" stroke-width="7"/>
+  <!-- steel chai glass on the shelf -->
+  <path d="M262 800 L300 800 L296 850 L266 850 Z" fill="#D9E1EA"/>
+  <path d="M266 814 L296 814 L294 850 L268 850 Z" fill="#B47A48" stroke="none" opacity=".8"/>
+
+  <!-- hostel cot: steel headboard rails -->
+  <path d="M60 1000 L1020 1000" fill="none" stroke="#3E4763" stroke-width="22"/>
+  <path d="M60 1000 L1020 1000" fill="none" stroke="#6C7895" stroke-width="14"/>
+  <path d="M60 1120 L1020 1120" fill="none" stroke="#3E4763" stroke-width="18"/>
+  <path d="M60 1120 L1020 1120" fill="none" stroke="#6C7895" stroke-width="11"/>
+  <g stroke="#3E4763" stroke-width="16"><path d="M80 960 V1420 M1000 960 V1420 M300 1000 V1120 M780 1000 V1120" fill="none"/></g>
+  <g stroke="#6C7895" stroke-width="9"><path d="M80 960 V1420 M1000 960 V1420 M300 1000 V1120 M780 1000 V1120" fill="none"/></g>
+  <!-- pillow behind her -->
+  <path d="M150 1150 Q160 1080 260 1080 L820 1086 Q930 1090 930 1170 Q928 1260 900 1300 L170 1300 Q140 1240 150 1150 Z" fill="#C9D1E1"/>
+  <path d="M220 1130 q60 30 140 10 M760 1130 q50 20 110 0" fill="none" stroke-width="1.8"/>
+</g>
+
+<!-- ================= MEERA (warm flat cels, ink) ================= -->
+<g transform="translate(540 860) scale(2.1) translate(-540 -340)">
+<g filter="url(#boil)" stroke="#2B2230" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+  <!-- flyaway strands: she just bolted up -->
+  <path d="M484 236 Q472 222 474 204 M602 236 Q616 226 618 210 M496 230 Q494 216 502 206" fill="none" stroke-width="3"/>
+  <!-- long back hair -->
+  <path d="M444 322 Q434 246 490 226 Q542 210 596 226 Q652 248 642 322 Q650 400 664 462 Q672 506 646 516 Q624 500 612 474 L470 474 Q458 506 428 514 Q404 504 414 466 Q436 400 444 322 Z" fill="#221F2C"/>
+  <!-- messy bun + pencil -->
+  <path d="M596 158 L606 166 L528 238 L518 230 Z" fill="#E9C24C"/>
+  <path d="M596 158 L606 166 L612 158 L602 150 Z" fill="#E58A93"/>
+  <path d="M510 214 Q502 172 544 164 Q590 162 590 204 Q588 232 548 234 Q514 234 510 214 Z" fill="#221F2C"/>
+  <path d="M526 200 q10 -20 34 -12 q12 8 4 22" fill="none" stroke="#4A4560" stroke-width="2"/>
+  <path d="M518 230 L528 238 L520 246 Z" fill="#E7C9A6"/>
+  <!-- neck -->
+  <path d="M502 398 L504 446 L526 446 L524 398 Z" fill="#C98163"/>
+  <!-- face -->
+  <path d="M458 290 Q460 256 500 250 L584 250 Q626 258 628 300 Q632 348 614 382 Q592 414 540 416 Q494 416 472 390 Q456 368 456 330 Z" fill="#D9936F"/>
+  <!-- ear + jhumka -->
+  <path d="M458 350 Q434 336 432 360 Q434 390 462 392" fill="#D9936F"/>
+  <path d="M446 356 q-2 12 8 20" fill="none" stroke-width="1.5"/>
+  <path d="M446 392 v8" fill="none" stroke-width="1.5"/>
+  <path d="M438 404 Q446 396 454 404 L450 414 L442 414 Z" fill="#E2B64E" stroke-width="1.5"/>
+  <!-- front hair: centre part, loose strands -->
+  <path d="M452 330 Q446 262 494 240 Q530 228 540 244 Q552 228 590 240 Q636 260 632 330 Q622 290 600 270 Q588 262 576 266 Q566 256 546 262 Q536 270 532 262 Q520 256 504 266 Q490 262 478 276 Q462 296 460 330 Z" fill="#221F2C"/>
+  <path d="M460 300 Q450 370 456 430 Q466 434 474 428 Q466 370 474 300 Z" fill="#221F2C"/>
+  <path d="M624 300 Q636 370 630 432 Q620 436 612 430 Q620 370 614 306 Z" fill="#221F2C"/>
+  <path d="M548 262 Q560 290 552 314" fill="none" stroke="#221F2C" stroke-width="3.4"/>
+  <!-- brows: shot up -->
+  <path d="M472 282 Q490 260 518 264 Q536 266 546 276 L542 287 Q522 277 500 279 Q484 283 476 292 Z" fill="#221F2C" stroke-width="1.4"/>
+  <path d="M566 276 Q584 260 606 262 Q622 266 628 282 L622 290 Q604 278 586 280 Q574 282 568 288 Z" fill="#221F2C" stroke-width="1.4"/>
+  <!-- eyes: wide, tiny pupils -->
+  <ellipse cx="507" cy="330" rx="29" ry="25" fill="#FBF6EE" stroke-width="2"/>
+  <ellipse cx="594" cy="328" rx="25" ry="24" fill="#FBF6EE" stroke-width="2"/>
+  <circle cx="512" cy="332" r="5.5" fill="#221F2C" stroke="none"/>
+  <circle cx="597" cy="330" r="5" fill="#221F2C" stroke="none"/>
+  <path d="M480 318 Q506 300 534 318 M571 316 Q594 300 617 316" fill="none" stroke-width="3.6"/>
+  <path d="M490 364 q16 5 32 0 M580 360 q12 4 24 0" fill="none" stroke-width="1.3" stroke="#8E5240"/>
+  <!-- nose -->
+  <path d="M546 364 q6 6 12 0" fill="none" stroke-width="1.8"/>
+  <!-- gasp -->
+  <path d="M524 386 Q540 376 556 386 Q560 408 540 412 Q520 410 524 386 Z" fill="#3A1E26" stroke-width="2"/>
+  <path d="M528 401 Q540 395 552 403 Q546 411 538 411 Q530 409 528 401 Z" fill="#D86A70" stroke="none"/>
+  <!-- sweat + shock ticks -->
+  <path d="M646 280 q-10 18 0 28 q10 -10 0 -28 z" fill="#CFE6F5" stroke-width="1.6"/>
+  <path d="M662 258 l14 -12 M668 286 l18 -2 M660 312 l14 8" fill="none" stroke-width="2.6"/>
+
+  <!-- oversized mustard tee -->
+  <path d="M432 458 Q478 442 504 444 L528 444 Q572 442 600 458 Q630 500 638 560 L642 650 L418 650 L422 560 Q426 500 432 458 Z" fill="url(#tee)"/>
+  <path d="M494 444 Q514 466 536 444" fill="none" stroke-width="2"/>
+  <path d="M456 520 q6 40 2 90 M604 520 q-4 40 0 90" fill="none" stroke="#9A6618" stroke-width="1.4"/>
+  <!-- small moon print -->
+  <path d="M540 520 a22 22 0 1 0 22 30 a17 17 0 1 1 -22 -30 z" fill="#F4E3B4" stroke="none" opacity=".85"/>
+
+  <!-- right arm (viewer left): hand clutching hair -->
+  <path d="M440 458 Q402 466 390 500 Q386 522 404 530 L446 512 Z" fill="url(#tee)"/>
+  <path d="M398 520 Q382 480 368 440 Q364 420 382 414 Q400 412 406 430 Q418 466 436 498 Z" fill="#D9936F"/>
+  <path d="M368 432 Q384 420 400 428 Q424 378 454 316 L436 306 Q402 360 368 432 Z" fill="#D9936F"/>
+  <path d="M432 314 Q426 286 446 274 Q466 266 482 278 Q488 294 474 306 Q458 320 440 322 Z" fill="#D9936F"/>
+  <g fill="none">
+    <path d="M448 280 L462 254 M459 274 L475 248 M470 272 L487 249 M480 278 L495 258" stroke="#2B2230" stroke-width="12"/>
+    <path d="M448 280 L462 254 M459 274 L475 248 M470 272 L487 249 M480 278 L495 258" stroke="#D9936F" stroke-width="8"/>
+    <path d="M438 312 L456 330" stroke="#2B2230" stroke-width="12"/>
+    <path d="M438 312 L456 330" stroke="#D9936F" stroke-width="8"/>
+  </g>
+  <path d="M444 288 q14 -8 34 -4" fill="none" stroke-width="1.4"/>
+
+  <!-- left arm (viewer right): holding the phone up -->
+  <path d="M596 458 Q632 466 646 500 Q650 522 630 528 L592 510 Z" fill="url(#tee)"/>
+  <path d="M612 506 Q636 546 648 592 Q662 606 678 594 Q668 546 642 498 Z" fill="#D9936F"/>
+  <path d="M650 596 Q668 606 682 594 Q682 548 684 504 L660 502 Q654 550 650 596 Z" fill="#D9936F"/>
+  <g transform="translate(26 26) rotate(-6 666 440)">
+    <!-- phone back: dark case, Srutam sticker -->
+    <rect x="628" y="368" width="74" height="132" rx="11" fill="#2C2F3E" stroke-width="2.2"/>
+    <rect x="638" y="378" width="26" height="32" rx="7" fill="#1A1C26" stroke-width="1.2"/>
+    <circle cx="651" cy="388" r="5" fill="#3E4459" stroke="none"/><circle cx="651" cy="401" r="5" fill="#3E4459" stroke="none"/>
+    <circle cx="676" cy="426" r="12" fill="#1F8C83" stroke="none"/>
+    <path d="M668 426 v0 M672 421 v10 M676 418 v16 M680 421 v10 M684 426 v0" fill="none" stroke="#F4F0E6" stroke-width="2"/>
+    <path d="M630 372 L628 498" fill="none" stroke="#CDEBFF" stroke-width="2.4"/>
+    <!-- fingers across the back -->
+    <g fill="none">
+      <path d="M706 444 L648 442 M706 460 L644 461 M704 476 L648 479 M700 491 L656 494" stroke="#2B2230" stroke-width="14"/>
+      <path d="M706 444 L648 442 M706 460 L644 461 M704 476 L648 479 M700 491 L656 494" stroke="#D9936F" stroke-width="10"/>
+    </g>
+    <path d="M700 436 Q720 450 716 490 Q712 510 690 512 L676 506 L702 490 Z" fill="#D9936F"/>
+  </g>
+</g>
+</g>
+
+<!-- quilt over her lap (block print) -->
+<g filter="url(#boil)" stroke="#2B2230" stroke-width="3" stroke-linejoin="round">
+  <path d="M0 1440 Q160 1370 330 1400 Q470 1430 560 1390 Q700 1350 860 1400 Q980 1430 1080 1400 L1080 1920 L0 1920 Z" fill="url(#quilt)"/>
+  <path d="M0 1440 Q160 1370 330 1400 Q470 1430 560 1390 Q700 1350 860 1400 Q980 1430 1080 1400 L1080 1920 L0 1920 Z" fill="url(#print)" stroke="none" opacity=".75"/>
+  <path d="M300 1450 Q360 1600 300 1780 M620 1440 Q560 1600 640 1760 M840 1440 Q900 1560 860 1700" fill="none" stroke="#5E3149" stroke-width="2.4"/>
+  <path d="M0 1470 Q160 1400 330 1430 Q470 1460 560 1420 Q700 1380 860 1430 Q980 1460 1080 1430" fill="none" stroke="#E7C26A" stroke-width="5"/>
+</g>
+
+<!-- light: phone glow on her face, night vignette -->
+<rect width="1080" height="1920" fill="url(#phoneGlow)" style="mix-blend-mode:screen"/>
+<rect width="1080" height="1920" fill="url(#vig)"/>
+
+<!-- group-chat notification, drawn -->
+<g filter="url(#boil)">
+  <path d="M90 1560 Q90 1530 120 1530 L960 1530 Q990 1530 990 1560 L990 1720 Q990 1750 960 1750 L130 1750 L96 1784 L104 1748 Q90 1742 90 1720 Z" fill="#FBF8F1" stroke="#2B2230" stroke-width="4"/>
+  <circle cx="170" cy="1612" r="40" fill="#E58AA0" stroke="#2B2230" stroke-width="3"/>
+  <text x="170" y="1628" text-anchor="middle" font-family="Inter" font-weight="700" font-size="42" fill="#FBF8F1">R</text>
+  <text x="236" y="1600" font-family="Inter" font-weight="700" font-size="34" fill="#2B2230">Riya · DBMS group</text>
+  <text x="236" y="1680" font-family="Kalam" font-weight="700" font-size="50" fill="#2B2230">wait… where are slides 8–12??</text>
+  <text x="930" y="1600" text-anchor="end" font-family="Inter" font-weight="700" font-size="26" fill="#8C8496">1:43 AM</text>
+</g>
+<rect width="1080" height="1920" filter="url(#grain)"/>
+</svg>
