@@ -11,7 +11,7 @@ import numpy as np
 
 from generate_audio_stories import PUB, SR, bell, groove, noise, pad, pizz, place, shape, t_axis, hz, write
 
-TOTAL = 1320 / 30
+TOTAL = (1320 + 90) / 30  # story + call-to-action card
 s = lambda frame: frame / 30
 
 
@@ -58,6 +58,10 @@ def drawn_music(total=TOTAL):
     place(buf, shape(res, 3000), s(1140), 0.3)
     for k, n in enumerate(["F5", "A5", "C6", "F6"]):
         place(buf, bell(hz(n), 2.2), s(1252) + k * 0.07, 0.07)
+    # Call to action: a warm lift and bells under the end card
+    place(buf, shape(pad(["F3", "C4", "A4", "C5"], total - s(1320), 0.3, 0.8), 1500), s(1320), 0.22)
+    for k, n in enumerate(["C5", "F5", "A5"]):
+        place(buf, bell(hz(n), 1.6), s(1348) + k * 0.12, 0.06)
     return buf
 
 

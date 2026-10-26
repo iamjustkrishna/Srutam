@@ -64,6 +64,9 @@ Tips:
   they are exact and readable.
 - Put the important face in the **upper-middle** of the frame and say it is **lit**. The first
   Kabir shot was too dark and too small to read, and the redo fixed it.
+- Say which way screens face. The first 2:30 a.m. shot had the laptop glowing at the camera
+  while Meera looked at its side. The fix was to describe the layout ("laptop on the left with its
+  screen turned toward HER, we see the back of the lid").
 - Name the hard parts you will hide. "Medium close-up" and "from above" keep hands and feet
   small or out of frame.
 - Check every result before using it, and regenerate any shot that doesn't read.
@@ -124,14 +127,18 @@ All shot ids are in `src/drawn/SHOTS.md`.
     floating phone over a blurred, darkened copy of the shot.
   - The canteen flashback gets a sepia grade, a vignette and a playback progress bar.
   - `EndBand` closes on "Srutam: Listen once. Ask anytime."
-- The composition is registered in `src/Root.tsx` as `WhoDidSlidesDrawn`.
+- The video opens with a half-second cold open (`ColdOpen`): the 1:43 a.m. shock and a rewind
+  sound, so the first second already hooks.
+- It ends with a 3-second call-to-action card (`CallToAction`): what Srutam does, a "Get it on
+  Google Play" button, the website and the Instagram handle. Always end with one.
+- The composition is registered in `src/Root.tsx` as `WhoDidSlidesDrawn` (47.5 s, 2850 frames).
 
 ## 8. Review and render
 
 - Review stills (render frames are story frames × 2):
   `node scripts/stills.mjs --id=WhoDidSlidesDrawn 60 260 700 …`
 - Full render:
-  `scripts/render/render.sh WhoDidSlidesDrawn 2640 out/who-did-slides-drawn.mp4`
+  `scripts/render/render.sh WhoDidSlidesDrawn 2850 out/who-did-slides-drawn.mp4`
 - Check the result:
   `scripts/render/verify.sh out/who-did-slides-drawn.mp4 out/who-did-slides-drawn-sheet.png`
   It checks specs and loudness (-14 LUFS), counts silences and makes a 12-frame contact sheet.

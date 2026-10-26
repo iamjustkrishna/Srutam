@@ -1,14 +1,14 @@
 // "Who was doing slides 8-12?", AI-illustrated cut. Each story beat is one Canva
 // illustration (public/drawn/sNN.jpg, prompts and ids in SHOTS.md) moved with a slow
 // camera; banners, phone screens, lettering, voices and sound are layered on top here.
-import { AbsoluteFill, Img, interpolate, Sequence, staticFile } from "remotion";
+import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile } from "remotion";
 import { clamp, easeInOut, easeOut } from "../anim";
 import { springAt } from "../stories/physics";
 import { Captions, Soundtrack } from "../stories/Story";
 import { K, useT } from "../stories/time";
 import { typed } from "../stories/typing";
 import { AskFlow, ChatScreen, EndBand, H, Phone, W } from "../storyboards/Kit";
-import { BEAT, CAPTIONS, SFX, SHOTS, TOTAL, VO } from "./timeline";
+import { BEAT, CAPTIONS, CTA, FULL, OPEN, SFX, SHOTS, TOTAL, VO } from "./timeline";
 
 type Span = { from: number; duration: number };
 type Move = { s: [number, number]; x: [number, number]; y: [number, number] };
@@ -321,16 +321,63 @@ const LIST = [
   ["9 Presentation", SHOTS.s9, Shot9],
 ] as const;
 
-export { TOTAL };
+/* Cold open: half a second of the 1:43 a.m. shock, then rewind to 11 p.m. */
+const ColdOpen: React.FC = () => {
+  const f = useT();
+  const sh = { from: 0, duration: OPEN };
+  return (
+    <AbsoluteFill>
+      <Art src="drawn/s02.jpg" sh={sh} f={f} shake={22} move={{ s: [1.55, 1.7], x: [0.5, 0.5], y: [0.36, 0.36] }} />
+      <AbsoluteFill style={{ background: "#fff", opacity: interpolate(f, [0, 4], [0.7, 0], clamp) }} />
+      <Lettering f={f} at={1} text="1:43 AM" color="#F8FAFC" y={260} size={130} rot={-3} />
+      <Audio src={staticFile("sfx2/thump.wav")} volume={0.6} />
+      <Sequence from={(OPEN - 6) * K}>
+        <Audio src={staticFile("sfx2/rewind.wav")} volume={0.4} />
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
+
+/* Call to action: what Srutam is and where to get it. */
+const CallToAction: React.FC = () => {
+  const f = useT();
+  const k = (at: number) => interpolate(f, [at, at + 10], [0, 1], { ...clamp, easing: easeOut });
+  const line = (at: number): React.CSSProperties => ({ opacity: k(at), transform: `translateY(${(1 - k(at)) * 40}px)` });
+  return (
+    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 35%, #1E2A5A 0%, #050714 70%)", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 80 }}>
+      <div style={{ ...line(0), fontFamily: "Playfair Display", fontSize: 150, color: "#F8FAFC" }}>Srutam</div>
+      <div style={{ ...line(8), fontFamily: "Inter", fontWeight: 700, fontSize: 56, color: "#E2E8F0", marginTop: 40, lineHeight: 1.3 }}>
+        Record your meetings and lectures.
+      </div>
+      <div style={{ ...line(16), fontFamily: "Inter", fontWeight: 700, fontSize: 56, color: "#93C5FD", marginTop: 18, lineHeight: 1.3 }}>
+        Ask later. It finds who said what.
+      </div>
+      <div style={{ ...line(28), marginTop: 90, transform: `scale(${0.9 + 0.1 * k(28) + 0.02 * Math.sin(f / 5)})`, background: "#F8FAFC", color: "#0B1033", fontFamily: "Inter", fontWeight: 800, fontSize: 54, padding: "30px 60px", borderRadius: 999 }}>
+        ▶ Get it on Google Play
+      </div>
+      <div style={{ ...line(36), fontFamily: "Inter", fontWeight: 600, fontSize: 40, color: "#94A3B8", marginTop: 40 }}>srutam.space · @srutam.app</div>
+    </AbsoluteFill>
+  );
+};
+
+export { FULL };
 
 export const DrawnSlides: React.FC = () => (
   <AbsoluteFill style={{ background: "#000" }}>
-    {LIST.map(([name, s, Comp]) => (
-      <Sequence key={name} name={name} from={s.from * K} durationInFrames={s.duration * K}>
-        <Comp />
+    <Sequence name="0 Cold open" durationInFrames={OPEN * K}>
+      <ColdOpen />
+    </Sequence>
+    <Sequence name="Story" from={OPEN * K} durationInFrames={(TOTAL + CTA) * K}>
+      {LIST.map(([name, s, Comp]) => (
+        <Sequence key={name} name={name} from={s.from * K} durationInFrames={s.duration * K}>
+          <Comp />
+        </Sequence>
+      ))}
+      <Sequence name="CTA" from={TOTAL * K} durationInFrames={CTA * K}>
+        <CallToAction />
       </Sequence>
-    ))}
-    <Captions cues={CAPTIONS} k={K} />
-    <Soundtrack music="drawn/music.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />
+      <Captions cues={CAPTIONS} k={K} />
+      <Soundtrack music="drawn/music.wav" musicVolume={0.42} lines={VO} sfx={SFX} k={K} sfxGain={0.6} duck={0.35} />
+    </Sequence>
   </AbsoluteFill>
 );

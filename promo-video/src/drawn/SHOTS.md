@@ -31,14 +31,14 @@ Riya `MAHZIcBcFtg`, Kabir `MAHZIcOWZpo`.
 | 3a | 1:50 a.m. — Riya at her desk, furious thumbs | `MAHZIZOwFf0` | 2 |
 | 3b | 1:50 a.m. — Kabir in bed, guilty: "not me bro 💀" (redone from above, face lit) | `MAHZIVYIwqw` | 2 |
 | 4 | Panic fantasy — giant professor holding a glowing red 0 | `MAHZISKRoXk` | 2 |
-| 5 | 2:30 a.m. — Meera alone at desk, face in hands, cold Maggi | `MAHZIZ1W6tE` | 2 |
+| 5 | 2:30 a.m. — Meera alone at desk, face in hands, cold Maggi (redone: laptop screen faces her) | `MAHZIfoUzBA` | 2 |
 | 6 | Flashback — canteen: Riya points at Kabir, Kabir's thumbs-up, Meera's phone recording | `MAHZIXWtaDo` | 2 |
 | 7 | The turn — Meera remembers the recording | `MAHZIU1pbAo` | 2 |
 | 8 | 4 a.m. — Kabir at his laptop behind a tower of chai glasses | `MAHZIc9vaaY` | 2 |
 | 9 | Next morning — Kabir presents; "Recording this." | `MAHZIaymkSg` | 2 |
 
 All shots are generated from the account-2 sheets. Earlier account-1 versions of shots 1–3b:
-`MAHZIR7BSXE`, `MAHZIAiyBkk`, `MAHZIXUJm3k`, `MAHZIUQT1EA`; first account-2 3b (too dark): `MAHZIUHyzcw`.
+`MAHZIR7BSXE`, `MAHZIAiyBkk`, `MAHZIXUJm3k`, `MAHZIUQT1EA`; first account-2 3b (too dark): `MAHZIUHyzcw`; first 5 (laptop faced the camera): `MAHZIZ1W6tE`.
 
 The phone screens (group chat, Srutam's search and its answer playing back) are built in
 Remotion, not generated, so the text is exact and readable.

@@ -3,7 +3,13 @@
 // moves; the phone screens are built in code. scripts/music-drawn.py mirrors these times.
 import type { CaptionCue, Cue, Line } from "../stories/Story";
 
-export const TOTAL = 1320; // 44 s
+export const TOTAL = 1320; // 44 s of story
+/** Cold open: a half-second flash of the 1:43 a.m. shock before the story starts. */
+export const OPEN = 15;
+/** Call-to-action card after the story. */
+export const CTA = 90;
+/** Whole video: open + story + call to action (47.5 s). */
+export const FULL = OPEN + TOTAL + CTA;
 
 export const SHOTS = {
   s1: { from: 0, duration: 96 }, // 11 p.m., done for the night

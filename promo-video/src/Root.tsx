@@ -21,7 +21,7 @@ import { K as STORY_K, RENDER_FPS } from "./stories/time";
 import { ExamVideo } from "./exam/ExamVideo";
 import { TOTAL as EXAM_TOTAL } from "./exam/timeline";
 import { SlidesVideo } from "./slides/SlidesVideo";
-import { DrawnSlides, TOTAL as DRAWN_TOTAL } from "./drawn/DrawnSlides";
+import { DrawnSlides, FULL as DRAWN_TOTAL } from "./drawn/DrawnSlides";
 import { TestFrame } from "./drawn/TestFrame";
 import { TOTAL as SLIDES_TOTAL } from "./slides/timeline";
 import { TOTAL as WHO_TOTAL } from "./who/timeline";
