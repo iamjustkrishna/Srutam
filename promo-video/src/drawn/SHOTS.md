@@ -26,10 +26,10 @@ Riya `MAHZIcBcFtg`, Kabir `MAHZIcOWZpo`.
 
 | # | Beat | Canva id | Account |
 |---|---|---|---|
-| 1 | 11 p.m. — Meera on her cot, laptop + Maggi, fist-pump: "Slides 1–7 done ✅" | `MAHZIR7BSXE` | 1 |
-| 2 | 1:43 a.m. — Meera bolts upright, phone glow, shock | `MAHZIAiyBkk` | 1 |
-| 3a | 1:50 a.m. — Riya at her desk, furious thumbs | `MAHZIXUJm3k` | 1 |
-| 3b | 1:50 a.m. — Kabir in bed, guilty: "not me bro 💀" | `MAHZIUQT1EA` | 1 |
+| 1 | 11 p.m. — Meera on her cot, laptop + Maggi, fist-pump: "Slides 1–7 done ✅" | `MAHZISDaOoQ` | 2 |
+| 2 | 1:43 a.m. — Meera bolts upright, phone glow, shock | `MAHZIeKdVS4` | 2 |
+| 3a | 1:50 a.m. — Riya at her desk, furious thumbs | `MAHZIZOwFf0` | 2 |
+| 3b | 1:50 a.m. — Kabir in bed, guilty: "not me bro 💀" | `MAHZIUHyzcw` | 2 |
 | 4 | Panic fantasy — giant professor holding a glowing red 0 | `MAHZISKRoXk` | 2 |
 | 5 | 2:30 a.m. — Meera alone at desk, face in hands, cold Maggi | `MAHZIZ1W6tE` | 2 |
 | 6 | Flashback — canteen: Riya points at Kabir, Kabir's thumbs-up, Meera's phone recording | `MAHZIXWtaDo` | 2 |
@@ -37,8 +37,8 @@ Riya `MAHZIcBcFtg`, Kabir `MAHZIcOWZpo`.
 | 8 | 4 a.m. — Kabir at his laptop behind a tower of chai glasses | `MAHZIc9vaaY` | 2 |
 | 9 | Next morning — Kabir presents; "Recording this." | `MAHZIaymkSg` | 2 |
 
-Shots 1–3b were made from the account-1 sheets; regenerate them from the account-2 sheets
-(same prompts) if the characters drift visibly next to shots 4–9.
+All shots are generated from the account-2 sheets. Earlier account-1 versions of shots 1–3b:
+`MAHZIR7BSXE`, `MAHZIAiyBkk`, `MAHZIXUJm3k`, `MAHZIUQT1EA`.
 
 The phone screens (group chat, Srutam's search and its answer playing back) are built in
 Remotion, not generated, so the text is exact and readable.
