@@ -63,3 +63,15 @@ Total: about 45 s.
    falling papers, ringing phones, the waveform glow), plus image-to-video clips for 3–4 key
    moments if a Kling or Runway key is available.
 5. **Phone and answer cards, captions, the call to action**: built in code.
+
+## Generated so far (Canva media ids)
+
+| What | Canva id |
+|---|---|
+| Brain cast lineup (Judge, Memory, Anxiety, Overconfidence, Sleep, Srutam) | `MAHZJEMwZbY` |
+| Aarav character sheet | `MAHZJBty7PA` |
+| Key frame: courtroom wide (shot 3) | `MAHZJJkuoFA` |
+
+The first lineup prompt was blocked by Canva's safety filter. It said "human brain", "inside a
+person's head" and "open shirt". Calling them "mascot characters" with a "cloud-like pink" judge
+fixed it.
