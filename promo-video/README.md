@@ -208,6 +208,18 @@ scripts/render/render.sh WhoDidSlides 2280 out/who-did-slides.mp4
 scripts/render/verify.sh out/who-did-slides.mp4 out/who-did-slides-sheet.png
 ```
 
+## "Who was doing slides 8–12?", AI-illustrated (44 s, 1080x1920, 60 fps): `WhoDidSlidesDrawn`
+
+The same story told with ten Canva-generated illustrations (consistent via cast sheets) that are
+animated in Remotion with camera moves, notification banners, the real Srutam and chat
+screens, lettering, new ElevenLabs lines and a re-timed score.
+
+- How it's made, step by step: `docs/ai-illustrated-video.md`.
+- Shot list, prompts and Canva ids: `src/drawn/SHOTS.md`.
+- Code: `src/drawn/timeline.ts`, `src/drawn/DrawnSlides.tsx`.
+- Music: `scripts/music-drawn.py`. Voices: `scripts/vo/en/drawn-*.json`.
+- Art goes in `public/drawn/sNN.jpg` (944x1680, add with `git add -f`).
+
 ## Rendering and checking any video
 
 - `scripts/render/render.sh <composition> <render frames> <out.mp4> [audio]`: resumable
