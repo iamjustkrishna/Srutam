@@ -31,6 +31,35 @@ object QuickRecordNotification {
     const val CHANNEL_ID = "recording_channel_v3"
     const val NOTIFICATION_ID = 1001
 
+    /**
+     * Same notification, low importance: Android folds the "Recording" banner away when the
+     * notification moves here, but it stays in the shade. See [quietDown].
+     */
+    private const val QUIET_CHANNEL_ID = "recording_quiet_v1"
+
+    /** How long the "Recording" banner stays at the top before it folds into the shade. */
+    const val BANNER_MS = 2_500L
+
+    /** True once the current recording's banner has been folded away; reset when a recording starts. */
+    @Volatile
+    private var quiet = false
+
+    /** A new recording: its banner shows again. */
+    fun resetQuiet() {
+        quiet = false
+    }
+
+    /**
+     * Folds the recording banner into the shade early (the system's own time on screen is about
+     * twice as long): re-posts the same notification on the low-importance channel.
+     */
+    fun quietDown(context: Context) {
+        if (quiet) return
+        quiet = true
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        runCatching { manager.notify(NOTIFICATION_ID, buildCurrent(context)) }
+    }
+
     // Notifications and channels of earlier versions, removed on first launch after the update.
     private const val OLD_RECORDING_CHANNEL_ID = "recording_channel"
     private const val OLD_RECORDING_CHANNEL_V2_ID = "recording_channel_v2"
@@ -132,6 +161,19 @@ object QuickRecordNotification {
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_ID)
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_V2_ID)
         manager.createNotificationChannel(channel)
+        manager.createNotificationChannel(
+            NotificationChannel(
+                QUIET_CHANNEL_ID,
+                context.getString(R.string.recording_notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = context.getString(R.string.recording_notification_channel_desc)
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+        )
     }
 
     fun buildCurrent(context: Context): Notification = build(context, currentState())
@@ -140,7 +182,9 @@ object QuickRecordNotification {
         ensureChannel(context)
         val views = views(context, state)
         val (title, text) = fallbackText(state)
-        return NotificationCompat.Builder(context, CHANNEL_ID)
+        // While a recording's banner has been folded away, its updates stay on the quiet channel.
+        val channel = if (quiet && state !is State.Idle) QUIET_CHANNEL_ID else CHANNEL_ID
+        return NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(text)

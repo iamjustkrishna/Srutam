@@ -206,6 +206,7 @@ class RecordingForegroundService : Service() {
             isPaused = false
             isRecording = true
 
+            QuickRecordNotification.resetQuiet()
             val notification = createNotification(0L)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -218,6 +219,10 @@ class RecordingForegroundService : Service() {
                 startForeground(NOTIFICATION_ID, notification)
                 Log.d(TAG, "Started foreground service")
             }
+            // The "Recording" banner folds into the shade after a moment instead of covering the app.
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (isRecording) QuickRecordNotification.quietDown(applicationContext)
+            }, QuickRecordNotification.BANNER_MS)
 
             currentRecordingFile = createAudioFile()
 

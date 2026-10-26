@@ -22,6 +22,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -132,16 +135,16 @@ import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.AppPreferences
 
 /** Where the first-run flow is. */
-private enum class FirstRunStage { WELCOME, RECORDING, RESULT }
+private enum class FirstRunStage { CAPTURE, RESULT }
 
 private val RecordRed = Color(0xFFE53935)
 
 /**
  * First run, start to first note, without leaving onboarding:
- *  1. Welcome: what Srutam does, and one action, the app's own mic button.
- *  2. Recording: a focused screen with a live waveform and a timer. The mic is asked for only
- *     when the button is tapped; a denial keeps the user on the welcome screen.
- *  3. Srutam at work: the note being written and understood, step by step, then the user's own
+ *  1. Welcome and recording are one screen: tapping the app's record button (the mic is asked
+ *     for only then) turns it into the stop button in place, and what Srutam does fades into the
+ *     timer, a live waveform and prompts. Nothing jumps.
+ *  2. Srutam at work: the note being written and understood, step by step, then the user's own
  *     summary, tasks and reminders. Continue goes to Home.
  * Nothing else is asked here. Recordings from an earlier install, the floating button and the
  * welcome note all come later, on Home, when they mean something.
@@ -155,7 +158,7 @@ fun WelcomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var stage by rememberSaveable { mutableStateOf(FirstRunStage.WELCOME) }
+    var stage by rememberSaveable { mutableStateOf(FirstRunStage.CAPTURE) }
     var recordingPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(stage) { Analytics.onboardingStepViewed(context, "first_run_${stage.name.lowercase()}") }
@@ -169,34 +172,23 @@ fun WelcomeScreen(
         AnimatedContent(
             targetState = stage,
             transitionSpec = {
-                (fadeIn(tween(320, delayMillis = 80)) + slideInVertically(tween(320, delayMillis = 80)) { it / 12 })
-                    .togetherWith(fadeOut(tween(160)))
+                (fadeIn(tween(420, delayMillis = 120)) + slideInVertically(tween(420, delayMillis = 120, easing = FastOutSlowInEasing)) { it / 10 })
+                    .togetherWith(fadeOut(tween(220)) + scaleOut(tween(220), targetScale = 0.97f))
             },
             label = "firstRun"
         ) { current ->
             when (current) {
-                FirstRunStage.WELCOME -> WelcomeStage(
+                FirstRunStage.CAPTURE -> CaptureStage(
                     micPermissions = micPermissions,
-                    onStartRecording = {
-                        // So the first note gets its summary the moment recording stops.
-                                        QuickRecordNotification.restoreIdle(context)
-                        if (RecordingCoordinator.requestStart(context, "onboarding")) stage = FirstRunStage.RECORDING
-                    },
-                    onSkip = { onFinished("skip") }
-                )
-                FirstRunStage.RECORDING -> RecordingStage(
+                    onSkip = { onFinished("skip") },
                     onStopped = { path ->
                         recordingPath = path
                         stage = FirstRunStage.RESULT
-                    },
-                    onStartOver = {
-                        RecordingCoordinator.requestCancel(context)
-                        stage = FirstRunStage.WELCOME
                     }
                 )
                 FirstRunStage.RESULT -> ResultStage(
                     recordingPath = recordingPath,
-                    onRetry = { stage = FirstRunStage.WELCOME },
+                    onRetry = { stage = FirstRunStage.CAPTURE },
                     onContinue = { onFinished("note") }
                 )
             }
@@ -209,21 +201,37 @@ fun WelcomeScreen(
 // -------------------------------------------------------------------------------------------
 
 @Composable
-private fun WelcomeStage(
+private fun CaptureStage(
     micPermissions: Array<String>,
-    onStartRecording: () -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    onStopped: (path: String?) -> Unit
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    var recording by rememberSaveable { mutableStateOf(false) }
     // null: not asked yet; "denied": Android can still ask; "blocked": only Settings can turn it on.
     var micState by rememberSaveable { mutableStateOf<String?>(null) }
+    var elapsedMs by remember { mutableLongStateOf(0L) }
+    var path by remember { mutableStateOf<String?>(null) }
+
+    fun startRecording() {
+        QuickRecordNotification.restoreIdle(context)
+        if (RecordingCoordinator.requestStart(context, "onboarding")) {
+            elapsedMs = 0L
+            recording = true
+        }
+    }
+
+    fun startOver() {
+        RecordingCoordinator.requestCancel(context)
+        recording = false
+    }
 
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         val granted = results[Manifest.permission.RECORD_AUDIO] == true
         Analytics.permissionResult(context, "mic", granted, "welcome")
         if (granted) {
-            onStartRecording()
+            startRecording()
         } else {
             val activity = context as? Activity
             val blocked = activity != null &&
@@ -231,6 +239,19 @@ private fun WelcomeStage(
             micState = if (blocked) "blocked" else "denied"
         }
     }
+
+    BackHandler(enabled = recording) { startOver() }
+
+    LaunchedEffect(recording) {
+        if (!recording) return@LaunchedEffect
+        while (true) {
+            elapsedMs = RecordingForegroundService.elapsedDurationMs
+            RecordingCoordinator.activeFilePath?.let { path = it }
+            delay(100)
+        }
+    }
+
+    val canStop = elapsedMs >= 1_000L
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // Everything fits on one screen: the illustration and spacing give way on shorter phones
@@ -241,66 +262,39 @@ private fun WelcomeStage(
         val micSize = if (roomy) 84.dp else 74.dp
 
         Column(Modifier.fillMaxSize()) {
+            // Skip keeps its space while recording, so nothing below moves.
+            val skipAlpha by animateFloatAsState(if (recording) 0f else 1f, tween(250), label = "skip")
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp)
+                    .alpha(skipAlpha),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onSkip) { Text("Skip", color = Sem.textSecondary) }
+                TextButton(onClick = onSkip, enabled = !recording) { Text("Skip", color = Sem.textSecondary) }
             }
 
-            // Centred in the space left, and never clipped: on a very small screen it scrolls.
-            Box(
-                Modifier
+            // The top changes in place: what Srutam does, or the recording as it happens.
+            AnimatedContent(
+                targetState = recording,
+                transitionSpec = {
+                    (fadeIn(tween(380, delayMillis = 140)) + scaleIn(tween(380, delayMillis = 140, easing = FastOutSlowInEasing), initialScale = 0.96f))
+                        .togetherWith(fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 1.03f))
+                },
+                contentAlignment = Alignment.Center,
+                label = "captureTop",
+                modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Entrance(0) {
-                        NoteHeroIllustration(illustrationHeight)
-                    }
-                    Spacer(Modifier.height(if (roomy) 26.dp else 16.dp))
-                    Entrance(1) {
-                        Text(
-                            text = "Capture a thought.\nGet a useful note.",
-                            fontSize = if (compact) 25.sp else 28.sp,
-                            lineHeight = if (compact) 30.sp else 34.sp,
-                            fontFamily = PlayfairDisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            color = Sem.text
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Entrance(2) {
-                        Text(
-                            text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
-                            fontSize = 14.5.sp,
-                            lineHeight = 20.sp,
-                            textAlign = TextAlign.Center,
-                            color = Sem.textSecondary,
-                            modifier = Modifier.widthIn(max = 330.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(if (roomy) 22.dp else 16.dp))
-                    Entrance(3) {
-                        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 9.dp)) {
-                            ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
-                            ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
-                            ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
-                        }
-                    }
+                    .fillMaxWidth()
+            ) { isRecording ->
+                if (isRecording) {
+                    RecordingTop(elapsedMs)
+                } else {
+                    WelcomeTop(illustrationHeight, roomy, compact)
                 }
             }
 
+            // The record button and its words stay put; the button turns into the stop button.
             Entrance(4) {
                 Column(
                     Modifier
@@ -310,44 +304,112 @@ private fun WelcomeStage(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     MicButton(
-                        recording = false,
+                        recording = recording,
                         size = micSize,
-                        description = "Record your first note",
+                        description = if (recording) "Finish recording" else "Record your first note",
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             when {
-                                MicPermission.isGranted(context) -> onStartRecording()
+                                recording -> if (canStop) {
+                                    val finished = RecordingCoordinator.activeFilePath ?: path
+                                    RecordingCoordinator.requestStop(context)
+                                    onStopped(finished)
+                                }
+                                MicPermission.isGranted(context) -> startRecording()
                                 micState == "blocked" -> openAppSettings(context)
                                 else -> micLauncher.launch(micPermissions)
                             }
                         }
                     )
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (micState == "blocked") "Allow the microphone to start" else "Tap to record your first note",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Sem.text
-                    )
-                    Spacer(Modifier.height(4.dp))
                     AnimatedContent(
-                        targetState = micState,
-                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
-                        label = "micNote"
-                    ) { state ->
-                        Text(
-                            text = when (state) {
-                                null -> "Say anything on your mind. Your audio stays on this phone."
-                                "blocked" -> "The microphone is off for Srutam. Tap to open Settings, or skip for now."
-                                else -> "Srutam needs the microphone to hear you. Tap again whenever you're ready."
-                            },
-                            fontSize = 12.5.sp,
-                            lineHeight = 17.sp,
-                            textAlign = TextAlign.Center,
-                            color = if (state == null) Sem.textMuted else Sem.amberText,
-                            modifier = Modifier.widthIn(max = 320.dp)
-                        )
+                        targetState = when {
+                            recording && canStop -> "Tap to finish"
+                            recording -> "Keep talking…"
+                            micState == "blocked" -> "Allow the microphone to start"
+                            else -> "Tap to record your first note"
+                        },
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                        label = "buttonLabel"
+                    ) { label ->
+                        Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Sem.text)
                     }
+                    // Fixed height, so the switch between the hint and "Start over" doesn't move anything.
+                    Box(Modifier.height(44.dp).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                        AnimatedContent(
+                            targetState = if (recording) "recording" else micState ?: "ready",
+                            transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                            label = "buttonNote"
+                        ) { state ->
+                            if (state == "recording") {
+                                TextButton(onClick = { startOver() }, modifier = Modifier.height(36.dp)) {
+                                    Text("Start over", fontSize = 13.sp, color = Sem.textSecondary)
+                                }
+                            } else {
+                                Text(
+                                    text = when (state) {
+                                        "blocked" -> "The microphone is off for Srutam. Tap to open Settings, or skip for now."
+                                        "denied" -> "Srutam needs the microphone to hear you. Tap again whenever you're ready."
+                                        else -> "Say anything on your mind. Your audio stays on this phone."
+                                    },
+                                    fontSize = 12.5.sp,
+                                    lineHeight = 17.sp,
+                                    textAlign = TextAlign.Center,
+                                    color = if (state == "ready") Sem.textMuted else Sem.amberText,
+                                    modifier = Modifier.padding(top = 4.dp).widthIn(max = 320.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** What Srutam does: the illustration, the promise and three lines. Centred, never clipped. */
+@Composable
+private fun WelcomeTop(illustrationHeight: Dp, roomy: Boolean, compact: Boolean) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Entrance(0) {
+                NoteHeroIllustration(illustrationHeight)
+            }
+            Spacer(Modifier.height(if (roomy) 26.dp else 16.dp))
+            Entrance(1) {
+                Text(
+                    text = "Capture a thought.\nGet a useful note.",
+                    fontSize = if (compact) 25.sp else 28.sp,
+                    lineHeight = if (compact) 30.sp else 34.sp,
+                    fontFamily = PlayfairDisplayFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = Sem.text
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Entrance(2) {
+                Text(
+                    text = "Just talk. Srutam writes it down on your phone, then pulls out what matters.",
+                    fontSize = 14.5.sp,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
+                    color = Sem.textSecondary,
+                    modifier = Modifier.widthIn(max = 330.dp)
+                )
+            }
+            Spacer(Modifier.height(if (roomy) 22.dp else 16.dp))
+            Entrance(3) {
+                Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 9.dp)) {
+                    ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
+                    ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
+                    ValueLine(Icons.Outlined.NotificationsActive, "Reminders from what you said")
                 }
             }
         }
@@ -423,24 +485,18 @@ private val prompts = listOf(
     "“Remind me to… on Friday”"
 )
 
+/** While recording: "Listening", the timer, a waveform that follows the voice, and prompts. */
 @Composable
-private fun RecordingStage(onStopped: (path: String?) -> Unit, onStartOver: () -> Unit) {
-    val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
-    var elapsedMs by remember { mutableLongStateOf(0L) }
-    var path by remember { mutableStateOf<String?>(null) }
+private fun RecordingTop(elapsedMs: Long) {
     var promptIndex by remember { mutableIntStateOf(0) }
     val levels = remember { mutableStateListOf<Float>().apply { repeat(BAR_COUNT) { add(0f) } } }
     val level by LiveLevel.level.collectAsState()
-
-    BackHandler { onStartOver() }
+    val latestLevel by rememberUpdatedState(level)
 
     LaunchedEffect(Unit) {
         while (true) {
-            elapsedMs = RecordingForegroundService.elapsedDurationMs
-            RecordingCoordinator.activeFilePath?.let { path = it }
             levels.removeAt(0)
-            levels.add(level)
+            levels.add(latestLevel)
             delay(80)
         }
     }
@@ -451,15 +507,13 @@ private fun RecordingStage(onStopped: (path: String?) -> Unit, onStartOver: () -
         }
     }
 
-    val canStop = elapsedMs >= 1_000L
-
     Column(
         Modifier
             .fillMaxSize()
             .padding(horizontal = 28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically) {
             val dot = rememberInfiniteTransition(label = "dot").animateFloat(
                 0.3f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "dotAlpha"
@@ -475,9 +529,9 @@ private fun RecordingStage(onStopped: (path: String?) -> Unit, onStartOver: () -
             fontWeight = FontWeight.Light,
             color = Sem.text
         )
+        Spacer(Modifier.height(24.dp))
+        LiveWaveform(levels, Modifier.fillMaxWidth().height(88.dp))
         Spacer(Modifier.height(28.dp))
-        LiveWaveform(levels, Modifier.fillMaxWidth().height(96.dp))
-        Spacer(Modifier.height(32.dp))
         Text("Talk about anything, like", fontSize = 13.sp, color = Sem.textMuted)
         Spacer(Modifier.height(4.dp))
         AnimatedContent(
@@ -497,31 +551,6 @@ private fun RecordingStage(onStopped: (path: String?) -> Unit, onStartOver: () -
                 textAlign = TextAlign.Center
             )
         }
-        Spacer(Modifier.weight(1f))
-
-        MicButton(
-            recording = true,
-            size = 84.dp,
-            description = "Finish recording",
-            onClick = {
-                if (!canStop) return@MicButton
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                val finished = RecordingCoordinator.activeFilePath ?: path
-                RecordingCoordinator.requestStop(context)
-                onStopped(finished)
-            }
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            if (canStop) "Tap to finish" else "Keep talking…",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Sem.text
-        )
-        TextButton(onClick = onStartOver) {
-            Text("Start over", fontSize = 13.sp, color = Sem.textSecondary)
-        }
-        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -647,26 +676,46 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                 transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(150)) },
                 label = "heading"
             ) { done ->
-                Text(
-                    text = if (done) "Your first note" else "Srutam is on it",
-                    fontSize = 28.sp,
-                    fontFamily = PlayfairDisplayFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    color = Sem.text
-                )
+                Column {
+                    Text(
+                        text = if (done) "Here's your note" else "Turning your words into a note",
+                        fontSize = 26.sp,
+                        lineHeight = 32.sp,
+                        fontFamily = PlayfairDisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = Sem.text
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (done) "Srutam pulled this out of what you just said." else "This is what Srutam does after every recording, on its own.",
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = Sem.textSecondary
+                    )
+                }
             }
             Spacer(Modifier.height(18.dp))
 
             // The work, step by step.
             Surface(shape = RoundedCornerShape(18.dp), color = Sem.card, border = BorderStroke(1.dp, Sem.border)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    WorkStep("Saved on your phone", done = noteId != null)
-                    WorkStep("Writing down what you said", done = transcript != null, active = noteId != null)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    WorkStep("Saved", "Your recording stays on this phone", done = noteId != null)
+                    WorkStep(
+                        "Written down",
+                        "Transcribed right on your phone, no internet needed",
+                        done = transcript != null,
+                        active = noteId != null
+                    )
                     WorkStep(
                         label = when {
-                            waitingForInternet -> "Summary waits for the internet. It'll finish on its own."
-                            failed -> "Couldn't finish the summary. Srutam will try again."
-                            else -> "Finding the summary, tasks and reminders"
+                            waitingForInternet -> "Waiting for the internet"
+                            failed -> "Couldn't finish this time"
+                            else -> "Understood"
+                        },
+                        detail = when {
+                            waitingForInternet -> "The summary finishes on its own once you're online"
+                            failed -> "Srutam will try again in the background"
+                            else -> "AI finds the summary, tasks and reminders in it"
                         },
                         done = ready,
                         active = transcript != null && !waitingForInternet && !failed,
@@ -711,7 +760,8 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                     ) {
                         Column(Modifier.fillMaxWidth().padding(16.dp)) {
                             Text(note?.name.orEmpty(), fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Sem.text)
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(12.dp))
+                            SectionTitle("SUMMARY")
                             Text(note?.summary.orEmpty(), fontSize = 14.5.sp, lineHeight = 21.sp, color = Sem.text)
                             val tasks = insights.filter { it.kind == InsightKind.ACTION }.map { it.text }.ifEmpty { legacyTasks(note?.actionItems) }
                             if (tasks.isNotEmpty()) {
@@ -726,6 +776,15 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                                 }
                             }
                             val upcoming = reminders.filter { it.status == ReminderStatus.ACTIVE }
+                            if (tasks.isEmpty() && upcoming.isEmpty()) {
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    "No tasks or reminders in this one. Next time try “remind me to call Priya on Friday”, and Srutam sets it up for you.",
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    color = Sem.textSecondary
+                                )
+                            }
                             if (upcoming.isNotEmpty()) {
                                 Spacer(Modifier.height(12.dp))
                                 SectionTitle("REMINDERS")
@@ -789,7 +848,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun WorkStep(label: String, done: Boolean, active: Boolean = true, warning: Boolean = false) {
+private fun WorkStep(label: String, detail: String, done: Boolean, active: Boolean = true, warning: Boolean = false) {
     val textAlpha by animateFloatAsState(if (done || active) 1f else 0.45f, tween(250), label = "stepAlpha")
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(textAlpha)) {
         Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
@@ -814,7 +873,10 @@ private fun WorkStep(label: String, done: Boolean, active: Boolean = true, warni
             }
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, fontSize = 14.5.sp, color = if (warning) Sem.amberText else Sem.text, fontWeight = FontWeight.Medium)
+        Column {
+            Text(label, fontSize = 15.sp, color = if (warning) Sem.amberText else Sem.text, fontWeight = FontWeight.SemiBold)
+            Text(detail, fontSize = 12.5.sp, lineHeight = 17.sp, color = Sem.textSecondary)
+        }
     }
 }
 
