@@ -355,7 +355,8 @@ const CallToAction: React.FC = () => {
       <div style={{ ...line(28), marginTop: 90, transform: `scale(${0.9 + 0.1 * k(28) + 0.02 * Math.sin(f / 5)})`, background: "#F8FAFC", color: "#0B1033", fontFamily: "Inter", fontWeight: 800, fontSize: 54, padding: "30px 60px", borderRadius: 999 }}>
         ▶ Get it on Google Play
       </div>
-      <div style={{ ...line(36), fontFamily: "Inter", fontWeight: 600, fontSize: 40, color: "#94A3B8", marginTop: 40 }}>srutam.space · @srutam.app</div>
+      <div style={{ ...line(36), fontFamily: "Inter", fontWeight: 600, fontSize: 42, color: "#CBD5E1", marginTop: 44 }}>srutam.iamjustkrishna.space</div>
+      <div style={{ ...line(42), fontFamily: "Inter", fontWeight: 600, fontSize: 42, color: "#94A3B8", marginTop: 12 }}>Instagram @srutam.app</div>
     </AbsoluteFill>
   );
 };

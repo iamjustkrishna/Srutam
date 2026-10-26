@@ -7,8 +7,8 @@ export const TOTAL = 1320; // 44 s of story
 /** Cold open: a half-second flash of the 1:43 a.m. shock before the story starts. */
 export const OPEN = 15;
 /** Call-to-action card after the story. */
-export const CTA = 90;
-/** Whole video: open + story + call to action (47.5 s). */
+export const CTA = 120;
+/** Whole video: open + story + call to action (48.5 s). */
 export const FULL = OPEN + TOTAL + CTA;
 
 export const SHOTS = {
@@ -50,6 +50,7 @@ export const VO: (Line & { src: string })[] = [
   { file: "playback", at: BEAT.play, frames: 127, src: `${V}/slides/playback.wav` },
   { file: "s-canteen", at: 1064, frames: 64, src: `${V}/slides/kabir/s-canteen.mp3` },
   { file: "d-recording", at: 1196, frames: 35, src: `${V}/drawn/kabir/d-recording.mp3` },
+  { file: "d-cta", at: TOTAL + 4, frames: 106, src: `${V}/drawn/cta/d-cta.mp3` },
 ];
 
 export const SFX: Cue[] = [

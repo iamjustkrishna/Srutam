@@ -10,7 +10,7 @@ post.
   other platform follows the Instagram post (see [Other platforms](#other-platforms)).
 - **Times are IST (UTC+5:30).** The audience is India-first. The times are starting points:
   after two weeks, move each slot to the "Most active times" in Instagram Insights.
-- **Links:** website [srutam.space](https://srutam.space). The Play Store listing is
+- **Links:** website [srutam.iamjustkrishna.space](https://srutam.iamjustkrishna.space). The Play Store listing is
   `https://play.google.com/store/apps/details?id=space.iamjustkrishna.srutam` (confirm the
   listing is live before linking it). Captions say "link in bio" where a platform has no
   clickable links.
@@ -79,7 +79,7 @@ a cover frame (the time to pick it from), a tagline and a best-fit theme.
   Next steps, ideas and reminders, pulled out for you.
   Android ↓
   ```
-- **Link in bio:** the Play Store listing, plus [srutam.space](https://srutam.space).
+- **Link in bio:** the Play Store listing, plus [srutam.iamjustkrishna.space](https://srutam.iamjustkrishna.space).
 - **Story highlights:** "Stories" (each reel's Story frames), "How it works" (tap, talk,
   ask), and "Reminders".
 - **Pinned reels** (top of the grid): Spark, Who Said That?, Knock Knock. Swap in Nani's
@@ -142,7 +142,7 @@ YouTube Studio, LinkedIn, X and Pinterest. Snapchat and WhatsApp have to be post
 **Before Thu 15 Oct**
 - The Spark landscape cut goes up on YouTube, unlisted, with ads off. Add it to the Play
   listing as the promo video.
-- Spark goes on the srutam.space homepage.
+- Spark goes on the srutam.iamjustkrishna.space homepage.
 
 **Thu 15 Oct · Spark**
 
@@ -264,7 +264,7 @@ the run sheet above.
 | YouTube Shorts | Portrait | Reel + 1 h | Set the Short's "Related video" to the landscape version. Up to 3 hashtags in the description appear above the title. |
 | YouTube (landscape) | Landscape | Reel + 1 h | Put all six in a playlist "Srutam Stories". Add the chapter timestamps given below; YouTube needs at least three, each 10 s or longer, and these qualify. Turn off ads on the one used for Play. |
 | Google Play listing | Landscape Spark | Once, before Thu 15 Oct | Use a YouTube URL, public or unlisted. Ads and monetisation off, not age-restricted, embeddable, no timecode in the URL. |
-| srutam.space | Landscape | Before Thu 15 Oct, then each one on its day | Spark in the hero section, autoplaying muted (the captions are burned in). The others go in a "Stories" section. |
+| srutam.iamjustkrishna.space | Landscape | Before Thu 15 Oct, then each one on its day | Spark in the hero section, autoplaying muted (the captions are burned in). The others go in a "Stories" section. |
 | Snapchat Spotlight | Portrait | Reel + 1.5 h | Large Indian user base. Keep the caption short, plus one topic. |
 | WhatsApp Channel and Status | Portrait | Reel + 1 h | Post the video with a one-line caption and the Play link. Ask the team to put it on their Status. |
 | Threads | Portrait | Next day, 1:00 pm | Text-first; one topic tag per post. |
@@ -328,7 +328,7 @@ Description: Most ideas never make it past the shower, the drive or the meeting.
 0:20 Insights, and every thought connects
 
 Android: https://play.google.com/store/apps/details?id=space.iamjustkrishna.srutam
-Website: https://srutam.space
+Website: https://srutam.iamjustkrishna.space
 ```
 
 **LinkedIn:**
@@ -348,7 +348,7 @@ This idea has 4 seconds to live. ⏳
 
 Tap, tap from any app, say it, and Srutam catches it: transcribed on your phone, next steps pulled out.
 
-Catch it before it's gone. srutam.space
+Catch it before it's gone. srutam.iamjustkrishna.space
 ```
 
 **Threads:**

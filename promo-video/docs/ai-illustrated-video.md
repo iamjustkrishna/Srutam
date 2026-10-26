@@ -129,16 +129,18 @@ All shot ids are in `src/drawn/SHOTS.md`.
   - `EndBand` closes on "Srutam: Listen once. Ask anytime."
 - The video opens with a half-second cold open (`ColdOpen`): the 1:43 a.m. shock and a rewind
   sound, so the first second already hooks.
-- It ends with a 3-second call-to-action card (`CallToAction`): what Srutam does, a "Get it on
-  Google Play" button, the website and the Instagram handle. Always end with one.
-- The composition is registered in `src/Root.tsx` as `WhoDidSlidesDrawn` (47.5 s, 2850 frames).
+- It ends with a 4-second call-to-action card (`CallToAction`): what Srutam does, a "Get it on
+  Google Play" button, the website (srutam.iamjustkrishna.space) and the Instagram handle
+  (@srutam.app). Meera says it out loud ("Record it once. Ask Srutam anything.",
+  `scripts/vo/en/drawn-cta.json`). Always end with one.
+- The composition is registered in `src/Root.tsx` as `WhoDidSlidesDrawn` (48.5 s, 2910 frames).
 
 ## 8. Review and render
 
 - Review stills (render frames are story frames × 2):
   `node scripts/stills.mjs --id=WhoDidSlidesDrawn 60 260 700 …`
 - Full render:
-  `scripts/render/render.sh WhoDidSlidesDrawn 2850 out/who-did-slides-drawn.mp4`
+  `scripts/render/render.sh WhoDidSlidesDrawn 2910 out/who-did-slides-drawn.mp4`
 - Check the result:
   `scripts/render/verify.sh out/who-did-slides-drawn.mp4 out/who-did-slides-drawn-sheet.png`
   It checks specs and loudness (-14 LUFS), counts silences and makes a 12-frame contact sheet.

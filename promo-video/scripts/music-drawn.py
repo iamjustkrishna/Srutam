@@ -11,7 +11,7 @@ import numpy as np
 
 from generate_audio_stories import PUB, SR, bell, groove, noise, pad, pizz, place, shape, t_axis, hz, write
 
-TOTAL = (1320 + 90) / 30  # story + call-to-action card
+TOTAL = (1320 + 120) / 30  # story + call-to-action card
 s = lambda frame: frame / 30
 
 
