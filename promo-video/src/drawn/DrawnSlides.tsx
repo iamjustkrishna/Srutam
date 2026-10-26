@@ -55,7 +55,7 @@ const Chip: React.FC<{ f: number; sh: Span; text: string }> = ({ f, sh, text }) 
 };
 
 /** A phone notification sliding down from the top. */
-const Banner: React.FC<{ f: number; at: number; until: number; who: string; color: string; text: string; slot?: number }> = ({ f, at, until, who, color, text, slot = 0 }) => {
+const Banner: React.FC<{ f: number; at: number; until: number; who: string; color: string; text: string; slot?: number; top?: number }> = ({ f, at, until, who, color, text, slot = 0, top = 210 }) => {
   const k = springAt(f, 0, [{ at, to: 1 }, { at: until, to: 0 }], 16, 190);
   if (k < 0.01) return null;
   return (
@@ -64,7 +64,7 @@ const Banner: React.FC<{ f: number; at: number; until: number; who: string; colo
         position: "absolute",
         left: 50,
         right: 50,
-        top: 210 + slot * 190,
+        top: top + slot * 190,
         transform: `translateY(${(1 - k) * -320}px)`,
         opacity: Math.min(1, k * 1.4),
         background: "rgba(250,250,252,0.96)",
@@ -108,8 +108,8 @@ const Shot1: React.FC = () => {
     <AbsoluteFill>
       <Art src="drawn/s01.jpg" sh={SHOTS.s1} f={f} move={{ s: [1.04, 1.14], x: [0.5, 0.45], y: [0.4, 0.38] }} />
       <Night amount={0.25} />
-      <Banner f={f} at={BEAT.banner11[0]} until={88} who="Meera" color="#D97706" text="intro done ✅" />
-      <Banner f={f} at={BEAT.banner11[1]} until={88} who="Riya" color="#DB2777" text="1–7 done ✅ night all 😴" slot={1} />
+      <Banner f={f} at={BEAT.banner11[0]} until={88} who="Meera" color="#D97706" text="intro done ✅" top={1300} />
+      <Banner f={f} at={BEAT.banner11[1]} until={88} who="Riya" color="#DB2777" text="1–7 done ✅ night all 😴" slot={1} top={1300} />
       <Chip f={f} sh={SHOTS.s1} text="11:02 PM · PPT at 9 AM" />
     </AbsoluteFill>
   );
@@ -296,7 +296,7 @@ const Shot9: React.FC = () => {
     <AbsoluteFill>
       <Art src="drawn/s09.jpg" sh={SHOTS.s9} f={f} move={{ s: [1.0, 1.3], x: [0.5, 0.62], y: [0.4, 0.55] }} />
       <Chip f={f} sh={{ from: SHOTS.s9.from, duration: 50 }} text="9:00 AM" />
-      <Lettering f={f} at={1200} text="REC ●" color="#EF4444" y={150} size={120} rot={-6} />
+      <Lettering f={f} at={1200} text="REC ●" color="#EF4444" y={1330} size={120} rot={-6} />
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute" }}>
         <g transform={`translate(0 ${(1 - band) * 420})`}>
           <EndBand tagline="Listen once. Ask anytime." />
