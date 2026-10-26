@@ -148,3 +148,43 @@ All shot ids are in `src/drawn/SHOTS.md`.
 Until the full-size images are in `public/drawn/`, a draft can be rendered from upscaled
 previews (use `ffmpeg -vf scale=944:1680` on each preview). It shows timing and sound, but the
 picture is blurry. Never publish a draft.
+
+## Animating the pictures without a video model ("The Brain Court", `src/court/`)
+
+Still illustrations become acting with **matched pose variants**:
+
+1. Generate the shot, then ask Canva to edit *that same image* with one change, using the
+   shot as the image reference. Use the wording "Keep the exact same composition, framing,
+   background, lighting, colours and character. Change only one thing: …". Ask for the mouth
+   open or closed, the gavel up or down, or the eyes open or shut. The edits line up almost
+   pixel for pixel: Srutam's pair differs in 0.2 % of pixels, Anxiety's in 0.5 %.
+2. Find what changed automatically. Diff the pair, blur the difference, and take the biggest
+   blob. That blob is the mouth, and its box gives the mask centre and radius.
+3. Use the variants in Remotion (`Court.tsx`, component `Shot`):
+   - **Big actions** swap the whole frame on the beat, with a shake, a white flash and a
+     dust puff (the gavel slam, Sleep dozing off).
+   - **Lip-sync:** the "open" image is shown only inside a soft ellipse around the mouth,
+     driven by the voice's loudness. `scripts/court-audio.py` writes `src/court/lipsync.ts`.
+     Mouths open on loud syllables and close one drawing in three during long loud stretches,
+     otherwise a shouting character just freezes with his mouth open.
+   - **No variant?** The mouth area of the same picture is stretched open on loud syllables
+     (Memory, the Judge's lines).
+4. Add camera and effects on top:
+   - eased push or pan per shot, handheld drift, and a decaying shake;
+   - a push *through* Aarav's forehead into the court (a fast scale-up of the image, then a
+     pink wash and a pull-out on the court);
+   - falling paper sheets, a red alarm pulse and a tilted camera in the spiral;
+   - Srutam's sound-wave rings, which pulse with its voice.
+5. Build the proof card (the recording playing), captions and the call to action in code.
+6. Make every sound effect in `scripts/court-audio.py`: gavel, phone rings, record scratch,
+   boing, laugh, typing and clock. Band-limit the manager's line so it sounds like a phone
+   recording.
+
+Other lessons:
+
+- ElevenLabs free plans can't use *library* voices through the API (402
+  `paid_plan_required`). Use the account's own or premade voices.
+- Canva's safety filter blocked a lineup that said "human brain" and "open shirt".
+  "Cute mascot characters" with a "cloud-like pink" judge went through.
+
+Render: `scripts/render/render.sh BrainCourt 3420 out/brain-court.mp4` (57 s).

@@ -28,6 +28,14 @@ const level = (file: string, f: number) => {
   return LIPSYNC[file]?.[i] ?? 0;
 };
 
+/** Mouth open on this frame: loud syllables open it; during long loud stretches it still
+ *  closes for one drawing in three, so shouting reads as speech, not a frozen open mouth. */
+const talking = (file: string, f: number) => {
+  const line = VO.find((v) => v.file === file)!;
+  const d = Math.floor((f - line.at) / 2);
+  return level(file, f) > 0.45 && d % 3 !== 2;
+};
+
 /** A mouth swap: the "open" picture shown inside a soft ellipse around the mouth. */
 type MouthSwap = { open: string; at: Pt; r: Pt; file: string };
 /** A mouth stretch: the mouth area of the same picture, scaled open on loud syllables. */
@@ -63,7 +71,7 @@ const Shot: React.FC<{
   const amp = hit + rumble;
   const dx = Math.sin(f / 37) * 3 + Math.sin(f * 2.3) * amp;
   const dy = Math.cos(f / 43) * 3 + Math.cos(f * 2.9) * amp;
-  const open = swap ? level(swap.file, f) > 0.28 : false;
+  const open = swap ? talking(swap.file, f) : false;
   const st = stretch ? level(stretch.file, f) : 0;
   return (
     <AbsoluteFill style={{ overflow: "hidden", background: "#0b0610" }}>
