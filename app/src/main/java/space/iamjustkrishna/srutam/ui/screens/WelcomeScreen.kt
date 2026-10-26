@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -254,16 +255,20 @@ private fun CaptureStage(
     val canStop = elapsedMs >= 1_000L
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        // Everything fits on one screen: the illustration and spacing give way on shorter phones
-        // (a 1080x2400 phone has about 750 dp once the system bars are taken out).
+        // Everything fits on one screen, in any shape:
+        //  - phones: content over the button (a 1080x2400 phone has about 750 dp of height);
+        //  - landscape phones: content on the left, the button on the right;
+        //  - tall screens (tablets): content and button stay together, centred.
+        val landscape = maxWidth > maxHeight && maxHeight < 520.dp
+        val tall = !landscape && maxHeight > 940.dp
         val roomy = maxHeight >= 820.dp
         val compact = maxHeight < 720.dp
-        val illustrationHeight = (maxHeight * 0.19f).coerceIn(84.dp, 170.dp)
+        val illustrationHeight = if (landscape) (maxHeight * 0.3f).coerceIn(84.dp, 120.dp) else (maxHeight * 0.19f).coerceIn(84.dp, 170.dp)
         val micSize = if (roomy) 84.dp else 74.dp
 
-        Column(Modifier.fillMaxSize()) {
-            // Skip keeps its space while recording, so nothing below moves.
-            val skipAlpha by animateFloatAsState(if (recording) 0f else 1f, tween(250), label = "skip")
+        // Skip keeps its space while recording, so nothing moves.
+        val skipAlpha by animateFloatAsState(if (recording) 0f else 1f, tween(250), label = "skip")
+        val skip: @Composable () -> Unit = {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -273,8 +278,10 @@ private fun CaptureStage(
             ) {
                 TextButton(onClick = onSkip, enabled = !recording) { Text("Skip", color = Sem.textSecondary) }
             }
+        }
 
-            // The top changes in place: what Srutam does, or the recording as it happens.
+        // The top changes in place: what Srutam does, or the recording as it happens.
+        val top: @Composable (Modifier) -> Unit = { modifier ->
             AnimatedContent(
                 targetState = recording,
                 transitionSpec = {
@@ -283,18 +290,18 @@ private fun CaptureStage(
                 },
                 contentAlignment = Alignment.Center,
                 label = "captureTop",
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                modifier = modifier
             ) { isRecording ->
                 if (isRecording) {
-                    RecordingTop(elapsedMs)
+                    RecordingTop(elapsedMs, compact = landscape || compact)
                 } else {
-                    WelcomeTop(illustrationHeight, roomy, compact)
+                    WelcomeTop(illustrationHeight, roomy && !landscape, compact || landscape, showPoints = !landscape)
                 }
             }
+        }
 
-            // The record button and its words stay put; the button turns into the stop button.
+        // The record button and its words stay put; the button turns into the stop button.
+        val controls: @Composable () -> Unit = {
             Entrance(4) {
                 Column(
                     Modifier
@@ -332,7 +339,7 @@ private fun CaptureStage(
                         transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
                         label = "buttonLabel"
                     ) { label ->
-                        Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Sem.text)
+                        Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Sem.text, textAlign = TextAlign.Center)
                     }
                     // Fixed height, so the switch between the hint and "Start over" doesn't move anything.
                     Box(Modifier.height(44.dp).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
@@ -364,12 +371,39 @@ private fun CaptureStage(
                 }
             }
         }
+
+        when {
+            landscape -> Column(Modifier.fillMaxSize()) {
+                skip()
+                Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    top(Modifier.weight(1.3f).fillMaxHeight())
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { controls() }
+                }
+            }
+            tall -> Column(Modifier.fillMaxSize()) {
+                skip()
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    top(Modifier.fillMaxWidth().height(620.dp))
+                    Spacer(Modifier.height(32.dp))
+                    controls()
+                }
+            }
+            else -> Column(Modifier.fillMaxSize()) {
+                skip()
+                top(Modifier.weight(1f).fillMaxWidth())
+                controls()
+            }
+        }
     }
 }
 
 /** What Srutam does: the illustration, the promise and three lines. Centred, never clipped. */
 @Composable
-private fun WelcomeTop(illustrationHeight: Dp, roomy: Boolean, compact: Boolean) {
+private fun WelcomeTop(illustrationHeight: Dp, roomy: Boolean, compact: Boolean, showPoints: Boolean = true) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             Modifier
@@ -404,8 +438,9 @@ private fun WelcomeTop(illustrationHeight: Dp, roomy: Boolean, compact: Boolean)
                     modifier = Modifier.widthIn(max = 330.dp)
                 )
             }
-            Spacer(Modifier.height(if (roomy) 22.dp else 16.dp))
-            Entrance(3) {
+            // A landscape phone has no room for them; the picture and headline already say it.
+            if (showPoints) Spacer(Modifier.height(if (roomy) 22.dp else 16.dp))
+            if (showPoints) Entrance(3) {
                 Column(verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 9.dp)) {
                     ValueLine(Icons.Outlined.PhoneAndroid, "Transcribed on your phone, even offline")
                     ValueLine(Icons.Outlined.AutoAwesome, "A summary, tasks and decisions")
@@ -487,7 +522,7 @@ private val prompts = listOf(
 
 /** While recording: "Listening", the timer, a waveform that follows the voice, and prompts. */
 @Composable
-private fun RecordingTop(elapsedMs: Long) {
+private fun RecordingTop(elapsedMs: Long, compact: Boolean = false) {
     var promptIndex by remember { mutableIntStateOf(0) }
     val levels = remember { mutableStateListOf<Float>().apply { repeat(BAR_COUNT) { add(0f) } } }
     val level by LiveLevel.level.collectAsState()
@@ -525,13 +560,13 @@ private fun RecordingTop(elapsedMs: Long) {
         Spacer(Modifier.height(10.dp))
         Text(
             text = "%d:%02d".format(elapsedMs / 60_000, (elapsedMs / 1000) % 60),
-            fontSize = 56.sp,
+            fontSize = if (compact) 44.sp else 56.sp,
             fontWeight = FontWeight.Light,
             color = Sem.text
         )
-        Spacer(Modifier.height(24.dp))
-        LiveWaveform(levels, Modifier.fillMaxWidth().height(88.dp))
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
+        LiveWaveform(levels, Modifier.fillMaxWidth().widthIn(max = 520.dp).height(if (compact) 64.dp else 88.dp))
+        Spacer(Modifier.height(if (compact) 14.dp else 28.dp))
         Text("Talk about anything, like", fontSize = 13.sp, color = Sem.textMuted)
         Spacer(Modifier.height(4.dp))
         AnimatedContent(
@@ -663,7 +698,8 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
         return
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.fillMaxHeight().widthIn(max = 600.dp)) {
         Column(
             Modifier
                 .weight(1f)
@@ -832,6 +868,7 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                 }
             }
         }
+    }
     }
 }
 
