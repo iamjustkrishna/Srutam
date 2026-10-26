@@ -10,7 +10,7 @@
   <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E2B52"/><stop offset="1" stop-color="#40558A"/></linearGradient>
   <linearGradient id="tee" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#E7AB42"/><stop offset="1" stop-color="#C78727"/></linearGradient>
   <linearGradient id="quilt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A05E7E"/><stop offset="1" stop-color="#7A4462"/></linearGradient>
-  <radialGradient id="phoneGlow" cx="760" cy="1030" r="560" gradientUnits="userSpaceOnUse">
+  <radialGradient id="phoneGlow" cx="540" cy="880" r="420" gradientUnits="userSpaceOnUse">
     <stop offset="0" stop-color="#BFE6FF" stop-opacity=".55"/><stop offset=".4" stop-color="#9CCBF2" stop-opacity=".2"/><stop offset="1" stop-color="#9CCBF2" stop-opacity="0"/>
   </radialGradient>
   <radialGradient id="vig" cx="540" cy="960" r="1150" gradientUnits="userSpaceOnUse">
@@ -92,126 +92,156 @@
   <path d="M262 800 L300 800 L296 850 L266 850 Z" fill="#D9E1EA"/>
   <path d="M266 814 L296 814 L294 850 L268 850 Z" fill="#B47A48" stroke="none" opacity=".8"/>
 
-  <!-- hostel cot: steel headboard rails -->
+    <!-- hostel cot: steel headboard, mattress, frame, floor -->
+  <path d="M0 1560 L1080 1560 L1080 1920 L0 1920 Z" fill="#5B6683"/>
+  <path d="M0 1640 L1080 1640 M0 1760 L1080 1760" fill="none" stroke="#4B5674" stroke-width="1.6"/>
   <path d="M60 1000 L1020 1000" fill="none" stroke="#3E4763" stroke-width="22"/>
   <path d="M60 1000 L1020 1000" fill="none" stroke="#6C7895" stroke-width="14"/>
-  <path d="M60 1120 L1020 1120" fill="none" stroke="#3E4763" stroke-width="18"/>
-  <path d="M60 1120 L1020 1120" fill="none" stroke="#6C7895" stroke-width="11"/>
-  <g stroke="#3E4763" stroke-width="16"><path d="M80 960 V1420 M1000 960 V1420 M300 1000 V1120 M780 1000 V1120" fill="none"/></g>
-  <g stroke="#6C7895" stroke-width="9"><path d="M80 960 V1420 M1000 960 V1420 M300 1000 V1120 M780 1000 V1120" fill="none"/></g>
-  <!-- pillow behind her -->
-  <path d="M150 1150 Q160 1080 260 1080 L820 1086 Q930 1090 930 1170 Q928 1260 900 1300 L170 1300 Q140 1240 150 1150 Z" fill="#C9D1E1"/>
-  <path d="M220 1130 q60 30 140 10 M760 1130 q50 20 110 0" fill="none" stroke-width="1.8"/>
+  <path d="M60 1110 L1020 1110" fill="none" stroke="#3E4763" stroke-width="18"/>
+  <path d="M60 1110 L1020 1110" fill="none" stroke="#6C7895" stroke-width="11"/>
+  <g stroke="#3E4763" stroke-width="16" fill="none"><path d="M80 960 V1640 M1000 960 V1640 M300 1000 V1110 M780 1000 V1110"/></g>
+  <g stroke="#6C7895" stroke-width="9" fill="none"><path d="M80 960 V1640 M1000 960 V1640 M300 1000 V1110 M780 1000 V1110"/></g>
+  <!-- pillow propped on the rail -->
+  <path d="M120 1150 Q130 1090 220 1086 L420 1090 Q470 1100 466 1170 Q462 1240 440 1270 L140 1270 Q112 1220 120 1150 Z" fill="#C9D1E1"/>
+  <path d="M170 1130 q60 24 130 6" fill="none" stroke-width="1.8"/>
+  <!-- mattress + sheet -->
+  <path d="M40 1260 L1040 1260 Q1060 1262 1060 1290 L1060 1420 L20 1420 L20 1290 Q20 1262 40 1260 Z" fill="#B8C3D8"/>
+  <path d="M20 1330 Q540 1350 1060 1330" fill="none" stroke-width="1.6"/>
+  <path d="M20 1420 L1060 1420 L1060 1460 L20 1460 Z" fill="#3E4763"/>
+  <path d="M60 1460 V1600 M1020 1460 V1600" fill="none" stroke="#3E4763" stroke-width="18"/>
+  <path d="M30 1600 h60 M990 1600 h60" fill="none" stroke="#3E4763" stroke-width="10"/>
+  <!-- quilt kicked off to the side -->
+  <path d="M720 1250 Q800 1180 900 1200 Q1000 1210 1050 1260 Q1080 1330 1050 1420 Q980 1440 900 1420 Q820 1440 760 1400 Q700 1330 720 1250 Z" fill="url(#quilt)"/>
+  <path d="M720 1250 Q800 1180 900 1200 Q1000 1210 1050 1260 Q1080 1330 1050 1420 Q980 1440 900 1420 Q820 1440 760 1400 Q700 1330 720 1250 Z" fill="url(#print)" stroke="none" opacity=".75"/>
+  <path d="M780 1260 Q850 1300 840 1390 M920 1220 Q960 1300 930 1410" fill="none" stroke="#5E3149" stroke-width="2.4"/>
+  <path d="M760 1400 Q700 1440 700 1520 Q760 1540 800 1500 Q790 1450 830 1420" fill="url(#quilt)"/>
+  <!-- slippers + bag on the floor -->
+  <path d="M190 1700 q0 -26 40 -26 l60 0 q24 0 24 18 q0 18 -24 18 l-80 0 q-20 0 -20 -10z" fill="#4E8C8A"/>
+  <path d="M300 1730 q0 -26 40 -26 l60 0 q24 0 24 18 q0 18 -24 18 l-80 0 q-20 0 -20 -10z" fill="#4E8C8A"/>
+  <path d="M760 1560 Q750 1500 820 1490 L920 1490 Q980 1500 970 1570 L980 1700 Q900 1720 770 1700 Z" fill="#7A5F82"/>
+  <path d="M800 1530 L940 1530 L944 1600 L796 1600 Z" fill="none" stroke-width="2"/>
 </g>
 
-<!-- ================= MEERA (warm flat cels, ink) ================= -->
-<g transform="translate(540 860) scale(2.1) translate(-540 -340)">
+<!-- ================= MEERA, full figure, sitting cross-legged ================= -->
+<defs>
+  <!-- skin parts are drawn twice: ink pass, then colour pass, so overlaps merge into one clean silhouette -->
+  <g id="armL">
+    <path d="M430 478 Q414 540 408 600 Q404 622 422 624 Q460 602 498 580 Q510 574 506 556 L506 490 Q504 474 492 476 Q480 482 484 500 L489 540 Q466 562 442 588 Q446 540 458 482 Z"/>
+    <rect x="490" y="486" width="33" height="15" rx="7.5" transform="rotate(4 490 493)"/>
+    <rect x="490" y="501" width="36" height="15" rx="7.5" transform="rotate(4 490 508)"/>
+    <rect x="490" y="516" width="34" height="15" rx="7.5" transform="rotate(5 490 523)"/>
+    <rect x="491" y="531" width="28" height="13" rx="6.5" transform="rotate(6 491 537)"/>
+  </g>
+  <g id="armR"><use href="#armL" transform="matrix(-1 0 0 1 1080 0)"/></g>
+  <g id="feet">
+    <path d="M352 724 Q348 706 366 702 Q390 696 410 702 Q424 698 428 708 Q430 720 418 726 Q402 740 378 742 Q356 742 352 724 Z"/>
+    <use href="#footL" transform="matrix(-1 0 0 1 1080 0)"/>
+  </g>
+  <path id="footL" d="M352 724 Q348 706 366 702 Q390 696 410 702 Q424 698 428 708 Q430 720 418 726 Q402 740 378 742 Q356 742 352 724 Z"/>
+  <g id="headSkin">
+    <path d="M502 396 L504 450 L526 450 L524 396 Z"/>
+    <path d="M458 290 Q460 256 500 250 L584 250 Q626 258 628 300 Q632 348 614 382 Q592 414 540 416 Q494 416 472 390 Q456 368 456 330 Z"/>
+    <path d="M462 350 Q438 334 434 358 Q434 392 466 394 Z"/>
+  </g>
+</defs>
+<g transform="translate(540 720) scale(1.5) translate(-540 -340)">
 <g filter="url(#boil)" stroke="#2B2230" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
-  <!-- flyaway strands: she just bolted up -->
-  <path d="M484 236 Q472 222 474 204 M602 236 Q616 226 618 210 M496 230 Q494 216 502 206" fill="none" stroke-width="3"/>
+  <!-- contact shadow on the mattress -->
+  <ellipse cx="540" cy="742" rx="230" ry="16" fill="#8592AE" stroke="none" opacity=".7"/>
   <!-- long back hair -->
   <path d="M444 322 Q434 246 490 226 Q542 210 596 226 Q652 248 642 322 Q650 400 664 462 Q672 506 646 516 Q624 500 612 474 L470 474 Q458 506 428 514 Q404 504 414 466 Q436 400 444 322 Z" fill="#221F2C"/>
-  <!-- messy bun + pencil -->
+  <!-- bun + pencil -->
   <path d="M596 158 L606 166 L528 238 L518 230 Z" fill="#E9C24C"/>
   <path d="M596 158 L606 166 L612 158 L602 150 Z" fill="#E58A93"/>
   <path d="M510 214 Q502 172 544 164 Q590 162 590 204 Q588 232 548 234 Q514 234 510 214 Z" fill="#221F2C"/>
   <path d="M526 200 q10 -20 34 -12 q12 8 4 22" fill="none" stroke="#4A4560" stroke-width="2"/>
-  <path d="M518 230 L528 238 L520 246 Z" fill="#E7C9A6"/>
-  <!-- neck -->
-  <path d="M502 398 L504 446 L526 446 L524 398 Z" fill="#C98163"/>
-  <!-- face -->
-  <path d="M458 290 Q460 256 500 250 L584 250 Q626 258 628 300 Q632 348 614 382 Q592 414 540 416 Q494 416 472 390 Q456 368 456 330 Z" fill="#D9936F"/>
-  <!-- ear + jhumka -->
-  <path d="M458 350 Q434 336 432 360 Q434 390 462 392" fill="#D9936F"/>
-  <path d="M446 356 q-2 12 8 20" fill="none" stroke-width="1.5"/>
-  <path d="M446 392 v8" fill="none" stroke-width="1.5"/>
-  <path d="M438 404 Q446 396 454 404 L450 414 L442 414 Z" fill="#E2B64E" stroke-width="1.5"/>
-  <!-- front hair: centre part, loose strands -->
+  <path d="M484 236 Q472 222 474 204 M602 236 Q616 226 618 210" fill="none" stroke-width="3"/>
+
+  <!-- pyjama legs, cross-legged -->
+  <path d="M424 626 Q378 646 340 676 Q314 698 326 722 Q342 744 400 744 L680 744 Q738 744 754 722 Q766 698 740 676 Q702 646 656 626 Z" fill="#8297C4"/>
+  <path d="M372 700 Q470 706 640 708 Q700 708 724 716 Q704 744 640 744 L410 744 Q370 740 372 700 Z" fill="#8297C4"/>
+  <path d="M380 712 q60 6 120 4" fill="none" stroke="#6B80AE" stroke-width="2"/>
+  <path d="M390 664 l8 40 M440 652 l6 40 M640 652 l-6 40 M690 664 l-8 40 M380 690 l140 -10 M560 680 l140 10" fill="none" stroke="#6B80AE" stroke-width="2"/>
+  <!-- feet (tucked) -->
+  <use href="#feet" fill="#2B2230" stroke="#2B2230" stroke-width="4.4"/>
+  <use href="#feet" fill="#D9936F" stroke="none"/>
+  <path d="M414 704 q6 4 4 12 M420 704 q6 4 5 11 M666 704 q-6 4 -4 12 M660 704 q-6 4 -5 11" fill="none" stroke-width="1.3"/>
+
+  <!-- neck + face -->
+  <use href="#headSkin" fill="#2B2230" stroke="#2B2230" stroke-width="4.4"/>
+  <use href="#headSkin" fill="#D9936F" stroke="none"/>
+  <path d="M448 358 q-2 12 8 20" fill="none" stroke-width="1.5"/>
+  <path d="M446 394 v8" fill="none" stroke-width="1.5"/>
+  <path d="M438 406 Q446 398 454 406 L450 416 L442 416 Z" fill="#E2B64E" stroke-width="1.5"/>
+  <!-- front hair -->
   <path d="M452 330 Q446 262 494 240 Q530 228 540 244 Q552 228 590 240 Q636 260 632 330 Q622 290 600 270 Q588 262 576 266 Q566 256 546 262 Q536 270 532 262 Q520 256 504 266 Q490 262 478 276 Q462 296 460 330 Z" fill="#221F2C"/>
   <path d="M460 300 Q450 370 456 430 Q466 434 474 428 Q466 370 474 300 Z" fill="#221F2C"/>
   <path d="M624 300 Q636 370 630 432 Q620 436 612 430 Q620 370 614 306 Z" fill="#221F2C"/>
   <path d="M548 262 Q560 290 552 314" fill="none" stroke="#221F2C" stroke-width="3.4"/>
-  <!-- brows: shot up -->
-  <path d="M472 282 Q490 260 518 264 Q536 266 546 276 L542 287 Q522 277 500 279 Q484 283 476 292 Z" fill="#221F2C" stroke-width="1.4"/>
-  <path d="M566 276 Q584 260 606 262 Q622 266 628 282 L622 290 Q604 278 586 280 Q574 282 568 288 Z" fill="#221F2C" stroke-width="1.4"/>
-  <!-- eyes: wide, tiny pupils -->
-  <ellipse cx="507" cy="330" rx="29" ry="25" fill="#FBF6EE" stroke-width="2"/>
-  <ellipse cx="594" cy="328" rx="25" ry="24" fill="#FBF6EE" stroke-width="2"/>
-  <circle cx="512" cy="332" r="5.5" fill="#221F2C" stroke="none"/>
-  <circle cx="597" cy="330" r="5" fill="#221F2C" stroke="none"/>
-  <path d="M480 318 Q506 300 534 318 M571 316 Q594 300 617 316" fill="none" stroke-width="3.6"/>
-  <path d="M490 364 q16 5 32 0 M580 360 q12 4 24 0" fill="none" stroke-width="1.3" stroke="#8E5240"/>
-  <!-- nose -->
-  <path d="M546 364 q6 6 12 0" fill="none" stroke-width="1.8"/>
-  <!-- gasp -->
-  <path d="M524 386 Q540 376 556 386 Q560 408 540 412 Q520 410 524 386 Z" fill="#3A1E26" stroke-width="2"/>
-  <path d="M528 401 Q540 395 552 403 Q546 411 538 411 Q530 409 528 401 Z" fill="#D86A70" stroke="none"/>
-  <!-- sweat + shock ticks -->
-  <path d="M646 280 q-10 18 0 28 q10 -10 0 -28 z" fill="#CFE6F5" stroke-width="1.6"/>
-  <path d="M662 258 l14 -12 M668 286 l18 -2 M660 312 l14 8" fill="none" stroke-width="2.6"/>
+  <!-- brows up -->
+  <path d="M474 286 Q492 264 518 268 Q536 270 546 280 L542 290 Q522 281 500 283 Q484 287 478 296 Z" fill="#221F2C" stroke-width="1.4"/>
+  <path d="M566 280 Q584 264 606 266 Q622 270 628 286 L622 294 Q604 282 586 284 Q574 286 568 292 Z" fill="#221F2C" stroke-width="1.4"/>
+  <!-- wide eyes, looking down at the phone -->
+  <ellipse cx="507" cy="332" rx="27" ry="23" fill="#FBF6EE" stroke-width="2"/>
+  <ellipse cx="594" cy="330" rx="24" ry="22" fill="#FBF6EE" stroke-width="2"/>
+  <circle cx="512" cy="345" r="5.5" fill="#221F2C" stroke="none"/>
+  <circle cx="592" cy="343" r="5" fill="#221F2C" stroke="none"/>
+  <path d="M482 322 Q506 304 532 320 M572 318 Q594 304 616 318" fill="none" stroke-width="3.4"/>
+  <path d="M492 364 q16 5 30 0 M580 362 q12 4 22 0" fill="none" stroke-width="1.3" stroke="#8E5240"/>
+  <path d="M546 366 q6 6 12 0" fill="none" stroke-width="1.8"/>
+  <!-- small gasp -->
+  <path d="M530 390 Q541 382 552 390 Q554 404 541 406 Q528 404 530 390 Z" fill="#3A1E26" stroke-width="2"/>
+  <path d="M646 282 q-10 18 0 28 q10 -10 0 -28 z" fill="#CFE6F5" stroke-width="1.6"/>
+  <path d="M662 258 l14 -12 M668 286 l18 -2" fill="none" stroke-width="2.6"/>
 
   <!-- oversized mustard tee -->
-  <path d="M432 458 Q478 442 504 444 L528 444 Q572 442 600 458 Q630 500 638 560 L642 650 L418 650 L422 560 Q426 500 432 458 Z" fill="url(#tee)"/>
-  <path d="M494 444 Q514 466 536 444" fill="none" stroke-width="2"/>
-  <path d="M456 520 q6 40 2 90 M604 520 q-4 40 0 90" fill="none" stroke="#9A6618" stroke-width="1.4"/>
-  <!-- small moon print -->
-  <path d="M540 520 a22 22 0 1 0 22 30 a17 17 0 1 1 -22 -30 z" fill="#F4E3B4" stroke="none" opacity=".85"/>
+  <path d="M434 458 Q480 442 504 446 L528 446 Q572 442 606 458 Q628 500 634 560 L640 640 Q540 652 420 640 L426 560 Q430 500 434 458 Z" fill="url(#tee)"/>
+  <path d="M494 446 Q514 468 536 446" fill="none" stroke-width="2"/>
+  <path d="M456 600 q4 24 0 38 M624 600 q-4 24 0 38" fill="none" stroke="#9A6618" stroke-width="1.4"/>
 
-  <!-- right arm (viewer left): hand clutching hair -->
-  <path d="M440 458 Q402 466 390 500 Q386 522 404 530 L446 512 Z" fill="url(#tee)"/>
-  <path d="M398 520 Q382 480 368 440 Q364 420 382 414 Q400 412 406 430 Q418 466 436 498 Z" fill="#D9936F"/>
-  <path d="M368 432 Q384 420 400 428 Q424 378 454 316 L436 306 Q402 360 368 432 Z" fill="#D9936F"/>
-  <path d="M432 314 Q426 286 446 274 Q466 266 482 278 Q488 294 474 306 Q458 320 440 322 Z" fill="#D9936F"/>
-  <g fill="none">
-    <path d="M448 280 L462 254 M459 274 L475 248 M470 272 L487 249 M480 278 L495 258" stroke="#2B2230" stroke-width="12"/>
-    <path d="M448 280 L462 254 M459 274 L475 248 M470 272 L487 249 M480 278 L495 258" stroke="#D9936F" stroke-width="8"/>
-    <path d="M438 312 L456 330" stroke="#2B2230" stroke-width="12"/>
-    <path d="M438 312 L456 330" stroke="#D9936F" stroke-width="8"/>
+  <!-- arms: one silhouette each from sleeve to fingertips -->
+  <use href="#armL" fill="#2B2230" stroke="#2B2230" stroke-width="4.4"/>
+  <use href="#armR" fill="#2B2230" stroke="#2B2230" stroke-width="4.4"/>
+  <use href="#armL" fill="#D9936F" stroke="none"/>
+  <use href="#armR" fill="#D9936F" stroke="none"/>
+  
+  <!-- phone: back to camera, held at the sides; fingers curl onto the back -->
+  <rect x="503" y="446" width="74" height="128" rx="11" fill="#2C2F3E" stroke-width="2.2"/>
+  <rect x="513" y="456" width="24" height="30" rx="7" fill="#1A1C26" stroke-width="1.2"/>
+  <circle cx="525" cy="465" r="4.5" fill="#3E4459" stroke="none"/><circle cx="525" cy="477" r="4.5" fill="#3E4459" stroke="none"/>
+  <circle cx="556" cy="470" r="11" fill="#1F8C83" stroke="none"/>
+  <path d="M552 466 v8 M556 462 v16 M560 466 v8" fill="none" stroke="#F4F0E6" stroke-width="2"/>
+  <path d="M504 452 Q540 444 576 452" fill="none" stroke="#CDEBFF" stroke-width="2"/>
+  <!-- fingers over the phone: drawn again on top, same merge trick -->
+  <g>
+    <use href="#armL" fill="#2B2230" stroke="#2B2230" stroke-width="4.4" clip-path="url(#overPhone)"/>
+    <use href="#armR" fill="#2B2230" stroke="#2B2230" stroke-width="4.4" clip-path="url(#overPhone)"/>
+    <use href="#armL" fill="#D9936F" stroke="none" clip-path="url(#overPhone)"/>
+    <use href="#armR" fill="#D9936F" stroke="none" clip-path="url(#overPhone)"/>
   </g>
-  <path d="M444 288 q14 -8 34 -4" fill="none" stroke-width="1.4"/>
-
-  <!-- left arm (viewer right): holding the phone up -->
-  <path d="M596 458 Q632 466 646 500 Q650 522 630 528 L592 510 Z" fill="url(#tee)"/>
-  <path d="M612 506 Q636 546 648 592 Q662 606 678 594 Q668 546 642 498 Z" fill="#D9936F"/>
-  <path d="M650 596 Q668 606 682 594 Q682 548 684 504 L660 502 Q654 550 650 596 Z" fill="#D9936F"/>
-  <g transform="translate(26 26) rotate(-6 666 440)">
-    <!-- phone back: dark case, Srutam sticker -->
-    <rect x="628" y="368" width="74" height="132" rx="11" fill="#2C2F3E" stroke-width="2.2"/>
-    <rect x="638" y="378" width="26" height="32" rx="7" fill="#1A1C26" stroke-width="1.2"/>
-    <circle cx="651" cy="388" r="5" fill="#3E4459" stroke="none"/><circle cx="651" cy="401" r="5" fill="#3E4459" stroke="none"/>
-    <circle cx="676" cy="426" r="12" fill="#1F8C83" stroke="none"/>
-    <path d="M668 426 v0 M672 421 v10 M676 418 v16 M680 421 v10 M684 426 v0" fill="none" stroke="#F4F0E6" stroke-width="2"/>
-    <path d="M630 372 L628 498" fill="none" stroke="#CDEBFF" stroke-width="2.4"/>
-    <!-- fingers across the back -->
-    <g fill="none">
-      <path d="M706 444 L648 442 M706 460 L644 461 M704 476 L648 479 M700 491 L656 494" stroke="#2B2230" stroke-width="14"/>
-      <path d="M706 444 L648 442 M706 460 L644 461 M704 476 L648 479 M700 491 L656 494" stroke="#D9936F" stroke-width="10"/>
-    </g>
-    <path d="M700 436 Q720 450 716 490 Q712 510 690 512 L676 506 L702 490 Z" fill="#D9936F"/>
-  </g>
+  <!-- knuckle creases and finger gaps (thin, stop short of the outline) -->
+  <g id="gaps"><path d="M506 502 l15 1 M506 517 l17 1.4 M506 532 l13 1.4" fill="none" stroke-width="1.2"/></g>
+  <use href="#gaps" transform="matrix(-1 0 0 1 1080 0)"/>
+  <path d="M424 596 q6 8 16 4 M656 596 q-6 8 -16 4" fill="none" stroke-width="1.4"/>
+  <!-- sleeves over the shoulders -->
+  <path d="M436 456 Q404 470 394 516 Q392 532 410 536 Q430 534 450 524 L452 470 Z" fill="url(#tee)"/>
+  <path d="M604 456 Q636 470 646 516 Q648 532 630 536 Q610 534 590 524 L588 470 Z" fill="url(#tee)"/>
 </g>
 </g>
-
-<!-- quilt over her lap (block print) -->
-<g filter="url(#boil)" stroke="#2B2230" stroke-width="3" stroke-linejoin="round">
-  <path d="M0 1440 Q160 1370 330 1400 Q470 1430 560 1390 Q700 1350 860 1400 Q980 1430 1080 1400 L1080 1920 L0 1920 Z" fill="url(#quilt)"/>
-  <path d="M0 1440 Q160 1370 330 1400 Q470 1430 560 1390 Q700 1350 860 1400 Q980 1430 1080 1400 L1080 1920 L0 1920 Z" fill="url(#print)" stroke="none" opacity=".75"/>
-  <path d="M300 1450 Q360 1600 300 1780 M620 1440 Q560 1600 640 1760 M840 1440 Q900 1560 860 1700" fill="none" stroke="#5E3149" stroke-width="2.4"/>
-  <path d="M0 1470 Q160 1400 330 1430 Q470 1460 560 1420 Q700 1380 860 1430 Q980 1460 1080 1430" fill="none" stroke="#E7C26A" stroke-width="5"/>
-</g>
+<clipPath id="overPhone"><rect x="490" y="470" width="100" height="90"/></clipPath>
 
 <!-- light: phone glow on her face, night vignette -->
 <rect width="1080" height="1920" fill="url(#phoneGlow)" style="mix-blend-mode:screen"/>
 <rect width="1080" height="1920" fill="url(#vig)"/>
 
-<!-- group-chat notification, drawn -->
+<!-- group-chat notification -->
 <g filter="url(#boil)">
-  <path d="M90 1560 Q90 1530 120 1530 L960 1530 Q990 1530 990 1560 L990 1720 Q990 1750 960 1750 L130 1750 L96 1784 L104 1748 Q90 1742 90 1720 Z" fill="#FBF8F1" stroke="#2B2230" stroke-width="4"/>
-  <circle cx="170" cy="1612" r="40" fill="#E58AA0" stroke="#2B2230" stroke-width="3"/>
-  <text x="170" y="1628" text-anchor="middle" font-family="Inter" font-weight="700" font-size="42" fill="#FBF8F1">R</text>
-  <text x="236" y="1600" font-family="Inter" font-weight="700" font-size="34" fill="#2B2230">Riya · DBMS group</text>
-  <text x="236" y="1680" font-family="Kalam" font-weight="700" font-size="50" fill="#2B2230">wait… where are slides 8–12??</text>
-  <text x="930" y="1600" text-anchor="end" font-family="Inter" font-weight="700" font-size="26" fill="#8C8496">1:43 AM</text>
+  <path d="M90 1660 Q90 1630 120 1630 L960 1630 Q990 1630 990 1660 L990 1820 Q990 1850 960 1850 L120 1850 Q90 1850 90 1820 Z" fill="#FBF8F1" stroke="#2B2230" stroke-width="4"/>
+  <circle cx="170" cy="1712" r="40" fill="#E58AA0" stroke="#2B2230" stroke-width="3"/>
+  <text x="170" y="1728" text-anchor="middle" font-family="Inter" font-weight="700" font-size="42" fill="#FBF8F1">R</text>
+  <text x="236" y="1700" font-family="Inter" font-weight="700" font-size="34" fill="#2B2230">Riya · DBMS group</text>
+  <text x="236" y="1780" font-family="Kalam" font-weight="700" font-size="50" fill="#2B2230">wait… where are slides 8–12??</text>
+  <text x="930" y="1700" text-anchor="end" font-family="Inter" font-weight="700" font-size="26" fill="#8C8496">1:43 AM</text>
 </g>
 <rect width="1080" height="1920" filter="url(#grain)"/>
 </svg>
