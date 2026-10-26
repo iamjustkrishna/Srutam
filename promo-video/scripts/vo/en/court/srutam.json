@@ -1,0 +1,5 @@
+{ "voiceId": "EXAVITQu4vr4xnSDxMaL", "outDir": "voiceover/en/court/srutam", "lines": [
+  ["c-objection", "[calm, clear, unbothered] Objection."],
+  ["c-recording", "[calm, warm, confident] I have the recording."],
+  ["c-cta", "[warm, friendly] Record it once. Ask me anything."]
+]}

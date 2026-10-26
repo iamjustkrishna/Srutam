@@ -1,0 +1,5 @@
+{ "voiceId": "pqHfZKP75CvOlQylNhV4", "outDir": "voiceover/en/court/judge", "lines": [
+  ["c-order", "[furious, booming] ORDER! Who lost the deadline?!"],
+  ["c-witnesses", "[deeply tired, dry sigh] Call the witnesses."],
+  ["c-closed", "[satisfied, dry] Case closed. Next time... record it."]
+]}
