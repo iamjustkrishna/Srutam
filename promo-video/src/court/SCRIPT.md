@@ -75,3 +75,34 @@ Total: about 45 s.
 The first lineup prompt was blocked by Canva's safety filter. It said "human brain", "inside a
 person's head" and "open shirt". Calling them "mascot characters" with a "cloud-like pink" judge
 fixed it.
+
+## All shots and pose variants (save into public/court/)
+
+The `b` files are the same picture with one change, so the video can swap between them.
+Mouth open and closed versions give lip-sync; pose versions give actions such as the gavel
+coming down.
+
+| File | Shot | Canva id |
+|---|---|---|
+| `c01.jpg` | 1 · Judge slams gavel, shouting | `MAHZJSAtazA` |
+| `c01b.jpg` | 1 · gavel raised, before the slam | `MAHZJXO7v1A` |
+| `c02.jpg` | 2 · Aarav frozen at his desk | `MAHZJXnvGME` |
+| `c03.jpg` | 3 · courtroom wide | `MAHZJJkuoFA` |
+| `c04.jpg` | 4 · Anxiety accuses (mouth open) | `MAHZJQQ1Zac` |
+| `c04b.jpg` | 4 · mouth closed | `MAHZJf3dAiw` |
+| `c05.jpg` | 5 · Memory in the dock (mouth closed) | `MAHZJTtdPGc` |
+| `c05b.jpg` | 5 · mouth open | `MAHZJTGYrrg` |
+| `c06.jpg` | 6 · Judge rubs temples | `MAHZJf78sd8` |
+| `c06b.jpg` | 6 · Judge looks up, speaking | `MAHZJRPAmnc` |
+| `c07.jpg` | 7 · Overconfidence in the witness box (mouth closed) | `MAHZJaA3y3E` |
+| `c07b.jpg` | 7 · mouth open | `MAHZJZzQbKQ` |
+| `c08.jpg` | 8 · Sleep dozing | `MAHZJVaCkpQ` |
+| `c08b.jpg` | 8 · eyes and mouth open, murmuring | `MAHZJeHhD04` |
+| `c09.jpg` | 9 · panic spiral | `MAHZJauhX8A` |
+| `c10.jpg` | 10 · doors burst open, Srutam enters | `MAHZJfcewLk` |
+| `c11.jpg` | 11 · Srutam close-up (mouth closed) | `MAHZJaU7rl8` |
+| `c11b.jpg` | 11 · mouth open | `MAHZJWbvALc` |
+| `c13.jpg` | 13 · reactions | `MAHZJZoq3_U` |
+| `c14.jpg` | 14 · Judge, gavel raised, satisfied | `MAHZJaGpItI` |
+| `c14b.jpg` | 14 · gavel down | `MAHZJUHxb-E` |
+| `c15.jpg` | 15 · Aarav relieved, typing | `MAHZJd6x54g` |
