@@ -11,26 +11,34 @@ background) … Vertical composition, no text."
 
 ## Cast sheets (Canva media ids)
 
+Account 2 (current; use these as references):
+
 | Character | Canva id | Look |
 |---|---|---|
-| Meera | `MAHZIITl4kw` | mustard t-shirt with moon print, messy bun with pencil, blue checked pyjamas |
-| Riya | `MAHZIcBcFtg` | teal kurta top, cream pants, wavy hair with claw clip, planner |
-| Kabir | `MAHZIcOWZpo` | maroon hoodie, black track pants, curly hair, stubble |
+| Meera | `MAHZIfjlyps` | mustard t-shirt with moon print, messy bun with pencil, blue checked pyjamas |
+| Riya | `MAHZIQI2C7k` | teal kurta top, cream pants, wavy hair with claw clip, planner |
+| Kabir | `MAHZIXdgGMU` | maroon hoodie, black track pants, curly hair, stubble |
+
+Account 1 (first sheets; not usable as references from account 2): Meera `MAHZIITl4kw`,
+Riya `MAHZIcBcFtg`, Kabir `MAHZIcOWZpo`.
 
 ## Shots
 
-| # | Beat | Reference | Status | Canva id |
-|---|---|---|---|---|
-| 1 | 11 p.m. — Meera on her cot, laptop + Maggi, fist-pump: "Slides 1–7 done ✅" | Meera | done | `MAHZIR7BSXE` |
-| 2 | 1:43 a.m. — Meera bolts upright, phone glow, shock | — | done | `MAHZIAiyBkk` |
-| 3a | 1:50 a.m. — Riya at her desk, furious thumbs | Riya | done | `MAHZIXUJm3k` |
-| 3b | 1:50 a.m. — Kabir in bed, guilty, phone over face: "not me bro 💀" | Kabir | done | `MAHZIUQT1EA` |
-| 4 | Panic fantasy — giant professor holding a glowing red 0 in a dark lecture hall | — | to do | |
-| 5 | 2:30 a.m. — Meera alone at desk, face in hands, cold Maggi, empty slide | Meera | to do | |
-| 6 | Flashback — college canteen by day: Riya points at Kabir, Kabir grins with a thumbs-up ("Done. Easy."), Meera's phone recording on the table between chai glasses and Maggi plates | all three | to do | |
-| 7 | The turn — close-up of Meera, eyes lighting up as she remembers the recording | Meera | to do | |
-| 8 | 4 a.m. — Kabir at his laptop behind a tower of empty chai glasses, eye bags | Kabir | to do | |
-| 9 | Next morning — classroom, Kabir presents confidently, Meera and Riya in the front row; he slips his phone onto the desk: "Recording this." | all three | to do | |
+| # | Beat | Canva id | Account |
+|---|---|---|---|
+| 1 | 11 p.m. — Meera on her cot, laptop + Maggi, fist-pump: "Slides 1–7 done ✅" | `MAHZIR7BSXE` | 1 |
+| 2 | 1:43 a.m. — Meera bolts upright, phone glow, shock | `MAHZIAiyBkk` | 1 |
+| 3a | 1:50 a.m. — Riya at her desk, furious thumbs | `MAHZIXUJm3k` | 1 |
+| 3b | 1:50 a.m. — Kabir in bed, guilty: "not me bro 💀" | `MAHZIUQT1EA` | 1 |
+| 4 | Panic fantasy — giant professor holding a glowing red 0 | `MAHZISKRoXk` | 2 |
+| 5 | 2:30 a.m. — Meera alone at desk, face in hands, cold Maggi | `MAHZIZ1W6tE` | 2 |
+| 6 | Flashback — canteen: Riya points at Kabir, Kabir's thumbs-up, Meera's phone recording | `MAHZIXWtaDo` | 2 |
+| 7 | The turn — Meera remembers the recording | `MAHZIU1pbAo` | 2 |
+| 8 | 4 a.m. — Kabir at his laptop behind a tower of chai glasses | `MAHZIc9vaaY` | 2 |
+| 9 | Next morning — Kabir presents; "Recording this." | `MAHZIaymkSg` | 2 |
+
+Shots 1–3b were made from the account-1 sheets; regenerate them from the account-2 sheets
+(same prompts) if the characters drift visibly next to shots 4–9.
 
 The phone screens (group chat, Srutam's search and its answer playing back) are built in
 Remotion, not generated, so the text is exact and readable.
