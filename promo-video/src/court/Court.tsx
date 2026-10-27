@@ -349,7 +349,7 @@ const ShotClosed: React.FC = () => {
   const down = f >= BEAT.slam2;
   return (
     <AbsoluteFill>
-      <Shot f={f} sh={SHOTS.closed} img={down ? "c14b" : "c14"} zoom={[1.0, 1.1]} focus={[[472, 820], [472, 760]]} shake={down ? 14 : 0} shakeAt={BEAT.slam2} pulse={down ? 0 : 0.014 * level("c-closed", f)} stretch={down ? undefined : { at: [490, 788], r: [52, 28], file: "c-closed" }}>
+      <Shot f={f} sh={SHOTS.closed} img={down ? "c14b" : "c14"} zoom={[1.0, 1.1]} focus={[[472, 820], [472, 760]]} shake={down ? 14 : 0} shakeAt={BEAT.slam2} pulse={down ? 0 : 0.012 * level("c-closed", f)} swap={down ? undefined : { open: "c14c", at: [483, 782], r: [92, 78], file: "c-closed" }}>
         <Impact f={f} at={BEAT.slam2} x={330 * S} y={1060 * S} />
       </Shot>
       <Lettering f={f} at={BEAT.slam2 + 1} text="CASE CLOSED" color="#F472B6" y={1260} size={130} rot={-6} />
