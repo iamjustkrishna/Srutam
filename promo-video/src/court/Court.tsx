@@ -61,10 +61,12 @@ const Shot: React.FC<{
   stretch?: MouthStretch;
   filter?: string;
   ease?: (t: number) => number;
+  /** Extra zoom added on top of the push, for emphasis (e.g. with the voice). */
+  pulse?: number;
   children?: React.ReactNode;
-}> = ({ f, sh, img, zoom = [1.02, 1.1], focus = [[472, 840], [472, 840]], shake = 0, shakeAt, rumble = 0, swap, stretch, filter, ease = easeInOut, children }) => {
+}> = ({ f, sh, img, zoom = [1.02, 1.1], focus = [[472, 840], [472, 840]], shake = 0, shakeAt, rumble = 0, swap, stretch, filter, ease = easeInOut, pulse = 0, children }) => {
   const p = interpolate(f, [sh.from, sh.from + sh.duration], [0, 1], { ...clamp, easing: ease });
-  const z = zoom[0] + (zoom[1] - zoom[0]) * p;
+  const z = zoom[0] + (zoom[1] - zoom[0]) * p + pulse;
   const fx = focus[0][0] + (focus[1][0] - focus[0][0]) * p;
   const fy = focus[0][1] + (focus[1][1] - focus[0][1]) * p;
   const since = f - (shakeAt ?? sh.from);
@@ -347,11 +349,32 @@ const ShotClosed: React.FC = () => {
   const down = f >= BEAT.slam2;
   return (
     <AbsoluteFill>
-      <Shot f={f} sh={SHOTS.closed} img={down ? "c14b" : "c14"} zoom={[1.0, 1.1]} focus={[[472, 820], [472, 760]]} shake={down ? 14 : 0} shakeAt={BEAT.slam2} stretch={down ? undefined : { at: [537, 740], r: [70, 36], file: "c-closed" }}>
+      <Shot f={f} sh={SHOTS.closed} img={down ? "c14b" : "c14"} zoom={[1.0, 1.1]} focus={[[472, 820], [472, 760]]} shake={down ? 14 : 0} shakeAt={BEAT.slam2} pulse={down ? 0 : 0.014 * level("c-closed", f)} stretch={down ? undefined : { at: [490, 788], r: [52, 28], file: "c-closed" }}>
         <Impact f={f} at={BEAT.slam2} x={330 * S} y={1060 * S} />
       </Shot>
       <Lettering f={f} at={BEAT.slam2 + 1} text="CASE CLOSED" color="#F472B6" y={1260} size={130} rot={-6} />
     </AbsoluteFill>
+  );
+};
+
+/** Aarav's phone on the desk: the real Srutam logo on its screen, and a glow that knocks twice
+ *  (with the app's own knock-knock sound) when Srutam reminds him. Drawn over the picture's phone,
+ *  tilted and squashed to match how it lies on the desk. */
+const DeskPhone: React.FC<{ f: number }> = ({ f }) => {
+  const t = f - BEAT.knock;
+  const knock = (at: number) => (t >= at && t < at + 12 ? Math.sin(((t - at) / 12) * Math.PI) : 0);
+  const glow = Math.max(knock(0), knock(8));
+  const rings = [0, 8].map((at) => (t >= at && t < at + 22 ? (t - at) / 22 : -1));
+  const x = 490 * S;
+  const y = 1408 * S;
+  const tilt = "rotate(18.6deg) scale(1, 0.56)";
+  return (
+    <div style={{ position: "absolute", left: x, top: y, width: 0, height: 0 }}>
+      <div style={{ position: "absolute", left: -78 * S, top: -78 * S, width: 156 * S, height: 156 * S, transform: tilt, borderRadius: 999, background: `radial-gradient(circle, #0d1620 0%, #0d1620 78%, rgba(13,22,32,0) 100%)` }} />
+      <div style={{ position: "absolute", left: -78 * S, top: -78 * S, width: 156 * S, height: 156 * S, transform: tilt, borderRadius: 999, background: "radial-gradient(circle, rgba(96,165,250,0.85) 0%, rgba(59,130,246,0) 68%)", opacity: 0.18 + 0.8 * glow }} />
+      {rings.map((k, i) => k >= 0 && <div key={i} style={{ position: "absolute", left: -(60 + k * 120) * S, top: -(60 + k * 120) * S, width: (120 + k * 240) * S, height: (120 + k * 240) * S, transform: tilt, borderRadius: 999, border: `${3 * S}px solid rgba(147,197,253,${0.7 * (1 - k)})` }} />)}
+      <Img src={staticFile("court/srutam-logo.png")} style={{ position: "absolute", left: -62 * S, top: -62 * S, width: 124 * S, height: 124 * S, transform: `${tilt} scale(${1 + 0.1 * glow})`, filter: `drop-shadow(0 0 ${6 + 14 * glow}px rgba(96,165,250,0.9))` }} />
+    </div>
   );
 };
 
@@ -361,7 +384,9 @@ const ShotRelief: React.FC = () => {
   const k = springAt(f, 0, [{ at: BEAT.sent, to: 1 }], 16, 190);
   return (
     <AbsoluteFill>
-      <Shot f={f} sh={SHOTS.relief} img="c15" zoom={[1.08, 1.0]} focus={[[460, 700], [460, 760]]} ease={easeOut} />
+      <Shot f={f} sh={SHOTS.relief} img="c15" zoom={[1.08, 1.0]} focus={[[460, 700], [460, 760]]} ease={easeOut}>
+        <DeskPhone f={f} />
+      </Shot>
       <div style={{ position: "absolute", left: 50, right: 50, top: 170, transform: `translateY(${(1 - k) * -360}px)`, opacity: Math.min(1, k * 1.4), background: "rgba(250,250,252,0.96)", borderRadius: 40, padding: "26px 32px", display: "flex", gap: 24, alignItems: "center", boxShadow: "0 18px 50px rgba(0,0,0,0.35)", fontFamily: "Inter" }}>
         <div style={{ width: 92, height: 92, borderRadius: 99, background: "#2563EB", color: "#fff", fontWeight: 800, fontSize: 44, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>A</div>
         <div>

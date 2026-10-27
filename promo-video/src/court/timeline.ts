@@ -32,6 +32,7 @@ export const BEAT = {
   answer: 1232,
   play: 1244,
   slam2: 1535,
+  knock: 1566, // Srutam's knock-knock on Aarav's desk phone
   sent: 1592,
 } as const;
 
@@ -66,13 +67,15 @@ export const SFX: Cue[] = [
   { file: "court/scratch.wav", at: 1091, volume: 0.6 },
   { file: "sfx/shimmer.wav", at: 1094, volume: 0.45 },
   { file: "sfx/chime.wav", at: 1148, volume: 0.3 },
-  ...Array.from({ length: 9 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.ask + 2 + i * 2.6, volume: 0.2 })),
-  { file: "sfx2/blip.wav", at: BEAT.answer, volume: 0.3 },
+  ...Array.from({ length: 9 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.ask + 2 + i * 1.7, volume: 0.2 })),
+  // Srutam's notification is the app's own knock-knock (app/src/main/res/raw/srutam_knock.wav)
+  { file: "sfx/knock.wav", at: BEAT.answer - 2, volume: 0.55 },
   { file: "sfx2/tap.wav", at: BEAT.play - 3, volume: 0.45 },
   { file: "court/boing.wav", at: 1366, volume: 0.35 },
   { file: "court/gavel.wav", at: BEAT.slam2, volume: 0.6 },
   { file: "court/typing.wav", at: 1558, volume: 0.4 },
-  { file: "sfx2/blip.wav", at: BEAT.sent, volume: 0.4 },
+  { file: "sfx/knock.wav", at: BEAT.knock, volume: 0.6 },
+  { file: "sfx2/tap.wav", at: BEAT.sent, volume: 0.4 },
   { file: "sfx/whoosh.wav", at: 1616, volume: 0.35 },
 ];
 

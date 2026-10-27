@@ -21,8 +21,8 @@ const Q = "What did Priya say the deadline was?";
 export const SrutamPhone: React.FC<{ f: number; w: number; ask: number; answer: number; play: number; playLen: number }> = ({ f, w, ask, answer, play, playLen }) => {
   // The real screen is ~392dp wide; draw it a little larger (340dp) so it reads in a video.
   const dp = (n: number) => (n * w) / 340;
-  const n = Math.max(0, Math.min(Q.length, Math.floor((f - ask) * 1.6)));
-  const sentAt = ask + Q.length / 1.6 + 4;
+  const n = Math.max(0, Math.min(Q.length, Math.floor((f - ask) * 2.4)));
+  const sentAt = ask + Q.length / 2.4 + 3;
   const sent = f >= sentAt;
   const bubble = springAt(f, 0, [{ at: sentAt, to: 1 }], 15, 200);
   const thinking = sent && f < answer;
