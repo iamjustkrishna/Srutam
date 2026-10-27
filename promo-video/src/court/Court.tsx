@@ -308,8 +308,9 @@ const Rings: React.FC<{ f: number; x: number; y: number; file?: string }> = ({ f
 const ShotSrutam: React.FC = () => {
   const f = useF(SHOTS.srutam);
   return (
-    <Shot f={f} sh={SHOTS.srutam} img="c11" zoom={[1.0, 1.12]} focus={[[472, 900], [470, 860]]} swap={{ open: "c11b", at: [466, 935], r: [60, 40], file: "c-recording" }}>
-      <Rings f={f} x={466 * S} y={860 * S} file="c-recording" />
+    <Shot f={f} sh={SHOTS.srutam} img="c11" zoom={[1.0, 1.1]} focus={[[460, 800], [455, 640]]}>
+      <Rings f={f} x={455 * S} y={595 * S} file="c-recording" />
+      <div style={{ position: "absolute", left: 455 * S - 420, top: 595 * S - 420, width: 840, height: 840, borderRadius: 999, background: "radial-gradient(circle, rgba(147,197,253,0.75) 0%, rgba(59,130,246,0) 65%)", opacity: 0.25 + 0.75 * level("c-recording", f), mixBlendMode: "screen" }} />
     </Shot>
   );
 };
@@ -321,8 +322,8 @@ const ShotProof: React.FC = () => {
   const PW = 760;
   return (
     <AbsoluteFill>
-      <Shot f={f} sh={SHOTS.proof} img="c11" zoom={[1.15, 1.2]} focus={[[470, 860], [470, 860]]} filter="blur(12px) brightness(0.55)">
-        <Rings f={f} x={466 * S} y={860 * S} />
+      <Shot f={f} sh={SHOTS.proof} img="c11" zoom={[1.15, 1.2]} focus={[[455, 640], [455, 640]]} filter="blur(12px) brightness(0.55)">
+        <Rings f={f} x={455 * S} y={595 * S} />
       </Shot>
       <div style={{ position: "absolute", left: (W - PW) / 2, top: 140, transform: `translateY(${(1 - k) * 900}px) rotate(${-1.5 + Math.sin(f / 30) * 0.4}deg)` }}>
         <PhoneBody w={PW}>
@@ -419,6 +420,6 @@ export const BrainCourt: React.FC = () => (
       </Sequence>
     ))}
     <Captions cues={CAPTIONS} k={K} />
-    <Soundtrack music="court/music.wav" musicVolume={0.4} lines={VO} sfx={SFX} k={K} sfxGain={0.7} duck={0.35} />
+    <Soundtrack music="court/music.wav" musicVolume={0.5} lines={VO} sfx={SFX} k={K} sfxGain={0.7} duck={0.35} />
   </AbsoluteFill>
 );

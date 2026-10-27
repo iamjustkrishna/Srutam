@@ -97,7 +97,7 @@ def lipsync(files):
 
 if __name__ == "__main__":
     d = PUB / "court"
-    write(d / "music.wav", court_music(), 0.5)
+    # The score is scripts/court-music.py (public/court/music.wav).
     write(d / "gavel.wav", bam(), 0.8)
     write(d / "rings.wav", phone_ring(4.2), 0.5)
     write(d / "scratch.wav", scratch(), 0.7)
