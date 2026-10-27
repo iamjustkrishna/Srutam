@@ -9,6 +9,7 @@
 # two-pass loudnorm'd to -14 LUFS / -1.5 dBTP; with one (an mp4 or wav), that is muxed.
 # Set REMOTION_BROWSER_EXECUTABLE if Chromium isn't found on its own.
 set -e
+export REMOTION_BROWSER_EXECUTABLE=${REMOTION_BROWSER_EXECUTABLE:-$(ls /opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell 2>/dev/null | head -1)}
 comp=$1; total=$2; out=$3; audio=$4; step=720
 dir=$(dirname "$out")/chunks-$comp; mkdir -p "$dir"
 if [ -z "$audio" ]; then

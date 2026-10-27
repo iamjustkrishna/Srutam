@@ -188,3 +188,22 @@ Other lessons:
   "Cute mascot characters" with a "cloud-like pink" judge went through.
 
 Render: `scripts/render/render.sh BrainCourt 3420 out/brain-court.mp4` (57 s).
+
+## Editing without re-rendering everything
+
+The timeline file (`src/<story>/timeline.ts`) is the one place that holds shots, voice lines,
+sound-effect cues, captions and beats, so a sound or timing edit is a one-line change there.
+
+| You want to change | Do this | Cost |
+| --- | --- | --- |
+| A sound effect, volume, music level, a voice line's timing | edit `timeline.ts`, then `scripts/render/render.sh <Comp> <frames> out/<x>.mp4` after deleting `out/<x>/chunks-<Comp>/audio*.wav` | audio only, about 10 s; cached video chunks are reused |
+| One shot's picture or motion | edit `Court.tsx`, then `scripts/render/render-shots.sh <Comp> <story> <shot>` | that shot only |
+| Edit by hand in a DAW or NLE | `node scripts/render/export-edit.mjs <story>` | writes `out/<story>-edit/` |
+
+`export-edit.mjs` writes `cues.csv` (every voice, sound effect and caption with start time,
+length, source file and volume), `shots.csv`, and full-length `voices.wav`, `sfx.wav` and
+`music.wav` stems on the same clock. Together with the per-shot clips in `out/<story>-shots/`
+(muted, one file per shot) the cut can be rebuilt in any editor. Stems are un-ducked and
+un-normalised. If you change picture code a shot depends on, re-render that shot by name; the
+scripts don't detect that for you. On this container, Remotion needs the local headless shell
+(the scripts pick it up from `/opt/pw-browsers`); it cannot download its own browser.
