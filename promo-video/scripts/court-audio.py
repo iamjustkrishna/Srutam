@@ -1,4 +1,4 @@
-"""Music, sound effects and lip-sync data for "The Brain Court" (src/court/timeline.ts, 57 s).
+"""Music, sound effects and lip-sync data for "The Brain Court" (src/court/timeline.ts, 58 s).
 
     python scripts/court-audio.py
 
@@ -20,7 +20,7 @@ from generate_audio_stories import (
     scratch, shape, t_axis, tv_laugh, typing, write,
 )
 
-TOTAL = 1710 / 30
+TOTAL = 1740 / 30
 s = lambda frame: frame / 30
 V = PUB / "voiceover" / "en" / "court"
 
@@ -58,15 +58,15 @@ def court_music(total=TOTAL):
     # "Objection." -> silence, then bells as Srutam speaks
     for k, n in enumerate(["C5", "E5", "G5", "C6", "E6"]):
         place(buf, bell(hz(n), 2.2), s(1144) + k * 0.09, 0.09)
-    place(buf, shape(pad(["C4", "G4", "E5"], s(190), 0.5, 0.8), 2500), s(1140), 0.14)
+    place(buf, shape(pad(["C4", "G4", "E5"], s(220), 0.5, 0.8), 2500), s(1140), 0.14)
     # Verdict and Aarav back at work: a bouncy groove
-    groove(buf, s(1334), s(1588), ["C5", "E5", "G5", "E5", "F5", "A5", "G5", "E5"], ["C3", "F2", "G2", "C3"], 60 / 120, 0.9)
+    groove(buf, s(1364), s(1618), ["C5", "E5", "G5", "E5", "F5", "A5", "G5", "E5"], ["C3", "F2", "G2", "C3"], 60 / 120, 0.9)
     # Call to action: a warm lift
-    cta = pad(["F3", "C4", "A4", "C5"], total - s(1590), 0.4, 0.5)
+    cta = pad(["F3", "C4", "A4", "C5"], total - s(1620), 0.4, 0.5)
     cta *= np.linspace(1, 0, len(cta)) ** 1.1
-    place(buf, shape(cta, 3000), s(1590), 0.3)
+    place(buf, shape(cta, 3000), s(1620), 0.3)
     for k, n in enumerate(["C5", "F5", "A5"]):
-        place(buf, bell(hz(n), 1.6), s(1600) + k * 0.12, 0.06)
+        place(buf, bell(hz(n), 1.6), s(1630) + k * 0.12, 0.06)
     return buf
 
 

@@ -10,6 +10,7 @@ import { Captions, Soundtrack } from "../stories/Story";
 import { K, useT } from "../stories/time";
 import { H, W } from "../storyboards/Kit";
 import { LIPSYNC } from "./lipsync";
+import { SrutamPhone, PhoneBody } from "./SrutamPhone";
 import { BEAT, CAPTIONS, SFX, SHOTS, TOTAL, VO } from "./timeline";
 
 type Span = { from: number; duration: number };
@@ -284,8 +285,8 @@ const ShotDoors: React.FC = () => {
   return (
     <AbsoluteFill>
       <Shot f={f} sh={SHOTS.doors} img="c10" zoom={[1.0, 1.15]} focus={[[472, 840], [472, 640]]} shake={10} />
-      <Flash f={f} at={SHOTS.doors.from} len={12} color="#9ff7ef" peak={0.9} />
-      <Lettering f={f} at={1100} text="OBJECTION!" color="#5EEAD4" y={1180} size={150} rot={-5} />
+      <Flash f={f} at={SHOTS.doors.from} len={12} color="#BFDBFE" peak={0.9} />
+      <Lettering f={f} at={1100} text="OBJECTION!" color="#60A5FA" y={1180} size={150} rot={-5} />
     </AbsoluteFill>
   );
 };
@@ -297,7 +298,7 @@ const Rings: React.FC<{ f: number; x: number; y: number; file?: string }> = ({ f
     <>
       {[0, 1, 2].map((i) => {
         const k = ((f / 40 + i / 3) % 1 + 1) % 1;
-        return <div key={i} style={{ position: "absolute", left: x - 150 - k * 260, top: y - 150 - k * 260, width: 300 + k * 520, height: 300 + k * 520, borderRadius: 999, border: `${6 + v * 10}px solid rgba(94,234,212,${0.55 * (1 - k)})` }} />;
+        return <div key={i} style={{ position: "absolute", left: x - 150 - k * 260, top: y - 150 - k * 260, width: 300 + k * 520, height: 300 + k * 520, borderRadius: 999, border: `${6 + v * 10}px solid rgba(96,165,250,${0.6 * (1 - k)})` }} />;
       })}
     </>
   );
@@ -313,31 +314,20 @@ const ShotSrutam: React.FC = () => {
   );
 };
 
-/* 12. The recording plays, as an answer card over the court. */
-const WAVE = Array.from({ length: 46 }, (_, i) => 0.25 + 0.75 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6)));
+/* 12. The real app: Aarav's question, the answer with transcript evidence, and the recording playing. */
 const ShotProof: React.FC = () => {
   const f = useF(SHOTS.proof);
-  const k = springAt(f, 0, [{ at: SHOTS.proof.from + 2, to: 1 }], 14, 150);
-  const p = interpolate(f, [BEAT.play, BEAT.play + 111], [0, 1], clamp);
-  const sec = 22 + Math.floor(p * 4);
+  const k = springAt(f, 0, [{ at: SHOTS.proof.from + 2, to: 1 }], 15, 130);
+  const PW = 760;
   return (
     <AbsoluteFill>
-      <Shot f={f} sh={SHOTS.proof} img="c11" zoom={[1.15, 1.2]} focus={[[470, 860], [470, 860]]} filter="blur(10px) brightness(0.6)">
+      <Shot f={f} sh={SHOTS.proof} img="c11" zoom={[1.15, 1.2]} focus={[[470, 860], [470, 860]]} filter="blur(12px) brightness(0.55)">
         <Rings f={f} x={466 * S} y={860 * S} />
       </Shot>
-      <div style={{ position: "absolute", left: 70, right: 70, top: 560, transform: `translateY(${(1 - k) * 600}px) scale(${0.9 + 0.1 * k})`, opacity: Math.min(1, k * 1.5), background: "#0E1B2B", border: "3px solid #5EEAD4", borderRadius: 44, padding: "44px 48px", boxShadow: "0 30px 80px rgba(0,0,0,0.5), 0 0 60px rgba(94,234,212,0.35)", fontFamily: "Inter", color: "#E2E8F0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 34, fontWeight: 700, color: "#5EEAD4" }}>
-          <div style={{ width: 22, height: 22, borderRadius: 99, background: "#EF4444", opacity: Math.floor(f / 10) % 2 ? 1 : 0.4 }} />
-          Today · 3:00 PM call · 14:{sec}
-        </div>
-        <div style={{ fontFamily: "Kalam", fontWeight: 700, fontSize: 64, lineHeight: 1.2, marginTop: 30, color: "#F8FAFC" }}>
-          “…send me the final deck by <span style={{ background: "rgba(94,234,212,0.3)", borderRadius: 10, padding: "0 8px" }}>tomorrow, 10 a.m.</span>”
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, height: 90, marginTop: 34 }}>
-          {WAVE.map((h, i) => (
-            <div key={i} style={{ flex: 1, height: `${h * (i / WAVE.length < p ? 100 : 60)}%`, borderRadius: 6, background: i / WAVE.length < p ? "#5EEAD4" : "#334155" }} />
-          ))}
-        </div>
+      <div style={{ position: "absolute", left: (W - PW) / 2, top: 140, transform: `translateY(${(1 - k) * 900}px) rotate(${-1.5 + Math.sin(f / 30) * 0.4}deg)` }}>
+        <PhoneBody w={PW}>
+          <SrutamPhone f={f} w={PW * 0.94} ask={BEAT.ask} answer={BEAT.answer} play={BEAT.play} playLen={111} />
+        </PhoneBody>
       </div>
     </AbsoluteFill>
   );
@@ -388,11 +378,11 @@ const ShotCta: React.FC = () => {
   const k = (at: number) => interpolate(f, [at, at + 10], [0, 1], { ...clamp, easing: easeOut });
   const line = (at: number): React.CSSProperties => ({ opacity: k(at), transform: `translateY(${(1 - k(at)) * 40}px)` });
   return (
-    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 30%, #12403d 0%, #050714 70%)", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 80 }}>
-      <Rings f={f} x={W / 2} y={360} file="c-cta" />
-      <div style={{ ...line(0), fontFamily: "Playfair Display", fontSize: 150, color: "#F8FAFC" }}>Srutam</div>
+    <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 30%, #1E3A8A 0%, #050714 70%)", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 80 }}>
+      <Img src={staticFile("court/srutam-logo.png")} style={{ ...line(0), width: 300, height: 300, marginBottom: -20, filter: `drop-shadow(0 0 ${30 + 30 * level("c-cta", f)}px rgba(96,165,250,0.7))` }} />
+      <div style={{ ...line(4), fontFamily: "Playfair Display", fontSize: 150, color: "#F8FAFC" }}>Srutam</div>
       <div style={{ ...line(8), fontFamily: "Inter", fontWeight: 700, fontSize: 56, color: "#E2E8F0", marginTop: 40, lineHeight: 1.3 }}>Record your meetings and lectures.</div>
-      <div style={{ ...line(16), fontFamily: "Inter", fontWeight: 700, fontSize: 56, color: "#5EEAD4", marginTop: 18, lineHeight: 1.3 }}>Ask later. It finds who said what.</div>
+      <div style={{ ...line(16), fontFamily: "Inter", fontWeight: 700, fontSize: 56, color: "#93C5FD", marginTop: 18, lineHeight: 1.3 }}>Ask later. It finds who said what.</div>
       <div style={{ ...line(28), marginTop: 90, transform: `scale(${0.9 + 0.1 * k(28) + 0.02 * Math.sin(f / 5)})`, background: "#F8FAFC", color: "#0B1033", fontFamily: "Inter", fontWeight: 800, fontSize: 54, padding: "30px 60px", borderRadius: 999 }}>▶ Get it on Google Play</div>
       <div style={{ ...line(36), fontFamily: "Inter", fontWeight: 600, fontSize: 42, color: "#CBD5E1", marginTop: 44 }}>srutam.iamjustkrishna.space</div>
       <div style={{ ...line(42), fontFamily: "Inter", fontWeight: 600, fontSize: 42, color: "#94A3B8", marginTop: 12 }}>Instagram @srutam.app</div>

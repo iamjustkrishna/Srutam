@@ -4,7 +4,7 @@
 // scripts/court-audio.py mirrors these times.
 import type { CaptionCue, Cue, Line } from "../stories/Story";
 
-export const TOTAL = 1710; // 57 s
+export const TOTAL = 1740; // 58 s
 
 export const SHOTS = {
   gavel: { from: 0, duration: 84 }, // 1 "ORDER! Who lost the deadline?!"
@@ -18,19 +18,21 @@ export const SHOTS = {
   spiral: { from: 960, duration: 130 }, // 9 "WHAT IF WE'RE ALREADY FIRED?!"
   doors: { from: 1090, duration: 50 }, // 10 "Objection."
   srutam: { from: 1140, duration: 60 }, // 11 "I have the recording."
-  proof: { from: 1200, duration: 130 }, // 12 the recording plays
-  react: { from: 1330, duration: 70 }, // 13 reactions
-  closed: { from: 1400, duration: 120 }, // 14 "Case closed. Next time… record it."
-  relief: { from: 1520, duration: 70 }, // 15 Aarav exhales, gets to work
-  cta: { from: 1590, duration: TOTAL - 1590 }, // call to action
+  proof: { from: 1200, duration: 160 }, // 12 the recording plays
+  react: { from: 1360, duration: 70 }, // 13 reactions
+  closed: { from: 1430, duration: 120 }, // 14 "Case closed. Next time… record it."
+  relief: { from: 1550, duration: 70 }, // 15 Aarav exhales, gets to work
+  cta: { from: 1620, duration: TOTAL - 1620 }, // call to action
 } as const;
 
 export const BEAT = {
   slam: 8,
   push: 138,
-  play: 1214,
-  slam2: 1505,
-  sent: 1562,
+  ask: 1204,
+  answer: 1232,
+  play: 1244,
+  slam2: 1535,
+  sent: 1592,
 } as const;
 
 const V = "voiceover/en/court";
@@ -46,9 +48,9 @@ export const VO: (Line & { src: string })[] = [
   { file: "c-objection", at: 1098, frames: 32, src: `${V}/srutam/c-objection.mp3` },
   { file: "c-recording", at: 1146, frames: 47, src: `${V}/srutam/c-recording.mp3` },
   { file: "c-deadline", at: BEAT.play, frames: 111, src: `${V}/manager/c-deadline-phone.mp3` },
-  { file: "c-told", at: 1352, frames: 39, src: `${V}/overconf/c-told.mp3` },
-  { file: "c-closed", at: 1404, frames: 104, src: `${V}/judge/c-closed.mp3` },
-  { file: "c-cta", at: 1598, frames: 75, src: `${V}/srutam/c-cta.mp3` },
+  { file: "c-told", at: 1382, frames: 39, src: `${V}/overconf/c-told.mp3` },
+  { file: "c-closed", at: 1434, frames: 104, src: `${V}/judge/c-closed.mp3` },
+  { file: "c-cta", at: 1628, frames: 75, src: `${V}/srutam/c-cta.mp3` },
 ];
 
 export const SFX: Cue[] = [
@@ -64,12 +66,14 @@ export const SFX: Cue[] = [
   { file: "court/scratch.wav", at: 1091, volume: 0.6 },
   { file: "sfx/shimmer.wav", at: 1094, volume: 0.45 },
   { file: "sfx/chime.wav", at: 1148, volume: 0.3 },
-  { file: "sfx2/tap.wav", at: BEAT.play - 6, volume: 0.45 },
-  { file: "court/boing.wav", at: 1336, volume: 0.35 },
+  ...Array.from({ length: 9 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.ask + 2 + i * 2.6, volume: 0.2 })),
+  { file: "sfx2/blip.wav", at: BEAT.answer, volume: 0.3 },
+  { file: "sfx2/tap.wav", at: BEAT.play - 3, volume: 0.45 },
+  { file: "court/boing.wav", at: 1366, volume: 0.35 },
   { file: "court/gavel.wav", at: BEAT.slam2, volume: 0.6 },
-  { file: "court/typing.wav", at: 1528, volume: 0.4 },
+  { file: "court/typing.wav", at: 1558, volume: 0.4 },
   { file: "sfx2/blip.wav", at: BEAT.sent, volume: 0.4 },
-  { file: "sfx/whoosh.wav", at: 1586, volume: 0.35 },
+  { file: "sfx/whoosh.wav", at: 1616, volume: 0.35 },
 ];
 
 export const CAPTIONS: CaptionCue[] = [
@@ -83,6 +87,6 @@ export const CAPTIONS: CaptionCue[] = [
   { from: 966, to: 1088, text: "“What if it's TOMORROW? What if it was TODAY? WHAT IF WE'RE ALREADY FIRED?!”" },
   { from: 1098, to: 1132, text: "“Objection.”" },
   { from: 1146, to: 1196, text: "“I have the recording.”" },
-  { from: 1352, to: 1394, text: "“Told you I'd remember.”" },
-  { from: 1404, to: 1510, text: "“Case closed. Next time… record it.”" },
+  { from: 1382, to: 1424, text: "“Told you I'd remember.”" },
+  { from: 1434, to: 1540, text: "“Case closed. Next time… record it.”" },
 ];
