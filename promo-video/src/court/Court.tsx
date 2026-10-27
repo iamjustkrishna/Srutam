@@ -420,6 +420,6 @@ export const BrainCourt: React.FC = () => (
       </Sequence>
     ))}
     <Captions cues={CAPTIONS} k={K} />
-    <Soundtrack music="court/music.wav" musicVolume={0.5} lines={VO} sfx={SFX} k={K} sfxGain={0.7} duck={0.35} />
+    <Soundtrack music="court/music.wav" musicVolume={0.32} lines={VO} sfx={SFX} k={K} sfxGain={0.7} duck={0.35} />
   </AbsoluteFill>
 );
