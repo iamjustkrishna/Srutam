@@ -319,15 +319,15 @@ const ShotSrutam: React.FC = () => {
 const ShotProof: React.FC = () => {
   const f = useF(SHOTS.proof);
   const k = springAt(f, 0, [{ at: SHOTS.proof.from + 2, to: 1 }], 15, 130);
-  const PW = 760;
+  const PW = 740;
   return (
     <AbsoluteFill>
       <Shot f={f} sh={SHOTS.proof} img="c11" zoom={[1.15, 1.2]} focus={[[455, 640], [455, 640]]} filter="blur(12px) brightness(0.55)">
         <Rings f={f} x={455 * S} y={595 * S} />
       </Shot>
-      <div style={{ position: "absolute", left: (W - PW) / 2, top: 140, transform: `translateY(${(1 - k) * 900}px) rotate(${-1.5 + Math.sin(f / 30) * 0.4}deg)` }}>
+      <div style={{ position: "absolute", left: (W - PW) / 2 - 20, top: 110, transform: `translateY(${(1 - k) * 900}px) rotate(${-1.5 + Math.sin(f / 30) * 0.4}deg)` }}>
         <PhoneBody w={PW}>
-          <SrutamPhone f={f} w={PW * 0.94} ask={BEAT.ask} answer={BEAT.answer} play={BEAT.play} playLen={111} />
+          <SrutamPhone f={f} w={PW} ask={BEAT.ask} answer={BEAT.answer} play={BEAT.play} playLen={111} />
         </PhoneBody>
       </div>
     </AbsoluteFill>
