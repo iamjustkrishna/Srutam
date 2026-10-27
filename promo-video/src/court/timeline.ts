@@ -66,7 +66,6 @@ export const SFX: Cue[] = [
   { file: "court/rings.wav", at: 962, volume: 0.35 },
   { file: "court/scratch.wav", at: 1091, volume: 0.6 },
   { file: "sfx/shimmer.wav", at: 1094, volume: 0.45 },
-  { file: "sfx/chime.wav", at: 1148, volume: 0.3 },
   ...Array.from({ length: 9 }, (_, i) => ({ file: "sfx2/tick.wav", at: BEAT.ask + 2 + i * 1.7, volume: 0.2 })),
   // Srutam's notification is the app's own knock-knock (app/src/main/res/raw/srutam_knock.wav)
   { file: "sfx/knock.wav", at: BEAT.answer - 2, volume: 0.55 },
