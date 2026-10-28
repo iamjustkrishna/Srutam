@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
@@ -18,15 +20,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,7 +57,12 @@ import space.iamjustkrishna.srutam.ui.theme.CosmicVoidBackground
 import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
+import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.TimeSaved
+import space.iamjustkrishna.srutam.ui.components.TimeSavedCardData
+import space.iamjustkrishna.srutam.ui.components.TimeSavedCardRenderer
+import kotlinx.coroutines.launch
+import android.widget.Toast
 
 /**
  * Your Srutam: how much time talking has saved, this month and in all. Opened from the line under
@@ -62,6 +74,8 @@ fun StatsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val totals = remember(recordings) { TimeSaved.totals(recordings, TimeSaved.monthStart()) }
     val dark = LocalIsCosmicDark.current
     val ink = if (dark) TextOnDarkPrimary else Color(0xFF1E2229)
@@ -89,7 +103,29 @@ fun StatsScreen(
                     EmptyStats(ink)
                 } else {
                     StatsPanel(totals)
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = {
+                            Analytics.timeSavedShared(context, "stats")
+                            scope.launch {
+                                val card = TimeSavedCardData.forTotals(
+                                    totals,
+                                    month = TimeSaved.period(recordings, TimeSaved.monthStart()),
+                                    allTime = TimeSaved.period(recordings, 0L)
+                                )
+                                runCatching { TimeSavedCardRenderer.share(context, card) }
+                                    .onFailure { Toast.makeText(context, "Couldn't share the card", Toast.LENGTH_SHORT).show() }
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Cobalt, contentColor = Color.White),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Share your time saved", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.height(18.dp))
                     HowItsCounted(ink, dark)
                 }
                 Spacer(Modifier.height(24.dp))

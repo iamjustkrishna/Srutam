@@ -25,6 +25,7 @@ class SrutamApplication : Application() {
         AudioFileReader.init(this)
         space.iamjustkrishna.srutam.utils.Analytics.init(this)
         space.iamjustkrishna.srutam.utils.Analytics.setUserProperties(this)
+        space.iamjustkrishna.srutam.service.WeeklyRecapWorker.schedule(this)
 
         // Auto-archive completed tasks and reconcile alarms while retaining saved history.
         appScope.launch {

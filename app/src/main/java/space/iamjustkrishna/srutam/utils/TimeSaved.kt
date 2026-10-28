@@ -90,6 +90,18 @@ object TimeSaved {
         return Totals(month, all, count, words, spoken, typing)
     }
 
+    /** What notes recorded at or after [sinceMs] add up to. */
+    fun period(notes: Collection<space.iamjustkrishna.srutam.data.Recording>, sinceMs: Long): TimePeriod {
+        var saved = 0L; var spoken = 0L; var typing = 0L; var count = 0; var words = 0
+        for (n in notes) {
+            if (n.timestamp < sinceMs || n.transcript.isNullOrBlank()) continue
+            val r = of(n.transcript, n.duration)
+            saved += r.savedSeconds; spoken += r.spokenSeconds; typing += r.typingSeconds
+            count++; words += r.words
+        }
+        return TimePeriod(saved, spoken, typing, count, words)
+    }
+
     /** The first moment of the current month in the device's time zone. */
     fun monthStart(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
         java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate().withDayOfMonth(1)

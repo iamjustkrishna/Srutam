@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,7 +73,7 @@ internal val LINING = TextStyle(fontFeatureSettings = "lnum")
  * in the system settings, it just shows its final state.
  */
 @Composable
-fun TimeSavedReward(result: TimeSaved.Result, modifier: Modifier = Modifier) {
+fun TimeSavedReward(result: TimeSaved.Result, modifier: Modifier = Modifier, onShare: (() -> Unit)? = null) {
     val context = LocalContext.current
     val animated = remember {
         runCatching { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }
@@ -194,6 +195,20 @@ fun TimeSavedReward(result: TimeSaved.Result, modifier: Modifier = Modifier) {
                 Column {
                     Text("First milestone: 5 minutes saved", fontSize = 14.sp, color = Ice, fontWeight = FontWeight.Medium)
                     Text("${TimeSaved.short(result.secondsToFirstMilestone)} to go", fontSize = 12.sp, color = Mist)
+                }
+            }
+            if (onShare != null) {
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .clickable(onClick = onShare),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Share this", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
         }

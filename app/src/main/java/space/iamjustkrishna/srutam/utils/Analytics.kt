@@ -178,6 +178,20 @@ object Analytics {
 
     fun sampleNoteOpened(context: Context) = log(context, EVENT_SAMPLE_NOTE_OPENED)
 
+    // ---- Your Srutam: time saved ----
+
+    /** [source]: header, settings, recap or milestone. */
+    fun statsOpened(context: Context, source: String) = log(context, "stats_opened", mapOf("source" to source))
+
+    fun timeSavedTipShown(context: Context) = log(context, "time_saved_tip_shown")
+
+    /** [source]: stats, reward or milestone. */
+    fun timeSavedShared(context: Context, source: String) = log(context, "time_saved_shared", mapOf("source" to source))
+
+    fun timeSavedMilestone(context: Context, seconds: Long) = log(context, "time_saved_milestone", mapOf("seconds" to seconds))
+
+    fun weeklyRecapSent(context: Context) = log(context, "weekly_recap_sent")
+
     // ---- Settings ----
 
     /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */

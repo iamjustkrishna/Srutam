@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
+import space.iamjustkrishna.srutam.service.WeeklyRecapWorker
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -58,6 +60,7 @@ import space.iamjustkrishna.srutam.utils.AudioFileReader
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onOpenStats: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -88,6 +91,8 @@ fun SettingsScreen(
     var askNameAfterRecording by remember {
         mutableStateOf(AppPreferences.isAskNameAfterRecording(context))
     }
+    var weeklyRecapEnabled by remember { mutableStateOf(AppPreferences.isWeeklyRecapEnabled(context)) }
+    var timeSavedLineShown by remember { mutableStateOf(AppPreferences.isTimeSavedLineShown(context)) }
 
     Scaffold(
         topBar = {
@@ -275,6 +280,45 @@ fun SettingsScreen(
                         space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "quick_notif", enabled)
                     },
                     enabled = !QuickRecordNotification.switchLocked(isFloatingDockEnabled)
+                )
+            }
+
+            // =========================================================
+            // Your Srutam: time saved
+            // =========================================================
+            SettingsSection(title = "YOUR SRUTAM") {
+                SettingsLinkRow(
+                    icon = Icons.Default.Bolt,
+                    title = "Your Srutam",
+                    subtitle = "How much time talking has saved you, and a card to share",
+                    onClick = onOpenStats
+                )
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
+                SettingsToggleRow(
+                    icon = Icons.Default.Notifications,
+                    iconBg = Color(0xFFFEF3C7),
+                    iconTint = Color(0xFFD97706),
+                    title = "Weekly recap",
+                    subtitle = "A Sunday evening note on the time you saved this week. Quiet weeks send nothing.",
+                    checked = weeklyRecapEnabled,
+                    onCheckedChange = { enabled ->
+                        weeklyRecapEnabled = enabled
+                        AppPreferences.setWeeklyRecapEnabled(context, enabled)
+                        if (enabled) WeeklyRecapWorker.schedule(context) else WeeklyRecapWorker.cancel(context)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "weekly_recap", enabled)
+                    }
+                )
+                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
+                SettingsToggleRow(
+                    icon = Icons.Default.Schedule,
+                    title = "Time saved under the title",
+                    subtitle = "The small line on Notes. Off hides it; Your Srutam stays here.",
+                    checked = timeSavedLineShown,
+                    onCheckedChange = { enabled ->
+                        timeSavedLineShown = enabled
+                        AppPreferences.setTimeSavedLineShown(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "time_saved_line", enabled)
+                    }
                 )
             }
 
@@ -977,6 +1021,52 @@ private fun SettingsSection(
             border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
             shadowElevation = if (isDark) 0.dp else 2.dp,
             content = { Column(content = content) }
+        )
+    }
+}
+
+@Composable
+private fun SettingsLinkRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    val isDark = LocalIsCosmicDark.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isDark) CobaltContainer.copy(alpha = 0.2f) else CobaltContainer)
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = CobaltBlue, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) TextOnDarkPrimary else TextPrimary
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = if (isDark) TextOnDarkSecondary else TextSecondary
         )
     }
 }

@@ -647,4 +647,41 @@ object AppPreferences {
             .apply()
         return willBeBookmarked
     }
+
+    // ---- Your Srutam: time saved ----
+
+    private const val KEY_WEEKLY_RECAP = "weekly_recap_enabled"
+    private const val KEY_TIME_SAVED_LINE = "time_saved_line_shown"
+    private const val KEY_LAST_MILESTONE = "time_saved_last_milestone_seconds"
+
+    /** The Sunday recap notification. On unless turned off, and it is only sent when the week saved something. */
+    fun isWeeklyRecapEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_WEEKLY_RECAP, true)
+
+    fun setWeeklyRecapEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_WEEKLY_RECAP, enabled).apply()
+    }
+
+    private val _timeSavedLineFlow = MutableStateFlow<Boolean?>(null)
+    val timeSavedLineFlow: StateFlow<Boolean?> = _timeSavedLineFlow.asStateFlow()
+
+    /** The "6h 23m saved this month" line under the title on Notes. On unless hidden in Settings. */
+    fun isTimeSavedLineShown(context: Context): Boolean {
+        val shown = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_TIME_SAVED_LINE, true)
+        if (_timeSavedLineFlow.value == null) _timeSavedLineFlow.value = shown
+        return shown
+    }
+
+    fun setTimeSavedLineShown(context: Context, shown: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_TIME_SAVED_LINE, shown).apply()
+        _timeSavedLineFlow.value = shown
+    }
+
+    /** The highest time-saved milestone already celebrated, in seconds. */
+    fun getLastMilestoneSeconds(context: Context): Long =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getLong(KEY_LAST_MILESTONE, 0L)
+
+    fun setLastMilestoneSeconds(context: Context, seconds: Long) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putLong(KEY_LAST_MILESTONE, seconds).apply()
+    }
 }

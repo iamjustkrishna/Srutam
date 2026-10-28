@@ -22,6 +22,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.runtime.rememberCoroutineScope
+import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.scaleIn
@@ -846,7 +849,19 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                     }
                     if (timeSaved.worthShowing) {
                         Spacer(Modifier.height(14.dp))
-                        TimeSavedReward(timeSaved)
+                        val shareScope = rememberCoroutineScope()
+                        val shareContext = LocalContext.current
+                        TimeSavedReward(timeSaved, onShare = {
+                            space.iamjustkrishna.srutam.utils.Analytics.timeSavedShared(shareContext, "reward")
+                            shareScope.launch {
+                                val card = space.iamjustkrishna.srutam.ui.components.TimeSavedCardData(
+                                    "My first note",
+                                    space.iamjustkrishna.srutam.utils.TimePeriod(timeSaved.savedSeconds, timeSaved.spokenSeconds, timeSaved.typingSeconds, 1, timeSaved.words)
+                                )
+                                runCatching { space.iamjustkrishna.srutam.ui.components.TimeSavedCardRenderer.share(shareContext, card, campaign = "first_note") }
+                                    .onFailure { Toast.makeText(shareContext, "Couldn't share the card", Toast.LENGTH_SHORT).show() }
+                            }
+                        })
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(

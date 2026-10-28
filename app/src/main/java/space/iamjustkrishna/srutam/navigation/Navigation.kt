@@ -90,8 +90,17 @@ sealed class Screen(val route: String) {
 fun SrutamNavigation(
     navController: NavHostController = rememberNavController(),
     initialRecordingId: Long? = null,
-    initialReminderId: String? = null
+    initialReminderId: String? = null,
+    openStatsToken: Long? = null
 ) {
+    val context = LocalContext.current
+    // The weekly recap notification opens Your Srutam.
+    LaunchedEffect(openStatsToken) {
+        if (openStatsToken != null) {
+            space.iamjustkrishna.srutam.utils.Analytics.statsOpened(context, "recap")
+            navController.navigate(Screen.Stats.route)
+        }
+    }
     LaunchedEffect(initialRecordingId) {
         if (initialRecordingId != null && (initialRecordingId > 0L || SampleNote.isSample(initialRecordingId))) {
             navController.navigate(Screen.Detail.createRoute(initialRecordingId))
@@ -154,7 +163,11 @@ fun SrutamNavigation(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onOpenStats = {
+                    space.iamjustkrishna.srutam.utils.Analytics.statsOpened(context, "settings")
+                    navController.navigate(Screen.Stats.route)
+                }
             )
         }
 
@@ -286,7 +299,10 @@ private fun RootScreen(
                 currentTab = currentTab,
                 onTabSelected = { currentTab = it },
                 onSettingsClick = { navController.navigate(Screen.Settings.route) },
-                onStatsClick = { navController.navigate(Screen.Stats.route) },
+                onStatsClick = {
+                    space.iamjustkrishna.srutam.utils.Analytics.statsOpened(context, "header")
+                    navController.navigate(Screen.Stats.route)
+                },
                 audioFiles = audioFiles,
                 recordingsByPath = recordingsByPath,
                 playbackState = playbackState,
@@ -384,7 +400,10 @@ private fun RootScreen(
                             onSettingsClick = {
                                 navController.navigate(Screen.Settings.route)
                             },
-                            onStatsClick = { navController.navigate(Screen.Stats.route) },
+                            onStatsClick = {
+                    space.iamjustkrishna.srutam.utils.Analytics.statsOpened(context, "header")
+                    navController.navigate(Screen.Stats.route)
+                },
                             viewModel = viewModel
                         )
                     }

@@ -53,12 +53,15 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_RECORDING_ID = "space.iamjustkrishna.srutam.EXTRA_OPEN_RECORDING_ID"
         const val EXTRA_OPEN_REMINDER_ID = "extra_open_reminder_id"
+        /** A timestamp: each tap on the weekly recap sets a new one, so Your Srutam opens every time. */
+        const val EXTRA_OPEN_STATS = "extra_open_stats"
         /** Set by [space.iamjustkrishna.srutam.service.MicPermission]: ask for the mic, then record from this source. */
         const val EXTRA_REQUEST_MIC_SOURCE = "extra_request_mic_source"
     }
 
     private var openRecordingId by mutableStateOf<Long?>(null)
     private var openReminderId by mutableStateOf<String?>(null)
+    private var openStatsToken by mutableStateOf<Long?>(null)
     private var micRequestSource by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +74,7 @@ class MainActivity : ComponentActivity() {
 
         openRecordingId = intent?.getLongExtra(EXTRA_OPEN_RECORDING_ID, -1L)?.takeIf { it > 0 }
         openReminderId = intent?.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        openStatsToken = intent?.getLongExtra(EXTRA_OPEN_STATS, -1L)?.takeIf { it > 0 }
         micRequestSource = intent?.getStringExtra(EXTRA_REQUEST_MIC_SOURCE)
         cleanUpStaleRecordingNotification()
 
@@ -87,6 +91,7 @@ class MainActivity : ComponentActivity() {
                 SrutamApp(
                     initialRecordingId = openRecordingId,
                     initialReminderId = openReminderId,
+                    openStatsToken = openStatsToken,
                     micRequestSource = micRequestSource,
                     onMicRequestHandled = { micRequestSource = null }
                 )
@@ -118,6 +123,7 @@ class MainActivity : ComponentActivity() {
         if (remId != null) {
             openReminderId = remId
         }
+        intent.getLongExtra(EXTRA_OPEN_STATS, -1L).takeIf { it > 0 }?.let { openStatsToken = it }
         intent.getStringExtra(EXTRA_REQUEST_MIC_SOURCE)?.let { micRequestSource = it }
     }
 }
@@ -138,6 +144,7 @@ internal fun micPermissions(): Array<String> =
 fun SrutamApp(
     initialRecordingId: Long? = null,
     initialReminderId: String? = null,
+    openStatsToken: Long? = null,
     micRequestSource: String? = null,
     onMicRequestHandled: () -> Unit = {}
 ) {
@@ -259,7 +266,7 @@ fun SrutamApp(
                 )
             }
             AppStage.MAIN -> {
-                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId)
+                SrutamNavigation(initialRecordingId = initialRecordingId, initialReminderId = initialReminderId, openStatsToken = openStatsToken)
             }
         }
     }

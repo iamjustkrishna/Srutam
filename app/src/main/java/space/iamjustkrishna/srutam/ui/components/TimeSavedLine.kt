@@ -134,6 +134,7 @@ fun TimeSavedTip(enabled: Boolean, modifier: Modifier = Modifier) {
         if (!enabled || TimeSavedTipState.wasShown(context)) return@LaunchedEffect
         delay(1_500L)
         TimeSavedTipState.markShown(context)
+        space.iamjustkrishna.srutam.utils.Analytics.timeSavedTipShown(context)
         visible = true
         delay(7_000L)
         visible = false

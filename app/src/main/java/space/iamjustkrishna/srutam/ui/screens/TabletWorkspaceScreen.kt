@@ -556,6 +556,8 @@ fun TabletUnifiedSidebar(
     val autoAiState by AppPreferences.autoAiEnabledFlow.collectAsState()
     val isAutoAi = autoAiState ?: remember(context) { AppPreferences.isAutoAiEnabled(context) }
     val timeSavedTotals = remember(recordingsByPath) { TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart()) }
+    val lineSetting by AppPreferences.timeSavedLineFlow.collectAsState()
+    val showTimeSavedLine = (lineSetting ?: remember(context) { AppPreferences.isTimeSavedLineShown(context) }) && timeSavedTotals.worthShowingInHeader
     val pendingCount = remember(audioFiles, recordingsByPath) {
         audioFiles.count { audio ->
             if (audio.filePath == "srutam://welcome") false
@@ -580,7 +582,7 @@ fun TabletUnifiedSidebar(
             fontWeight = FontWeight.Bold,
             color = textPrimary
         )
-        if (timeSavedTotals.worthShowingInHeader) {
+        if (showTimeSavedLine) {
             Spacer(modifier = Modifier.height(4.dp))
             TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
         }
@@ -738,6 +740,8 @@ private fun MobileLandscapeDampedSidebar(
     val autoAiState by AppPreferences.autoAiEnabledFlow.collectAsState()
     val isAutoAi = autoAiState ?: remember(context) { AppPreferences.isAutoAiEnabled(context) }
     val timeSavedTotals = remember(recordingsByPath) { TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart()) }
+    val lineSetting by AppPreferences.timeSavedLineFlow.collectAsState()
+    val showTimeSavedLine = (lineSetting ?: remember(context) { AppPreferences.isTimeSavedLineShown(context) }) && timeSavedTotals.worthShowingInHeader
     val pendingCount = remember(audioFiles, recordingsByPath) {
         audioFiles.count { audio ->
             if (audio.filePath == "srutam://welcome") false
@@ -750,7 +754,7 @@ private fun MobileLandscapeDampedSidebar(
 
     val density = LocalDensity.current
     // The time-saved line, when shown, takes a little more room under the wordmark.
-    val baseTopOffsetDp = if (timeSavedTotals.worthShowingInHeader) 212.dp else 186.dp
+    val baseTopOffsetDp = if (showTimeSavedLine) 212.dp else 186.dp
     val minTopOffsetDp = 8.dp
     val maxShiftDp = baseTopOffsetDp - minTopOffsetDp
     val maxShiftPx = with(density) { maxShiftDp.toPx() }
@@ -880,7 +884,7 @@ private fun MobileLandscapeDampedSidebar(
                 fontWeight = FontWeight.Bold,
                 color = textPrimary
             )
-            if (timeSavedTotals.worthShowingInHeader) {
+            if (showTimeSavedLine) {
                 Spacer(modifier = Modifier.height(2.dp))
                 TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
             }

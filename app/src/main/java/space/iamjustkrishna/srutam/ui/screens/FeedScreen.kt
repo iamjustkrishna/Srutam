@@ -134,6 +134,10 @@ import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
 import space.iamjustkrishna.srutam.utils.TimeSaved
+import space.iamjustkrishna.srutam.utils.TimeSavedMilestones
+import space.iamjustkrishna.srutam.ui.components.MilestoneSheet
+import space.iamjustkrishna.srutam.ui.components.TimeSavedCardData
+import space.iamjustkrishna.srutam.ui.components.TimeSavedCardRenderer
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
@@ -599,6 +603,19 @@ fun FeedScreenContent(
     val timeSavedTotals = remember(recordingsByPath) {
         TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart())
     }
+    val lineSetting by AppPreferences.timeSavedLineFlow.collectAsState()
+    val showTimeSavedLine = (lineSetting ?: remember(context) { AppPreferences.isTimeSavedLineShown(context) }) && timeSavedTotals.worthShowingInHeader
+    // A milestone the total has crossed and nobody has celebrated yet; one at a time, highest first.
+    var milestone by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(timeSavedTotals.allTimeSeconds) {
+        if (milestone != null) return@LaunchedEffect
+        val step = TimeSavedMilestones.pending(timeSavedTotals.allTimeSeconds, AppPreferences.getLastMilestoneSeconds(context)) ?: return@LaunchedEffect
+        delay(1_200L)
+        AppPreferences.setLastMilestoneSeconds(context, step)
+        Analytics.timeSavedMilestone(context, step)
+        milestone = step
+    }
+    val milestoneScope = rememberCoroutineScope()
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -808,7 +825,7 @@ fun FeedScreenContent(
                 SrutamTopAppBar(
                     title = "Srutam",
                     belowTitle = {
-                        TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
+                        if (showTimeSavedLine) TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
                     },
                     actions = {
                         SquircleActionButton(
@@ -1130,9 +1147,28 @@ fun FeedScreenContent(
         }
             // The one-time "what is this line" bubble, right under the header.
             TimeSavedTip(
-                enabled = timeSavedTotals.worthShowingInHeader && !isSearchActive && selectedFilePaths.isEmpty(),
+                enabled = showTimeSavedLine && milestone == null && !isSearchActive && selectedFilePaths.isEmpty(),
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 2.dp)
             )
+            milestone?.let { step ->
+                MilestoneSheet(
+                    step = step,
+                    allTimeSeconds = timeSavedTotals.allTimeSeconds,
+                    onShare = {
+                        milestone = null
+                        Analytics.timeSavedShared(context, "milestone")
+                        milestoneScope.launch {
+                            val card = TimeSavedCardData.forTotals(
+                                timeSavedTotals,
+                                month = TimeSaved.period(recordingsByPath.values, TimeSaved.monthStart()),
+                                allTime = TimeSaved.period(recordingsByPath.values, 0L)
+                            )
+                            runCatching { TimeSavedCardRenderer.share(context, card, campaign = "milestone") }
+                        }
+                    },
+                    onDismiss = { milestone = null }
+                )
+            }
         }
     }
 }
