@@ -129,11 +129,13 @@ import space.iamjustkrishna.srutam.service.MicPermission
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.service.RecordingCoordinator
 import space.iamjustkrishna.srutam.service.RecordingForegroundService
+import space.iamjustkrishna.srutam.ui.components.TimeSavedReward
 import space.iamjustkrishna.srutam.ui.theme.CobaltBlue
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import space.iamjustkrishna.srutam.utils.TimeSaved
 
 /** Where the first-run flow is. */
 private enum class FirstRunStage { CAPTURE, RESULT }
@@ -654,6 +656,14 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
 
     LaunchedEffect(ready) { if (ready) Analytics.log(context, "first_run_note_ready") }
 
+    // What talking saved over typing this note: its word count against its real length.
+    val timeSaved = remember(note?.transcript, note?.duration) { TimeSaved.of(note?.transcript, note?.duration ?: 0L) }
+    LaunchedEffect(ready, timeSaved.worthShowing) {
+        if (ready && timeSaved.worthShowing) {
+            Analytics.log(context, "first_run_time_saved_shown", mapOf("saved_seconds" to timeSaved.savedSeconds))
+        }
+    }
+
     // Make sure the note is being worked on: if it was saved but AI wasn't queued (Auto AI off,
     // or the recording service didn't get to it), queue it here. Waits briefly first, so the
     // recording service's own queueing wins when it happens.
@@ -833,6 +843,10 @@ private fun ResultStage(recordingPath: String?, onRetry: () -> Unit, onContinue:
                                 }
                             }
                         }
+                    }
+                    if (timeSaved.worthShowing) {
+                        Spacer(Modifier.height(14.dp))
+                        TimeSavedReward(timeSaved)
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(
