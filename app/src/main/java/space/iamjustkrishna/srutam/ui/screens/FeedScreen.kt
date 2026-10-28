@@ -133,6 +133,7 @@ import space.iamjustkrishna.srutam.ui.sample.SampleBadge
 import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.components.SrutamTopAppBar
+import space.iamjustkrishna.srutam.utils.TimeSaved
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
@@ -159,6 +160,7 @@ private const val META_SEPARATOR = " \u2022 "
 fun FeedScreen(
     onRecordingClick: (Long) -> Unit,
     onSettingsClick: () -> Unit = {},
+    onStatsClick: () -> Unit = {},
     viewModel: AudioFilesViewModel = viewModel()
 ) {
     val audioFiles by viewModel.audioFiles.collectAsState()
@@ -451,6 +453,7 @@ fun FeedScreen(
         },
         onRecordingClick = onRecordingClick,
         onSettingsClick = onSettingsClick,
+        onStatsClick = onStatsClick,
         onPlayFile = { audioFile ->
             if (playbackState.currentFilePath == audioFile.filePath) {
                 if (playbackState.isPlaying) {
@@ -536,6 +539,7 @@ fun FeedScreenContent(
     onProcessPendingOffline: () -> Unit = {},
     onRecordingClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onStatsClick: () -> Unit = {},
     onPlayFile: (AudioFileInfo) -> Unit = {},
     onProcessAI: (AudioFileInfo) -> Unit = {},
     onRenameFile: (AudioFileInfo, String) -> Unit = { _, _ -> },
@@ -591,6 +595,10 @@ fun FeedScreenContent(
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
+    // Time saved by talking, from the notes' transcripts and lengths; only the totals leave this.
+    val timeSavedTotals = remember(recordingsByPath) {
+        TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart())
+    }
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -799,6 +807,9 @@ fun FeedScreenContent(
             } else {
                 SrutamTopAppBar(
                     title = "Srutam",
+                    belowTitle = {
+                        TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
+                    },
                     actions = {
                         SquircleActionButton(
                             icon = Icons.Default.Search,
@@ -1117,6 +1128,11 @@ fun FeedScreenContent(
                 }
             }
         }
+            // The one-time "what is this line" bubble, right under the header.
+            TimeSavedTip(
+                enabled = timeSavedTotals.worthShowingInHeader && !isSearchActive && selectedFilePaths.isEmpty(),
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 2.dp)
+            )
         }
     }
 }

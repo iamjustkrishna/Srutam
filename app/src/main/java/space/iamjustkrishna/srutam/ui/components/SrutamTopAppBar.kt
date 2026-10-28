@@ -64,6 +64,11 @@ fun SrutamTopAppBar(
     accentFontSize: TextUnit = 20.sp,
     titleFontWeight: FontWeight = FontWeight.Bold,
     accentFontWeight: FontWeight = FontWeight.Medium,
+    /**
+     * A line under the title, in the same left column. When given, the icons sit level with the
+     * bottom of this line instead of the middle of the header.
+     */
+    belowTitle: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -91,11 +96,11 @@ fun SrutamTopAppBar(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = if (belowTitle != null) Alignment.Bottom else Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+              Column(modifier = Modifier.weight(1f, fill = false)) {
                 Row(
-                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
@@ -121,6 +126,11 @@ fun SrutamTopAppBar(
                         )
                     }
                 }
+                if (belowTitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    belowTitle()
+                }
+              }
                 Spacer(modifier = Modifier.width(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),

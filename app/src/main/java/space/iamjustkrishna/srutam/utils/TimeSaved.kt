@@ -49,6 +49,63 @@ object TimeSaved {
 
     fun of(transcript: String?, spokenMs: Long): Result = of(wordCount(transcript), spokenMs)
 
+    /** Everything saved, for the header line and the Your Srutam screen. */
+    data class Totals(
+        val thisMonthSeconds: Long,
+        val allTimeSeconds: Long,
+        val notes: Int,
+        val words: Int,
+        val spokenSeconds: Long,
+        val typingSeconds: Long
+    ) {
+        /** A month's first days are empty, so the line falls back to all time until it has a minute to show. */
+        val headerSeconds: Long get() = if (thisMonthSeconds >= MIN_HEADER_SECONDS) thisMonthSeconds else allTimeSeconds
+        val headerIsThisMonth: Boolean get() = thisMonthSeconds >= MIN_HEADER_SECONDS
+
+        /** Nothing to show yet: new users never see the line. */
+        val worthShowingInHeader: Boolean get() = headerSeconds >= MIN_HEADER_SECONDS
+    }
+
+    /** Under a minute saved in all, the header line stays hidden. */
+    const val MIN_HEADER_SECONDS = 60L
+
+    /** Adds up every note that has a transcript. [monthStartMs] is the first moment of this month. */
+    fun totals(notes: Collection<space.iamjustkrishna.srutam.data.Recording>, monthStartMs: Long): Totals {
+        var month = 0L
+        var all = 0L
+        var count = 0
+        var words = 0
+        var spoken = 0L
+        var typing = 0L
+        for (n in notes) {
+            if (n.transcript.isNullOrBlank()) continue
+            val r = of(n.transcript, n.duration)
+            count++
+            words += r.words
+            spoken += r.spokenSeconds
+            typing += r.typingSeconds
+            all += r.savedSeconds
+            if (n.timestamp >= monthStartMs) month += r.savedSeconds
+        }
+        return Totals(month, all, count, words, spoken, typing)
+    }
+
+    /** The first moment of the current month in the device's time zone. */
+    fun monthStart(now: Long = System.currentTimeMillis(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
+        java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate().withDayOfMonth(1)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+
+    /**
+     * The header line's wordings, longest first: the screen shows the first that fits.
+     * `6h 23m saved this month ›` -> `6h 23m saved ›` -> `6h 23m ›` -> `6h ›`.
+     */
+    fun headerCandidates(t: Totals): List<String> {
+        val hero = hero(t.headerSeconds)
+        val coarse = hero.substringBefore(' ')
+        val tail = if (t.headerIsThisMonth) " saved this month" else " saved"
+        return listOf("$hero$tail ›", "$hero saved ›", "$hero ›", "$coarse ›").distinct()
+    }
+
     /** "40 s", "2 min 5 s", "1 h 5 min": short, for numbers beside each other. */
     fun short(seconds: Long): String = when {
         seconds < 60 -> "$seconds s"

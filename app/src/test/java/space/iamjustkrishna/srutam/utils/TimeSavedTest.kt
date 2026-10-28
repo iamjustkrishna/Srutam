@@ -61,4 +61,48 @@ class TimeSavedTest {
         assertEquals("5m 30s", TimeSaved.hero(330))
         assertEquals("6h 23m", TimeSaved.hero(6 * 3600 + 23 * 60))
     }
+
+    private fun note(words: Int, spokenMs: Long, ts: Long) = space.iamjustkrishna.srutam.data.Recording(
+        timestamp = ts, audioFilePath = "p$ts", duration = spokenMs, transcript = List(words) { "w" }.joinToString(" ")
+    )
+
+    @Test fun totalsSplitThisMonthFromAllTime() {
+        val monthStart = 1_000L
+        val totals = TimeSaved.totals(
+            listOf(
+                note(35, 12_000, ts = 2_000),   // this month: 41 s
+                note(35, 12_000, ts = 500),     // before: 41 s
+                space.iamjustkrishna.srutam.data.Recording(timestamp = 3_000, audioFilePath = "empty", duration = 9_000, transcript = null)
+            ),
+            monthStart
+        )
+        assertEquals(41, totals.thisMonthSeconds)
+        assertEquals(82, totals.allTimeSeconds)
+        assertEquals(2, totals.notes)
+        assertEquals(70, totals.words)
+    }
+
+    @Test fun headerHidesUnderAMinuteAndFallsBackToAllTime() {
+        val fresh = TimeSaved.Totals(30, 45, 1, 20, 10, 55)
+        assertFalse(fresh.worthShowingInHeader)
+
+        val earlyInMonth = TimeSaved.Totals(20, 3 * 3600L + 5 * 60, 9, 500, 100, 900)
+        assertTrue(earlyInMonth.worthShowingInHeader)
+        assertFalse(earlyInMonth.headerIsThisMonth)
+        assertEquals(3 * 3600L + 5 * 60, earlyInMonth.headerSeconds)
+
+        val steady = TimeSaved.Totals(6 * 3600L + 23 * 60, 20 * 3600L, 90, 5000, 100, 900)
+        assertTrue(steady.headerIsThisMonth)
+        assertEquals(6 * 3600L + 23 * 60, steady.headerSeconds)
+    }
+
+    @Test fun headerWordingsGoFromLongestToShortest() {
+        val steady = TimeSaved.Totals(6 * 3600L + 23 * 60, 0, 1, 1, 1, 1)
+        assertEquals(
+            listOf("6h 23m saved this month \u203A", "6h 23m saved \u203A", "6h 23m \u203A", "6h \u203A"),
+            TimeSaved.headerCandidates(steady)
+        )
+        val early = TimeSaved.Totals(0, 4 * 60L, 1, 1, 1, 1)
+        assertEquals(listOf("4m saved \u203A", "4m \u203A"), TimeSaved.headerCandidates(early))
+    }
 }

@@ -1,5 +1,7 @@
 package space.iamjustkrishna.srutam.ui.screens
 
+import space.iamjustkrishna.srutam.utils.TimeSaved
+import space.iamjustkrishna.srutam.ui.components.TimeSavedLine
 import space.iamjustkrishna.srutam.ui.sample.SampleNote
 import android.content.Intent
 import android.content.res.Configuration
@@ -200,6 +202,7 @@ fun TabletWorkspaceLayout(
     currentTab: RootTab,
     onTabSelected: (RootTab) -> Unit,
     onSettingsClick: () -> Unit,
+    onStatsClick: () -> Unit = {},
     audioFiles: List<AudioFileInfo>,
     recordingsByPath: Map<String, Recording>,
     playbackState: PlaybackState,
@@ -365,6 +368,7 @@ fun TabletWorkspaceLayout(
                 currentTab = currentTab,
                 onTabSelected = onTabSelected,
                 onSettingsClick = onSettingsClick,
+                onStatsClick = onStatsClick,
                 audioFiles = effectiveAudioFiles,
                 recordingsByPath = effectiveRecordingsByPath,
                 selectedFilePath = selectedAudioFile?.filePath,
@@ -513,6 +517,7 @@ fun TabletUnifiedSidebar(
     currentTab: RootTab,
     onTabSelected: (RootTab) -> Unit,
     onSettingsClick: () -> Unit,
+    onStatsClick: () -> Unit = {},
     audioFiles: List<AudioFileInfo>,
     recordingsByPath: Map<String, Recording>,
     selectedFilePath: String?,
@@ -530,6 +535,7 @@ fun TabletUnifiedSidebar(
             currentTab = currentTab,
             onTabSelected = onTabSelected,
             onSettingsClick = onSettingsClick,
+            onStatsClick = onStatsClick,
             audioFiles = audioFiles,
             recordingsByPath = recordingsByPath,
             selectedFilePath = selectedFilePath,
@@ -549,6 +555,7 @@ fun TabletUnifiedSidebar(
     val context = LocalContext.current
     val autoAiState by AppPreferences.autoAiEnabledFlow.collectAsState()
     val isAutoAi = autoAiState ?: remember(context) { AppPreferences.isAutoAiEnabled(context) }
+    val timeSavedTotals = remember(recordingsByPath) { TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart()) }
     val pendingCount = remember(audioFiles, recordingsByPath) {
         audioFiles.count { audio ->
             if (audio.filePath == "srutam://welcome") false
@@ -573,6 +580,10 @@ fun TabletUnifiedSidebar(
             fontWeight = FontWeight.Bold,
             color = textPrimary
         )
+        if (timeSavedTotals.worthShowingInHeader) {
+            Spacer(modifier = Modifier.height(4.dp))
+            TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
+        }
 
         Spacer(modifier = Modifier.height(22.dp))
 
@@ -709,6 +720,7 @@ private fun MobileLandscapeDampedSidebar(
     currentTab: RootTab,
     onTabSelected: (RootTab) -> Unit,
     onSettingsClick: () -> Unit,
+    onStatsClick: () -> Unit = {},
     audioFiles: List<AudioFileInfo>,
     recordingsByPath: Map<String, Recording>,
     selectedFilePath: String?,
@@ -725,6 +737,7 @@ private fun MobileLandscapeDampedSidebar(
     val context = LocalContext.current
     val autoAiState by AppPreferences.autoAiEnabledFlow.collectAsState()
     val isAutoAi = autoAiState ?: remember(context) { AppPreferences.isAutoAiEnabled(context) }
+    val timeSavedTotals = remember(recordingsByPath) { TimeSaved.totals(recordingsByPath.values, TimeSaved.monthStart()) }
     val pendingCount = remember(audioFiles, recordingsByPath) {
         audioFiles.count { audio ->
             if (audio.filePath == "srutam://welcome") false
@@ -736,7 +749,8 @@ private fun MobileLandscapeDampedSidebar(
     }
 
     val density = LocalDensity.current
-    val baseTopOffsetDp = 186.dp
+    // The time-saved line, when shown, takes a little more room under the wordmark.
+    val baseTopOffsetDp = if (timeSavedTotals.worthShowingInHeader) 212.dp else 186.dp
     val minTopOffsetDp = 8.dp
     val maxShiftDp = baseTopOffsetDp - minTopOffsetDp
     val maxShiftPx = with(density) { maxShiftDp.toPx() }
@@ -866,6 +880,10 @@ private fun MobileLandscapeDampedSidebar(
                 fontWeight = FontWeight.Bold,
                 color = textPrimary
             )
+            if (timeSavedTotals.worthShowingInHeader) {
+                Spacer(modifier = Modifier.height(2.dp))
+                TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
+            }
 
             Spacer(modifier = Modifier.height(6.dp))
 

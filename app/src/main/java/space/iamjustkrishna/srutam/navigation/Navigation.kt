@@ -61,6 +61,7 @@ import space.iamjustkrishna.srutam.ui.screens.FeedScreen
 import space.iamjustkrishna.srutam.ui.screens.GlobalCopilotScreen
 import space.iamjustkrishna.srutam.ui.components.SaveRecordingDialog
 import space.iamjustkrishna.srutam.ui.screens.SettingsScreen
+import space.iamjustkrishna.srutam.ui.screens.StatsScreen
 import space.iamjustkrishna.srutam.ui.screens.TabletWorkspaceLayout
 import androidx.activity.compose.BackHandler
 import space.iamjustkrishna.srutam.ui.sample.SampleNote
@@ -82,6 +83,7 @@ sealed class Screen(val route: String) {
         fun createRoute(recordingId: Long) = "chat/$recordingId"
     }
     data object Settings : Screen("settings")
+    data object Stats : Screen("stats")
 }
 
 @Composable
@@ -152,6 +154,16 @@ fun SrutamNavigation(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Stats.route) {
+            val context = LocalContext.current
+            val recordings by remember { space.iamjustkrishna.srutam.data.AppDatabase.getDatabase(context).recordingDao().getAllRecordings() }
+                .collectAsState(initial = emptyList())
+            StatsScreen(
+                recordings = recordings,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -274,6 +286,7 @@ private fun RootScreen(
                 currentTab = currentTab,
                 onTabSelected = { currentTab = it },
                 onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                onStatsClick = { navController.navigate(Screen.Stats.route) },
                 audioFiles = audioFiles,
                 recordingsByPath = recordingsByPath,
                 playbackState = playbackState,
@@ -371,6 +384,7 @@ private fun RootScreen(
                             onSettingsClick = {
                                 navController.navigate(Screen.Settings.route)
                             },
+                            onStatsClick = { navController.navigate(Screen.Stats.route) },
                             viewModel = viewModel
                         )
                     }

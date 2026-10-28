@@ -52,18 +52,18 @@ import space.iamjustkrishna.srutam.utils.TimeSaved
 import kotlin.math.cos
 import kotlin.math.sin
 
-private val Void = Color(0xFF050714)
-private val Void2 = Color(0xFF0B1230)
-private val Royal = Color(0xFF1A3A9C)
-private val Cobalt = Color(0xFF2563EB)
-private val Glow = Color(0xFF5B93FF)
-private val Ice = Color(0xFFE8EEFC)
-private val Mist = Color(0xFF93A3C7)
-private val Slate = Color(0xFF46568A)
-private val Green = Color(0xFF10B981)
+internal val Void = Color(0xFF050714)
+internal val Void2 = Color(0xFF0B1230)
+internal val Royal = Color(0xFF1A3A9C)
+internal val Cobalt = Color(0xFF2563EB)
+internal val Glow = Color(0xFF5B93FF)
+internal val Ice = Color(0xFFE8EEFC)
+internal val Mist = Color(0xFF93A3C7)
+internal val Slate = Color(0xFF46568A)
+internal val Green = Color(0xFF10B981)
 
 /** Playfair's figures are old-style by default (some drop below the line); lining ones read as numbers. */
-private val LINING = TextStyle(fontFeatureSettings = "lnum")
+internal val LINING = TextStyle(fontFeatureSettings = "lnum")
 
 /**
  * The reward moment after a note: a ring that fills towards the first milestone while the time
@@ -223,7 +223,7 @@ private val SPARKS = listOf(
 )
 
 @Composable
-private fun CompareBar(label: String, value: String, fraction: Float, fill: Brush) {
+internal fun CompareBar(label: String, value: String, fraction: Float, fill: Brush) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 13.sp, color = Mist, maxLines = 1, modifier = Modifier.width(70.dp))
         Box(
