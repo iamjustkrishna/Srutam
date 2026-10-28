@@ -146,3 +146,9 @@ The `srutam-mcp` package is a standalone TypeScript server implementing the Mode
 - **Audio Processing**: MediaRecorder (AAC/M4A), Android MediaPlayer, AudioTrack
 - **Minimum SDK**: 29 (Android 10)
 - **Target SDK**: 35 (Android 15 / 16)
+
+---
+
+## Planned / Ideas
+
+- **Integrations / export (Obsidian first):** let users send notes (transcript, summary, action items, ideas, decisions) out of Srutam into other tools. Obsidian is the first target: one markdown file per note with frontmatter (date, tags, project/topic) so it lands in the right vault folder. Motivation: researchers and writers want spontaneous voice captures to flow into an existing knowledge base without manual filing. Today Srutam only syncs to its own cloud (Supabase) and exposes notes to coding agents over MCP; nothing is written to Obsidian yet. Keep it opt-in and respect `is_private` notes.
