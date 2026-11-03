@@ -101,7 +101,7 @@ class SupabaseAuthManager(private val context: Context) {
             client.newCall(request).execute().use { response ->
                 val responseString = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
-                    return@withContext Result.failure(Exception("Google Sign-In failed: $responseString"))
+                    return@withContext Result.failure(SupabaseSignInException(response.code, responseString))
                 }
 
                 val json = JsonParser.parseString(responseString).asJsonObject

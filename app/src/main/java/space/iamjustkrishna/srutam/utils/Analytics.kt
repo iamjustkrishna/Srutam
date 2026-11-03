@@ -178,6 +178,24 @@ object Analytics {
 
     fun sampleNoteOpened(context: Context) = log(context, EVENT_SAMPLE_NOTE_OPENED)
 
+    // ---- Cloud sign-in ----
+
+    fun cloudSignInStarted(context: Context) = log(context, "cloud_signin_started")
+
+    fun cloudSignInSucceeded(context: Context, elapsedMs: Long) =
+        log(context, "cloud_signin_succeeded", mapOf("elapsed_ms" to elapsedMs))
+
+    /** [code] is a short label from SignInDiagnosis (cancelled_fast, no_credential, supabase_400...), never an error message. */
+    fun cloudSignInFailed(context: Context, code: String, elapsedMs: Long) =
+        log(context, "cloud_signin_failed", mapOf("error_code" to code, "elapsed_ms" to elapsedMs))
+
+    /**
+     * Anything that went wrong that is worth counting: [area] is the feature (sign_in, dock, lock_screen...),
+     * [code] a short label. Never message text, file paths or note content.
+     */
+    fun appError(context: Context, area: String, code: String) =
+        log(context, "app_error", mapOf("area" to area, "code" to code))
+
     // ---- Settings ----
 
     /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */
@@ -195,6 +213,12 @@ object Analytics {
             fa.setUserProperty("dock_on", AppPreferences.isFloatingDockEnabled(context).toString())
             fa.setUserProperty("quick_notif_on", AppPreferences.isPersistentNotificationEnabled(context).toString())
             fa.setUserProperty("ask_name_on", AppPreferences.isAskNameAfterRecording(context).toString())
+            // Which phones a problem happens on. GA4 limits: names 24 characters, values 36.
+            fa.setUserProperty("device_model", android.os.Build.MODEL.orEmpty().take(36))
+            fa.setUserProperty("device_brand", android.os.Build.MANUFACTURER.orEmpty().take(36))
+            fa.setUserProperty("android_sdk", android.os.Build.VERSION.SDK_INT.toString())
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+                .getOrNull()?.let { fa.setUserProperty("app_version", it.take(36)) }
         }
     }
 
