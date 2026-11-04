@@ -32,10 +32,16 @@ object QuickRecordNotification {
     const val NOTIFICATION_ID = 1001
 
     /**
-     * Same notification, low importance: Android folds the "Recording" banner away when the
-     * notification moves here, but it stays in the shade. See [quietDown].
+     * Same notification, normal importance but silent: Android folds the "Recording" banner away
+     * when the notification moves here (a banner is only for high importance), and the notification
+     * stays in the shade and on the lock screen. See [quietDown].
+     *
+     * It used to be low importance, which many phones hide from the lock screen as a "silent"
+     * notification, so a recording left no sign there. A channel's importance can't be raised after
+     * it exists, hence a new id; the old one is deleted in [ensureChannel].
      */
-    private const val QUIET_CHANNEL_ID = "recording_quiet_v1"
+    private const val QUIET_CHANNEL_ID = "recording_quiet_v2"
+    private const val OLD_QUIET_CHANNEL_V1_ID = "recording_quiet_v1"
 
     /** How long the "Recording" banner stays at the top before it folds into the shade. */
     const val BANNER_MS = 2_500L
@@ -160,12 +166,13 @@ object QuickRecordNotification {
         }
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_ID)
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_V2_ID)
+        manager.deleteNotificationChannel(OLD_QUIET_CHANNEL_V1_ID)
         manager.createNotificationChannel(channel)
         manager.createNotificationChannel(
             NotificationChannel(
                 QUIET_CHANNEL_ID,
                 context.getString(R.string.recording_notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = context.getString(R.string.recording_notification_channel_desc)
                 setShowBadge(false)
