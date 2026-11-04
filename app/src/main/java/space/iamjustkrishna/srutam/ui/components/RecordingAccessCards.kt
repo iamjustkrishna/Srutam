@@ -132,12 +132,8 @@ fun RecordingAccessBanners(
             }
         }
     }
-    LaunchedEffect(pendingCount > 0) {
-        if (pendingCount > 0 && BlockWriteAccess.isSupported && !BlockWriteAccess.wasAutoAsked(context)) {
-            BlockWriteAccess.markAutoAsked(context)
-            askToModifyRecordings()
-        }
-    }
+    // Notes that were listed only because their file couldn't be refreshed don't need the access.
+    LaunchedEffect(Unit) { BlockWriteAccess.pruneSatisfied(context) }
 
     // Recordings found from before, waiting for a choice
     val found by (viewModel?.foundRecordings ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0) }).collectAsState()
@@ -204,7 +200,7 @@ fun RecordingAccessBanners(
                 onSecondaryAction = { viewModel?.processFoundRecordingsWithAi() }
             )
         }
-        if (pendingCount > 0 && BlockWriteAccess.isSupported && BlockWriteAccess.wasAutoAsked(context) && !accessGrantedThisSession) {
+        if (pendingCount > 0 && BlockWriteAccess.isSupported && !accessGrantedThisSession) {
             AccessCard(
                 icon = Icons.Default.Save,
                 title = "Keep $pendingCount note${if (pendingCount == 1) "" else "s"} safe in ${if (pendingCount == 1) "its recording" else "their recordings"}",

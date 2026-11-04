@@ -30,7 +30,6 @@ object BlockWriteAccess {
     private const val TAG = "BlockWriteAccess"
     private const val PREFS = "srutam_block_access"
     private const val KEY_PENDING = "pending_ids"
-    private const val KEY_AUTO_ASKED = "auto_asked"
 
     private val _pending = MutableStateFlow<Set<Long>?>(null)
 
@@ -62,10 +61,8 @@ object BlockWriteAccess {
 
     fun clearPending(context: Context, recordingId: Long) = update(context) { it - recordingId }
 
-    /** The automatic prompt shows once; after that the Home card and Settings offer it. */
-    fun wasAutoAsked(context: Context) = prefs(context).getBoolean(KEY_AUTO_ASKED, false)
-
-    fun markAutoAsked(context: Context) = prefs(context).edit().putBoolean(KEY_AUTO_ASKED, true).apply()
+    // The system dialog is never opened by itself any more: it came up in the middle of using the app.
+    // The Home card and the Settings row offer it, and only for notes that have no block yet.
 
     /** Android only offers a batch "modify" dialog from Android 11. */
     val isSupported: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
@@ -131,6 +128,23 @@ object BlockWriteAccess {
         runCatching { MediaStore.createWriteRequest(context.contentResolver, uris).intentSender }
             .onFailure { Log.w(TAG, "Could not create the write request", it) }
             .getOrNull()
+    }
+
+    /**
+     * Drops notes from the waiting list whose recording already carries their block (or is gone):
+     * earlier versions listed those too, which asked for access that was never needed.
+     */
+    suspend fun pruneSatisfied(context: Context) = withContext(Dispatchers.IO) {
+        val ids = pending(context).value.orEmpty()
+        if (ids.isEmpty()) return@withContext
+        val dao = AppDatabase.getDatabase(context).recordingDao()
+        ids.forEach { id ->
+            val recording = dao.getRecordingById(id)
+            val file = recording?.audioFilePath?.let(::File)
+            val saved = recording == null || file == null || !file.isFile || recording.isPrivate ||
+                runCatching { NoteBlock.read(file)?.let(NoteSignature::fromJson)?.noteUuid }.getOrNull() == recording.noteUuid
+            if (saved) clearPending(context, id)
+        }
     }
 
     /** After the user allowed it: writes every pending note's block now. */
