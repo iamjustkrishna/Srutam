@@ -36,6 +36,14 @@ object PriorInstall {
     fun shouldOfferRestore(context: Context): Boolean =
         recordingsFromBefore(context) && !StoragePermission.isGranted(context)
 
+    /**
+     * Time to ask for access to Music and audio: an earlier install left a Music/Srutam folder, the access
+     * isn't there yet, and it hasn't been asked for already. People with no such folder (new users) are never
+     * asked; the folder is the only reason to.
+     */
+    fun shouldAskForAccess(context: Context): Boolean =
+        recordingsFromBefore(context) && !StoragePermission.isGranted(context) && !wasPrompted(context)
+
     fun wasPrompted(context: Context): Boolean = prefs(context).getBoolean(KEY_PROMPTED, false)
 
     fun markPrompted(context: Context) = prefs(context).edit().putBoolean(KEY_PROMPTED, true).apply()
