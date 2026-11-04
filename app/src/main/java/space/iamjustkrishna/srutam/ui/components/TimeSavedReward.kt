@@ -3,11 +3,7 @@ package space.iamjustkrishna.srutam.ui.components
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,18 +31,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.coroutineScope
@@ -50,8 +52,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.ui.theme.PlayfairDisplayFontFamily
 import space.iamjustkrishna.srutam.utils.TimeSaved
-import kotlin.math.cos
-import kotlin.math.sin
 
 internal val Void = Color(0xFF050714)
 internal val Void2 = Color(0xFF0B1230)
@@ -66,11 +66,25 @@ internal val Green = Color(0xFF10B981)
 /** Playfair's figures are old-style by default (some drop below the line); lining ones read as numbers. */
 internal val LINING = TextStyle(fontFeatureSettings = "lnum")
 
+/** "6h 23m": the digits large in white, the units small and blue. Shared by the reward and Your Srutam. */
+internal fun heroText(hero: String, digitSize: TextUnit = 56.sp, unitSize: TextUnit = 26.sp): AnnotatedString = buildAnnotatedString {
+    Regex("\\d+|[^\\d\\s]+").findAll(hero).forEach { m ->
+        val token = m.value
+        if (token[0].isDigit()) {
+            withStyle(SpanStyle(fontSize = digitSize, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.ExtraBold, color = Color.White, letterSpacing = (-1.5).sp)) { append(token) }
+        } else {
+            withStyle(SpanStyle(fontSize = unitSize, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.Bold, color = Glow)) { append(token + " ") }
+            append(" ")
+        }
+    }
+}
+
 /**
- * The reward moment after a note: a ring that fills towards the first milestone while the time
- * saved counts up, a few sparks, and what it means in plain words. Always dark, like a card: it
- * looks the same in light and dark themes. Plays once when it appears; with animations turned off
- * in the system settings, it just shows its final state.
+ * The reward after a first note, in the same style as the Your Srutam hero but small: the time saved
+ * counts up, two thin bars say how (typing against saying), and one line says how far the first
+ * milestone is. It takes about a third of the room the earlier version did. Always dark, like the
+ * share card; with animations turned off in the system settings it shows its final state at once.
+ * [onShare], when given, adds a small share button in the corner.
  */
 @Composable
 fun TimeSavedReward(result: TimeSaved.Result, modifier: Modifier = Modifier, onShare: (() -> Unit)? = null) {
@@ -81,175 +95,103 @@ fun TimeSavedReward(result: TimeSaved.Result, modifier: Modifier = Modifier, onS
     }
 
     val appear = remember { Animatable(if (animated) 0f else 1f) }
-    val ring = remember { Animatable(if (animated) 0f else result.milestoneProgress) }
     val count = remember { Animatable(if (animated) 0f else result.savedSeconds.toFloat()) }
     val bars = remember { Animatable(if (animated) 0f else 1f) }
-    val pop = remember { Animatable(1f) }
-    val sparks = remember { Animatable(if (animated) 0f else 1f) }
+    val milestone = remember { Animatable(if (animated) 0f else result.milestoneProgress) }
 
     LaunchedEffect(result) {
         if (!animated) return@LaunchedEffect
         coroutineScope {
-            launch { delay(150); appear.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
-            launch { delay(500); ring.animateTo(result.milestoneProgress, tween(1600, easing = FastOutSlowInEasing)) }
-            launch { delay(500); count.animateTo(result.savedSeconds.toFloat(), tween(1600, easing = FastOutSlowInEasing)) }
-            launch { delay(650); bars.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
-            launch {
-                delay(2100)
-                pop.animateTo(1.07f, tween(160, easing = LinearOutSlowInEasing))
-                pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-            }
-            launch { delay(2000); sparks.animateTo(1f, tween(1100, easing = LinearOutSlowInEasing)) }
+            launch { delay(120); appear.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
+            launch { delay(400); count.animateTo(result.savedSeconds.toFloat(), tween(1300, easing = FastOutSlowInEasing)) }
+            launch { delay(500); bars.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
+            launch { delay(700); milestone.animateTo(result.milestoneProgress, tween(1100, easing = FastOutSlowInEasing)) }
         }
     }
 
     val shown = count.value.toLong().coerceAtMost(result.savedSeconds)
     val sayingShare = if (result.typingSeconds > 0) (result.spokenSeconds.toFloat() / result.typingSeconds).coerceIn(0.05f, 1f) else 1f
 
-    Box(
+    Column(
         modifier
             .fillMaxWidth()
             .graphicsLayer {
                 alpha = appear.value
-                translationY = (1f - appear.value) * 18.dp.toPx()
-                val s = 0.97f + 0.03f * appear.value
-                scaleX = s
-                scaleY = s
+                translationY = (1f - appear.value) * 12.dp.toPx()
             }
-            .clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(Royal, Void2, Void), start = Offset(0f, 0f), end = Offset(900f, 1200f)))
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(listOf(Royal, Void2, Void), start = Offset(0f, 0f), end = Offset(900f, 500f)))
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .semantics {
                 contentDescription = "You saved ${TimeSaved.words(result.savedSeconds)}: you said it in ${TimeSaved.words(result.spokenSeconds)}, typing it takes about ${TimeSaved.words(result.typingSeconds)}."
             }
     ) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
-                    Canvas(Modifier.size(96.dp)) {
-                        val stroke = 10.dp.toPx()
-                        val inset = stroke / 2
-                        val arcSize = Size(size.width - stroke, size.height - stroke)
-                        drawArc(Color.White.copy(alpha = 0.12f), 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-                        if (ring.value > 0f) {
-                            // A wider, fainter pass underneath gives the arc its glow.
-                            drawArc(Glow.copy(alpha = 0.28f), -90f, 360f * ring.value, false, Offset(inset - 3.dp.toPx(), inset - 3.dp.toPx()),
-                                Size(arcSize.width + 6.dp.toPx(), arcSize.height + 6.dp.toPx()), style = Stroke(stroke + 6.dp.toPx(), cap = StrokeCap.Round))
-                            drawArc(Glow, -90f, 360f * ring.value, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
-                        }
-                    }
-                    val centre = TimeSaved.hero(shown)
-                    Text(
-                        text = centre,
-                        fontFamily = PlayfairDisplayFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = if (centre.length <= 3) 30.sp else 20.sp,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        style = LINING
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Text("TIME SAVED", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.9.sp, color = Glow)
-                    Spacer(Modifier.height(4.dp))
-                    val headline = "You got ${TimeSaved.words(result.savedSeconds)} back."
-                    Text(
-                        text = headline,
-                        fontFamily = PlayfairDisplayFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = if (headline.length > 26) 22.sp else 26.sp,
-                        lineHeight = if (headline.length > 26) 25.sp else 29.sp,
-                        color = Color.White,
-                        style = LINING,
-                        modifier = Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "You said that in ${TimeSaved.short(result.spokenSeconds)}. Typing it takes about ${TimeSaved.short(result.typingSeconds)}.",
-                        fontSize = 14.sp,
-                        lineHeight = 19.sp,
-                        color = Mist
-                    )
-                }
+        // The number on the left, how it was counted on the right.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(0.42f)) {
+                Text("TIME SAVED", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Glow, maxLines = 1)
+                Text(text = heroText(TimeSaved.hero(shown), digitSize = 34.sp, unitSize = 17.sp), maxLines = 1, style = LINING)
+                Text("on this note", fontSize = 11.5.sp, color = Mist, maxLines = 1)
             }
-
-            Spacer(Modifier.height(16.dp))
-            CompareBar("Typing it", "~${TimeSaved.short(result.typingSeconds)}", 1f * bars.value, Brush.horizontalGradient(listOf(Slate, Slate)))
-            Spacer(Modifier.height(9.dp))
-            CompareBar("Saying it", TimeSaved.short(result.spokenSeconds), sayingShare * bars.value, Brush.horizontalGradient(listOf(Cobalt, Glow)))
-
-            Spacer(Modifier.height(14.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.1f)))
-            Spacer(Modifier.height(12.dp))
-            if (result.reachedFirstMilestone) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(20.dp).clip(CircleShape).background(Green), contentAlignment = Alignment.Center) {
-                        Text("✓", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text("First milestone reached", fontSize = 14.sp, color = Ice, fontWeight = FontWeight.Medium)
-                        Text("5 minutes saved by talking", fontSize = 12.sp, color = Mist)
-                    }
-                }
-            } else {
-                Column {
-                    Text("First milestone: 5 minutes saved", fontSize = 14.sp, color = Ice, fontWeight = FontWeight.Medium)
-                    Text("${TimeSaved.short(result.secondsToFirstMilestone)} to go", fontSize = 12.sp, color = Mist)
-                }
-            }
-            if (onShare != null) {
-                Spacer(Modifier.height(14.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.12f))
-                        .clickable(onClick = onShare),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Share this", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                }
+            Column(Modifier.weight(0.58f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                CompareBar("Typing", "~${TimeSaved.short(result.typingSeconds)}", 1f * bars.value, Brush.horizontalGradient(listOf(Slate, Slate)), labelWidth = 44.dp, valueWidth = 58.dp)
+                CompareBar("Saying", TimeSaved.short(result.spokenSeconds), sayingShare * bars.value, Brush.horizontalGradient(listOf(Cobalt, Glow)), labelWidth = 44.dp, valueWidth = 58.dp)
             }
         }
 
-        // A few sparks, bursting from the ring when the number lands.
-        Canvas(Modifier.matchParentSize()) {
-            val t = sparks.value
-            if (t <= 0f || t >= 1f) return@Canvas
-            val centre = Offset(18.dp.toPx() + 48.dp.toPx(), 18.dp.toPx() + 48.dp.toPx())
-            val eased = 1f - (1f - t) * (1f - t)
-            SPARKS.forEachIndexed { i, (angle, distance) ->
-                val d = distance.dp.toPx() * eased
-                val colour = when (i % 4) { 0 -> Glow; 1 -> Color.White; 2 -> Green; else -> Glow }
-                drawCircle(
-                    colour.copy(alpha = 1f - t),
-                    radius = (4.dp.toPx() * (1f - 0.6f * t)),
-                    center = Offset(centre.x + cos(angle) * d, centre.y + sin(angle) * d)
-                )
+        Spacer(Modifier.height(9.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.weight(1f)) {
+                if (result.reachedFirstMilestone) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.size(15.dp).clip(CircleShape).background(Green), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                        }
+                        Text("First milestone reached: 5 minutes", fontSize = 11.5.sp, color = Ice, maxLines = 1)
+                    }
+                } else {
+                    Text("${TimeSaved.short(result.secondsToFirstMilestone)} to your first milestone (5 min)", fontSize = 11.5.sp, color = Ice, maxLines = 1)
+                    Spacer(Modifier.height(4.dp))
+                    Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f))) {
+                        Box(Modifier.fillMaxWidth(milestone.value.coerceIn(0.02f, 1f)).height(4.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Cobalt, Glow))))
+                    }
+                }
+            }
+            if (onShare != null) {
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .clickable(onClick = onShare)
+                        .semantics { contentDescription = "Share" },
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp)) }
             }
         }
     }
 }
 
-/** Angle in radians and how far, in dp, each spark flies. */
-private val SPARKS = listOf(
-    -2.3f to 70, -1.2f to 82, -0.4f to 96, 0.5f to 78, 1.3f to 88, 2.2f to 74, 3.0f to 100, -2.9f to 92
-)
-
 @Composable
-internal fun CompareBar(label: String, value: String, fraction: Float, fill: Brush) {
+internal fun CompareBar(
+    label: String,
+    value: String,
+    fraction: Float,
+    fill: Brush,
+    labelWidth: androidx.compose.ui.unit.Dp = 62.dp,
+    valueWidth: androidx.compose.ui.unit.Dp = 76.dp
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 13.sp, color = Mist, maxLines = 1, modifier = Modifier.width(70.dp))
+        Text(label, fontSize = 12.sp, color = Mist, maxLines = 1, modifier = Modifier.width(labelWidth))
         Box(
             Modifier
                 .weight(1f)
-                .height(9.dp)
+                .height(6.dp)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.09f))
         ) {
-            Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(9.dp).clip(CircleShape).background(fill))
+            Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(6.dp).clip(CircleShape).background(fill))
         }
-        Text(value, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(88.dp))
+        Text(value, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(valueWidth))
     }
 }
