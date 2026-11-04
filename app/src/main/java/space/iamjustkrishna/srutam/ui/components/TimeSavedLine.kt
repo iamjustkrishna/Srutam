@@ -60,7 +60,7 @@ import space.iamjustkrishna.srutam.ui.theme.CosmicGlowBlue
 import space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark
 import space.iamjustkrishna.srutam.utils.TimeSaved
 
-private val LINE_STYLE = TextStyle(fontSize = 12.5.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = "lnum")
+private val LINE_STYLE = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = "lnum")
 
 /**
  * The line under "Srutam" in the Notes header: `⚡ 6h 23m saved this month ›`, on a soft tinted
@@ -81,8 +81,8 @@ fun TimeSavedLine(totals: TimeSaved.Totals, onClick: () -> Unit, modifier: Modif
     val density = LocalDensity.current
     val candidates = remember(totals) { TimeSaved.headerCandidates(totals) }
 
-    // Icon (13) + gaps and padding around it (4 + 7 + 9), the same dp the chip below uses.
-    val chromePx = with(density) { (13 + 4 + 7 + 9).dp.roundToPx() }
+    // Icon (12) + gaps and padding around it (4 + 6 + 8), the same dp the chip below uses.
+    val chromePx = with(density) { (12 + 4 + 6 + 8).dp.roundToPx() }
 
     BoxWithConstraints(modifier) {
         val room = constraints.maxWidth
@@ -97,9 +97,9 @@ fun TimeSavedLine(totals: TimeSaved.Totals, onClick: () -> Unit, modifier: Modif
                 .background(chip)
                 .clickable(role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = spoken }
-                .padding(start = 7.dp, end = 9.dp, top = 3.dp, bottom = 3.dp)
+                .padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp)
         ) {
-            Icon(Icons.Filled.Bolt, contentDescription = null, tint = accent, modifier = Modifier.size(13.dp))
+            Icon(Icons.Filled.Bolt, contentDescription = null, tint = accent, modifier = Modifier.size(12.dp))
             Text(
                 text = buildAnnotatedString {
                     // "6h 23m saved" in the accent, "this month ›" softer, like the mockup.

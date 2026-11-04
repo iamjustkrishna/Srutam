@@ -73,6 +73,9 @@ fun SrutamTopAppBar(
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
+    // With a line under the title the bar is the tight one: a smaller title and less padding keep it short.
+    val compact = belowTitle != null
+    val resolvedTitleSize = if (compact) minOf(titleFontSize.value, 24f).sp else titleFontSize
     val resolvedSubtitleColor = subtitleColor ?: if (isDark) TextOnDarkSecondary else TextSecondary
 
     Surface(
@@ -92,7 +95,7 @@ fun SrutamTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
-                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
+                .padding(start = 16.dp, end = 16.dp, top = if (compact) 4.dp else 10.dp, bottom = if (compact) 6.dp else 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -105,7 +108,7 @@ fun SrutamTopAppBar(
                 ) {
                     Text(
                         text = title,
-                        fontSize = titleFontSize,
+                        fontSize = resolvedTitleSize,
                         fontFamily = PlayfairDisplayFontFamily,
                         fontWeight = titleFontWeight,
                         color = if (isDark) TextOnDarkPrimary else Color(0xFF1E2229),
@@ -127,7 +130,7 @@ fun SrutamTopAppBar(
                     }
                 }
                 if (belowTitle != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     belowTitle()
                 }
               }
