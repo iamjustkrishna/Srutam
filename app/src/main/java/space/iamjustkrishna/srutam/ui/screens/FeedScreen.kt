@@ -803,7 +803,10 @@ fun FeedScreenContent(
                         SquircleActionButton(
                             icon = Icons.Default.Search,
                             contentDescription = "Search",
-                            onClick = { isSearchActive = true }
+                            onClick = {
+                                isSearchActive = true
+                                space.iamjustkrishna.srutam.utils.Analytics.searchOpened(context)
+                            }
                         )
                         if (isCloudSignedIn) {
                             val syncRotation by rememberInfiniteTransition(label = "SyncRotation").animateFloat(

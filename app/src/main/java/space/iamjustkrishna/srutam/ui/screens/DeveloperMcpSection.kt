@@ -211,9 +211,13 @@ fun DeveloperMcpSection(
                         onSuccess = { keyName ->
                             pairingState = PairingUiState.Idle
                             Toast.makeText(context, "Connected \"$keyName\"", Toast.LENGTH_SHORT).show()
+                            space.iamjustkrishna.srutam.utils.Analytics.mcpConnectResult(context, true)
                             refreshKeys()
                         },
                         onFailure = { error ->
+                            space.iamjustkrishna.srutam.utils.Analytics.mcpConnectResult(
+                                context, false, (error as? PairingException)?.error?.name ?: error.javaClass.simpleName
+                            )
                             pairingState = state.copy(busy = false, error = error.message ?: "Could not connect.")
                         }
                     )

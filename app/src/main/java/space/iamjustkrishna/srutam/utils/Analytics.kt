@@ -196,6 +196,31 @@ object Analytics {
     fun appError(context: Context, area: String, code: String) =
         log(context, "app_error", mapOf("area" to area, "code" to code))
 
+    // ---- Where people go, and what goes wrong ----
+
+    /** A screen came into view. [name] is a short slug: notes, insights, ai, detail, chat, settings, stats. */
+    fun screenView(context: Context, name: String) =
+        log(context, "screen_view", mapOf("screen_name" to name, "screen_class" to name))
+
+    fun searchOpened(context: Context) = log(context, "search_opened")
+
+    /** [result]: restore_failed, partial or failed. Successful syncs aren't logged: they happen constantly. */
+    fun cloudSyncProblem(context: Context, result: String, attempt: Int) =
+        log(context, "cloud_sync_problem", mapOf("result" to result, "attempt" to attempt))
+
+    fun cloudRestored(context: Context, restored: Int, withoutAudio: Int) =
+        log(context, "cloud_restored", mapOf("restored" to restored, "without_audio" to withoutAudio))
+
+    fun mcpConnectResult(context: Context, ok: Boolean, code: String? = null) =
+        log(context, "mcp_connect_result", buildMap {
+            put("result", if (ok) "ok" else "failed")
+            code?.let { put("error_code", it.take(40)) }
+        })
+
+    /** Reported on the launch after a crash. [exception] is a class name, [at] the app code it happened in. */
+    fun appCrash(context: Context, exception: String, at: String) =
+        log(context, "app_crash", mapOf("exception" to exception, "at" to at))
+
     // ---- Settings ----
 
     /** A Settings switch changed. [setting] is a short key, [enabled] the new value. */
