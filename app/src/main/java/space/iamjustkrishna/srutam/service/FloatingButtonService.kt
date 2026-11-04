@@ -51,7 +51,9 @@ class FloatingButtonService : Service() {
     private var isExpanded = false
     /** When the controls were last opened or used, for folding them away after a quiet spell. */
     private var lastTouchAt = 0L
-    private var pulse: android.animation.ObjectAnimator? = null
+    private var shown = DockLayout.COLLAPSED
+    private var moveAnimator: android.animation.ValueAnimator? = null
+    private val ring by lazy { DockRingDrawable(resources.displayMetrics.density) }
     private var isDockedLeft = true
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -153,6 +155,7 @@ class FloatingButtonService : Service() {
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        moveAnimator?.cancel()
                         downX = event.rawX
                         downY = event.rawY
                         val screenWidth = resources.displayMetrics.widthPixels
@@ -281,8 +284,53 @@ class FloatingButtonService : Service() {
         val embedOffsetPx = (8 * density).toInt()
 
         params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-        params.x = if (isExpanded) (8 * density).toInt() else -embedOffsetPx
-        windowManager?.updateViewLayout(floatingView, params)
+        val targetX = if (isExpanded) (8 * density).toInt() else -embedOffsetPx
+        moveAnimator?.cancel()
+        if (params.x == targetX) {
+            windowManager?.updateViewLayout(floatingView, params)
+            return
+        }
+        // Glide to the new spot instead of jumping there.
+        moveAnimator = android.animation.ValueAnimator.ofInt(params.x, targetX).apply {
+            duration = 220L
+            interpolator = android.view.animation.DecelerateInterpolator()
+            addUpdateListener {
+                params.x = it.animatedValue as Int
+                runCatching { windowManager?.updateViewLayout(floatingView, params) }
+            }
+            start()
+        }
+    }
+
+    private fun viewFor(layout: DockLayout): View? = floatingView?.findViewById(
+        when (layout) {
+            DockLayout.COLLAPSED -> R.id.dock_collapsed
+            DockLayout.IDLE -> R.id.dock_expanded_idle
+            DockLayout.RECORDING -> R.id.dock_expanded_recording
+        }
+    )
+
+    /** Fades to [target] with a short slide to or from the screen edge, instead of swapping views at once. */
+    private fun show(target: DockLayout) {
+        if (target == shown) return
+        val from = viewFor(shown) ?: return
+        val to = viewFor(target) ?: return
+        val fromLayout = shown
+        shown = target
+        val shift = 14 * resources.displayMetrics.density * (if (isDockedLeft) -1 else 1)
+
+        from.animate().cancel()
+        to.animate().cancel()
+        from.animate().alpha(0f).translationX(shift).setDuration(120L).withEndAction {
+            if (shown != fromLayout) from.visibility = View.GONE
+            from.alpha = 1f
+            from.translationX = 0f
+        }.start()
+        to.alpha = 0f
+        to.translationX = shift
+        to.visibility = View.VISIBLE
+        to.animate().alpha(1f).translationX(0f).setStartDelay(90L).setDuration(200L)
+            .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
     }
 
     private fun renderCurrentState() {
@@ -332,13 +380,8 @@ class FloatingButtonService : Service() {
             }
             collapsedBtn?.clipToOutline = true
             collapsedBtn?.elevation = 0f
-            updatePulse(collapsedBtn, isRec && !isPaused)
-            collapsedLayout?.visibility = View.VISIBLE
-            expandedIdleLayout?.visibility = View.GONE
-            expandedRecLayout?.visibility = View.GONE
+            show(DockLayout.COLLAPSED)
         } else {
-            updatePulse(collapsedBtn, false)
-            collapsedLayout?.visibility = View.GONE
             val density = resources.displayMetrics.density
             val radius = 22 * density
             val cardOutlineProvider = object : ViewOutlineProvider() {
@@ -355,8 +398,7 @@ class FloatingButtonService : Service() {
             expandedRecLayout?.elevation = 0f
 
             if (isRec) {
-                expandedIdleLayout?.visibility = View.GONE
-                expandedRecLayout?.visibility = View.VISIBLE
+                show(DockLayout.RECORDING)
 
                 if (isPaused) {
                     pauseResumeBtn?.setImageResource(R.drawable.ic_floating_play)
@@ -364,8 +406,7 @@ class FloatingButtonService : Service() {
                     pauseResumeBtn?.setImageResource(R.drawable.ic_floating_pause)
                 }
             } else {
-                expandedIdleLayout?.visibility = View.VISIBLE
-                expandedRecLayout?.visibility = View.GONE
+                show(DockLayout.IDLE)
             }
         }
 
@@ -381,24 +422,6 @@ class FloatingButtonService : Service() {
         }
     }
 
-    /** A slow fade in and out on the red tab, so "still recording" reads at a glance. Off when paused or expanded. */
-    private fun updatePulse(tab: View?, on: Boolean) {
-        if (tab == null) return
-        if (!on) {
-            pulse?.cancel()
-            pulse = null
-            tab.alpha = 1f
-            return
-        }
-        if (pulse?.isRunning == true) return
-        pulse = android.animation.ObjectAnimator.ofFloat(tab, View.ALPHA, 1f, 0.55f).apply {
-            duration = 900L
-            repeatMode = android.animation.ValueAnimator.REVERSE
-            repeatCount = android.animation.ValueAnimator.INFINITE
-            start()
-        }
-    }
-
     private fun startRecording() {
         if (!MicPermission.isGranted(this)) {
             // The app asks, or explains how to turn the mic on if it's blocked.
@@ -411,9 +434,10 @@ class FloatingButtonService : Service() {
             showElevatedToast("Recording already in progress")
             return
         }
-        // The dock stays the small edge tab and turns red; tapping it opens the controls. It used to open
-        // the wide recording bar here, which then covered the other app and had no way back.
-        isExpanded = false
+        // Show the recording controls first. They tuck into the edge tab on their own after a few quiet
+        // seconds (see DockCollapse), where a ring and the elapsed time carry on showing it records.
+        isExpanded = true
+        lastTouchAt = SystemClock.elapsedRealtime()
         adjustPositionForExpandedState()
         renderCurrentState()
     }
@@ -482,6 +506,7 @@ class FloatingButtonService : Service() {
                 if (DockCollapse.shouldCollapse(isExpanded, isRec, SystemClock.elapsedRealtime() - lastTouchAt)) {
                     collapse()
                 }
+                updateCollapsedTimer(isRec && !isExpanded, isPaused)
                 if (isRec && isExpanded) {
                     val durationMs = RecordingForegroundService.elapsedDurationMs
                     val seconds = (durationMs / 1000).toInt()
@@ -497,9 +522,28 @@ class FloatingButtonService : Service() {
         }
     }
 
+    /** The ring around the red edge tab and the time under it, while it records with the controls tucked away. */
+    private fun updateCollapsedTimer(visible: Boolean, paused: Boolean) {
+        val tab = floatingView?.findViewById<ImageView>(R.id.floating_record_button) ?: return
+        val time = floatingView?.findViewById<TextView>(R.id.txt_dock_ring_time) ?: return
+        if (!visible) {
+            if (tab.foreground != null) tab.foreground = null
+            time.visibility = View.GONE
+            return
+        }
+        val elapsedMs = RecordingForegroundService.elapsedDurationMs
+        ring.leftDocked = isDockedLeft
+        ring.dimmed = paused
+        ring.progress = (elapsedMs % 60_000L) / 60_000f
+        if (tab.foreground !== ring) tab.foreground = ring
+        val seconds = (elapsedMs / 1000).toInt()
+        time.text = String.format("%d:%02d", seconds / 60, seconds % 60)
+        time.visibility = View.VISIBLE
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        pulse?.cancel()
+        moveAnimator?.cancel()
         serviceScope.cancel()
         floatingView?.let {
             try {
@@ -530,3 +574,6 @@ class FloatingButtonService : Service() {
             private set
     }
 }
+
+/** Which of the dock's three looks is on screen. */
+private enum class DockLayout { COLLAPSED, IDLE, RECORDING }

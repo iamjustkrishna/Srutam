@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The one recording notification: idle (Start), recording (timer, Pause, Save) and paused (Resume, Save).
+<!-- The one recording notification: idle (Start), recording (timer, Discard, Pause, Save) and paused (Resume, Discard, Save).
      Shown in the collapsed notification so the buttons never need expanding, also on the lock screen. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -37,6 +37,17 @@
             android:maxLines="1"
             android:textAppearance="@android:style/TextAppearance.Material.Notification" />
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/quick_discard"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_quick_circle"
+        android:contentDescription="Discard recording"
+        android:padding="8dp"
+        android:src="@drawable/ic_floating_delete"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/quick_secondary"

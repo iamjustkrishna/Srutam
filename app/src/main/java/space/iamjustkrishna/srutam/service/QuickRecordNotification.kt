@@ -81,6 +81,7 @@ object QuickRecordNotification {
     private const val REQUEST_RESUME = 22
     private const val REQUEST_STOP = 23
     private const val REQUEST_OPEN_APP = 24
+    private const val REQUEST_DISCARD = 25
 
     sealed interface State {
         data object Idle : State
@@ -228,6 +229,7 @@ object QuickRecordNotification {
                 views.setViewVisibility(R.id.quick_timer, View.VISIBLE)
                 views.setChronometer(R.id.quick_timer, SystemClock.elapsedRealtime() - state.elapsedMs, null, true)
                 button(context, views, R.id.quick_primary, "Pause", "Pause recording", service(context, REQUEST_PAUSE, RecordingForegroundService.ACTION_PAUSE_RECORDING))
+                discardButton(context, views)
                 button(context, views, R.id.quick_secondary, "Save", "Save recording", service(context, REQUEST_STOP, RecordingForegroundService.ACTION_STOP_RECORDING))
             }
             is State.Saved -> {
@@ -251,6 +253,7 @@ object QuickRecordNotification {
                 views.setViewVisibility(R.id.quick_text, View.VISIBLE)
                 views.setViewVisibility(R.id.quick_timer, View.GONE)
                 button(context, views, R.id.quick_primary, "Resume", "Resume recording", service(context, REQUEST_RESUME, RecordingForegroundService.ACTION_RESUME_RECORDING))
+                discardButton(context, views)
                 button(context, views, R.id.quick_secondary, "Save", "Save recording", service(context, REQUEST_STOP, RecordingForegroundService.ACTION_STOP_RECORDING))
             }
         }
@@ -305,6 +308,16 @@ object QuickRecordNotification {
         views.setViewVisibility(id, View.VISIBLE)
         views.setContentDescription(id, description)
         views.setOnClickPendingIntent(id, action)
+    }
+
+    /** Throws the recording away (the same action as "Delete" on the still-recording prompt). Shown while recording or paused. */
+    private fun discardButton(context: Context, views: RemoteViews) {
+        views.setViewVisibility(R.id.quick_discard, View.VISIBLE)
+        views.setContentDescription(R.id.quick_discard, "Discard recording")
+        views.setOnClickPendingIntent(
+            R.id.quick_discard,
+            service(context, REQUEST_DISCARD, RecordingForegroundService.ACTION_DELETE_RECORDING)
+        )
     }
 
     private fun flags() = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
