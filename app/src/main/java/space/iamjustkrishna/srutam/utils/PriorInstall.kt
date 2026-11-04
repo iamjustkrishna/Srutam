@@ -5,10 +5,12 @@ import android.os.Environment
 import java.io.File
 
 /**
- * Whether Srutam was installed on this phone before. Android lets an app see folders in shared
- * storage without any permission, just not other installs' files, so a Music/Srutam folder that
- * already exists on the very first launch means an earlier install left recordings there.
- * New users are never asked about earlier recordings; returning ones are offered to restore.
+ * Whether Srutam probably left recordings on this phone before. Android lets an app see folders in
+ * shared storage without any permission, but not what is inside them, so a Music/Srutam folder that
+ * already exists on the very first launch is the only sign there is, and it can't tell a folder full
+ * of recordings from an empty one. The app only creates the folder when it saves a recording, so
+ * an empty one is rare (every recording deleted, or an install from before this was fixed).
+ * New users are never asked about earlier recordings; returning ones are offered to look.
  */
 object PriorInstall {
     private const val PREFS = "srutam_prior_install"

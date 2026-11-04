@@ -33,14 +33,11 @@ object AudioFileReader {
         val publicMusicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
 
         // Points to: /storage/emulated/0/Music/Srutam/
-        val srutamDir = File(publicMusicDir, "Srutam")
-
-        // Create the folder if it doesn't exist
-        if (!srutamDir.exists()) {
-            srutamDir.mkdirs()
-        }
-
-        return srutamDir
+        //
+        // Looking never creates the folder. It used to, so every install that was ever opened left an empty
+        // Music/Srutam behind, and the next install took that for "recordings from before". Whatever saves a
+        // recording creates the folder itself (see RecordingForegroundService.createAudioFile).
+        return File(publicMusicDir, "Srutam")
     }
 
     fun getAudioFiles(): List<AudioFileInfo> {

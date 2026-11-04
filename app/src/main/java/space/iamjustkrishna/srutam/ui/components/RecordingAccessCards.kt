@@ -64,6 +64,10 @@ import space.iamjustkrishna.srutam.data.signature.BlockWriteAccess
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.PriorInstall
+import space.iamjustkrishna.srutam.utils.AudioFileReader
+import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import space.iamjustkrishna.srutam.utils.StoragePermission
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 
@@ -105,6 +109,15 @@ fun RecordingAccessBanners(
         if (granted) {
             viewModel?.loadAudioFiles()
             viewModel?.processPendingOfflineRecordings()
+            // The folder alone can't say whether it holds recordings; now it can be looked into, say what was found.
+            if (PriorInstall.recordingsFromBefore(context)) {
+                scope.launch {
+                    val found = withContext(Dispatchers.IO) { AudioFileReader.getAudioFiles().size }
+                    if (found == 0) {
+                        Toast.makeText(context, "No earlier recordings found on this phone.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         } else {
             val activity = context as? Activity
             val blocked = activity != null &&
@@ -341,7 +354,7 @@ private fun WelcomeBackSheet(onAllow: () -> Unit, onLater: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Srutam found recordings from an earlier install on this phone. Allow access to Music and audio and their notes come back as they were, even offline.",
+                "Srutam may have recordings from an earlier install on this phone. Allow access to Music and audio and any notes come back as they were, even offline.",
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
                 color = Sem.textSecondary,
