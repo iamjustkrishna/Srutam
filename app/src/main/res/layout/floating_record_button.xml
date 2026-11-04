@@ -5,11 +5,10 @@
     android:layout_height="wrap_content">
 
     <!-- Collapsed Edge Embedded Tab -->
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/dock_collapsed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:visibility="visible">
 
         <ImageView
@@ -25,20 +24,14 @@
             android:clipToOutline="true"
             android:scaleType="fitCenter" />
 
-        <!-- Elapsed time while recording, under the tab, on no background -->
-        <TextView
-            android:id="@+id/txt_dock_ring_time"
-            android:layout_width="52dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingTop="2dp"
-            android:textColor="#FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:shadowColor="#CC000000"
-            android:shadowRadius="4"
+        <!-- Elapsed time while recording, curved around the tab's edge, on no background -->
+        <space.iamjustkrishna.srutam.service.DockTimeArcView
+            android:id="@+id/dock_time_arc"
+            android:layout_width="70dp"
+            android:layout_height="52dp"
+            android:clickable="false"
             android:visibility="gone" />
-    </LinearLayout>
+    </FrameLayout>
 
     <!-- Expanded Options Menu (Idle / Not Recording) -->
     <LinearLayout

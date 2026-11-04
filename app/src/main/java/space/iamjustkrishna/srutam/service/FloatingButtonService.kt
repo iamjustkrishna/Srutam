@@ -53,7 +53,6 @@ class FloatingButtonService : Service() {
     private var lastTouchAt = 0L
     private var shown = DockLayout.COLLAPSED
     private var moveAnimator: android.animation.ValueAnimator? = null
-    private val ring by lazy { DockRingDrawable(resources.displayMetrics.density) }
     private var isDockedLeft = true
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -292,8 +291,8 @@ class FloatingButtonService : Service() {
         }
         // Glide to the new spot instead of jumping there.
         moveAnimator = android.animation.ValueAnimator.ofInt(params.x, targetX).apply {
-            duration = 220L
-            interpolator = android.view.animation.DecelerateInterpolator()
+            duration = 320L
+            interpolator = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
             addUpdateListener {
                 params.x = it.animatedValue as Int
                 runCatching { windowManager?.updateViewLayout(floatingView, params) }
@@ -310,27 +309,60 @@ class FloatingButtonService : Service() {
         }
     )
 
-    /** Fades to [target] with a short slide to or from the screen edge, instead of swapping views at once. */
+    /** How wide [v] will be once shown, even before it has been laid out. */
+    private fun widthOf(v: View): Float {
+        v.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        return v.measuredWidth.toFloat()
+    }
+
+    /**
+     * Moves to [target]. A bar slides out of the screen edge, all of it, and goes back into the edge the
+     * same way, leaving the tab; two bars (the menu and the recording controls) cross-fade in place.
+     */
     private fun show(target: DockLayout) {
         if (target == shown) return
         val from = viewFor(shown) ?: return
         val to = viewFor(target) ?: return
         val fromLayout = shown
         shown = target
-        val shift = 14 * resources.displayMetrics.density * (if (isDockedLeft) -1 else 1)
+        val towardEdge = if (isDockedLeft) -1f else 1f
 
         from.animate().cancel()
         to.animate().cancel()
-        from.animate().alpha(0f).translationX(shift).setDuration(120L).withEndAction {
+        val reset = {
             if (shown != fromLayout) from.visibility = View.GONE
             from.alpha = 1f
             from.translationX = 0f
-        }.start()
-        to.alpha = 0f
-        to.translationX = shift
-        to.visibility = View.VISIBLE
-        to.animate().alpha(1f).translationX(0f).setStartDelay(90L).setDuration(200L)
-            .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        }
+        val slide = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
+
+        when {
+            // A bar goes back into the edge; the tab fades in where it was.
+            target == DockLayout.COLLAPSED -> {
+                from.animate().translationX(towardEdge * widthOf(from)).alpha(0.2f).setDuration(280L)
+                    .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator()).withEndAction(reset).start()
+                to.alpha = 0f
+                to.translationX = 0f
+                to.visibility = View.VISIBLE
+                to.animate().alpha(1f).setStartDelay(160L).setDuration(180L).start()
+            }
+            // A bar comes out of the edge over the tab, which fades away behind it.
+            shown != DockLayout.COLLAPSED && fromLayout == DockLayout.COLLAPSED -> {
+                from.animate().alpha(0f).setStartDelay(100L).setDuration(160L).withEndAction(reset).start()
+                to.alpha = 1f
+                to.translationX = towardEdge * widthOf(to)
+                to.visibility = View.VISIBLE
+                to.animate().translationX(0f).setDuration(340L).setInterpolator(slide).start()
+            }
+            // Menu to recording controls, or back: a quiet cross-fade.
+            else -> {
+                from.animate().alpha(0f).setDuration(120L).withEndAction(reset).start()
+                to.alpha = 0f
+                to.translationX = 0f
+                to.visibility = View.VISIBLE
+                to.animate().alpha(1f).setStartDelay(80L).setDuration(180L).start()
+            }
+        }
     }
 
     private fun renderCurrentState() {
@@ -522,23 +554,23 @@ class FloatingButtonService : Service() {
         }
     }
 
-    /** The ring around the red edge tab and the time under it, while it records with the controls tucked away. */
+    /** The elapsed time, curved around the red edge tab, while it records with the controls tucked away. */
     private fun updateCollapsedTimer(visible: Boolean, paused: Boolean) {
         val tab = floatingView?.findViewById<ImageView>(R.id.floating_record_button) ?: return
-        val time = floatingView?.findViewById<TextView>(R.id.txt_dock_ring_time) ?: return
+        val arc = floatingView?.findViewById<DockTimeArcView>(R.id.dock_time_arc) ?: return
         if (!visible) {
-            if (tab.foreground != null) tab.foreground = null
-            time.visibility = View.GONE
+            arc.visibility = View.GONE
             return
         }
-        val elapsedMs = RecordingForegroundService.elapsedDurationMs
-        ring.leftDocked = isDockedLeft
-        ring.dimmed = paused
-        ring.progress = (elapsedMs % 60_000L) / 60_000f
-        if (tab.foreground !== ring) tab.foreground = ring
-        val seconds = (elapsedMs / 1000).toInt()
-        time.text = String.format("%d:%02d", seconds / 60, seconds % 60)
-        time.visibility = View.VISIBLE
+        // The tab and the text sit at the screen-edge end of the same frame.
+        val gravity = if (isDockedLeft) Gravity.START else Gravity.END
+        (tab.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { if (it.gravity != gravity) { it.gravity = gravity; tab.layoutParams = it } }
+        (arc.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { if (it.gravity != gravity) { it.gravity = gravity; arc.layoutParams = it } }
+        val seconds = (RecordingForegroundService.elapsedDurationMs / 1000).toInt()
+        arc.leftDocked = isDockedLeft
+        arc.dimmed = paused
+        arc.text = String.format("%d:%02d", seconds / 60, seconds % 60)
+        arc.visibility = View.VISIBLE
     }
 
     override fun onDestroy() {
