@@ -14,7 +14,7 @@ import android.view.View
  * controls tucked away. The letters follow the tab's rounded side, running down the screen (turned a
  * quarter, tops pointing away from the tab), on no background, so the tab itself stays small.
  *
- * The view is as tall as the tab and wider by the room the text needs; the tab sits at the screen-edge end.
+ * The view is as tall as the pill and 20 dp wider than what shows of it, for the text.
  */
 class DockTimeArcView @JvmOverloads constructor(
     context: Context,
@@ -53,11 +53,11 @@ class DockTimeArcView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         if (text.isEmpty()) return
-        val tab = 52f * density
         val centerY = height / 2f
-        // Centre of the tab's rounded side; the text circles it, a few dp outside the tab's edge.
-        val centerX = if (leftDocked) tab / 2f else width - tab / 2f
-        val radius = tab / 2f + 5f * density
+        // Centre of the pill's rounded end: 24 dp in from the screen-edge side of the window, which shows the
+        // pill's last 50 dp. The text circles it, a few dp outside the pill's edge.
+        val centerX = if (leftDocked) 24f * density else width - 24f * density
+        val radius = 26f * density + 5f * density
         val oval = RectF(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
 
         // Clockwise: down the right side for a left dock, up the left side for a right dock, so the letters

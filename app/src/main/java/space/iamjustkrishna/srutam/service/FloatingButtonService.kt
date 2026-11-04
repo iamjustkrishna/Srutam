@@ -1,14 +1,14 @@
 package space.iamjustkrishna.srutam.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.graphics.Outline
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
@@ -17,16 +17,15 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewOutlineProvider
-import android.view.WindowManager
 import android.view.ViewConfiguration
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.PathInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import android.Manifest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,25 +36,51 @@ import kotlinx.coroutines.launch
 import space.iamjustkrishna.srutam.MainActivity
 import space.iamjustkrishna.srutam.R
 import space.iamjustkrishna.srutam.utils.AppPreferences
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 
+/**
+ * The floating dock: one pill. It rests in the screen edge with only its logo end showing (red while
+ * recording) and slides out whole when tapped, then back in. Nothing swaps or fades in its place, so the
+ * motion is one piece. Tucked away while recording, the elapsed time is written along the visible end.
+ *
+ * Geometry for a dock on the left (the right is the mirror image): the pill is laid out at the left of a
+ * window that is only as wide as what shows. Tucked, the pill is translated left until just its logo end
+ * (PEEK) is inside the window; out, it is translated right by a small gap. The window is widened before
+ * the pill slides out and narrowed after it has slid back, so a tucked dock never blocks taps next to it.
+ */
 class FloatingButtonService : Service() {
 
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
     private var windowLayoutParams: WindowManager.LayoutParams? = null
 
-    private var initialX = 0
-    private var initialY = 0
-    private var initialTouchX = 0f
-    private var initialTouchY = 0f
-    private var isExpanded = false
-    /** When the controls were last opened or used, for folding them away after a quiet spell. */
-    private var lastTouchAt = 0L
-    private var shown = DockLayout.COLLAPSED
-    private var moveAnimator: android.animation.ValueAnimator? = null
     private var isDockedLeft = true
+    private var isExpanded = false
+
+    /** True once a slide back into the edge has finished (the time may then be written beside it). */
+    private var settled = true
+    private var lastRecording = false
+
+    /** When the pill was last opened or used, for tucking it away after a quiet spell. */
+    private var lastTouchAt = 0L
+
+    /** The pill's current width in px: wider with the recording controls than with the start menu. */
+    private var pillWidth = 0
+
+    private var morphAnimator: ValueAnimator? = null
+    private var colorAnimator: ValueAnimator? = null
+    private var arcShown = false
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val density get() = resources.displayMetrics.density
+    private fun dp(v: Float) = (v * density).roundToInt()
+    private val peekPx get() = dp(PEEK_DP)
+    private val gapPx get() = dp(OUT_GAP_DP)
+    private val arcExtraPx get() = dp(ARC_EXTRA_DP)
+
+    private fun <T : View> view(id: Int): T? = floatingView?.findViewById(id)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -92,14 +117,16 @@ class FloatingButtonService : Service() {
         }
     }
 
+    private fun isRecordingNow() = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
+    private fun isPausedNow() = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
+
+    // ---- the window --------------------------------------------------------------------------
+
     private fun showFloatingButton() {
         try {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-
-            floatingView = LayoutInflater.from(this).inflate(
-                R.layout.floating_record_button,
-                null
-            )
+            val root = LayoutInflater.from(this).inflate(R.layout.floating_record_button, null)
+            floatingView = root
 
             val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -107,352 +134,313 @@ class FloatingButtonService : Service() {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE
             }
-
-            val screenHeight = resources.displayMetrics.heightPixels
-            val density = resources.displayMetrics.density
-            val embedOffsetPx = (8 * density).toInt()
             isDockedLeft = AppPreferences.isFloatingDockOnLeft(this)
-            val defaultY = (screenHeight * 0.35f).toInt()
-            val initialY = AppPreferences.getFloatingDockY(this, defaultY)
+            val defaultY = (resources.displayMetrics.heightPixels * 0.35f).toInt()
 
             val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                peekPx,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-                x = -embedOffsetPx
-                y = initialY
+                x = 0
+                y = AppPreferences.getFloatingDockY(this@FloatingButtonService, defaultY)
             }
             windowLayoutParams = params
+            windowManager?.addView(root, params)
 
-            windowManager?.addView(floatingView, params)
-
-            setupDragAndClick(params)
-            setupExpandedOptions()
-            renderCurrentState()
-
-            Log.d(TAG, "Floating button displayed")
+            setupButtons()
+            setupLogoTouch()
+            lastRecording = isRecordingNow()
+            styleFor(lastRecording, animate = false)
+            reflow()
+            Log.d(TAG, "Floating dock displayed")
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing floating button", e)
+            Log.e(TAG, "Error showing floating dock", e)
         }
     }
 
-    private fun setupDragAndClick(params: WindowManager.LayoutParams) {
-        val collapsedBtn = floatingView?.findViewById<View>(R.id.floating_record_button)
-        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop.coerceAtLeast(36)
-
-        val touchListener = object : View.OnTouchListener {
-            private var isDragging = false
-            private var downX = 0f
-            private var downY = 0f
-            private var startX = 0
-            private var startY = 0
-
-            override fun onTouch(view: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        moveAnimator?.cancel()
-                        downX = event.rawX
-                        downY = event.rawY
-                        val screenWidth = resources.displayMetrics.widthPixels
-                        val density = resources.displayMetrics.density
-                        val tabWidth = (52 * density).toInt()
-                        val embedOffsetPx = (8 * density).toInt()
-
-                        // Temporarily switch to TOP | START coordinates for continuous screen dragging
-                        params.gravity = Gravity.TOP or Gravity.START
-                        params.x = if (isDockedLeft) -embedOffsetPx else (screenWidth - tabWidth + embedOffsetPx)
-                        startX = params.x
-                        startY = params.y
-                        isDragging = false
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = (event.rawX - downX).toInt()
-                        val dy = (event.rawY - downY).toInt()
-                        val distance = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
-
-                        if (!isDragging && distance > touchSlop) {
-                            isDragging = true
-                        }
-
-                        if (isDragging) {
-                            val screenHeight = resources.displayMetrics.heightPixels
-                            params.x = startX + dx
-                            params.y = (startY + dy).coerceIn(40, screenHeight - 200)
-                            windowManager?.updateViewLayout(floatingView, params)
-                        }
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        val density = resources.displayMetrics.density
-                        val embedOffsetPx = (8 * density).toInt()
-                        if (isDragging) {
-                            val screenWidth = resources.displayMetrics.widthPixels
-                            val tabWidth = (52 * density).toInt()
-                            isDockedLeft = (params.x + tabWidth / 2) < (screenWidth / 2)
-                            AppPreferences.setFloatingDockOnLeft(this@FloatingButtonService, isDockedLeft)
-                            AppPreferences.setFloatingDockY(this@FloatingButtonService, params.y)
-
-                            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-                            params.x = -embedOffsetPx
-                            windowManager?.updateViewLayout(floatingView, params)
-                            renderCurrentState()
-                        } else {
-                            // Tap event on collapsed dock tab
-                            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-                            params.x = -embedOffsetPx
-                            toggleExpanded()
-                        }
-                        return true
-                    }
-                }
-                return false
-            }
-        }
-
-        collapsedBtn?.setOnTouchListener(touchListener)
-    }
-
-    private fun setupExpandedOptions() {
-        // Direct record button (circular icon only)
-        floatingView?.findViewById<View>(R.id.btn_dock_start_record)?.setOnClickListener {
-            Log.d(TAG, "Record icon clicked from dock")
-            startRecording()
-        }
-
-        // Open app button
-        floatingView?.findViewById<View>(R.id.btn_dock_open_app)?.setOnClickListener {
-            Log.d(TAG, "Open app clicked from dock")
-            openMainActivity()
-            isExpanded = false
-            adjustPositionForExpandedState()
-            renderCurrentState()
-        }
-
-        // Collapse button
-        floatingView?.findViewById<View>(R.id.btn_dock_collapse)?.setOnClickListener {
-            Log.d(TAG, "Collapse button clicked from dock")
-            isExpanded = false
-            adjustPositionForExpandedState()
-            renderCurrentState()
-        }
-
-        // Recording controls: fold back into the edge tab
-        floatingView?.findViewById<View>(R.id.btn_dock_collapse_recording)?.setOnClickListener {
-            collapse()
-        }
-
-        // Recording controls: Pause / Resume
-        floatingView?.findViewById<View>(R.id.btn_dock_pause_resume)?.setOnClickListener {
-            lastTouchAt = SystemClock.elapsedRealtime()
-            togglePauseResume()
-        }
-
-        // Recording controls: Save & Stop
-        floatingView?.findViewById<View>(R.id.btn_dock_stop_save)?.setOnClickListener {
-            stopRecording()
-        }
-
-        // Recording controls: Cancel & Discard
-        floatingView?.findViewById<View>(R.id.btn_dock_cancel)?.setOnClickListener {
-            cancelRecording()
+    private fun setWindowWidth(px: Int) {
+        val params = windowLayoutParams ?: return
+        if (params.width == px) return
+        params.width = px
+        try {
+            windowManager?.updateViewLayout(floatingView, params)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error updating the dock window", e)
         }
     }
 
-    private fun toggleExpanded() {
-        isExpanded = !isExpanded
+    // ---- the pill's layout -------------------------------------------------------------------
+
+    /** How wide the pill is with the recording controls ([recording]) or the start menu. */
+    private fun widthFor(recording: Boolean): Int {
+        val pill = view<View>(R.id.dock_pill) ?: return 0
+        val idle = view<View>(R.id.pill_idle) ?: return 0
+        val rec = view<View>(R.id.pill_rec) ?: return 0
+        val idleVisibility = idle.visibility
+        val recVisibility = rec.visibility
+        idle.visibility = if (recording) View.GONE else View.VISIBLE
+        rec.visibility = if (recording) View.VISIBLE else View.GONE
+        val lp = pill.layoutParams
+        val oldWidth = lp.width
+        lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+        pill.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.makeMeasureSpec(dp(52f), View.MeasureSpec.EXACTLY))
+        val width = pill.measuredWidth
+        lp.width = oldWidth
+        idle.visibility = idleVisibility
+        rec.visibility = recVisibility
+        return width
+    }
+
+    private fun setPillContent(recording: Boolean) {
+        val pill = view<View>(R.id.dock_pill) ?: return
+        view<View>(R.id.pill_idle)?.apply { visibility = if (recording) View.GONE else View.VISIBLE; alpha = 1f }
+        view<View>(R.id.pill_rec)?.apply { visibility = if (recording) View.VISIBLE else View.GONE; alpha = 1f }
+        pillWidth = widthFor(recording)
+        val lp = pill.layoutParams
+        lp.width = pillWidth
+        pill.layoutParams = lp
+    }
+
+    /** The side the dock is on: which way the pill is laid out, where it is anchored and which way the time curves. */
+    private fun applySide() {
+        val gravity = if (isDockedLeft) Gravity.START else Gravity.END
+        view<View>(R.id.dock_pill)?.let { pill ->
+            pill.layoutDirection = if (isDockedLeft) View.LAYOUT_DIRECTION_LTR else View.LAYOUT_DIRECTION_RTL
+            (pill.layoutParams as? FrameLayout.LayoutParams)?.let { it.gravity = gravity; pill.layoutParams = it }
+        }
+        view<DockTimeArcView>(R.id.dock_time_arc)?.let { arc ->
+            arc.leftDocked = isDockedLeft
+            (arc.layoutParams as? FrameLayout.LayoutParams)?.let { it.gravity = gravity; arc.layoutParams = it }
+        }
+    }
+
+    private fun tuckedTranslation(): Float = if (isDockedLeft) (peekPx - pillWidth).toFloat() else (pillWidth - peekPx).toFloat()
+    private fun outTranslation(): Float = if (isDockedLeft) gapPx.toFloat() else -gapPx.toFloat()
+    private fun tuckedWindowWidth(recording: Boolean) = peekPx + if (recording) arcExtraPx else 0
+
+    /** Lays everything out again for the current side, state and open or tucked position, with no animation. */
+    private fun reflow() {
+        val recording = isRecordingNow()
+        applySide()
+        setPillContent(recording)
+        val pill = view<View>(R.id.dock_pill) ?: return
+        if (isExpanded) {
+            pill.translationX = outTranslation()
+            setWindowWidth(pillWidth + gapPx)
+        } else {
+            pill.translationX = tuckedTranslation()
+            setWindowWidth(tuckedWindowWidth(recording))
+        }
+    }
+
+    // ---- opening, tucking and the state of recording -------------------------------------------
+
+    /** The whole pill slides out of the edge. */
+    private fun expand() {
+        if (isExpanded) return
+        isExpanded = true
+        settled = false
         lastTouchAt = SystemClock.elapsedRealtime()
-        adjustPositionForExpandedState()
-        renderCurrentState()
+        morphAnimator?.cancel()
+        val pill = view<View>(R.id.dock_pill) ?: return
+        hideArc()
+        setWindowWidth(pillWidth + gapPx)
+        pill.animate().cancel()
+        pill.animate().translationX(outTranslation()).setDuration(SLIDE_OUT_MS)
+            .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f)).start()
     }
 
+    /** The whole pill slides back into the edge, leaving only its logo end. */
     private fun collapse() {
         if (!isExpanded) return
         isExpanded = false
-        adjustPositionForExpandedState()
-        renderCurrentState()
+        morphAnimator?.cancel()
+        val pill = view<View>(R.id.dock_pill) ?: return
+        pill.animate().cancel()
+        pill.animate().translationX(tuckedTranslation()).setDuration(SLIDE_IN_MS)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .withEndAction {
+                if (!isExpanded) {
+                    settled = true
+                    setWindowWidth(tuckedWindowWidth(isRecordingNow()))
+                }
+            }.start()
     }
 
-    private fun adjustPositionForExpandedState() {
-        val params = windowLayoutParams ?: return
-        val density = resources.displayMetrics.density
-        val embedOffsetPx = (8 * density).toInt()
+    private fun toggle() {
+        if (isExpanded) collapse() else expand()
+    }
 
-        params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-        val targetX = if (isExpanded) (8 * density).toInt() else -embedOffsetPx
-        moveAnimator?.cancel()
-        if (params.x == targetX) {
-            windowManager?.updateViewLayout(floatingView, params)
+    /** Recording started or ended: the pill turns red (or back) and its buttons change. */
+    private fun onRecordingChanged(recording: Boolean) {
+        styleFor(recording, animate = true)
+        if (!isExpanded) {
+            // Tucked away: change it unseen; the time appears beside the end when recording.
+            reflow()
             return
         }
-        // Glide to the new spot instead of jumping there.
-        moveAnimator = android.animation.ValueAnimator.ofInt(params.x, targetX).apply {
-            duration = 320L
-            interpolator = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
+        morphTo(recording)
+    }
+
+    /** Open pill, new buttons: the pill widens or narrows while the old buttons fade out and the new ones in. */
+    private fun morphTo(recording: Boolean) {
+        val pill = view<View>(R.id.dock_pill) ?: return
+        val idle = view<View>(R.id.pill_idle) ?: return
+        val rec = view<View>(R.id.pill_rec) ?: return
+        val oldView = if (recording) idle else rec
+        val newView = if (recording) rec else idle
+        val fromWidth = pillWidth
+        val toWidth = widthFor(recording)
+        pillWidth = toWidth
+
+        morphAnimator?.cancel()
+        morphAnimator = ValueAnimator.ofInt(fromWidth, toWidth).apply {
+            duration = 240L
+            interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
             addUpdateListener {
-                params.x = it.animatedValue as Int
-                runCatching { windowManager?.updateViewLayout(floatingView, params) }
+                val w = it.animatedValue as Int
+                pill.layoutParams = pill.layoutParams.apply { width = w }
+                setWindowWidth(w + gapPx)
+            }
+            start()
+        }
+        oldView.animate().cancel()
+        newView.animate().cancel()
+        oldView.animate().alpha(0f).setDuration(90L).withEndAction {
+            oldView.visibility = View.GONE
+            oldView.alpha = 1f
+            newView.alpha = 0f
+            newView.visibility = View.VISIBLE
+            newView.animate().alpha(1f).setDuration(140L).start()
+        }.start()
+        lastTouchAt = SystemClock.elapsedRealtime()
+    }
+
+    /** The fill of the pill and the logo disc: dark while idle, red while recording. */
+    private fun styleFor(recording: Boolean, animate: Boolean) {
+        val pillBg = view<View>(R.id.dock_pill)?.background?.mutate() as? GradientDrawable ?: return
+        val logoBg = view<View>(R.id.floating_record_button)?.background?.mutate() as? GradientDrawable
+        val toPill = if (recording) COLOR_RED else COLOR_IDLE
+        val toLogo = if (recording) COLOR_LOGO_RED else COLOR_LOGO_IDLE
+        // The stop button is white with a red icon; the bin is white so it reads on red.
+        view<ImageView>(R.id.btn_dock_stop_save)?.imageTintList = ColorStateList.valueOf(COLOR_RED)
+        view<ImageView>(R.id.btn_dock_cancel)?.imageTintList = ColorStateList.valueOf(Color.WHITE)
+
+        colorAnimator?.cancel()
+        if (!animate) {
+            pillBg.setColor(toPill)
+            logoBg?.setColor(toLogo)
+            return
+        }
+        val fromPill = (if (recording) COLOR_IDLE else COLOR_RED)
+        val fromLogo = (if (recording) COLOR_LOGO_IDLE else COLOR_LOGO_RED)
+        val evaluator = ArgbEvaluator()
+        colorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 160L
+            addUpdateListener {
+                val f = it.animatedFraction
+                pillBg.setColor(evaluator.evaluate(f, fromPill, toPill) as Int)
+                logoBg?.setColor(evaluator.evaluate(f, fromLogo, toLogo) as Int)
             }
             start()
         }
     }
 
-    private fun viewFor(layout: DockLayout): View? = floatingView?.findViewById(
-        when (layout) {
-            DockLayout.COLLAPSED -> R.id.dock_collapsed
-            DockLayout.IDLE -> R.id.dock_expanded_idle
-            DockLayout.RECORDING -> R.id.dock_expanded_recording
-        }
-    )
+    // ---- the buttons -------------------------------------------------------------------------
 
-    /** How wide [v] will be once shown, even before it has been laid out. */
-    private fun widthOf(v: View): Float {
-        v.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        return v.measuredWidth.toFloat()
+    private fun setupButtons() {
+        view<View>(R.id.btn_dock_start_record)?.setOnClickListener {
+            Log.d(TAG, "Record clicked from dock")
+            startRecording()
+        }
+        view<View>(R.id.btn_dock_open_app)?.setOnClickListener {
+            openMainActivity()
+            collapse()
+        }
+        view<View>(R.id.btn_dock_collapse)?.setOnClickListener { collapse() }
+        view<View>(R.id.btn_dock_collapse_recording)?.setOnClickListener { collapse() }
+        view<View>(R.id.btn_dock_pause_resume)?.setOnClickListener {
+            lastTouchAt = SystemClock.elapsedRealtime()
+            togglePauseResume()
+        }
+        view<View>(R.id.btn_dock_stop_save)?.setOnClickListener { stopRecording() }
+        view<View>(R.id.btn_dock_cancel)?.setOnClickListener { cancelRecording() }
     }
 
-    /**
-     * Moves to [target]. A bar slides out of the screen edge, all of it, and goes back into the edge the
-     * same way, leaving the tab; two bars (the menu and the recording controls) cross-fade in place.
-     */
-    private fun show(target: DockLayout) {
-        if (target == shown) return
-        val from = viewFor(shown) ?: return
-        val to = viewFor(target) ?: return
-        val fromLayout = shown
-        shown = target
-        val towardEdge = if (isDockedLeft) -1f else 1f
+    /** Tap the logo end to open or tuck the pill; drag it to move the dock up, down or to the other edge. */
+    private fun setupLogoTouch() {
+        val logo = view<View>(R.id.floating_record_button) ?: return
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop.coerceAtLeast(36)
 
-        from.animate().cancel()
-        to.animate().cancel()
-        val reset = {
-            if (shown != fromLayout) from.visibility = View.GONE
-            from.alpha = 1f
-            from.translationX = 0f
-        }
-        val slide = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
+        logo.setOnTouchListener(object : View.OnTouchListener {
+            private var dragging = false
+            private var downX = 0f
+            private var downY = 0f
+            private var startX = 0
+            private var startY = 0
 
-        when {
-            // A bar goes back into the edge; the tab fades in where it was.
-            target == DockLayout.COLLAPSED -> {
-                from.animate().translationX(towardEdge * widthOf(from)).alpha(0.2f).setDuration(280L)
-                    .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator()).withEndAction(reset).start()
-                to.alpha = 0f
-                to.translationX = 0f
-                to.visibility = View.VISIBLE
-                to.animate().alpha(1f).setStartDelay(160L).setDuration(180L).start()
-            }
-            // A bar comes out of the edge over the tab, which fades away behind it.
-            shown != DockLayout.COLLAPSED && fromLayout == DockLayout.COLLAPSED -> {
-                from.animate().alpha(0f).setStartDelay(100L).setDuration(160L).withEndAction(reset).start()
-                to.alpha = 1f
-                to.translationX = towardEdge * widthOf(to)
-                to.visibility = View.VISIBLE
-                to.animate().translationX(0f).setDuration(340L).setInterpolator(slide).start()
-            }
-            // Menu to recording controls, or back: a quiet cross-fade.
-            else -> {
-                from.animate().alpha(0f).setDuration(120L).withEndAction(reset).start()
-                to.alpha = 0f
-                to.translationX = 0f
-                to.visibility = View.VISIBLE
-                to.animate().alpha(1f).setStartDelay(80L).setDuration(180L).start()
-            }
-        }
-    }
-
-    private fun renderCurrentState() {
-        val collapsedLayout = floatingView?.findViewById<View>(R.id.dock_collapsed)
-        val expandedIdleLayout = floatingView?.findViewById<View>(R.id.dock_expanded_idle)
-        val expandedRecLayout = floatingView?.findViewById<View>(R.id.dock_expanded_recording)
-        val collapsedBtn = floatingView?.findViewById<ImageView>(R.id.floating_record_button)
-        val pauseResumeBtn = floatingView?.findViewById<ImageView>(R.id.btn_dock_pause_resume)
-
-        val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
-        val isPaused = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
-
-        // Mirror layout direction for right docked orientation so actions flow naturally from edge
-        val layoutDir = if (isDockedLeft) View.LAYOUT_DIRECTION_LTR else View.LAYOUT_DIRECTION_RTL
-        expandedIdleLayout?.layoutDirection = layoutDir
-        expandedRecLayout?.layoutDirection = layoutDir
-
-        if (!isExpanded) {
-            val density = resources.displayMetrics.density
-            val padEmbedded = (11 * density).toInt()
-            val padFree = (6 * density).toInt()
-            val padY = (7 * density).toInt()
-            val radius = 22 * density
-
-            if (isDockedLeft) {
-                collapsedBtn?.setPadding(padEmbedded, padY, padFree, padY)
-                collapsedBtn?.setBackgroundResource(
-                    if (isRec) R.drawable.bg_floating_dock_recording_edge_left
-                    else R.drawable.bg_floating_dock_edge_left
-                )
-                collapsedBtn?.outlineProvider = object : ViewOutlineProvider() {
-                    override fun getOutline(view: View, outline: Outline) {
-                        outline.setRoundRect((-radius).toInt(), 0, view.width, view.height, radius)
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                val params = windowLayoutParams ?: return false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = event.rawX
+                        downY = event.rawY
+                        // Switch to TOP | START coordinates, so the window can be dragged across the screen.
+                        val width = floatingView?.width ?: peekPx
+                        params.gravity = Gravity.TOP or Gravity.START
+                        params.x = if (isDockedLeft) 0 else resources.displayMetrics.widthPixels - width
+                        startX = params.x
+                        startY = params.y
+                        dragging = false
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - downX).toInt()
+                        val dy = (event.rawY - downY).toInt()
+                        if (!dragging && hypot(dx.toDouble(), dy.toDouble()) > touchSlop) dragging = true
+                        if (dragging) {
+                            params.x = startX + dx
+                            params.y = (startY + dy).coerceIn(40, resources.displayMetrics.heightPixels - 200)
+                            try {
+                                windowManager?.updateViewLayout(floatingView, params)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Error moving the dock", e)
+                            }
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val width = floatingView?.width ?: peekPx
+                        if (dragging) {
+                            val screenWidth = resources.displayMetrics.widthPixels
+                            val left = (params.x + width / 2) < (screenWidth / 2)
+                            AppPreferences.setFloatingDockY(this@FloatingButtonService, params.y)
+                            if (left != isDockedLeft) {
+                                isDockedLeft = left
+                                AppPreferences.setFloatingDockOnLeft(this@FloatingButtonService, left)
+                            }
+                        }
+                        params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
+                        params.x = 0
+                        try {
+                            windowManager?.updateViewLayout(floatingView, params)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error docking the dock", e)
+                        }
+                        if (dragging) reflow() else toggle()
+                        return true
                     }
                 }
-            } else {
-                collapsedBtn?.setPadding(padFree, padY, padEmbedded, padY)
-                collapsedBtn?.setBackgroundResource(
-                    if (isRec) R.drawable.bg_floating_dock_recording_edge_right
-                    else R.drawable.bg_floating_dock_edge_right
-                )
-                collapsedBtn?.outlineProvider = object : ViewOutlineProvider() {
-                    override fun getOutline(view: View, outline: Outline) {
-                        outline.setRoundRect(0, 0, (view.width + radius).toInt(), view.height, radius)
-                    }
-                }
+                return false
             }
-            collapsedBtn?.clipToOutline = true
-            collapsedBtn?.elevation = 0f
-            show(DockLayout.COLLAPSED)
-        } else {
-            val density = resources.displayMetrics.density
-            val radius = 22 * density
-            val cardOutlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) {
-                    outline.setRoundRect(0, 0, view.width, view.height, radius)
-                }
-            }
-            expandedIdleLayout?.outlineProvider = cardOutlineProvider
-            expandedIdleLayout?.clipToOutline = true
-            expandedIdleLayout?.elevation = 0f
-
-            expandedRecLayout?.outlineProvider = cardOutlineProvider
-            expandedRecLayout?.clipToOutline = true
-            expandedRecLayout?.elevation = 0f
-
-            if (isRec) {
-                show(DockLayout.RECORDING)
-
-                if (isPaused) {
-                    pauseResumeBtn?.setImageResource(R.drawable.ic_floating_play)
-                } else {
-                    pauseResumeBtn?.setImageResource(R.drawable.ic_floating_pause)
-                }
-            } else {
-                show(DockLayout.IDLE)
-            }
-        }
-
-        windowLayoutParams?.let { params ->
-            params.width = WindowManager.LayoutParams.WRAP_CONTENT
-            params.height = WindowManager.LayoutParams.WRAP_CONTENT
-            params.gravity = Gravity.TOP or (if (isDockedLeft) Gravity.START else Gravity.END)
-            try {
-                windowManager?.updateViewLayout(floatingView, params)
-            } catch (e: Exception) {
-                Log.w(TAG, "Error updating window layout", e)
-            }
-        }
+        })
     }
+
+    // ---- recording ---------------------------------------------------------------------------
 
     private fun startRecording() {
         if (!MicPermission.isGranted(this)) {
@@ -460,46 +448,43 @@ class FloatingButtonService : Service() {
             MicPermission.openAppToAsk(this, "dock")
             return
         }
-
         val started = RecordingCoordinator.requestStart(this, "dock")
         if (!started) {
             showElevatedToast("Recording already in progress")
             return
         }
-        // Show the recording controls first. They tuck into the edge tab on their own after a few quiet
-        // seconds (see DockCollapse), where a ring and the elapsed time carry on showing it records.
-        isExpanded = true
+        // The pill stays out and turns into the recording controls (the state watcher does that); they tuck
+        // into the edge by themselves after a few quiet seconds (see DockCollapse).
         lastTouchAt = SystemClock.elapsedRealtime()
-        adjustPositionForExpandedState()
-        renderCurrentState()
     }
 
     private fun togglePauseResume() {
-        val isPaused = RecordingCoordinator.isPaused
-        if (isPaused) {
+        if (RecordingCoordinator.isPaused) {
             RecordingCoordinator.requestResume(this)
             showElevatedToast("Recording resumed")
         } else {
             RecordingCoordinator.requestPause(this)
             showElevatedToast("Recording paused")
         }
-        renderCurrentState()
+        updatePauseIcon()
+    }
+
+    private fun updatePauseIcon() {
+        view<ImageView>(R.id.btn_dock_pause_resume)?.setImageResource(
+            if (isPausedNow()) R.drawable.ic_floating_play else R.drawable.ic_floating_pause
+        )
     }
 
     private fun stopRecording() {
         RecordingCoordinator.requestStop(this)
         showElevatedToast("Voice note saved")
-        isExpanded = false
-        adjustPositionForExpandedState()
-        renderCurrentState()
+        collapse()
     }
 
     private fun cancelRecording() {
         RecordingCoordinator.requestCancel(this)
         showElevatedToast("Recording discarded")
-        isExpanded = false
-        adjustPositionForExpandedState()
-        renderCurrentState()
+        collapse()
     }
 
     private fun showElevatedToast(message: String) {
@@ -516,66 +501,78 @@ class FloatingButtonService : Service() {
         startActivity(intent)
     }
 
+    // ---- the time ----------------------------------------------------------------------------
+
+    private fun hideArc() {
+        val arc = view<DockTimeArcView>(R.id.dock_time_arc) ?: return
+        arc.animate().cancel()
+        arc.visibility = View.GONE
+        arcShown = false
+    }
+
+    private fun formatTime(ms: Long): String {
+        val seconds = (ms / 1000).toInt()
+        return String.format("%d:%02d", seconds / 60, seconds % 60)
+    }
+
     private fun startStateWatcher() {
         // Collect reactive state transitions from RecordingCoordinator
         serviceScope.launch {
             RecordingCoordinator.state.collect { state ->
-                renderCurrentState()
-                if (state is RecordingCoordinator.RecordingSessionState.Idle && isExpanded) {
-                    isExpanded = false
-                    adjustPositionForExpandedState()
-                    renderCurrentState()
+                val recording = isRecordingNow()
+                if (recording != lastRecording) {
+                    lastRecording = recording
+                    onRecordingChanged(recording)
                 }
+                updatePauseIcon()
+                if (state is RecordingCoordinator.RecordingSessionState.Idle && isExpanded) collapse()
             }
         }
 
-        // Live timer updater when recording
+        // The time, and tucking the pill away after a quiet spell
         serviceScope.launch {
             while (isActive) {
-                val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
-                val isPaused = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
+                val recording = isRecordingNow()
+                val paused = isPausedNow()
+                val now = SystemClock.elapsedRealtime()
 
-                if (DockCollapse.shouldCollapse(isExpanded, isRec, SystemClock.elapsedRealtime() - lastTouchAt)) {
-                    collapse()
-                }
-                updateCollapsedTimer(isRec && !isExpanded, isPaused)
-                if (isRec && isExpanded) {
-                    val durationMs = RecordingForegroundService.elapsedDurationMs
-                    val seconds = (durationMs / 1000).toInt()
-                    val minutes = seconds / 60
-                    val remSeconds = seconds % 60
-                    val formatted = String.format("%d:%02d", minutes, remSeconds)
-                    floatingView?.findViewById<TextView>(R.id.txt_dock_timer)?.text =
-                        if (isPaused) "PAUSED $formatted" else "REC $formatted"
+                if (DockCollapse.shouldCollapse(isExpanded, recording, now - lastTouchAt)) collapse()
+
+                val elapsed = RecordingForegroundService.elapsedDurationMs
+                if (recording && isExpanded) {
+                    view<TextView>(R.id.txt_dock_timer)?.apply {
+                        text = formatTime(elapsed)
+                        alpha = if (paused) 0.6f else 1f
+                    }
                 }
 
+                val arc = view<DockTimeArcView>(R.id.dock_time_arc)
+                val showArc = recording && !isExpanded && settled
+                if (arc != null) {
+                    if (showArc) {
+                        arc.text = formatTime(elapsed)
+                        arc.dimmed = paused
+                        if (!arcShown) {
+                            arcShown = true
+                            setWindowWidth(tuckedWindowWidth(true))
+                            arc.alpha = 0f
+                            arc.visibility = View.VISIBLE
+                            arc.animate().alpha(1f).setDuration(160L).start()
+                        }
+                    } else if (arcShown) {
+                        hideArc()
+                        if (!isExpanded && settled) setWindowWidth(tuckedWindowWidth(false))
+                    }
+                }
                 delay(200)
             }
         }
     }
 
-    /** The elapsed time, curved around the red edge tab, while it records with the controls tucked away. */
-    private fun updateCollapsedTimer(visible: Boolean, paused: Boolean) {
-        val tab = floatingView?.findViewById<ImageView>(R.id.floating_record_button) ?: return
-        val arc = floatingView?.findViewById<DockTimeArcView>(R.id.dock_time_arc) ?: return
-        if (!visible) {
-            arc.visibility = View.GONE
-            return
-        }
-        // The tab and the text sit at the screen-edge end of the same frame.
-        val gravity = if (isDockedLeft) Gravity.START else Gravity.END
-        (tab.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { if (it.gravity != gravity) { it.gravity = gravity; tab.layoutParams = it } }
-        (arc.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { if (it.gravity != gravity) { it.gravity = gravity; arc.layoutParams = it } }
-        val seconds = (RecordingForegroundService.elapsedDurationMs / 1000).toInt()
-        arc.leftDocked = isDockedLeft
-        arc.dimmed = paused
-        arc.text = String.format("%d:%02d", seconds / 60, seconds % 60)
-        arc.visibility = View.VISIBLE
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        moveAnimator?.cancel()
+        morphAnimator?.cancel()
+        colorAnimator?.cancel()
         serviceScope.cancel()
         floatingView?.let {
             try {
@@ -600,12 +597,26 @@ class FloatingButtonService : Service() {
         private const val TAG = "FloatingButtonService"
         const val ACTION_SHOW_IDLE = "space.iamjustkrishna.srutam.action.SHOW_IDLE_NOTIFICATION"
 
+        /** How much of the pill shows when it is tucked away: its logo end. */
+        private const val PEEK_DP = 50f
+
+        /** The gap between the screen edge and the pill when it is out. */
+        private const val OUT_GAP_DP = 6f
+
+        /** Room beside the visible end for the elapsed time. */
+        private const val ARC_EXTRA_DP = 20f
+
+        private const val SLIDE_OUT_MS = 300L
+        private const val SLIDE_IN_MS = 300L
+
+        private val COLOR_IDLE = Color.parseColor("#0F172A")
+        private val COLOR_RED = Color.parseColor("#DC2626")
+        private val COLOR_LOGO_IDLE = Color.parseColor("#334155")
+        private val COLOR_LOGO_RED = Color.parseColor("#7F1D1D")
+
         /** True while the dock service is alive (it is then the foreground owner of the one notification). */
         @Volatile
         var isRunning = false
             private set
     }
 }
-
-/** Which of the dock's three looks is on screen. */
-private enum class DockLayout { COLLAPSED, IDLE, RECORDING }
