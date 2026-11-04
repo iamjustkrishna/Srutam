@@ -11,6 +11,7 @@ import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -48,6 +49,9 @@ class FloatingButtonService : Service() {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isExpanded = false
+    /** When the controls were last opened or used, for folding them away after a quiet spell. */
+    private var lastTouchAt = 0L
+    private var pulse: android.animation.ObjectAnimator? = null
     private var isDockedLeft = true
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -235,8 +239,14 @@ class FloatingButtonService : Service() {
             renderCurrentState()
         }
 
+        // Recording controls: fold back into the edge tab
+        floatingView?.findViewById<View>(R.id.btn_dock_collapse_recording)?.setOnClickListener {
+            collapse()
+        }
+
         // Recording controls: Pause / Resume
         floatingView?.findViewById<View>(R.id.btn_dock_pause_resume)?.setOnClickListener {
+            lastTouchAt = SystemClock.elapsedRealtime()
             togglePauseResume()
         }
 
@@ -253,6 +263,14 @@ class FloatingButtonService : Service() {
 
     private fun toggleExpanded() {
         isExpanded = !isExpanded
+        lastTouchAt = SystemClock.elapsedRealtime()
+        adjustPositionForExpandedState()
+        renderCurrentState()
+    }
+
+    private fun collapse() {
+        if (!isExpanded) return
+        isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
     }
@@ -314,10 +332,12 @@ class FloatingButtonService : Service() {
             }
             collapsedBtn?.clipToOutline = true
             collapsedBtn?.elevation = 0f
+            updatePulse(collapsedBtn, isRec && !isPaused)
             collapsedLayout?.visibility = View.VISIBLE
             expandedIdleLayout?.visibility = View.GONE
             expandedRecLayout?.visibility = View.GONE
         } else {
+            updatePulse(collapsedBtn, false)
             collapsedLayout?.visibility = View.GONE
             val density = resources.displayMetrics.density
             val radius = 22 * density
@@ -361,6 +381,24 @@ class FloatingButtonService : Service() {
         }
     }
 
+    /** A slow fade in and out on the red tab, so "still recording" reads at a glance. Off when paused or expanded. */
+    private fun updatePulse(tab: View?, on: Boolean) {
+        if (tab == null) return
+        if (!on) {
+            pulse?.cancel()
+            pulse = null
+            tab.alpha = 1f
+            return
+        }
+        if (pulse?.isRunning == true) return
+        pulse = android.animation.ObjectAnimator.ofFloat(tab, View.ALPHA, 1f, 0.55f).apply {
+            duration = 900L
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            start()
+        }
+    }
+
     private fun startRecording() {
         if (!MicPermission.isGranted(this)) {
             // The app asks, or explains how to turn the mic on if it's blocked.
@@ -373,7 +411,9 @@ class FloatingButtonService : Service() {
             showElevatedToast("Recording already in progress")
             return
         }
-        isExpanded = true
+        // The dock stays the small edge tab and turns red; tapping it opens the controls. It used to open
+        // the wide recording bar here, which then covered the other app and had no way back.
+        isExpanded = false
         adjustPositionForExpandedState()
         renderCurrentState()
     }
@@ -439,6 +479,9 @@ class FloatingButtonService : Service() {
                 val isRec = RecordingCoordinator.isRecording || RecordingForegroundService.isRecording
                 val isPaused = RecordingCoordinator.isPaused || RecordingForegroundService.isPaused
 
+                if (DockCollapse.shouldCollapse(isExpanded, isRec, SystemClock.elapsedRealtime() - lastTouchAt)) {
+                    collapse()
+                }
                 if (isRec && isExpanded) {
                     val durationMs = RecordingForegroundService.elapsedDurationMs
                     val seconds = (durationMs / 1000).toInt()
@@ -456,6 +499,7 @@ class FloatingButtonService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pulse?.cancel()
         serviceScope.cancel()
         floatingView?.let {
             try {
