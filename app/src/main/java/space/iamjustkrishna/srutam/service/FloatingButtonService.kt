@@ -258,10 +258,15 @@ class FloatingButtonService : Service() {
     private fun collapse() {
         if (!isExpanded) return
         isExpanded = false
-        morphAnimator?.cancel()
+        finishMorph()
+        slideIntoEdge(SLIDE_IN_MS)
+    }
+
+    /** Slides the pill to where it rests tucked away, for the width and state it has right now. */
+    private fun slideIntoEdge(durationMs: Long) {
         val pill = view<View>(R.id.dock_pill) ?: return
         pill.animate().cancel()
-        pill.animate().translationX(tuckedTranslation()).setDuration(SLIDE_IN_MS)
+        pill.animate().translationX(tuckedTranslation()).setDuration(durationMs)
             .setInterpolator(AccelerateDecelerateInterpolator())
             .withEndAction {
                 if (!isExpanded) {
@@ -269,6 +274,13 @@ class FloatingButtonService : Service() {
                     setWindowWidth(tuckedWindowWidth(isRecordingNow()))
                 }
             }.start()
+    }
+
+    /** Stops a widening or narrowing where it is and lays the pill out at the width its buttons need. */
+    private fun finishMorph() {
+        if (morphAnimator?.isRunning != true) return
+        morphAnimator?.cancel()
+        setPillContent(isRecordingNow())
     }
 
     private fun toggle() {
@@ -279,8 +291,17 @@ class FloatingButtonService : Service() {
     private fun onRecordingChanged(recording: Boolean) {
         styleFor(recording, animate = true)
         if (!isExpanded) {
-            // Tucked away: change it unseen; the time appears beside the end when recording.
-            reflow()
+            // Tucked away, or sliding there (a discard or a save slides it in just as the recording ends): the
+            // buttons change unseen, and the pill carries on to where it rests for its new width. Aiming
+            // for the old width would leave it entirely off screen.
+            applySide()
+            setPillContent(recording)
+            if (settled) {
+                view<View>(R.id.dock_pill)?.apply { animate().cancel(); translationX = tuckedTranslation() }
+                setWindowWidth(tuckedWindowWidth(recording))
+            } else {
+                slideIntoEdge(SLIDE_IN_MS / 2)
+            }
             return
         }
         morphTo(recording)
@@ -537,6 +558,10 @@ class FloatingButtonService : Service() {
                 val now = SystemClock.elapsedRealtime()
 
                 if (DockCollapse.shouldCollapse(isExpanded, recording, now - lastTouchAt)) collapse()
+                if (!isExpanded && settled) {
+                    val pill = view<View>(R.id.dock_pill)
+                    if (pill != null && kotlin.math.abs(pill.translationX - tuckedTranslation()) > 1f) reflow()
+                }
 
                 val elapsed = RecordingForegroundService.elapsedDurationMs
                 if (recording && isExpanded) {
