@@ -35,12 +35,23 @@ object CrashBreadcrumb {
         Analytics.appCrash(context, cls, at)
     }
 
-    /** The exception's class and the first frame in Srutam's own code, as "Class.method". */
+    /** Packages that are never Srutam's own code, so the first frame outside them is where the app was. */
+    private val FRAMEWORK = listOf(
+        "java.", "javax.", "android.", "androidx.", "kotlin.", "kotlinx.", "dalvik.", "com.android.",
+        "com.google.", "okhttp3.", "okio.", "org.", "sun.", "libcore."
+    )
+    private const val APP_PREFIX = "space.iamjustkrishna.srutam."
+
+    /**
+     * The exception's class and the first frame in the app's own code, as "Class.method:line". Release
+     * builds rename most classes (to things like "f6.a"), so the app's code is told apart from the
+     * framework's by exclusion; the renamed frame can be read back with that release's mapping.txt.
+     */
     internal fun describe(error: Throwable): Pair<String, String> {
         val root = generateSequence(error) { it.cause }.last()
-        val frame = root.stackTrace.firstOrNull { it.className.startsWith("space.iamjustkrishna.srutam") }
-            ?: error.stackTrace.firstOrNull { it.className.startsWith("space.iamjustkrishna.srutam") }
-        val at = frame?.let { it.className.substringAfterLast('.') + "." + it.methodName } ?: ""
-        return root.javaClass.simpleName.take(60) to at.take(80)
+        fun ownFrame(t: Throwable) = t.stackTrace.firstOrNull { f -> FRAMEWORK.none { f.className.startsWith(it) } }
+        val frame = ownFrame(root) ?: ownFrame(error)
+        val at = frame?.let { it.className.removePrefix(APP_PREFIX) + "." + it.methodName + ":" + it.lineNumber } ?: ""
+        return root.javaClass.simpleName.take(60) to at.take(100)
     }
 }

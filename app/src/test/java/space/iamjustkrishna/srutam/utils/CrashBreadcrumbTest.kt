@@ -20,7 +20,7 @@ class CrashBreadcrumbTest {
         val (exception, at) = CrashBreadcrumb.describe(wrapper)
 
         assertEquals("IllegalStateException", exception)
-        assertEquals("AiProcessingWorker.doWork", at)
+        assertEquals("service.AiProcessingWorker.doWork:1", at)
     }
 
     @Test fun neverCarriesTheMessageText() {
@@ -31,6 +31,17 @@ class CrashBreadcrumbTest {
 
         assertFalse(exception.contains("private"))
         assertFalse(at.contains("private"))
+    }
+
+    @Test fun aRenamedReleaseFrameIsStillFound() {
+        // In a release build the app's classes have short names like "f6.a".
+        val error = IllegalStateException("x")
+        error.stackTrace = arrayOf(
+            frame("android.os.Looper", "loop"),
+            frame("f6.a", "b"),
+            frame("androidx.compose.runtime.Recomposer", "run")
+        )
+        assertEquals("IllegalStateException" to "f6.a.b:1", CrashBreadcrumb.describe(error))
     }
 
     @Test fun aCrashEntirelyOutsideSrutamHasNoLocation() {
