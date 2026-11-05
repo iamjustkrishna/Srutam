@@ -82,11 +82,15 @@ class TimeSavedTest {
         assertEquals(70, totals.words)
     }
 
-    @Test fun headerHidesUnderAMinuteAndFallsBackToAllTime() {
-        val fresh = TimeSaved.Totals(30, 45, 1, 20, 10, 55)
+    @Test fun headerHidesUnderTheMinimumAndFallsBackToAllTime() {
+        // StatsConfig.HEADER_LINE_SECONDS is 10: a first short note already gets the line
+        val fresh = TimeSaved.Totals(4, 8, 1, 20, 10, 55)
         assertFalse(fresh.worthShowingInHeader)
+        val firstNote = TimeSaved.Totals(20, 20, 1, 20, 10, 30)
+        assertTrue(firstNote.worthShowingInHeader)
+        assertTrue(firstNote.headerIsThisMonth)
 
-        val earlyInMonth = TimeSaved.Totals(20, 3 * 3600L + 5 * 60, 9, 500, 100, 900)
+        val earlyInMonth = TimeSaved.Totals(5, 3 * 3600L + 5 * 60, 9, 500, 100, 900)
         assertTrue(earlyInMonth.worthShowingInHeader)
         assertFalse(earlyInMonth.headerIsThisMonth)
         assertEquals(3 * 3600L + 5 * 60, earlyInMonth.headerSeconds)

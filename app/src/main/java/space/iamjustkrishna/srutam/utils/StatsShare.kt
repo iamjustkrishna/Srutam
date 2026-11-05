@@ -73,7 +73,7 @@ object WeeklyRecap {
 
     /** Title and text for the notification, or null when the week saved under a minute. */
     fun message(week: TimePeriod): Pair<String, String>? {
-        if (week.savedSeconds < StatsConfig.HEADER_LINE_SECONDS) return null
+        if (week.savedSeconds < StatsConfig.NOTABLE_SECONDS) return null
         val notes = if (week.notes == 1) "1 note" else "${week.notes} notes"
         return "Your week in Srutam" to "You saved ${TimeSaved.hero(week.savedSeconds)} by talking this week, across $notes."
     }

@@ -824,9 +824,10 @@ fun FeedScreenContent(
             } else {
                 SrutamTopAppBar(
                     title = "Srutam",
-                    belowTitle = {
-                        if (showTimeSavedLine) TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick)
-                    },
+                    // Only a line that is really showing gets a row; without one this header is the same as on every tab.
+                    belowTitle = if (showTimeSavedLine) {
+                        { TimeSavedLine(totals = timeSavedTotals, onClick = onStatsClick) }
+                    } else null,
                     actions = {
                         SquircleActionButton(
                             icon = Icons.Default.Search,

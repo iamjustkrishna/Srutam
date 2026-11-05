@@ -13,8 +13,11 @@ object StatsConfig {
     /** Under this many seconds saved a note is not worth a mention. It is also when Your Srutam first opens. */
     const val MIN_SECONDS_TO_SHOW = 5L
 
-    /** The line under "Srutam" on Notes stays hidden until this much is saved. */
-    const val HEADER_LINE_SECONDS = 60L
+    /** The line under "Srutam" on Notes stays hidden until this much is saved: the first note usually gets it there. */
+    const val HEADER_LINE_SECONDS = 10L
+
+    /** A minute: the least that is worth a weekly recap, a best day, or a comparison with an earlier month. */
+    const val NOTABLE_SECONDS = 60L
 
     /** The first goal: five minutes saved. */
     const val FIRST_MILESTONE_SECONDS = 300L

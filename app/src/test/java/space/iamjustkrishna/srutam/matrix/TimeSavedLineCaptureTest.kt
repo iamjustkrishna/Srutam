@@ -121,8 +121,9 @@ class TimeSavedLineCaptureTest {
         assertTrue("line ${lineBounds.right} runs under the search icon at ${iconBounds.left}", lineBounds.right <= iconBounds.left)
     }
 
-    @Test fun hiddenUnderAMinute() {
-        setHeaders(ThemeMode.LIGHT, rows.take(1), totals(month = 30, all = 45))
+    @Test fun hiddenUnderTheMinimum() {
+        // under StatsConfig.HEADER_LINE_SECONDS (10 s)
+        setHeaders(ThemeMode.LIGHT, rows.take(1), totals(month = 4, all = 8))
         composeRule.onAllNodes(hasContentDescription("saved", substring = true)).assertCountEquals(0)
     }
 }

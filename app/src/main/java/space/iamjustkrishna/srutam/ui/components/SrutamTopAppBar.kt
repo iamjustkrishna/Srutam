@@ -65,17 +65,15 @@ fun SrutamTopAppBar(
     titleFontWeight: FontWeight = FontWeight.Bold,
     accentFontWeight: FontWeight = FontWeight.Medium,
     /**
-     * A line under the title, in the same left column. When given, the icons sit level with the
-     * bottom of this line instead of the middle of the header.
+     * A line under the title row (the time-saved line on Notes). It is only an extra row: the title and
+     * the icons sit exactly where they do without it, so tabs switch without the title moving.
      */
     belowTitle: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsCosmicDark.current
-    // With a line under the title the bar is the tight one: a smaller title and less padding keep it short.
-    val compact = belowTitle != null
-    val resolvedTitleSize = if (compact) minOf(titleFontSize.value, 24f).sp else titleFontSize
+    val resolvedTitleSize = titleFontSize
     val resolvedSubtitleColor = subtitleColor ?: if (isDark) TextOnDarkSecondary else TextSecondary
 
     Surface(
@@ -95,11 +93,11 @@ fun SrutamTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
-                .padding(start = 16.dp, end = 16.dp, top = if (compact) 4.dp else 10.dp, bottom = if (compact) 6.dp else 8.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = if (belowTitle != null) Alignment.Bottom else Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f, fill = false)) {
@@ -129,10 +127,6 @@ fun SrutamTopAppBar(
                         )
                     }
                 }
-                if (belowTitle != null) {
-                    Spacer(modifier = Modifier.height(1.dp))
-                    belowTitle()
-                }
               }
                 Spacer(modifier = Modifier.width(6.dp))
                 Row(
@@ -141,6 +135,10 @@ fun SrutamTopAppBar(
                 ) {
                     actions()
                 }
+            }
+            if (belowTitle != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                belowTitle()
             }
             if (subtitle != null) {
                 Spacer(modifier = Modifier.height(3.dp))

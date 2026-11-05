@@ -155,7 +155,7 @@ object StatsViews {
     /** The tallest bar, unless it is under a minute (nothing worth lighting up). */
     private fun bestIndex(values: List<Long>): Int? {
         val max = values.maxOrNull() ?: return null
-        return if (max >= StatsConfig.HEADER_LINE_SECONDS) values.indexOf(max) else null
+        return if (max >= StatsConfig.NOTABLE_SECONDS) values.indexOf(max) else null
     }
 
     private fun bars(values: List<Long>, best: Int?, futureFrom: Int?): List<StatsBar> =
@@ -163,7 +163,7 @@ object StatsViews {
 
     /** "1h 12m more than September", or less; null when there was nothing before or it is the same. */
     private fun delta(now: Long, before: Long, than: String): String? {
-        if (before < StatsConfig.HEADER_LINE_SECONDS || now == before) return null
+        if (before < StatsConfig.NOTABLE_SECONDS || now == before) return null
         val diff = kotlin.math.abs(now - before)
         val word = if (now > before) "more" else "less"
         return "${TimeSaved.hero(diff)} $word than $than"
