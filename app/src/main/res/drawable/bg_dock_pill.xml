@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dock pill. Its fill turns red while recording (set by the service); the outline stays. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="26dp" />
+    <solid android:color="#0F172A" />
+    <stroke
+        android:width="1.2dp"
+        android:color="#B3FFFFFF" />
+</shape>

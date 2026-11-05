@@ -1,152 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- The floating dock: one pill. It rests in the screen edge with only its logo end showing (red while
+     recording) and slides out whole when tapped. The service sizes and moves it; on a dock at the right
+     edge the pill is laid out right to left, so the logo is still its inner end. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/floating_dock_root"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Collapsed Edge Embedded Tab -->
-    <FrameLayout
-        android:id="@+id/dock_collapsed"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="visible">
-
-        <ImageView
-            android:id="@+id/floating_record_button"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:padding="8dp"
-            android:src="@drawable/srutam_final_log"
-            android:background="@drawable/bg_floating_dock_edge_left"
-            android:contentDescription="@string/floating_button_desc"
-            android:elevation="0dp"
-            android:outlineProvider="background"
-            android:clipToOutline="true"
-            android:scaleType="fitCenter" />
-    </FrameLayout>
-
-    <!-- Expanded Options Menu (Idle / Not Recording) -->
     <LinearLayout
-        android:id="@+id/dock_expanded_idle"
+        android:id="@+id/dock_pill"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_height="52dp"
+        android:layout_gravity="start"
+        android:background="@drawable/bg_dock_pill"
         android:gravity="center_vertical"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:background="@drawable/bg_floating_dock_card"
-        android:elevation="0dp"
-        android:outlineProvider="background"
-        android:clipToOutline="true"
-        android:visibility="gone">
-
-        <!-- Direct Start Recording Action (Icon Only) -->
-        <ImageView
-            android:id="@+id/btn_dock_start_record"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="10dp"
-            android:background="@drawable/bg_floating_record_circle"
-            android:src="@drawable/ic_floating_mic"
-            android:contentDescription="Record"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Open Srutam App -->
-        <ImageView
-            android:id="@+id/btn_dock_open_app"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="8dp"
-            android:padding="6dp"
-            android:scaleType="fitCenter"
-            android:background="@drawable/bg_floating_action_circle"
-            android:src="@drawable/srutam_final_log"
-            android:contentDescription="Open Srutam"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Collapse Dock -->
-        <ImageView
-            android:id="@+id/btn_dock_collapse"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="8dp"
-            android:padding="10dp"
-            android:background="@drawable/bg_floating_action_circle"
-            android:src="@drawable/ic_floating_close"
-            android:contentDescription="Close"
-            android:clickable="true"
-            android:focusable="true" />
-    </LinearLayout>
-
-    <!-- Expanded In-Flight Recording Controls -->
-    <LinearLayout
-        android:id="@+id/dock_expanded_recording"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="8dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:background="@drawable/bg_floating_dock_card"
-        android:elevation="0dp"
-        android:outlineProvider="background"
-        android:clipToOutline="true"
-        android:visibility="gone">
+        android:paddingStart="7dp"
+        android:paddingEnd="4dp">
 
-        <!-- Live Duration Display -->
-        <TextView
-            android:id="@+id/txt_dock_timer"
+        <!-- The start menu -->
+        <LinearLayout
+            android:id="@+id/pill_idle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0:00"
-            android:textColor="#EF4444"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:layout_marginEnd="10dp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <!-- Pause / Resume Button -->
+            <ImageView
+                android:id="@+id/btn_dock_start_record"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_floating_record_circle"
+                android:clickable="true"
+                android:contentDescription="Record"
+                android:focusable="true"
+                android:padding="10dp"
+                android:src="@drawable/ic_floating_mic" />
+
+            <ImageView
+                android:id="@+id/btn_dock_open_app"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_dock_btn"
+                android:clickable="true"
+                android:contentDescription="Open Srutam"
+                android:focusable="true"
+                android:padding="9dp"
+                android:src="@drawable/ic_floating_app" />
+
+            <ImageView
+                android:id="@+id/btn_dock_collapse"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_dock_btn"
+                android:clickable="true"
+                android:contentDescription="Hide menu"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_floating_chevron" />
+        </LinearLayout>
+
+        <!-- The recording controls -->
+        <LinearLayout
+            android:id="@+id/pill_rec"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/btn_dock_collapse_recording"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_dock_btn"
+                android:clickable="true"
+                android:contentDescription="Hide controls"
+                android:focusable="true"
+                android:padding="5dp"
+                android:src="@drawable/ic_floating_chevron" />
+
+            <TextView
+                android:id="@+id/txt_dock_timer"
+                android:layout_width="44dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="0:00"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btn_dock_pause_resume"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_dock_btn"
+                android:clickable="true"
+                android:contentDescription="Pause or Resume"
+                android:focusable="true"
+                android:padding="9dp"
+                android:src="@drawable/ic_floating_pause" />
+
+            <ImageView
+                android:id="@+id/btn_dock_stop_save"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_dock_btn_white"
+                android:clickable="true"
+                android:contentDescription="Save recording"
+                android:focusable="true"
+                android:padding="9dp"
+                android:src="@drawable/ic_floating_stop" />
+
+            <ImageView
+                android:id="@+id/btn_dock_cancel"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_dock_btn"
+                android:clickable="true"
+                android:contentDescription="Discard recording"
+                android:focusable="true"
+                android:padding="9dp"
+                android:src="@drawable/ic_floating_delete" />
+        </LinearLayout>
+
+        <!-- The logo end: always in view; tap it to open or hide the pill, drag it to move the dock -->
         <ImageView
-            android:id="@+id/btn_dock_pause_resume"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginEnd="8dp"
+            android:id="@+id/floating_record_button"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_dock_logo"
+            android:contentDescription="@string/floating_button_desc"
             android:padding="9dp"
-            android:background="@drawable/bg_floating_action_circle"
-            android:src="@drawable/ic_floating_pause"
-            android:contentDescription="Pause or Resume"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Stop & Save Button -->
-        <ImageView
-            android:id="@+id/btn_dock_stop_save"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginEnd="8dp"
-            android:padding="9dp"
-            android:background="@drawable/bg_floating_record_circle"
-            android:src="@drawable/ic_floating_stop"
-            android:contentDescription="Save Recording"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Cancel / Discard Recording Button -->
-        <ImageView
-            android:id="@+id/btn_dock_cancel"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="10dp"
-            android:background="@drawable/bg_floating_action_circle"
-            android:src="@drawable/ic_floating_close"
-            android:contentDescription="Discard Recording"
-            android:clickable="true"
-            android:focusable="true" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/srutam_final_log" />
     </LinearLayout>
+
+    <!-- The elapsed time, curved round the visible end while recording with the pill tucked away -->
+    <space.iamjustkrishna.srutam.service.DockTimeArcView
+        android:id="@+id/dock_time_arc"
+        android:layout_width="70dp"
+        android:layout_height="52dp"
+        android:layout_gravity="start"
+        android:clickable="false"
+        android:visibility="gone" />
 
 </FrameLayout>

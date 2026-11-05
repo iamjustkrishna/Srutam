@@ -64,14 +64,19 @@ import space.iamjustkrishna.srutam.data.signature.BlockWriteAccess
 import space.iamjustkrishna.srutam.ui.theme.Sem
 import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.PriorInstall
+import space.iamjustkrishna.srutam.utils.AudioFileReader
+import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import space.iamjustkrishna.srutam.utils.StoragePermission
 import space.iamjustkrishna.srutam.viewmodel.AudioFilesViewModel
 
 /**
  * Home's cards for recordings a previous install left behind. New users see none of this:
- *  - Welcome back: when an earlier install's Music/Srutam folder was found ([PriorInstall]) and
- *    Srutam can't see its recordings yet, a sheet offers to bring them back, once; a small card
- *    stays until it's allowed.
+ *  - Access: when an earlier install's Music/Srutam folder was found ([PriorInstall]), Srutam asks for
+ *    access to Music and audio once. If recordings turn up, a "Welcome back" sheet says so and their
+ *    notes come back; if the folder was empty, nothing more is said. Settings has the same access
+ *    for anyone who said no.
  *  - "Sign in to restore, or process with AI?" for ones with no note saved inside.
  *  - "Save your notes into their recordings" when notes can't be written into those files yet.
  */
@@ -99,13 +104,26 @@ fun RecordingAccessBanners(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    // How many earlier recordings turned up once access was given; the Welcome back sheet says so.
+    var welcomeBackCount by remember { mutableStateOf(0) }
+    var askedAutomatically by remember { mutableStateOf(false) }
     val storageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        Analytics.permissionResult(context, "storage", granted, "home_card")
+        Analytics.permissionResult(context, "storage", granted, if (askedAutomatically) "earlier_folder" else "home_card")
         storageGranted = granted
         if (granted) {
             viewModel?.loadAudioFiles()
             viewModel?.processPendingOfflineRecordings()
-        } else {
+            // The folder alone can't say whether it holds recordings; now it can be looked into.
+            if (PriorInstall.recordingsFromBefore(context)) {
+                scope.launch {
+                    val found = withContext(Dispatchers.IO) { AudioFileReader.getAudioFiles().size }
+                    if (found > 0) {
+                        Analytics.log(context, EVENT_WELCOME_BACK, mapOf(Analytics.PARAM_RESULT to "found", "count" to found))
+                        welcomeBackCount = found
+                    }
+                }
+            }
+        } else if (!askedAutomatically) {
             val activity = context as? Activity
             val blocked = activity != null &&
                 !ActivityCompat.shouldShowRequestPermissionRationale(activity, StoragePermission.permission)
@@ -132,35 +150,26 @@ fun RecordingAccessBanners(
             }
         }
     }
-    LaunchedEffect(pendingCount > 0) {
-        if (pendingCount > 0 && BlockWriteAccess.isSupported && !BlockWriteAccess.wasAutoAsked(context)) {
-            BlockWriteAccess.markAutoAsked(context)
-            askToModifyRecordings()
-        }
-    }
+    // Notes that were listed only because their file couldn't be refreshed don't need the access.
+    LaunchedEffect(Unit) { BlockWriteAccess.pruneSatisfied(context) }
 
     // Recordings found from before, waiting for a choice
     val found by (viewModel?.foundRecordings ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0) }).collectAsState()
     var foundDialogDismissed by rememberSaveable { mutableStateOf(false) }
     val showFound = found > 0 && !isCloudSignedIn
 
-    // Recordings from an earlier install, detected without asking anything
-    val offerRestore = !storageGranted && PriorInstall.recordingsFromBefore(context)
-    var showWelcomeBack by remember { mutableStateOf(offerRestore && !PriorInstall.wasPrompted(context)) }
-    if (showWelcomeBack && offerRestore) {
-        WelcomeBackSheet(
-            onAllow = {
-                PriorInstall.markPrompted(context)
-                showWelcomeBack = false
-                Analytics.log(context, EVENT_WELCOME_BACK, mapOf(Analytics.PARAM_RESULT to "allow"))
-                storageLauncher.launch(StoragePermission.permission)
-            },
-            onLater = {
-                PriorInstall.markPrompted(context)
-                showWelcomeBack = false
-                Analytics.log(context, EVENT_WELCOME_BACK, mapOf(Analytics.PARAM_RESULT to "later"))
-            }
-        )
+    // An earlier install left its folder: ask for access to Music and audio, once, so its recordings can be
+    // looked for. A new install has no such folder and is never asked.
+    val shouldAsk = PriorInstall.shouldAskForAccess(context)
+    LaunchedEffect(shouldAsk) {
+        if (shouldAsk) {
+            PriorInstall.markPrompted(context)
+            askedAutomatically = true
+            storageLauncher.launch(StoragePermission.permission)
+        }
+    }
+    if (welcomeBackCount > 0) {
+        WelcomeBackSheet(count = welcomeBackCount, onDone = { welcomeBackCount = 0 })
     }
 
     if (showFound && !foundDialogDismissed) {
@@ -184,15 +193,6 @@ fun RecordingAccessBanners(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        if (offerRestore && !showWelcomeBack) {
-            AccessCard(
-                icon = Icons.Default.FolderOpen,
-                title = "Your recordings from before",
-                body = "Allow access to Music and audio and their notes come back, even offline.",
-                action = "Bring them back",
-                onAction = { storageLauncher.launch(StoragePermission.permission) }
-            )
-        }
         if (showFound && foundDialogDismissed) {
             AccessCard(
                 icon = Icons.Default.CloudDownload,
@@ -204,7 +204,7 @@ fun RecordingAccessBanners(
                 onSecondaryAction = { viewModel?.processFoundRecordingsWithAi() }
             )
         }
-        if (pendingCount > 0 && BlockWriteAccess.isSupported && BlockWriteAccess.wasAutoAsked(context) && !accessGrantedThisSession) {
+        if (pendingCount > 0 && BlockWriteAccess.isSupported && !accessGrantedThisSession) {
             AccessCard(
                 icon = Icons.Default.Save,
                 title = "Keep $pendingCount note${if (pendingCount == 1) "" else "s"} safe in ${if (pendingCount == 1) "its recording" else "their recordings"}",
@@ -310,12 +310,12 @@ private fun SettingsAccessRow(
 private const val EVENT_FOUND_RECORDINGS = "found_recordings_choice"
 private const val EVENT_WELCOME_BACK = "welcome_back_choice"
 
-/** Shown once when an earlier install's recordings are found: one clear offer, easy to decline. */
+/** Shown once access was given and recordings from an earlier install turned up. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WelcomeBackSheet(onAllow: () -> Unit, onLater: () -> Unit) {
+private fun WelcomeBackSheet(count: Int, onDone: () -> Unit) {
     ModalBottomSheet(
-        onDismissRequest = onLater,
+        onDismissRequest = onDone,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Sem.scaffold
     ) {
@@ -345,7 +345,7 @@ private fun WelcomeBackSheet(onAllow: () -> Unit, onLater: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Srutam found recordings from an earlier install on this phone. Allow access to Music and audio and their notes come back as they were, even offline.",
+                "Found $count recording${if (count == 1) "" else "s"} from an earlier install. Their notes are coming back as they were, even offline.",
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
                 color = Sem.textSecondary,
@@ -353,15 +353,12 @@ private fun WelcomeBackSheet(onAllow: () -> Unit, onLater: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Button(
-                onClick = onAllow,
+                onClick = onDone,
                 colors = ButtonDefaults.buttonColors(containerColor = Sem.accent),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp)
             ) {
-                Text("Bring back my notes", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            }
-            TextButton(onClick = onLater, modifier = Modifier.padding(top = 4.dp)) {
-                Text("Not now", color = Sem.textSecondary)
+                Text("Great", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

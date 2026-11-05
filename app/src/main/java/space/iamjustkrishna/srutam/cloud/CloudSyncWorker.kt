@@ -35,11 +35,13 @@ class CloudSyncWorker(
         if (AppPreferences.isCloudRestorePending(applicationContext)) {
             val restore = CloudRestore(applicationContext, database, client).run()
             if (restore.isFailure) {
+                space.iamjustkrishna.srutam.utils.Analytics.cloudSyncProblem(applicationContext, "restore_failed", runAttemptCount)
                 return@withContext if (runAttemptCount < 5) Result.retry() else Result.failure()
             }
             val summary = restore.getOrThrow()
             AppPreferences.setRestoreSummary(applicationContext, summary.restored, summary.withoutAudio)
             AppPreferences.setCloudRestorePending(applicationContext, false)
+            space.iamjustkrishna.srutam.utils.Analytics.cloudRestored(applicationContext, summary.restored, summary.withoutAudio)
         }
 
         // 1. Push pending recordings & action items to cloud
@@ -116,6 +118,9 @@ class CloudSyncWorker(
 
         AppPreferences.setCloudLastSyncTime(applicationContext, System.currentTimeMillis())
 
+        if (hasFailures) {
+            space.iamjustkrishna.srutam.utils.Analytics.cloudSyncProblem(applicationContext, if (runAttemptCount < 3) "partial" else "failed", runAttemptCount)
+        }
         if (hasFailures && runAttemptCount < 3) {
             Result.retry()
         } else {

@@ -108,6 +108,8 @@ fun DeveloperMcpSection(
     var keyDialogError by remember { mutableStateOf<String?>(null) }
 
     var isAuthLoading by remember { mutableStateOf(false) }
+    // Why the last sign-in attempt failed, kept on screen (a toast is gone before it can be read or reported).
+    var signInError by remember { mutableStateOf<String?>(null) }
     var isAutoSyncEnabled by remember {
         mutableStateOf(AppPreferences.isAutoCloudSyncEnabled(context))
     }
@@ -209,9 +211,13 @@ fun DeveloperMcpSection(
                         onSuccess = { keyName ->
                             pairingState = PairingUiState.Idle
                             Toast.makeText(context, "Connected \"$keyName\"", Toast.LENGTH_SHORT).show()
+                            space.iamjustkrishna.srutam.utils.Analytics.mcpConnectResult(context, true)
                             refreshKeys()
                         },
                         onFailure = { error ->
+                            space.iamjustkrishna.srutam.utils.Analytics.mcpConnectResult(
+                                context, false, (error as? PairingException)?.error?.name ?: error.javaClass.simpleName
+                            )
                             pairingState = state.copy(busy = false, error = error.message ?: "Could not connect.")
                         }
                     )
@@ -633,9 +639,14 @@ fun DeveloperMcpSection(
                             if (!isAuthLoading) {
                                 scope.launch {
                                     isAuthLoading = true
+                                    signInError = null
+                                    val startedAt = android.os.SystemClock.elapsedRealtime()
+                                    space.iamjustkrishna.srutam.utils.Analytics.cloudSignInStarted(context)
                                     val res = authManager.signInWithGoogle(context)
+                                    val elapsed = android.os.SystemClock.elapsedRealtime() - startedAt
                                     isAuthLoading = false
                                     if (res.isSuccess) {
+                                        space.iamjustkrishna.srutam.utils.Analytics.cloudSignInSucceeded(context, elapsed)
                                         isSignedIn = true
                                         userEmail = AppPreferences.getCloudUserEmail(context)
                                         Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
@@ -643,9 +654,10 @@ fun DeveloperMcpSection(
                                         refreshKeys()
                                     } else {
                                         val err = res.exceptionOrNull()
-                                        if (err !is GetCredentialCancellationException) {
-                                            Toast.makeText(context, "Sign-in error: ${err?.message}", Toast.LENGTH_LONG).show()
-                                        }
+                                        val why = space.iamjustkrishna.srutam.cloud.SignInDiagnosis.of(err, elapsed)
+                                        space.iamjustkrishna.srutam.utils.Analytics.cloudSignInFailed(context, why.code, elapsed)
+                                        android.util.Log.w("CloudSignIn", "Google sign-in failed (${why.code}) after ${elapsed} ms", err)
+                                        if (why.show) signInError = "${why.message} (code: ${why.code})"
                                     }
                                 }
                             }
@@ -668,6 +680,15 @@ fun DeveloperMcpSection(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Connect Cloud & MCP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
+                    }
+                    signInError?.let { message ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = message,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = Color(0xFFDC2626)
+                        )
                     }
                 }
             }

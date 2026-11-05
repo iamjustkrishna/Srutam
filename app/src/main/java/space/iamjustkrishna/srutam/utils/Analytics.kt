@@ -191,6 +191,48 @@ object Analytics {
     fun timeSavedMilestone(context: Context, seconds: Long) = log(context, "time_saved_milestone", mapOf("seconds" to seconds))
 
     fun weeklyRecapSent(context: Context) = log(context, "weekly_recap_sent")
+    // ---- Cloud sign-in ----
+
+    fun cloudSignInStarted(context: Context) = log(context, "cloud_signin_started")
+
+    fun cloudSignInSucceeded(context: Context, elapsedMs: Long) =
+        log(context, "cloud_signin_succeeded", mapOf("elapsed_ms" to elapsedMs))
+
+    /** [code] is a short label from SignInDiagnosis (cancelled_fast, no_credential, supabase_400...), never an error message. */
+    fun cloudSignInFailed(context: Context, code: String, elapsedMs: Long) =
+        log(context, "cloud_signin_failed", mapOf("error_code" to code, "elapsed_ms" to elapsedMs))
+
+    /**
+     * Anything that went wrong that is worth counting: [area] is the feature (sign_in, dock, lock_screen...),
+     * [code] a short label. Never message text, file paths or note content.
+     */
+    fun appError(context: Context, area: String, code: String) =
+        log(context, "app_error", mapOf("area" to area, "code" to code))
+
+    // ---- Where people go, and what goes wrong ----
+
+    /** A screen came into view. [name] is a short slug: notes, insights, ai, detail, chat, settings, stats. */
+    fun screenView(context: Context, name: String) =
+        log(context, "screen_view", mapOf("screen_name" to name, "screen_class" to name))
+
+    fun searchOpened(context: Context) = log(context, "search_opened")
+
+    /** [result]: restore_failed, partial or failed. Successful syncs aren't logged: they happen constantly. */
+    fun cloudSyncProblem(context: Context, result: String, attempt: Int) =
+        log(context, "cloud_sync_problem", mapOf("result" to result, "attempt" to attempt))
+
+    fun cloudRestored(context: Context, restored: Int, withoutAudio: Int) =
+        log(context, "cloud_restored", mapOf("restored" to restored, "without_audio" to withoutAudio))
+
+    fun mcpConnectResult(context: Context, ok: Boolean, code: String? = null) =
+        log(context, "mcp_connect_result", buildMap {
+            put("result", if (ok) "ok" else "failed")
+            code?.let { put("error_code", it.take(40)) }
+        })
+
+    /** Reported on the launch after a crash. [exception] is a class name, [at] the app code it happened in. */
+    fun appCrash(context: Context, exception: String, at: String) =
+        log(context, "app_crash", mapOf("exception" to exception, "at" to at))
 
     // ---- Settings ----
 
@@ -209,6 +251,12 @@ object Analytics {
             fa.setUserProperty("dock_on", AppPreferences.isFloatingDockEnabled(context).toString())
             fa.setUserProperty("quick_notif_on", AppPreferences.isPersistentNotificationEnabled(context).toString())
             fa.setUserProperty("ask_name_on", AppPreferences.isAskNameAfterRecording(context).toString())
+            // Which phones a problem happens on. GA4 limits: names 24 characters, values 36.
+            fa.setUserProperty("device_model", android.os.Build.MODEL.orEmpty().take(36))
+            fa.setUserProperty("device_brand", android.os.Build.MANUFACTURER.orEmpty().take(36))
+            fa.setUserProperty("android_sdk", android.os.Build.VERSION.SDK_INT.toString())
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+                .getOrNull()?.let { fa.setUserProperty("app_version", it.take(36)) }
         }
     }
 

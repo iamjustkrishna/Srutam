@@ -93,6 +93,14 @@ fun SrutamNavigation(
     initialReminderId: String? = null,
     openStatsToken: Long? = null
 ) {
+    // Every screen the person opens, for the Firebase screen report. The tabs on Home log themselves.
+    val screenContext = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            val name = entry.destination.route?.substringBefore('/')?.substringBefore('?').orEmpty()
+            if (name.isNotEmpty() && name != "root") space.iamjustkrishna.srutam.utils.Analytics.screenView(screenContext, name)
+        }
+    }
     val context = LocalContext.current
     // The weekly recap notification opens Your Srutam.
     LaunchedEffect(openStatsToken) {
@@ -222,6 +230,15 @@ private fun RootScreen(
             consumedReminderId = initialReminderId
             currentTab = RootTab.ACTIONS
         }
+    }
+
+    // Which tab is showing.
+    val tabContext = LocalContext.current
+    LaunchedEffect(currentTab) {
+        space.iamjustkrishna.srutam.utils.Analytics.screenView(
+            tabContext,
+            when (currentTab) { RootTab.NOTES -> "notes"; RootTab.ACTIONS -> "insights"; RootTab.AI -> "ai" }
+        )
     }
 
     BackHandler(enabled = currentTab != RootTab.NOTES) {

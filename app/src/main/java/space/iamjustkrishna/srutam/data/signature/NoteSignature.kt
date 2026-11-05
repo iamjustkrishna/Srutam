@@ -97,7 +97,12 @@ object NoteSignature {
         WRITTEN,
         /** Nothing to write: no note, no file, a private note, or the recording still in progress. */
         SKIPPED,
-        /** The file belongs to a previous install; the user has to allow Srutam to modify it. */
+        /**
+         * The file already holds this note's block (the same one, or an older copy of it), so nothing
+         * more has to be written. A previous install's file in this state restores fine as it is.
+         */
+        ALREADY_SAVED,
+        /** The file belongs to a previous install and has no block for this note; the user has to allow Srutam to modify it. */
         NEEDS_ACCESS
     }
 
@@ -130,8 +135,16 @@ object NoteSignature {
             database.reminderDao().getRemindersByRecordingId(recording.id)
         )
         val json = toJson(payload)
+        val existingJson = runCatching { NoteBlock.read(file) }.getOrNull()
+        // Nothing changed since the last write: leave the file alone.
+        if (existingJson == json) return WriteResult.ALREADY_SAVED
         if (NoteBlock.write(file, json)) return WriteResult.WRITTEN
         if (fallbackWriter?.invoke(file, json) == true) return WriteResult.WRITTEN
+        // A previous install's file that already carries this note brings it back after a reinstall as it
+        // is; a refresh (new topics, a ticked task) isn't worth asking the user for access. Only a note
+        // with no block yet needs the permission.
+        val existingUuid = existingJson?.let(::fromJson)?.noteUuid
+        if (existingUuid != null && existingUuid == recording.noteUuid) return WriteResult.ALREADY_SAVED
         Log.d(TAG, "Could not write the block for ${file.name}; it belongs to a previous install")
         return WriteResult.NEEDS_ACCESS
     }

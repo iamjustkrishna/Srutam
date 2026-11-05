@@ -32,10 +32,16 @@ object QuickRecordNotification {
     const val NOTIFICATION_ID = 1001
 
     /**
-     * Same notification, low importance: Android folds the "Recording" banner away when the
-     * notification moves here, but it stays in the shade. See [quietDown].
+     * Same notification, normal importance but silent: Android folds the "Recording" banner away
+     * when the notification moves here (a banner is only for high importance), and the notification
+     * stays in the shade and on the lock screen. See [quietDown].
+     *
+     * It used to be low importance, which many phones hide from the lock screen as a "silent"
+     * notification, so a recording left no sign there. A channel's importance can't be raised after
+     * it exists, hence a new id; the old one is deleted in [ensureChannel].
      */
-    private const val QUIET_CHANNEL_ID = "recording_quiet_v1"
+    private const val QUIET_CHANNEL_ID = "recording_quiet_v2"
+    private const val OLD_QUIET_CHANNEL_V1_ID = "recording_quiet_v1"
 
     /** How long the "Recording" banner stays at the top before it folds into the shade. */
     const val BANNER_MS = 2_500L
@@ -75,6 +81,7 @@ object QuickRecordNotification {
     private const val REQUEST_RESUME = 22
     private const val REQUEST_STOP = 23
     private const val REQUEST_OPEN_APP = 24
+    private const val REQUEST_DISCARD = 25
 
     sealed interface State {
         data object Idle : State
@@ -160,12 +167,13 @@ object QuickRecordNotification {
         }
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_ID)
         manager.deleteNotificationChannel(OLD_RECORDING_CHANNEL_V2_ID)
+        manager.deleteNotificationChannel(OLD_QUIET_CHANNEL_V1_ID)
         manager.createNotificationChannel(channel)
         manager.createNotificationChannel(
             NotificationChannel(
                 QUIET_CHANNEL_ID,
                 context.getString(R.string.recording_notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = context.getString(R.string.recording_notification_channel_desc)
                 setShowBadge(false)
@@ -221,6 +229,7 @@ object QuickRecordNotification {
                 views.setViewVisibility(R.id.quick_timer, View.VISIBLE)
                 views.setChronometer(R.id.quick_timer, SystemClock.elapsedRealtime() - state.elapsedMs, null, true)
                 button(context, views, R.id.quick_primary, "Pause", "Pause recording", service(context, REQUEST_PAUSE, RecordingForegroundService.ACTION_PAUSE_RECORDING))
+                discardButton(context, views)
                 button(context, views, R.id.quick_secondary, "Save", "Save recording", service(context, REQUEST_STOP, RecordingForegroundService.ACTION_STOP_RECORDING))
             }
             is State.Saved -> {
@@ -244,6 +253,7 @@ object QuickRecordNotification {
                 views.setViewVisibility(R.id.quick_text, View.VISIBLE)
                 views.setViewVisibility(R.id.quick_timer, View.GONE)
                 button(context, views, R.id.quick_primary, "Resume", "Resume recording", service(context, REQUEST_RESUME, RecordingForegroundService.ACTION_RESUME_RECORDING))
+                discardButton(context, views)
                 button(context, views, R.id.quick_secondary, "Save", "Save recording", service(context, REQUEST_STOP, RecordingForegroundService.ACTION_STOP_RECORDING))
             }
         }
@@ -298,6 +308,16 @@ object QuickRecordNotification {
         views.setViewVisibility(id, View.VISIBLE)
         views.setContentDescription(id, description)
         views.setOnClickPendingIntent(id, action)
+    }
+
+    /** Throws the recording away (the same action as "Delete" on the still-recording prompt). Shown while recording or paused. */
+    private fun discardButton(context: Context, views: RemoteViews) {
+        views.setViewVisibility(R.id.quick_discard, View.VISIBLE)
+        views.setContentDescription(R.id.quick_discard, "Discard recording")
+        views.setOnClickPendingIntent(
+            R.id.quick_discard,
+            service(context, REQUEST_DISCARD, RecordingForegroundService.ACTION_DELETE_RECORDING)
+        )
     }
 
     private fun flags() = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

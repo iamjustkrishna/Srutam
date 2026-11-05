@@ -138,4 +138,35 @@ class NoteSignatureTest {
         assertEquals("Apply for the pack", task.text)
         assertEquals(InsightKind.ACTION, task.kind)
     }
+
+    @Test fun anUnchangedNoteDoesNotRewriteItsFile() = runBlocking {
+        val id = insertProcessedNote()
+        assertEquals(NoteSignature.WriteResult.WRITTEN, NoteSignature.writeForResult(before, id))
+        val bytes = audio.readBytes()
+
+        assertEquals(NoteSignature.WriteResult.ALREADY_SAVED, NoteSignature.writeForResult(before, id))
+        assertTrue(bytes.contentEquals(audio.readBytes()))
+    }
+
+    @Test fun aFileThatIsNotOursButAlreadyHoldsTheNoteNeedsNoPermission() = runBlocking {
+        val id = insertProcessedNote()
+        assertEquals(NoteSignature.WriteResult.WRITTEN, NoteSignature.writeForResult(before, id))
+
+        // The note changes later (new topics), but the file now belongs to an earlier install.
+        val note = before.recordingDao().getRecordingById(id)!!
+        before.recordingDao().updateRecording(note.copy(topics = "[\"Release\",\"Planning\"]", updatedAt = note.updatedAt + 1))
+        audio.setReadOnly()
+
+        // Skipped on machines that ignore read-only (running as root).
+        org.junit.Assume.assumeFalse(BlockWriteAccess.isWritableByPath(audio))
+        assertEquals(NoteSignature.WriteResult.ALREADY_SAVED, NoteSignature.writeForResult(before, id))
+    }
+
+    @Test fun aFileThatIsNotOursAndHasNoBlockStillAsksForPermission() = runBlocking {
+        val id = insertProcessedNote()
+        audio.setReadOnly()
+
+        org.junit.Assume.assumeFalse(BlockWriteAccess.isWritableByPath(audio))
+        assertEquals(NoteSignature.WriteResult.NEEDS_ACCESS, NoteSignature.writeForResult(before, id))
+    }
 }

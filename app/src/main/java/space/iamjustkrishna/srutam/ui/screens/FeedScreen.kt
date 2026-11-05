@@ -831,7 +831,10 @@ fun FeedScreenContent(
                         SquircleActionButton(
                             icon = Icons.Default.Search,
                             contentDescription = "Search",
-                            onClick = { isSearchActive = true }
+                            onClick = {
+                                isSearchActive = true
+                                space.iamjustkrishna.srutam.utils.Analytics.searchOpened(context)
+                            }
                         )
                         if (isCloudSignedIn) {
                             val syncRotation by rememberInfiniteTransition(label = "SyncRotation").animateFloat(
@@ -2491,18 +2494,18 @@ private fun CompactVerticalDateWheel(
     val boundedEarliest = remember(earliestMonth, currentMonth) {
         if (earliestMonth.isAfter(currentMonth)) currentMonth else earliestMonth
     }
-    val days = remember(boundedEarliest, currentMonth) {
+    val today = remember { LocalDate.now() }
+    // The wheel stops at today: no note can be recorded on a day that hasn't happened.
+    val days = remember(boundedEarliest, today) {
         val list = mutableListOf<LocalDate>()
         var curr = boundedEarliest.atDay(1)
-        val end = currentMonth.atEndOfMonth()
-        while (!curr.isAfter(end)) {
+        while (!curr.isAfter(today)) {
             list.add(curr)
             curr = curr.plusDays(1)
         }
-        if (list.isEmpty()) list.add(LocalDate.now())
+        if (list.isEmpty()) list.add(today)
         list
     }
-    val today = remember { LocalDate.now() }
     val initialIndex = remember(days, today) {
         val target = selectedDate ?: today
         days.indexOfFirst { it == target }.coerceAtLeast(0)

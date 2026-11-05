@@ -26,6 +26,8 @@ class SrutamApplication : Application() {
         space.iamjustkrishna.srutam.utils.Analytics.init(this)
         space.iamjustkrishna.srutam.utils.Analytics.setUserProperties(this)
         space.iamjustkrishna.srutam.service.WeeklyRecapWorker.schedule(this)
+        space.iamjustkrishna.srutam.utils.CrashBreadcrumb.install(this)
+        space.iamjustkrishna.srutam.utils.CrashBreadcrumb.reportPrevious(this)
 
         // Auto-archive completed tasks and reconcile alarms while retaining saved history.
         appScope.launch {
