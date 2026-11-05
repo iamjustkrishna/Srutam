@@ -6,19 +6,11 @@ import kotlin.math.roundToLong
 /**
  * How much time talking a note saved, over typing the same words.
  *
- * Typing is counted at [TYPING_WORDS_PER_MINUTE], a comfortable average. Speaking is not
+ * Typing is counted at [StatsConfig.TYPING_WPM], the average person's speed. Speaking is not
  * estimated: it's the real length of the recording. Only the length and the word count of a note
  * go in, never its content, so totals are safe to show and share.
  */
 object TimeSaved {
-    const val TYPING_WORDS_PER_MINUTE = 40
-
-    /** Under this, a note saved too little to make a thing of. */
-    const val MIN_WORTH_SHOWING_SECONDS = 5L
-
-    /** The first goal shown after a first note: five minutes saved. */
-    const val FIRST_MILESTONE_SECONDS = 300L
-
     fun wordCount(text: String?): Int =
         text?.trim()?.takeIf { it.isNotEmpty() }?.split(Regex("\\s+"))?.size ?: 0
 
@@ -29,21 +21,21 @@ object TimeSaved {
         val typingSeconds: Long,
         val savedSeconds: Long
     ) {
-        /** Worth a celebration: it saved at least [MIN_WORTH_SHOWING_SECONDS]. */
-        val worthShowing: Boolean get() = savedSeconds >= MIN_WORTH_SHOWING_SECONDS
+        /** Worth a celebration: it saved at least [StatsConfig.MIN_SECONDS_TO_SHOW]. */
+        val worthShowing: Boolean get() = savedSeconds >= StatsConfig.MIN_SECONDS_TO_SHOW
 
         /** How far to the first milestone, 0..1. */
-        val milestoneProgress: Float get() = (savedSeconds.toFloat() / FIRST_MILESTONE_SECONDS).coerceIn(0f, 1f)
+        val milestoneProgress: Float get() = (savedSeconds.toFloat() / StatsConfig.FIRST_MILESTONE_SECONDS).coerceIn(0f, 1f)
 
-        val reachedFirstMilestone: Boolean get() = savedSeconds >= FIRST_MILESTONE_SECONDS
+        val reachedFirstMilestone: Boolean get() = savedSeconds >= StatsConfig.FIRST_MILESTONE_SECONDS
 
-        val secondsToFirstMilestone: Long get() = max(0L, FIRST_MILESTONE_SECONDS - savedSeconds)
+        val secondsToFirstMilestone: Long get() = max(0L, StatsConfig.FIRST_MILESTONE_SECONDS - savedSeconds)
     }
 
     /** [spokenMs] is the recording's length. */
     fun of(words: Int, spokenMs: Long): Result {
         val spoken = (spokenMs / 1000.0).roundToLong()
-        val typing = (words * 60.0 / TYPING_WORDS_PER_MINUTE).roundToLong()
+        val typing = (words * 60.0 / StatsConfig.TYPING_WPM).roundToLong()
         return Result(words, spoken, typing, max(0L, typing - spoken))
     }
 
@@ -59,15 +51,15 @@ object TimeSaved {
         val typingSeconds: Long
     ) {
         /** A month's first days are empty, so the line falls back to all time until it has a minute to show. */
-        val headerSeconds: Long get() = if (thisMonthSeconds >= MIN_HEADER_SECONDS) thisMonthSeconds else allTimeSeconds
-        val headerIsThisMonth: Boolean get() = thisMonthSeconds >= MIN_HEADER_SECONDS
+        val headerSeconds: Long get() = if (thisMonthSeconds >= StatsConfig.HEADER_LINE_SECONDS) thisMonthSeconds else allTimeSeconds
+        val headerIsThisMonth: Boolean get() = thisMonthSeconds >= StatsConfig.HEADER_LINE_SECONDS
 
         /** Nothing to show yet: new users never see the line. */
-        val worthShowingInHeader: Boolean get() = headerSeconds >= MIN_HEADER_SECONDS
-    }
+        val worthShowingInHeader: Boolean get() = headerSeconds >= StatsConfig.HEADER_LINE_SECONDS
 
-    /** Under a minute saved in all, the header line stays hidden. */
-    const val MIN_HEADER_SECONDS = 60L
+        /** Enough saved for Your Srutam to open at all. */
+        val worthShowingStats: Boolean get() = allTimeSeconds >= StatsConfig.MIN_SECONDS_TO_SHOW
+    }
 
     /** Adds up every note that has a transcript. [monthStartMs] is the first moment of this month. */
     fun totals(notes: Collection<space.iamjustkrishna.srutam.data.Recording>, monthStartMs: Long): Totals {
@@ -159,6 +151,7 @@ object TimeSaved {
             val s = seconds % 60
             if (s == 0L) "${m}m" else "${m}m ${s}s"
         }
+        seconds >= 1_000 * 3600L -> "${java.text.NumberFormat.getIntegerInstance(java.util.Locale.US).format(seconds / 3600)}h"
         else -> {
             val h = seconds / 3600
             val m = (seconds % 3600) / 60

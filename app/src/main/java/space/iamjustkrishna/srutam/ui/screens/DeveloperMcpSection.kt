@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +46,8 @@ import space.iamjustkrishna.srutam.cloud.CloudSyncManager
 import space.iamjustkrishna.srutam.cloud.SupabaseAuthManager
 import space.iamjustkrishna.srutam.cloud.SupabaseCloudClient
 import space.iamjustkrishna.srutam.ui.components.DialogBadgeType
+import space.iamjustkrishna.srutam.ui.components.PillStyle
+import space.iamjustkrishna.srutam.ui.components.PillButton
 import space.iamjustkrishna.srutam.ui.components.SrutamStandardDialog
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
@@ -236,362 +239,190 @@ fun DeveloperMcpSection(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         if (isSignedIn) {
-            // Signed-in State Card
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isDark) CosmicVoidCard else SlateGrouped,
-                border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Top Row: Status Indicator and Sign Out button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(CosmicAuroraGreen)
-                            )
-                            Text(
-                                text = "Srutam Cloud Active",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                        }
+            val keysFull = apiKeys.size >= ApiKeyRules.MAX_ACTIVE_KEYS
+            val secondary = if (isDark) TextOnDarkSecondary else TextSecondary
 
-                        OutlinedButton(
-                            onClick = {
-                                authManager.signOut()
-                                isSignedIn = false
-                                userEmail = null
-                                apiKeys = emptyList()
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.45f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Sign Out",
-                                modifier = Modifier.size(13.dp),
-                                tint = Color(0xFFEF4444)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Sign Out",
-                                fontSize = 11.sp,
-                                color = Color(0xFFEF4444),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Second Row: Email & Sync Button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.weight(1f).padding(end = 8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.AccountCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
+            // The account, and the one switch that keeps notes in step with it.
+            SettingsSection(title = "") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RowTile(Icons.Default.Cloud)
+                    Column(Modifier.weight(1f)) {
+                        Text("Srutam Cloud", fontSize = 15.5.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = if (isDark) TextOnDarkPrimary else TextPrimary)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(7.dp).clip(CircleShape).background(CosmicAuroraGreen))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = userEmail ?: "Signed in",
-                                fontSize = 12.sp,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                                fontSize = 12.5.sp,
+                                lineHeight = 17.sp,
+                                color = secondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                    }
+                    PillButton(
+                        "Sync now",
+                        onClick = {
+                            CloudSyncManager.enqueueSync(context, forceAll = true)
+                            Toast.makeText(context, "Syncing all notes to cloud...", Toast.LENGTH_SHORT).show()
+                        },
+                        style = PillStyle.Secondary,
+                        icon = Icons.Default.Sync,
+                        compact = true
+                    )
+                }
+                InsetDivider()
+                SettingsToggleRow(
+                    icon = Icons.Default.CloudUpload,
+                    title = "Auto-sync",
+                    subtitle = "Upload new notes and insights automatically",
+                    checked = isAutoSyncEnabled,
+                    onCheckedChange = { enabled ->
+                        isAutoSyncEnabled = enabled
+                        AppPreferences.setAutoCloudSyncEnabled(context, enabled)
+                    }
+                )
+            }
 
-                        FilledTonalButton(
+            // Coding agents: connect a computer, see what is connected, or make a key by hand.
+            SettingsSection(title = "CODING AGENTS (MCP)") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp).padding(top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RowTile(Icons.Default.QrCodeScanner)
+                    RowText("Connect a computer", if (keysFull) "Max ${ApiKeyRules.MAX_ACTIVE_KEYS} keys reached. Revoke one to add another." else "Run srutam-mcp init, then scan the code it shows", Modifier.weight(1f))
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 58.dp, end = 14.dp, bottom = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val canConnect = !keysFull && !isPairing
+                    PillButton("Scan QR", onClick = { startScan() }, icon = Icons.Default.QrCodeScanner, compact = true, enabled = canConnect)
+                    PillButton("Enter code", onClick = { pairingState = PairingUiState.EnteringCode() }, style = PillStyle.Secondary, compact = true, enabled = canConnect)
+                }
+                InsetDivider()
+                SettingsValueRow(
+                    icon = Icons.Default.Computer,
+                    title = "Connected computers",
+                    subtitle = if (!isLoadingKeys && apiKeys.isEmpty()) "None yet" else "",
+                    value = if (isLoadingKeys) "..." else "${apiKeys.size} of ${ApiKeyRules.MAX_ACTIVE_KEYS}"
+                )
+                apiKeys.forEach { key ->
+                    InsetDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 58.dp, end = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                            Text(key.name, fontSize = 14.5.sp, fontWeight = FontWeight.Medium, color = if (isDark) TextOnDarkPrimary else TextPrimary)
+                            Text(key.keyPrefix, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = if (isDark) CosmicGlowBlue else CobaltBlue)
+                        }
+                        IconButton(
                             onClick = {
-                                CloudSyncManager.enqueueSync(context, forceAll = true)
-                                Toast.makeText(context, "Syncing all notes to cloud...", Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Icon(Icons.Default.Sync, contentDescription = "Sync", modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync", fontSize = 11.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Auto-Sync Toggle Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = "Auto-Sync to Cloud",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                            Text(
-                                text = "Upload new notes and insights automatically",
-                                fontSize = 11.sp,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
-                        }
-                        Switch(
-                            checked = isAutoSyncEnabled,
-                            onCheckedChange = { enabled ->
-                                isAutoSyncEnabled = enabled
-                                AppPreferences.setAutoCloudSyncEnabled(context, enabled)
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = CobaltBlue
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // API Keys sub-header with 3-key limit enforcement
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "MCP Agent Keys",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) TextOnDarkPrimary else TextPrimary
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (apiKeys.size >= 3) Color(0xFFEF4444).copy(alpha = 0.15f) else (if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0))
-                                ) {
-                                    Text(
-                                        text = "${apiKeys.size}/3",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = if (apiKeys.size >= 3) "Max 3 keys reached. Revoke one to create new." else "Keys for Claude Code, Codex, Cursor, Gemini CLI & more",
-                                fontSize = 11.sp,
-                                color = if (apiKeys.size >= 3) Color(0xFFEF4444) else (if (isDark) TextOnDarkSecondary else TextSecondary),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    ConnectComputerCard(
-                        isDark = isDark,
-                        enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isPairing,
-                        onScanRequested = { startScan() },
-                        onEnterCodeRequested = { pairingState = PairingUiState.EnteringCode() }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Manual key creation stays available but secondary: it is the only route for
-                    // WSL, dev containers and SSH boxes, which have no screen to scan from.
-                    Text(
-                        text = "Create key manually",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (apiKeys.size >= ApiKeyRules.MAX_ACTIVE_KEYS) (if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)) else CobaltBlue,
-                        modifier = Modifier.clickable(enabled = apiKeys.size < ApiKeyRules.MAX_ACTIVE_KEYS && !isCreatingKey) {
-                            keyNameInput = ""
-                            keyDialogError = null
-                            showGenerateKeyDialog = true
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    if (isLoadingKeys) {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = CobaltBlue)
-                        }
-                    } else if (apiKeys.isEmpty()) {
-                        Text(
-                            text = "No computers connected yet. Run srutam-mcp init on your computer and scan the code.",
-                            fontSize = 12.sp,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            apiKeys.forEach { key ->
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isDark) Color(0xFF14192D) else Color.White,
-                                    border = BorderStroke(0.8.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = key.name,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                                            )
-                                            Text(
-                                                text = key.keyPrefix,
-                                                fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = if (isDark) CosmicGlowBlue else CobaltBlue
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    val res = cloudClient.revokeApiKey(key.id)
-                                                    if (res.isSuccess) {
-                                                        Toast.makeText(context, "API Key revoked", Toast.LENGTH_SHORT).show()
-                                                        refreshKeys()
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(Icons.Default.DeleteOutline, contentDescription = "Revoke Key", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                                        }
+                                scope.launch {
+                                    val res = cloudClient.revokeApiKey(key.id)
+                                    if (res.isSuccess) {
+                                        Toast.makeText(context, "API Key revoked", Toast.LENGTH_SHORT).show()
+                                        refreshKeys()
                                     }
                                 }
-                            }
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = "Revoke Key", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // srutam-mcp init configures every supported client itself, so the long
-                    // per-client snippet card this screen used to carry is gone. One command is
-                    // all a user needs, and it keeps anyone whose CLI predates pairing unstuck.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth().clickable {
+                }
+                InsetDivider()
+                // Manual key creation stays available but secondary: it is the only route for
+                // WSL, dev containers and SSH boxes, which have no screen to scan from.
+                Box(Modifier.alpha(if (keysFull) 0.5f else 1f)) {
+                    SettingsLinkRow(
+                        icon = Icons.Default.VpnKey,
+                        title = "Create key manually",
+                        subtitle = "For servers and dev containers with no screen",
+                        onClick = {
+                            if (!keysFull && !isCreatingKey) {
+                                keyNameInput = ""
+                                keyDialogError = null
+                                showGenerateKeyDialog = true
+                            }
+                        }
+                    )
+                }
+                InsetDivider()
+                // srutam-mcp init configures every supported client itself, so one command is all anyone needs.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clickable {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("Srutam MCP setup", "npx -y srutam-mcp init"))
                             Toast.makeText(context, "Command copied", Toast.LENGTH_SHORT).show()
                         }
-                    ) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
-                        Text(
-                            text = "npx -y srutam-mcp init",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            Icons.Default.ContentCopy,
-                            contentDescription = "Copy command",
-                            modifier = Modifier.size(13.dp),
-                            tint = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RowTile(Icons.Default.Terminal)
+                    Column(Modifier.weight(1f)) {
+                        Text("Setup command", fontSize = 15.5.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = if (isDark) TextOnDarkPrimary else TextPrimary)
+                        Text("npx -y srutam-mcp init", fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-                    HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder, thickness = 0.8.dp)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Last item in the card, centered: discoverable but deliberately unhurried,
-                    // matching Google's own account-deletion UX guidance to keep this reachable
-                    // without making it compete with the actions someone actually uses daily.
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { requestAccountDeletion(context, userEmail) }
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = Color(0xFFEF4444).copy(alpha = 0.85f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Request account & data deletion",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            color = Color(0xFFEF4444).copy(alpha = 0.85f)
-                        )
-                    }
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy command", tint = secondary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                 }
+            }
+
+            // Account: signing out, and (quietly, last) asking for the account and its data to be deleted.
+            SettingsSection(title = "ACCOUNT") {
+                SettingsLinkRow(
+                    icon = Icons.AutoMirrored.Filled.ExitToApp,
+                    title = "Sign out",
+                    subtitle = "",
+                    onClick = {
+                        authManager.signOut()
+                        isSignedIn = false
+                        userEmail = null
+                        apiKeys = emptyList()
+                    }
+                )
+            }
+            // Deliberately unhurried and reachable, matching Google's account-deletion guidance, without competing with daily actions.
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { requestAccountDeletion(context, userEmail) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFFEF4444).copy(alpha = 0.85f))
+                Spacer(Modifier.width(6.dp))
+                Text("Request account & data deletion", fontSize = 12.5.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444).copy(alpha = 0.85f))
             }
         } else {
             // Opt-in Sign-in Card
+            // The group around it is already the card, so this is just a row and a button inside it.
+            SettingsSection(title = "") {
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = if (isDark) CosmicVoidCard else SlateGrouped,
-                border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
+                color = Color.Transparent,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.Start
                 ) {
                     Row(
@@ -600,24 +431,24 @@ fun DeveloperMcpSection(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(CobaltContainer),
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.CloudSync, contentDescription = null, tint = CobaltBlue, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.CloudSync, contentDescription = null, tint = if (isDark) CosmicGlowBlue else CobaltBlue, modifier = Modifier.size(18.dp))
                         }
 
                         Column {
                             Text(
-                                text = "Developer Brain & MCP Sync",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "Srutam Cloud",
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = if (isDark) TextOnDarkPrimary else TextPrimary
                             )
                             Text(
-                                text = "Connect OpenCode, Cursor, Windsurf, Zed & Claude",
-                                fontSize = 12.sp,
+                                text = "Sync notes and connect coding agents",
+                                fontSize = 12.5.sp,
                                 color = if (isDark) TextOnDarkSecondary else TextSecondary
                             )
                         }
@@ -626,9 +457,9 @@ fun DeveloperMcpSection(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Capture spoken architectural thoughts on your phone. Query, search, and implement them instantly inside your coding agents with our local Model Context Protocol (MCP) server.",
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
+                        text = "Back up your notes to your account, and let coding agents like Cursor, Windsurf and Claude read them through MCP.",
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.sp,
                         color = if (isDark) TextOnDarkSecondary else TextSecondary
                     )
 
@@ -663,8 +494,8 @@ fun DeveloperMcpSection(
                             }
                         },
                         enabled = !isAuthLoading,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = CobaltBlue)
                     ) {
                         if (isAuthLoading) {
@@ -674,11 +505,11 @@ fun DeveloperMcpSection(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Connecting...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Connecting...", fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp)
                         } else {
                             Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Connect Cloud & MCP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Connect Cloud & MCP", fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp)
                         }
                     }
                     signInError?.let { message ->
@@ -691,6 +522,7 @@ fun DeveloperMcpSection(
                         )
                     }
                 }
+            }
             }
         }
     }

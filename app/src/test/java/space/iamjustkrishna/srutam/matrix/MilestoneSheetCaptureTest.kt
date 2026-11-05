@@ -15,6 +15,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import space.iamjustkrishna.srutam.ui.components.MilestoneSheet
+import space.iamjustkrishna.srutam.ui.components.TimeSavedCardData
+import space.iamjustkrishna.srutam.utils.TimePeriod
 import space.iamjustkrishna.srutam.ui.theme.SrutamTheme
 import space.iamjustkrishna.srutam.ui.theme.ThemeMode
 import java.io.File
@@ -31,7 +33,7 @@ class MilestoneSheetCaptureTest {
         composeRule.setContent {
             SrutamTheme(themeMode = ThemeMode.LIGHT) {
                 Box(Modifier.fillMaxSize().background(Color(0xFFF4F5F8)))
-                MilestoneSheet(step = step, allTimeSeconds = allTime, onShare = {}, onDismiss = {})
+                MilestoneSheet(step = step, allTimeSeconds = allTime, card = TimeSavedCardData("November", TimePeriod(step, 900L, step + 900L, 12, 2400)), onShare = {}, onDismiss = {})
             }
         }
         composeRule.waitForIdle()

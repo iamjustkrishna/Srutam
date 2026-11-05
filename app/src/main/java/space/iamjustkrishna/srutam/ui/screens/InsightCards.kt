@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -103,9 +104,21 @@ internal fun SingleRowInsightsCapsule(
         ) {
             // Tab data with colored dot indicators matching main branch colors
             data class TabInfo(val key: String, val label: String, val count: Int, val dotColor: Color)
+            // On a narrow screen or at a big text size the room is short: "Next Steps" becomes "Steps"
+            // and the dots go, so the label and the count are never cut.
+            val screenWidth = LocalConfiguration.current.screenWidthDp
+            val fontScale = LocalDensity.current.fontScale
+            // The row is a fixed height, so its text grows only so far with the system font size.
+            val tabScale = if (fontScale > 1.15f) 1.15f / fontScale else 1f
+            // Short on room is found out, not guessed: if a label gets clipped the row first drops the dots,
+            // and if that is not enough, "Next Steps" becomes "Steps".
+            var squeeze by remember(screenWidth, fontScale, ideasCount, nextStepsCount, decisionsCount) { mutableIntStateOf(0) }
+            val squeezeNow = squeeze
+            val noDots = squeeze >= 1 || screenWidth < 340
+            val tight = squeeze >= 2 || screenWidth < 340
             val tabs = listOf(
                 TabInfo("IDEAS", "Ideas", ideasCount, Color(0xFFD97706)),       // Amber
-                TabInfo("NEXT_STEPS", "Next Steps", nextStepsCount, CobaltBlue), // Blue
+                TabInfo("NEXT_STEPS", if (tight) "Steps" else "Next Steps", nextStepsCount, CobaltBlue), // Blue
                 TabInfo("DECISIONS", "Decisions", decisionsCount, Color(0xFF0D9488)) // Teal
             )
             tabs.forEach { tab ->
@@ -140,7 +153,9 @@ internal fun SingleRowInsightsCapsule(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Colored dot indicator with glowing halo when selected
-                        if (isSelected) {
+                        if (noDots) {
+                            // no room for it
+                        } else if (isSelected) {
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -160,10 +175,11 @@ internal fun SingleRowInsightsCapsule(
                                     .background(tab.dotColor.copy(alpha = 0.45f), CircleShape)
                             )
                         }
-                        Spacer(modifier = Modifier.width(5.dp))
+                        if (!noDots) Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "${tab.label} · ${tab.count}",
-                            fontSize = 12.sp,
+                            text = tab.label,
+                            fontSize = (12f * tabScale).sp,
+                            onTextLayout = { if (it.hasVisualOverflow && squeezeNow < 2) squeeze = squeezeNow + 1 },
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) {
                                 if (dark) TextOnDarkPrimary else Color(0xFF0F172A)
@@ -172,8 +188,32 @@ internal fun SingleRowInsightsCapsule(
                             },
                             maxLines = 1,
                             softWrap = false,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.weight(1f, fill = false)
                         )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        // The count has a badge of its own, shortened from 1,000 ("1.2k"), so more digits
+                        // grow the badge instead of pushing the label out.
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 18.dp)
+                                .background(
+                                    if (isSelected) tab.dotColor.copy(alpha = if (dark) 0.28f else 0.14f)
+                                    else if (dark) Color.White.copy(alpha = 0.08f) else Color(0xFFE2E8F0),
+                                    CircleShape
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .testTag("tab_count_${tab.key}")
+                        ) {
+                            Text(
+                                text = space.iamjustkrishna.srutam.utils.StatsConfig.shortCount(tab.count),
+                                fontSize = (10.5f * tabScale).sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) (if (dark) TextOnDarkPrimary else Color(0xFF0F172A)) else (if (dark) TextOnDarkSecondary else TextMuted),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                     }
                 }
             }

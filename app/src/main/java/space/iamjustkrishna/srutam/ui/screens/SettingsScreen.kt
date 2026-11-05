@@ -51,6 +51,7 @@ import space.iamjustkrishna.srutam.service.FloatingButtonService
 import space.iamjustkrishna.srutam.service.QuickRecordNotification
 import space.iamjustkrishna.srutam.service.WeeklyRecapWorker
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import space.iamjustkrishna.srutam.ui.components.SquircleActionButton
 import space.iamjustkrishna.srutam.ui.components.CosmicBackground
 import space.iamjustkrishna.srutam.ui.theme.*
@@ -61,6 +62,9 @@ import space.iamjustkrishna.srutam.utils.AudioFileReader
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onOpenStats: () -> Unit = {},
+    // Your Srutam is only linked once there is something to count.
+    timeSavedAvailable: Boolean = false,
+    onOpenAbout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -93,51 +97,11 @@ fun SettingsScreen(
     }
     var weeklyRecapEnabled by remember { mutableStateOf(AppPreferences.isWeeklyRecapEnabled(context)) }
     var timeSavedLineShown by remember { mutableStateOf(AppPreferences.isTimeSavedLineShown(context)) }
+    var providerExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = {
-            Surface(
-                color = if (isDark) CosmicVoidBackground.copy(alpha = 0.85f) else Color(0xFFF4F5F8).copy(alpha = 0.85f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .drawBehind {
-                        drawLine(
-                            color = if (isDark) CosmicVoidCardBorder.copy(alpha = 0.6f) else Color(0xFFD6E0EC).copy(alpha = 0.6f),
-                            start = Offset(0f, size.height),
-                            end = Offset(size.width, size.height),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Back",
-                            tint = if (isDark) TextOnDarkPrimary else TextPrimary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Settings",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isDark) TextOnDarkPrimary else TextPrimary
-                    )
-                }
-            }
-        },
-        containerColor = if (isDark) CosmicVoidBackground else CeramicWhite,
+        topBar = { SettingsTopBar("Settings", onNavigateBack) },
+        containerColor = if (isDark) CosmicVoidBackground else SettingsLightBackground,
         modifier = modifier
     ) { paddingValues ->
         Box(
@@ -145,98 +109,59 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            CosmicBackground()
+            if (isDark) CosmicBackground()
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp)
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                // =========================================================
-                // Section 0: Appearance & Theme
-                // =========================================================
-                SettingsSection(title = "APPEARANCE") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = "Theme Interface",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                            Text(
-                                text = "Choose light ceramic, deep space cosmic dark, or system mode",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
-                        }
+            // Srutam Cloud first, like the account card at the top of the design
+            DeveloperMcpSection(isDark = isDark)
 
-                        // 3-way segmented control
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (isDark) Color(0xFF070B19) else Color(0xFFF1F5F9))
-                                .border(
-                                    1.dp,
-                                    if (isDark) CosmicVoidCardBorder else SlateBorder,
-                                    RoundedCornerShape(14.dp)
-                                )
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            ThemeSegmentOption(
-                                label = "Light",
-                                icon = Icons.Default.LightMode,
-                                isSelected = themeMode == AppPreferences.THEME_LIGHT,
-                                onClick = {
-                                    themeMode = AppPreferences.THEME_LIGHT
-                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_LIGHT)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ThemeSegmentOption(
-                                label = "Cosmic Dark",
-                                icon = Icons.Default.DarkMode,
-                                isSelected = themeMode == AppPreferences.THEME_COSMIC_DARK,
-                                onClick = {
-                                    themeMode = AppPreferences.THEME_COSMIC_DARK
-                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_COSMIC_DARK)
-                                },
-                                modifier = Modifier.weight(1.3f)
-                            )
-                            ThemeSegmentOption(
-                                label = "System",
-                                icon = Icons.Default.BrightnessAuto,
-                                isSelected = themeMode == AppPreferences.THEME_SYSTEM,
-                                onClick = {
-                                    themeMode = AppPreferences.THEME_SYSTEM
-                                    AppPreferences.setThemeMode(context, AppPreferences.THEME_SYSTEM)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
+            SettingsSection(title = "YOUR SRUTAM") {
+                if (timeSavedAvailable) {
+                    SettingsLinkRow(
+                        icon = Icons.Default.Bolt,
+                        title = "Time saved",
+                        subtitle = "Your time saved, and a card to share",
+                        onClick = onOpenStats
+                    )
+                    InsetDivider()
                 }
+                SettingsToggleRow(
+                    icon = Icons.Default.Notifications,
+                    title = "Weekly recap",
+                    subtitle = "A Sunday note on what you saved",
+                    checked = weeklyRecapEnabled,
+                    onCheckedChange = { enabled ->
+                        weeklyRecapEnabled = enabled
+                        AppPreferences.setWeeklyRecapEnabled(context, enabled)
+                        if (enabled) WeeklyRecapWorker.schedule(context) else WeeklyRecapWorker.cancel(context)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "weekly_recap", enabled)
+                    }
+                )
+                InsetDivider()
+                SettingsToggleRow(
+                    icon = Icons.Default.Schedule,
+                    title = "Show time saved on Notes",
+                    checked = timeSavedLineShown,
+                    onCheckedChange = { enabled ->
+                        timeSavedLineShown = enabled
+                        AppPreferences.setTimeSavedLineShown(context, enabled)
+                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "time_saved_line", enabled)
+                    }
+                )
+            }
 
-                // =========================================================
-                // Section 1: Instant Capture Shortcuts
-                // =========================================================
-                SettingsSection(title = "INSTANT CAPTURE SHORTCUTS") {
-                    // Row 1: On-Screen Floating Dock
-                    SettingsToggleRow(
+
+            SettingsSection(title = "CAPTURE") {
+                SettingsToggleRow(
                     icon = Icons.Default.PictureInPicture,
-                    iconBg = CobaltContainer,
-                    iconTint = CobaltBlue,
-                    title = "On-Screen Floating Dock",
-                    subtitle = "Discreet edge pill for instant capture from any app",
+                    title = "Floating dock",
+                    subtitle = "Record from any app",
                     checked = isFloatingDockEnabled,
                     onCheckedChange = { enabled ->
                         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
@@ -259,19 +184,14 @@ fun SettingsScreen(
                         }
                     }
                 )
-
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-
-                // Row 2: Persistent Recording Notification
+                InsetDivider()
                 SettingsToggleRow(
                     icon = Icons.Default.Notifications,
-                    iconBg = Color(0xFFFEF3C7),
-                    iconTint = Color(0xFFD97706),
-                    title = "Persistent Recording Notification",
+                    title = "Recording notification",
                     subtitle = if (QuickRecordNotification.switchLocked(isFloatingDockEnabled)) {
-                        "On while the floating dock is on. The dock needs this notification to keep running."
+                        "On while the floating dock is on"
                     } else {
-                        "One notification with a Start button, always visible, even on the lock screen. It becomes Pause and Save with the timer while you record."
+                        "Start, pause and save from the shade"
                     },
                     checked = QuickRecordNotification.switchChecked(isFloatingDockEnabled, isPersistentNotificationEnabled),
                     onCheckedChange = { enabled ->
@@ -281,55 +201,11 @@ fun SettingsScreen(
                     },
                     enabled = !QuickRecordNotification.switchLocked(isFloatingDockEnabled)
                 )
-            }
-
-            // =========================================================
-            // Your Srutam: time saved
-            // =========================================================
-            SettingsSection(title = "YOUR SRUTAM") {
-                SettingsLinkRow(
-                    icon = Icons.Default.Bolt,
-                    title = "Your Srutam",
-                    subtitle = "How much time talking has saved you, and a card to share",
-                    onClick = onOpenStats
-                )
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-                SettingsToggleRow(
-                    icon = Icons.Default.Notifications,
-                    iconBg = Color(0xFFFEF3C7),
-                    iconTint = Color(0xFFD97706),
-                    title = "Weekly recap",
-                    subtitle = "A Sunday evening note on the time you saved this week. Quiet weeks send nothing.",
-                    checked = weeklyRecapEnabled,
-                    onCheckedChange = { enabled ->
-                        weeklyRecapEnabled = enabled
-                        AppPreferences.setWeeklyRecapEnabled(context, enabled)
-                        if (enabled) WeeklyRecapWorker.schedule(context) else WeeklyRecapWorker.cancel(context)
-                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "weekly_recap", enabled)
-                    }
-                )
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-                SettingsToggleRow(
-                    icon = Icons.Default.Schedule,
-                    title = "Time saved under the title",
-                    subtitle = "The small line on Notes. Off hides it; Your Srutam stays here.",
-                    checked = timeSavedLineShown,
-                    onCheckedChange = { enabled ->
-                        timeSavedLineShown = enabled
-                        AppPreferences.setTimeSavedLineShown(context, enabled)
-                        space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "time_saved_line", enabled)
-                    }
-                )
-            }
-
-            // =========================================================
-            // Recording
-            // =========================================================
-            SettingsSection(title = "RECORDING") {
+                InsetDivider()
                 SettingsToggleRow(
                     icon = Icons.Default.Edit,
                     title = "Ask for a name after recording",
-                    subtitle = "Off: notes are saved right away. You can rename any note later from its menu.",
+                    subtitle = "Off: notes are saved right away",
                     checked = askNameAfterRecording,
                     onCheckedChange = { enabled ->
                         askNameAfterRecording = enabled
@@ -339,134 +215,11 @@ fun SettingsScreen(
                 )
             }
 
-            // =========================================================
-            // Section 2: Speech Recognition Engine
-            // =========================================================
-            SettingsSection(title = "SPEECH RECOGNITION ENGINE") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(CobaltContainer)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GraphicEq,
-                                contentDescription = null,
-                                tint = CobaltBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "Speech Engine",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                            Text(
-                                text = "Proprietary on-device model · Zero cloud latency",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
-                        }
-                    }
-
-                    Surface(
-                        color = if (isDark) Color(0xFF1E3A8A) else CobaltContainer,
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = "Srutam Voice v1",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else CobaltBlue,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                HorizontalDivider(color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isDark) EmeraldContainer.copy(alpha = 0.2f) else EmeraldContainer)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shield,
-                                contentDescription = null,
-                                tint = EmeraldSuccess,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "Privacy Guarantee",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                            Text(
-                                text = "Raw audio files never leave your device",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
-                        }
-                    }
-
-                    Surface(
-                        color = if (isDark) Color(0xFF064E3B) else EmeraldContainer,
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = "100% On-Device",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else EmeraldSuccess,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            // =========================================================
-            // Section 3: AI Intelligence Provider
-            // =========================================================
-            SettingsSection(title = "AI INTELLIGENCE & PROVIDER") {
-                // Auto AI Processing Toggle
+            SettingsSection(title = "NOTES AND AI") {
                 SettingsToggleRow(
                     icon = Icons.Default.AutoAwesome,
-                    iconBg = Color(0xFFF3E8FF),
-                    iconTint = Color(0xFF7C3AED),
-                    title = "Auto AI Processing",
-                    subtitle = "Get insights as soon as you stop recording. Your note is transcribed on your device while you speak.",
+                    title = "Auto AI processing",
+                    subtitle = "Summarize as soon as you stop",
                     checked = isAutoAiEnabled,
                     onCheckedChange = { enabled ->
                         isAutoAiEnabled = enabled
@@ -474,9 +227,23 @@ fun SettingsScreen(
                         space.iamjustkrishna.srutam.utils.Analytics.settingChanged(context, "auto_ai", enabled)
                     }
                 )
-
-                HorizontalDivider(color = SlateBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
-
+                InsetDivider()
+                SettingsValueRow(
+                    icon = Icons.Default.Memory,
+                    title = "AI provider",
+                    value = when (selectedProvider) {
+                        AppPreferences.PROVIDER_SRUTAM_DEFAULT -> "Srutam Cloud"
+                        AppPreferences.PROVIDER_OPENAI -> "OpenAI"
+                        AppPreferences.PROVIDER_ANTHROPIC -> "Anthropic"
+                        AppPreferences.PROVIDER_GEMINI -> "Gemini"
+                        AppPreferences.PROVIDER_GROQ -> "Groq"
+                        else -> selectedProvider
+                    },
+                    onClick = { providerExpanded = !providerExpanded },
+                    trailing = if (providerExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
+                )
+                if (providerExpanded) {
+                    InsetDivider()
                 Column(modifier = Modifier.padding(16.dp)) {
                     // Option A: Srutam Cloud (Default)
                     Row(
@@ -774,167 +541,120 @@ fun SettingsScreen(
                         )
                     }
                 }
+                }
+                InsetDivider()
+                SettingsValueRow(
+                    icon = Icons.Default.GraphicEq,
+                    title = "Speech recognition",
+                    value = "On device"
+                )
             }
 
-            SettingsSection(title = "YOUR RECORDINGS") {
+            SettingsSection(title = "RECORDINGS") {
                 space.iamjustkrishna.srutam.ui.components.RecordingAccessSettings()
             }
 
-            // =========================================================
-            // Section 3.5: Cloud Sync & Developer Brain (MCP)
-            // =========================================================
-            SettingsSection(title = "CLOUD SYNC & DEVELOPER BRAIN (MCP)") {
-                DeveloperMcpSection(isDark = isDark)
-            }
-
-            // =========================================================
-            // Section 4: Build & App Info
-            // =========================================================
-            val recordingsDir = remember { AudioFileReader.getRecordingsDirectory() }
-            val audioFiles = remember { recordingsDir.listFiles() ?: emptyArray() }
-            val totalBytes = remember { audioFiles.sumOf { it.length() } }
-            val formattedStorage = remember(totalBytes) {
-                when {
-                    totalBytes >= 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", totalBytes / (1024f * 1024f))
-                    totalBytes >= 1024 -> String.format(java.util.Locale.US, "%.1f KB", totalBytes / 1024f)
-                    else -> "$totalBytes B"
-                }
-            }
-
-
-            SettingsSection(title = "ABOUT & STORAGE") {
-                Column(modifier = Modifier.padding(16.dp)) {
+            SettingsSection(title = "APPEARANCE") {
+                var themeOpen by remember { mutableStateOf(false) }
+                SettingsValueRow(
+                    icon = Icons.Default.LightMode,
+                    title = "Theme",
+                    value = when (themeMode) {
+                        AppPreferences.THEME_LIGHT -> "Light"
+                        AppPreferences.THEME_COSMIC_DARK -> "Cosmic dark"
+                        else -> "System"
+                    },
+                    onClick = { themeOpen = !themeOpen },
+                    trailing = if (themeOpen) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
+                )
+                if (themeOpen) {
+                    InsetDivider()
+                    // The three choices open right under the row, like the AI provider, so nothing floats over other rows.
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Image(
-                            painter = painterResource(R.drawable.srutam_final_log),
-                            contentDescription = "Srutam App Logo",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "Srutam",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextOnDarkPrimary else TextPrimary
-                            )
-                            Text(
-                                text = "Intelligent Voice and Thought Engine",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isDark) TextOnDarkSecondary else TextSecondary
-                            )
+                        listOf(
+                            "Light" to AppPreferences.THEME_LIGHT,
+                            "Cosmic dark" to AppPreferences.THEME_COSMIC_DARK,
+                            "System" to AppPreferences.THEME_SYSTEM
+                        ).forEach { (label, mode) ->
+                            val selected = themeMode == mode
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (selected) (if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF)) else Color.Transparent)
+                                    .border(
+                                        1.dp,
+                                        if (selected) (if (isDark) CosmicGlowBlue.copy(alpha = 0.5f) else Color(0xFFC3D6FB)) else settingsLine(),
+                                        CircleShape
+                                    )
+                                    .clickable {
+                                        themeMode = mode
+                                        AppPreferences.setThemeMode(context, mode)
+                                    }
+                                    .padding(horizontal = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.5.sp,
+                                    maxLines = 1,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selected) (if (isDark) Color.White else TextPrimary) else (if (isDark) TextOnDarkSecondary else TextSecondary)
+                                )
+                            }
                         }
                     }
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(bottom = 14.dp),
-                        color = if (isDark) CosmicVoidCardBorder else SlateBorder.copy(alpha = 0.6f),
-                        thickness = 0.8.dp
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Storage Location",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDark) TextOnDarkPrimary else TextPrimary
-                        )
-                        Text(
-                            text = "App-Private Music",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Audio Storage",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDark) TextOnDarkPrimary else TextPrimary
-                        )
-                        Text(
-                            text = "$formattedStorage (${audioFiles.size} notes)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Version",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDark) TextOnDarkPrimary else TextPrimary
-                        )
-                        Text(
-                            text = "Srutam v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isDark) TextOnDarkSecondary else TextSecondary
-                        )
-                    }
                 }
             }
 
-            // Developer Footer
+            SettingsSection(title = "") {
+                SettingsLinkRow(
+                    icon = Icons.Default.Info,
+                    title = "About",
+                    subtitle = "Privacy, version and storage",
+                    onClick = onOpenAbout
+                )
+            }
+
+            // The maker's line, with the handle under it as a small pill that opens X.
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Developed with care by Krishna",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = "Srutam · made by Krishna",
+                    fontSize = 12.5.sp,
                     color = if (isDark) TextOnDarkSecondary else TextSecondary
                 )
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF))
+                        .border(1.dp, if (isDark) CosmicGlowBlue.copy(alpha = 0.35f) else Color(0xFFC3D6FB), CircleShape)
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com/iamjustkrishna"))
-                            context.startActivity(intent)
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com/iamjustkrishna")))
                         }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "𝕏",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else Color(0xFF0F172A)
-                    )
                     Text(
                         text = "@iamjustkrishna",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isDark) CosmicGlowBlue else CobaltBlue
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = "Opens X",
+                        tint = if (isDark) CosmicGlowBlue else CobaltBlue,
+                        modifier = Modifier.size(13.dp)
                     )
                 }
             }
@@ -945,192 +665,164 @@ fun SettingsScreen(
     }
 }
 
-@Composable
-private fun ThemeSegmentOption(
-    label: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDark = LocalIsCosmicDark.current
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) {
-            if (isDark) CosmicGlowBlue.copy(alpha = 0.25f) else Color.White
-        } else {
-            Color.Transparent
-        },
-        border = if (isSelected) {
-            BorderStroke(1.dp, if (isDark) CosmicGlowBlue else Color(0xFFCBD5E1))
-        } else null,
-        shadowElevation = if (isSelected && !isDark) 1.dp else 0.dp,
-        modifier = modifier.height(38.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) {
-                    if (isDark) CosmicGlowBlue else CobaltBlue
-                } else {
-                    if (isDark) TextOnDarkSecondary else TextSecondary
-                },
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = label,
-                fontSize = 12.5.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) {
-                    if (isDark) Color.White else TextPrimary
-                } else {
-                    if (isDark) TextOnDarkSecondary else TextSecondary
-                }
-            )
-        }
-    }
-}
+internal val SettingsLightBackground = Color(0xFFF2F4F8)
+private val SettingsGroupShape = RoundedCornerShape(18.dp)
 
 @Composable
-private fun SettingsSection(
+private fun settingsLine() = if (LocalIsCosmicDark.current) CosmicVoidCardBorder else Color(0xFFE5E9F1)
+
+/** A labelled group of rows: a flat white card with a hairline edge. An empty [title] draws no label. */
+@Composable
+internal fun SettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDark = LocalIsCosmicDark.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isDark) TextOnDarkSecondary else TextSecondary,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(start = 6.dp)
-        )
-
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        if (title.isNotEmpty()) {
+            Text(
+                text = title,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary,
+                letterSpacing = 1.15.sp,
+                modifier = Modifier.padding(start = 6.dp, top = 4.dp)
+            )
+        }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = if (isDark) CosmicVoidCard else CeramicWhite.copy(alpha = 0.98f),
-            border = BorderStroke(1.dp, if (isDark) CosmicVoidCardBorder else SlateBorder),
-            shadowElevation = if (isDark) 0.dp else 2.dp,
+            shape = SettingsGroupShape,
+            color = if (isDark) CosmicVoidCard else Color.White,
+            border = BorderStroke(1.dp, settingsLine()),
             content = { Column(content = content) }
         )
     }
 }
 
+/** The line between two rows, starting under the text rather than under the icon. */
 @Composable
-private fun SettingsLinkRow(
+internal fun InsetDivider() {
+    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), color = settingsLine(), thickness = 1.dp)
+}
+
+@Composable
+internal fun RowTile(icon: ImageVector) {
+    val isDark = LocalIsCosmicDark.current
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF))
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = if (isDark) CosmicGlowBlue else CobaltBlue, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+internal fun RowText(title: String, subtitle: String, modifier: Modifier = Modifier) {
+    val isDark = LocalIsCosmicDark.current
+    Column(modifier) {
+        Text(
+            text = title,
+            fontSize = 15.5.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isDark) TextOnDarkPrimary else TextPrimary
+        )
+        if (subtitle.isNotEmpty()) {
+            Text(
+                text = subtitle,
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp,
+                color = if (isDark) TextOnDarkSecondary else TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+internal fun SettingsLinkRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailing: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
 ) {
     val isDark = LocalIsCosmicDark.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (isDark) CobaltContainer.copy(alpha = 0.2f) else CobaltContainer)
-        ) {
-            Icon(imageVector = icon, contentDescription = null, tint = CobaltBlue, modifier = Modifier.size(20.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isDark) TextOnDarkPrimary else TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isDark) TextOnDarkSecondary else TextSecondary
-            )
-        }
+        RowTile(icon)
+        RowText(title, subtitle, Modifier.weight(1f))
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            imageVector = trailing,
             contentDescription = null,
-            tint = if (isDark) TextOnDarkSecondary else TextSecondary
+            tint = (if (isDark) TextOnDarkSecondary else TextSecondary).copy(alpha = 0.7f),
+            modifier = Modifier.size(18.dp)
         )
     }
 }
 
 @Composable
-private fun SettingsToggleRow(
+internal fun SettingsToggleRow(
     icon: ImageVector,
-    iconBg: Color = CobaltContainer,
-    iconTint: Color = CobaltBlue,
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     enabled: Boolean = true
 ) {
-    val isDark = LocalIsCosmicDark.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .alpha(if (enabled) 1f else 0.6f)
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
-            .padding(16.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (isDark) iconBg.copy(alpha = 0.2f) else iconBg)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) TextOnDarkPrimary else TextPrimary
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isDark) TextOnDarkSecondary else TextSecondary
-                )
-            }
-        }
+        RowTile(icon)
+        RowText(title, subtitle, Modifier.weight(1f))
+        SrutamSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
+}
 
-        SrutamSwitch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled
-        )
+/** A row with a value on the right. With an [onClick] it opens something; without one it only tells you. */
+@Composable
+internal fun SettingsValueRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    subtitle: String = "",
+    onClick: (() -> Unit)? = null,
+    trailing: ImageVector? = null,
+    valueColor: Color? = null
+) {
+    val isDark = LocalIsCosmicDark.current
+    val secondary = if (isDark) TextOnDarkSecondary else TextSecondary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        RowTile(icon)
+        RowText(title, subtitle, Modifier.weight(1f))
+        Text(text = value, fontSize = 14.sp, fontWeight = if (valueColor != null) FontWeight.Medium else FontWeight.Normal, color = valueColor ?: secondary, maxLines = 1)
+        if (trailing != null) {
+            Icon(imageVector = trailing, contentDescription = null, tint = secondary.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+        }
     }
 }
 

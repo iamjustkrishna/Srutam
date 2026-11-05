@@ -1,5 +1,7 @@
 package space.iamjustkrishna.srutam.ui.components
 
+import space.iamjustkrishna.srutam.ui.screens.InsetDivider
+import space.iamjustkrishna.srutam.ui.screens.SettingsValueRow
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -248,62 +250,35 @@ fun RecordingAccessSettings() {
         if (granted) BlockWriteAccess.onAccessGranted(context)
     }
 
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        SettingsAccessRow(
-            title = "Find recordings on this device",
-            subtitle = "Lets Srutam see recordings an earlier install left in Music/Srutam, and bring back their notes.",
-            action = if (storageGranted) null else "Allow",
-            status = if (storageGranted) "Allowed" else null,
-            onAction = { storageLauncher.launch(StoragePermission.permission) }
+    Column {
+        SettingsValueRow(
+            icon = Icons.Default.FolderOpen,
+            title = "Find old recordings",
+            subtitle = "Bring back notes from an earlier install",
+            value = if (storageGranted) "Allowed" else "Allow",
+            valueColor = if (storageGranted) null else Sem.accent,
+            onClick = if (storageGranted) null else ({ storageLauncher.launch(StoragePermission.permission) })
         )
-        SettingsAccessRow(
-            title = "Save notes into recordings",
-            subtitle = "Each note is kept inside its recording, so a reinstall brings it back without AI. " +
-                "Recordings from an earlier install need your OK first.",
-            action = if (pendingCount > 0 && BlockWriteAccess.isSupported) "Allow" else null,
-            status = when {
+        InsetDivider()
+        val canAllow = pendingCount > 0 && BlockWriteAccess.isSupported
+        SettingsValueRow(
+            icon = Icons.Default.Save,
+            title = "Save notes inside recordings",
+            subtitle = "A reinstall brings them back without AI",
+            value = when {
+                canAllow -> "Allow"
                 pendingCount == 0 -> "All saved"
-                !BlockWriteAccess.isSupported -> "$pendingCount not saved"
-                else -> null
+                else -> "$pendingCount not saved"
             },
-            onAction = {
+            valueColor = if (canAllow) Sem.accent else null,
+            onClick = if (canAllow) ({
                 scope.launch {
                     BlockWriteAccess.createRequest(context)?.let {
                         writeLauncher.launch(IntentSenderRequest.Builder(it).build())
                     }
                 }
-            }
+            }) else null
         )
-    }
-}
-
-@Composable
-private fun SettingsAccessRow(
-    title: String,
-    subtitle: String,
-    action: String?,
-    status: String?,
-    onAction: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Sem.text)
-            Spacer(Modifier.height(2.dp))
-            Text(subtitle, fontSize = 12.5.sp, lineHeight = 17.sp, color = Sem.textSecondary)
-        }
-        Spacer(Modifier.width(12.dp))
-        if (action != null) {
-            TextButton(onClick = onAction) {
-                Text(action, color = Sem.accent, fontWeight = FontWeight.Bold)
-            }
-        } else if (status != null) {
-            Text(status, fontSize = 12.5.sp, color = Sem.textMuted, fontWeight = FontWeight.Medium)
-        }
     }
 }
 

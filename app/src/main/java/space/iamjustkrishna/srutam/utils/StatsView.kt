@@ -48,7 +48,6 @@ data class StatsView(
 object StatsViews {
 
     /** Under this many words there is no pace worth quoting. */
-    private const val MIN_WORDS_FOR_PACE = 20
 
     fun build(
         recordings: Collection<Recording>,
@@ -147,16 +146,16 @@ object StatsViews {
     private fun StatsView.withPace(): StatsView {
         val words = period.words
         val spoken = period.spokenSeconds
-        if (words < MIN_WORDS_FOR_PACE || spoken <= 0) return this
+        if (words < StatsConfig.MIN_WORDS_FOR_PACE || spoken <= 0) return this
         val wpm = (words * 60.0 / spoken).toInt()
-        val multiple = wpm.toDouble() / TimeSaved.TYPING_WORDS_PER_MINUTE
+        val multiple = wpm.toDouble() / StatsConfig.TYPING_WPM
         return copy(paceWpm = wpm, paceMultiple = if (multiple >= 1.05) String.format(Locale.US, "%.1f", multiple) else "")
     }
 
     /** The tallest bar, unless it is under a minute (nothing worth lighting up). */
     private fun bestIndex(values: List<Long>): Int? {
         val max = values.maxOrNull() ?: return null
-        return if (max >= TimeSaved.MIN_HEADER_SECONDS) values.indexOf(max) else null
+        return if (max >= StatsConfig.HEADER_LINE_SECONDS) values.indexOf(max) else null
     }
 
     private fun bars(values: List<Long>, best: Int?, futureFrom: Int?): List<StatsBar> =
@@ -164,7 +163,7 @@ object StatsViews {
 
     /** "1h 12m more than September", or less; null when there was nothing before or it is the same. */
     private fun delta(now: Long, before: Long, than: String): String? {
-        if (before < TimeSaved.MIN_HEADER_SECONDS || now == before) return null
+        if (before < StatsConfig.HEADER_LINE_SECONDS || now == before) return null
         val diff = kotlin.math.abs(now - before)
         val word = if (now > before) "more" else "less"
         return "${TimeSaved.hero(diff)} $word than $than"

@@ -291,6 +291,12 @@ fun InsightsContent(
                     .padding(padding)
             ) {
                 val selected = selection ?: state.initialTab()
+                // Only this many cards are built at a time; "Show more" adds a page. Hundreds of ideas stay quick.
+                var expandedGroups by rememberSaveable(selected, selectedDate?.toString(), selectedThemeKey) { mutableStateOf(listOf<String>()) }
+                val groupShown = remember(selected, selectedDate?.toString(), selectedThemeKey) { mutableStateMapOf<String, Int>() }
+                var visibleInsights by rememberSaveable(selected, selectedDate?.toString(), selectedThemeKey) {
+                    mutableIntStateOf(space.iamjustkrishna.srutam.utils.StatsConfig.INSIGHTS_PAGE)
+                }
 
                 // Top Segmented Capsule matching the rhythm of the Notes screen
                 SingleRowInsightsCapsule(
@@ -554,8 +560,11 @@ fun InsightsContent(
                                     }
                                 }
 
-                                items(openTasks, key = { it.id }) { task ->
+                                items(openTasks.take(visibleInsights), key = { it.id }) { task ->
                                     InsightTaskCard(task, state, actions, onRecordingClick)
+                                }
+                                if (openTasks.size > visibleInsights) {
+                                    item(key = "more_tasks") { ShowMoreInsights(openTasks.size - visibleInsights) { visibleInsights += space.iamjustkrishna.srutam.utils.StatsConfig.INSIGHTS_PAGE } }
                                 }
 
                                 if (completedTasks.isNotEmpty()) {
@@ -631,7 +640,8 @@ fun InsightsContent(
                                     }
                                 }
 
-                                items(filtered, key = { it.id }) { insight ->
+                                val page = space.iamjustkrishna.srutam.utils.StatsConfig.INSIGHTS_PAGE
+                                val insightCard: @Composable (InsightEntity) -> Unit = { insight ->
                                     val steps = if (isIdeas) {
                                         state.items.filter { it.sourceInsightId == insight.id && it.status != InsightStatus.ARCHIVED }
                                     } else emptyList()
@@ -652,6 +662,40 @@ fun InsightsContent(
                                             }
                                         }
                                     )
+                                }
+                                if (filtered.size <= page) {
+                                    // A short list is just a list.
+                                    items(filtered.take(visibleInsights), key = { it.id }) { insight -> insightCard(insight) }
+                                } else {
+                                    // A long one is folded by when it was said: this week stays open, the rest open one at a time.
+                                    insightGroups(filtered, state.now).forEach { group ->
+                                        val open = group.recent || group.key in expandedGroups
+                                        item(key = "group_${group.key}") {
+                                            if (group.recent) {
+                                                InsightGroupLabel(group.label, group.items.size)
+                                            } else {
+                                                ExpandInsightsRow(
+                                                    title = group.label,
+                                                    detail = "${group.items.size}",
+                                                    expanded = open,
+                                                    onClick = {
+                                                        expandedGroups = if (group.key in expandedGroups) expandedGroups - group.key else expandedGroups + group.key
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        if (open) {
+                                            val shown = if (group.recent) visibleInsights else (groupShown[group.key] ?: page)
+                                            items(group.items.take(shown), key = { it.id }) { insight -> insightCard(insight) }
+                                            if (group.items.size > shown) {
+                                                item(key = "more_${group.key}") {
+                                                    ShowMoreInsights(group.items.size - shown) {
+                                                        if (group.recent) visibleInsights += page else groupShown[group.key] = shown + page
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1405,5 +1449,54 @@ private fun IdeaStepsDialog(
                 }
             }
         }
+    }
+}
+
+/** The button under a long list: how many more there are, and a page more on tap. */
+@Composable
+private fun ShowMoreInsights(remaining: Int, onClick: () -> Unit) {
+    val page = space.iamjustkrishna.srutam.utils.StatsConfig.INSIGHTS_PAGE
+    Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+        TextButton(onClick = onClick) { Text("Show ${minOf(page, remaining)} more · $remaining left") }
+    }
+}
+
+/** One fold of a long list: when it was said, and what was said then. [recent] groups stay open. */
+private data class InsightGroup(val key: String, val label: String, val items: List<InsightEntity>, val recent: Boolean)
+
+/** Groups by time: the last seven days, the rest of this month, then a group for each earlier month, newest first. */
+private fun insightGroups(items: List<InsightEntity>, nowMs: Long, zone: ZoneId = ZoneId.systemDefault()): List<InsightGroup> {
+    val now = Instant.ofEpochMilli(nowMs).atZone(zone)
+    val weekAgo = nowMs - 7L * 24 * 3_600_000L
+    val thisMonth = java.time.YearMonth.from(now)
+    val byKey = LinkedHashMap<String, MutableList<InsightEntity>>()
+    val labels = HashMap<String, String>()
+    val sorted = items.sortedByDescending { it.createdAt }
+    for (item in sorted) {
+        val month = java.time.YearMonth.from(Instant.ofEpochMilli(item.createdAt).atZone(zone))
+        val key = when {
+            item.createdAt >= weekAgo -> "week"
+            month == thisMonth -> "month"
+            else -> month.toString()
+        }
+        labels.getOrPut(key) {
+            when (key) {
+                "week" -> "This week"
+                "month" -> "Earlier this month"
+                else -> month.format(DateTimeFormatter.ofPattern(if (month.year == thisMonth.year) "MMMM" else "MMMM yyyy"))
+            }
+        }
+        byKey.getOrPut(key) { mutableListOf() }.add(item)
+    }
+    return byKey.map { (key, list) -> InsightGroup(key, labels.getValue(key), list, recent = key == "week") }
+}
+
+@Composable
+private fun InsightGroupLabel(label: String, count: Int) {
+    val dark = space.iamjustkrishna.srutam.ui.theme.LocalIsCosmicDark.current
+    Row(Modifier.fillMaxWidth().padding(start = 6.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label.uppercase(), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp, color = if (dark) Color(0xFF93A3C7) else Color(0xFF64748B))
+        Spacer(Modifier.weight(1f))
+        Text("$count", fontSize = 12.sp, color = if (dark) Color(0xFF93A3C7) else Color(0xFF64748B))
     }
 }

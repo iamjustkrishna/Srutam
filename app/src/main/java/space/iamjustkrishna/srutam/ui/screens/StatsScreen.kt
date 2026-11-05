@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +86,10 @@ import space.iamjustkrishna.srutam.ui.components.Glow
 import space.iamjustkrishna.srutam.ui.components.heroText
 import space.iamjustkrishna.srutam.ui.components.LINING
 import space.iamjustkrishna.srutam.ui.components.Mist
+import space.iamjustkrishna.srutam.ui.components.PillButton
+import space.iamjustkrishna.srutam.ui.components.PillStyle
 import space.iamjustkrishna.srutam.ui.components.Royal
+import space.iamjustkrishna.srutam.ui.components.Slate
 import space.iamjustkrishna.srutam.ui.components.TimeSavedCardData
 import space.iamjustkrishna.srutam.ui.components.TimeSavedCardRenderer
 import space.iamjustkrishna.srutam.ui.components.Void
@@ -100,6 +104,7 @@ import space.iamjustkrishna.srutam.ui.theme.TextOnDarkPrimary
 import space.iamjustkrishna.srutam.ui.theme.TextOnDarkSecondary
 import space.iamjustkrishna.srutam.utils.Analytics
 import space.iamjustkrishna.srutam.utils.StatsBar
+import space.iamjustkrishna.srutam.utils.StatsConfig
 import space.iamjustkrishna.srutam.utils.StatsRange
 import space.iamjustkrishna.srutam.utils.StatsView
 import space.iamjustkrishna.srutam.utils.StatsViews
@@ -126,6 +131,7 @@ fun StatsScreen(
 
     val allTimeSeconds = remember(recordings) { TimeSaved.totals(recordings, TimeSaved.monthStart()).allTimeSeconds }
     val view = remember(recordings, range) { StatsViews.build(recordings, range) }
+    val latest = remember(recordings) { latestNote(recordings) }
 
     Column(
         modifier
@@ -140,9 +146,9 @@ fun StatsScreen(
             Text("Your Srutam", fontSize = 22.sp, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.Bold, color = ink)
         }
 
-        if (allTimeSeconds < TimeSaved.MIN_WORTH_SHOWING_SECONDS) {
-            EmptyStats(ink)
-        } else {
+        // Nothing opens this screen until there is something to count, so below that it just stays blank
+        // (the notes are still loading when it first opens).
+        if (allTimeSeconds >= StatsConfig.MIN_SECONDS_TO_SHOW) {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 // Wide or short screens (a tablet, a phone on its side) get two columns.
                 val twoColumns = maxWidth >= 600.dp
@@ -174,7 +180,7 @@ fun StatsScreen(
         }
     }
 
-    if (showInfo) HowItsCountedSheet(onDismiss = { showInfo = false })
+    if (showInfo) HowItsCountedSheet(latest = latest, onDismiss = { showInfo = false })
 }
 
 // ---- hero --------------------------------------------------------------------------------
@@ -356,7 +362,9 @@ private fun Milestones(allTimeSeconds: Long) {
     val ink = if (dark) TextOnDarkPrimary else Color(0xFF0F172A)
     val sub = if (dark) TextOnDarkSecondary else Color(0xFF64748B)
     val accent = if (dark) Glow else CobaltBlue
-    val next = TimeSavedMilestones.STEPS.firstOrNull { it > allTimeSeconds }
+    val next = StatsConfig.nextAfter(allTimeSeconds)
+    val previous = StatsConfig.reachedBy(allTimeSeconds).lastOrNull() ?: 0L
+    val badges = StatsConfig.badges(allTimeSeconds)
     Column(
         Modifier
             .fillMaxWidth()
@@ -367,52 +375,54 @@ private fun Milestones(allTimeSeconds: Long) {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             Text(
-                if (next != null) "Next milestone: ${TimeSavedMilestones.label(next)}" else "Every milestone reached",
+                "Next milestone: ${TimeSavedMilestones.label(next)}",
                 fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ink, modifier = Modifier.weight(1f, fill = false)
             )
-            if (next != null) Text("${TimeSaved.hero(next - allTimeSeconds)} to go", fontSize = 12.5.sp, color = sub, maxLines = 1)
+            Text("${TimeSaved.hero(next - allTimeSeconds)} to go", fontSize = 12.5.sp, color = sub, maxLines = 1)
         }
-        if (next != null) {
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(if (dark) Color.White.copy(alpha = 0.1f) else Color(0xFFE8EDF5))) {
-                Box(Modifier.fillMaxWidth((allTimeSeconds.toFloat() / next).coerceIn(0.02f, 1f)).height(8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Cobalt, Glow))))
-            }
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(if (dark) Color.White.copy(alpha = 0.1f) else Color(0xFFE8EDF5))) {
+            // How far between the last milestone and the next, so it fills again after each one.
+            val fraction = ((allTimeSeconds - previous).toFloat() / (next - previous)).coerceIn(0.02f, 1f)
+            Box(Modifier.fillMaxWidth(fraction).height(8.dp).clip(CircleShape).background(Brush.horizontalGradient(listOf(Cobalt, Glow))))
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TimeSavedMilestones.STEPS.take(6).forEach { step ->
-                val done = step <= allTimeSeconds
-                val isNext = step == next
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(
-                            when {
-                                done -> if (dark) Cobalt.copy(alpha = 0.22f) else Color(0xFFEEF4FF)
-                                else -> if (dark) Color.White.copy(alpha = 0.06f) else Color(0xFFE8EDF5)
-                            }
-                        )
-                        .then(if (done) Modifier.border(1.dp, if (dark) Glow.copy(alpha = 0.4f) else Color(0xFFC3D6FB), RoundedCornerShape(99.dp)) else Modifier)
-                        .then(
-                            if (isNext) Modifier.drawBehind {
-                                drawRoundRect(accent, cornerRadius = CornerRadius(size.height / 2), style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))))
-                            } else Modifier
-                        )
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        shortStep(step), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-                        color = when { done -> accent; isNext -> ink; else -> sub.copy(alpha = 0.7f) }
-                    )
-                }
+            if (badges.earlier > 0) Badge("✓ ${badges.earlier}", done = true, isNext = false, dark, accent, ink, sub)
+            badges.steps.forEach { step ->
+                Badge(TimeSavedMilestones.badge(step), done = step <= allTimeSeconds, isNext = step == next, dark, accent, ink, sub)
             }
         }
     }
 }
 
-private fun shortStep(seconds: Long) = if (seconds < 3600) "${seconds / 60}m" else "${seconds / 3600}h"
+@Composable
+private fun RowScope.Badge(label: String, done: Boolean, isNext: Boolean, dark: Boolean, accent: Color, ink: Color, sub: Color) {
+    Box(
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(99.dp))
+            .background(
+                when {
+                    done -> if (dark) Cobalt.copy(alpha = 0.22f) else Color(0xFFEEF4FF)
+                    else -> if (dark) Color.White.copy(alpha = 0.06f) else Color(0xFFE8EDF5)
+                }
+            )
+            .then(if (done) Modifier.border(1.dp, if (dark) Glow.copy(alpha = 0.4f) else Color(0xFFC3D6FB), RoundedCornerShape(99.dp)) else Modifier)
+            .then(
+                if (isNext) Modifier.drawBehind {
+                    drawRoundRect(accent, cornerRadius = CornerRadius(size.height / 2), style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))))
+                } else Modifier
+            )
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+            color = when { done -> accent; isNext -> ink; else -> sub.copy(alpha = 0.7f) }
+        )
+    }
+}
 
 @Composable
 private fun ShareRow(view: StatsView, recordings: Collection<Recording>) {
@@ -456,90 +466,94 @@ private fun ShareRow(view: StatsView, recordings: Collection<Recording>) {
             Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = ink, maxLines = 1)
             Text("A picture with your number", fontSize = 11.5.sp, color = sub, maxLines = 1)
         }
-        Row(
-            Modifier
-                .height(32.dp)
-                .clip(RoundedCornerShape(99.dp))
-                .background(CobaltBlue)
-                .clickable {
-                    Analytics.timeSavedShared(context, "stats")
-                    scope.launch {
-                        runCatching { TimeSavedCardRenderer.share(context, card) }
-                            .onFailure { Toast.makeText(context, "Couldn't share the card", Toast.LENGTH_SHORT).show() }
-                    }
+        PillButton(
+            "Share",
+            onClick = {
+                Analytics.timeSavedShared(context, "stats")
+                scope.launch {
+                    runCatching { TimeSavedCardRenderer.share(context, card, campaign = "time_saved") }
+                        .onFailure { Toast.makeText(context, "Couldn't share the card", Toast.LENGTH_SHORT).show() }
                 }
-                .padding(horizontal = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-            Text("Share", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White)
-        }
+            },
+            icon = Icons.Default.Share,
+            compact = true
+        )
     }
 }
 
-// ---- the "i" sheet and the empty state ----------------------------------------------------
+// ---- the "i" sheet ----------------------------------------------------------------------
+
+/** The most recent note with words in it: the sheet works its example from this. */
+internal fun latestNote(recordings: Collection<Recording>): TimeSaved.Result? =
+    recordings.filter { !it.transcript.isNullOrBlank() }
+        .maxByOrNull { it.timestamp }
+        ?.let { TimeSaved.of(it.transcript, it.duration) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HowItsCountedSheet(onDismiss: () -> Unit) {
+private fun HowItsCountedSheet(latest: TimeSaved.Result?, onDismiss: () -> Unit) {
     val dark = LocalIsCosmicDark.current
     val ink = if (dark) TextOnDarkPrimary else Color(0xFF0F172A)
     val sub = if (dark) TextOnDarkSecondary else Color(0xFF64748B)
     val (fill, line) = cardColors()
+    // Before any note there is nothing of the person's own to show, so a small sample stands in.
+    val example = latest ?: TimeSaved.of(35, 12_000L)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = if (dark) CosmicVoidBackground else Color(0xFFF4F5F8)
     ) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 22.dp).navigationBarsPadding().widthIn(max = 560.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 18.dp).navigationBarsPadding().widthIn(max = 560.dp)) {
             Text("How it's counted", fontSize = 21.sp, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.Bold, color = ink)
-            Spacer(Modifier.height(12.dp))
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(fill).border(1.dp, line, RoundedCornerShape(16.dp))) {
-                CalcRow("You said", "35 words", ink, sub, line, first = true)
-                CalcRow("Typing them takes about", "53 s", ink, sub, line)
-                CalcRow("You spoke for", "12 s", ink, sub, line)
-                CalcRow("Saved on this note", "41 s", if (dark) Glow else CobaltBlue, sub, line, highlight = true)
-            }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
-                "Typing is counted at ${TimeSaved.TYPING_WORDS_PER_MINUTE} words a minute. Srutam adds this up for every note. It only uses a note's length and word count, never what it says.",
-                fontSize = 12.5.sp, lineHeight = 18.sp, color = sub
+                buildAnnotatedString {
+                    append("The average person types about ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Medium, color = ink)) { append("${StatsConfig.TYPING_WPM} words a minute") }
+                    append(". Srutam compares that with how long you actually spent talking.")
+                },
+                fontSize = 14.sp, lineHeight = 21.sp, color = sub
             )
             Spacer(Modifier.height(14.dp))
-            Box(
-                Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(15.dp)).background(CobaltBlue).clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center
-            ) { Text("Got it", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.White) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(fill).border(1.dp, line, RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    (if (latest != null) "YOUR LATEST NOTE" else "AN EXAMPLE") + " · ${example.words} WORDS",
+                    fontSize = 10.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = sub
+                )
+                Spacer(Modifier.height(10.dp))
+                val spokenShare = if (example.typingSeconds > 0) (example.spokenSeconds.toFloat() / example.typingSeconds).coerceIn(0.04f, 1f) else 1f
+                CompareLine("Typing it", "~${TimeSaved.short(example.typingSeconds)}", 1f, Slate, ink, sub)
+                Spacer(Modifier.height(9.dp))
+                CompareLine("Saying it", TimeSaved.short(example.spokenSeconds), spokenShare, Cobalt, ink, sub)
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(line))
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Time saved", fontSize = 14.sp, color = sub)
+                    Text(
+                        TimeSaved.short(example.savedSeconds), fontSize = 24.sp, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.ExtraBold,
+                        color = if (dark) Glow else CobaltBlue, style = LINING, maxLines = 1
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Srutam adds this up for every note. It only uses each note's length and word count, never what it says.",
+                fontSize = 12.sp, lineHeight = 17.sp, color = sub, modifier = Modifier.padding(horizontal = 2.dp)
+            )
+            Spacer(Modifier.height(14.dp))
+            PillButton("Got it", onDismiss, modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
 @Composable
-private fun CalcRow(label: String, value: String, valueColor: Color, sub: Color, line: Color, first: Boolean = false, highlight: Boolean = false) {
-    Column {
-        if (!first) Box(Modifier.fillMaxWidth().height(1.dp).background(line))
-        Row(
-            Modifier.fillMaxWidth().then(if (highlight) Modifier.background(Cobalt.copy(alpha = 0.08f)) else Modifier).padding(horizontal = 14.dp, vertical = 11.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, fontSize = 13.5.sp, color = sub)
-            Text(value, fontSize = if (highlight) 18.sp else 13.5.sp, fontWeight = FontWeight.Bold, fontFamily = if (highlight) PlayfairDisplayFontFamily else null, color = valueColor)
+private fun CompareLine(label: String, value: String, share: Float, bar: Color, ink: Color, sub: Color) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(label, fontSize = 13.sp, color = sub, modifier = Modifier.width(74.dp), maxLines = 1)
+        Box(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(Color.Transparent)) {
+            Box(Modifier.fillMaxWidth(share).height(8.dp).clip(CircleShape).background(if (bar == Cobalt) Brush.horizontalGradient(listOf(Cobalt, Glow)) else Brush.horizontalGradient(listOf(bar, bar))))
         }
-    }
-}
-
-@Composable
-private fun EmptyStats(ink: Color) {
-    Column(Modifier.padding(horizontal = 22.dp, vertical = 40.dp)) {
-        Text("Nothing to count yet", fontSize = 20.sp, fontFamily = PlayfairDisplayFontFamily, fontWeight = FontWeight.Bold, color = ink)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Record a voice note and Srutam will show how much time talking saved over typing it.",
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-            color = Color(0xFF64748B)
-        )
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ink, maxLines = 1, modifier = Modifier.widthIn(min = 52.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End)
     }
 }

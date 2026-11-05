@@ -1154,19 +1154,22 @@ fun FeedScreenContent(
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 2.dp)
             )
             milestone?.let { step ->
+                val milestoneCard = remember(timeSavedTotals, recordingsByPath) {
+                    TimeSavedCardData.forTotals(
+                        timeSavedTotals,
+                        month = TimeSaved.period(recordingsByPath.values, TimeSaved.monthStart()),
+                        allTime = TimeSaved.period(recordingsByPath.values, 0L)
+                    )
+                }
                 MilestoneSheet(
                     step = step,
                     allTimeSeconds = timeSavedTotals.allTimeSeconds,
+                    card = milestoneCard,
                     onShare = {
                         milestone = null
                         Analytics.timeSavedShared(context, "milestone")
                         milestoneScope.launch {
-                            val card = TimeSavedCardData.forTotals(
-                                timeSavedTotals,
-                                month = TimeSaved.period(recordingsByPath.values, TimeSaved.monthStart()),
-                                allTime = TimeSaved.period(recordingsByPath.values, 0L)
-                            )
-                            runCatching { TimeSavedCardRenderer.share(context, card, campaign = "milestone") }
+                            runCatching { TimeSavedCardRenderer.share(context, milestoneCard, campaign = "milestone") }
                         }
                     },
                     onDismiss = { milestone = null }

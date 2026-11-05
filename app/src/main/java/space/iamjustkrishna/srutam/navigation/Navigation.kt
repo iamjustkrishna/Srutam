@@ -84,6 +84,8 @@ sealed class Screen(val route: String) {
     }
     data object Settings : Screen("settings")
     data object Stats : Screen("stats")
+    data object About : Screen("about")
+    data object Privacy : Screen("privacy")
 }
 
 @Composable
@@ -170,13 +172,32 @@ fun SrutamNavigation(
         }
 
         composable(Screen.Settings.route) {
+            val context = LocalContext.current
+            val recordings by remember { space.iamjustkrishna.srutam.data.AppDatabase.getDatabase(context).recordingDao().getAllRecordings() }
+                .collectAsState(initial = emptyList())
+            val timeSavedAvailable = remember(recordings) {
+                space.iamjustkrishna.srutam.utils.TimeSaved.totals(recordings, space.iamjustkrishna.srutam.utils.TimeSaved.monthStart()).worthShowingStats
+            }
             SettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                timeSavedAvailable = timeSavedAvailable,
+                onOpenAbout = { navController.navigate(Screen.About.route) },
                 onOpenStats = {
                     space.iamjustkrishna.srutam.utils.Analytics.statsOpened(context, "settings")
                     navController.navigate(Screen.Stats.route)
                 }
             )
+        }
+
+        composable(Screen.About.route) {
+            space.iamjustkrishna.srutam.ui.screens.AboutScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenPrivacy = { navController.navigate(Screen.Privacy.route) }
+            )
+        }
+
+        composable(Screen.Privacy.route) {
+            space.iamjustkrishna.srutam.ui.screens.PrivacyScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(Screen.Stats.route) {
