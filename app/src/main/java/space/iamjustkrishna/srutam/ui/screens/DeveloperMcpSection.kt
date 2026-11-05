@@ -7,6 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,6 +59,15 @@ import space.iamjustkrishna.srutam.ui.components.SrutamStandardDialog
 import space.iamjustkrishna.srutam.ui.theme.*
 import space.iamjustkrishna.srutam.utils.AppPreferences
 
+/** Whether someone is signed in to Srutam Cloud. Kept in step with what is stored, and changes the moment they sign in or out. */
+@Composable
+internal fun rememberCloudSignedIn(): Boolean {
+    val context = LocalContext.current
+    remember { AppPreferences.isCloudSignedIn(context) }
+    val signedIn by AppPreferences.cloudAuthStateFlow.collectAsState()
+    return signedIn
+}
+
 /**
  * Where an account-deletion request goes. Satisfies Google Play's requirement for an
  * in-app deletion path (the in-app part may simply link out to the handling channel -
@@ -61,7 +77,7 @@ import space.iamjustkrishna.srutam.utils.AppPreferences
  */
 private const val ACCOUNT_DELETION_EMAIL = "hlo.krsna@gmail.com"
 
-private fun requestAccountDeletion(context: Context, accountEmail: String?) {
+internal fun requestAccountDeletion(context: Context, accountEmail: String?) {
     val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).apply {
         putExtra(Intent.EXTRA_EMAIL, arrayOf(ACCOUNT_DELETION_EMAIL))
         putExtra(Intent.EXTRA_SUBJECT, "Delete my Srutam account")
@@ -93,9 +109,7 @@ fun DeveloperMcpSection(
     val authManager = remember { SupabaseAuthManager(context) }
     val cloudClient = remember { SupabaseCloudClient(context) }
 
-    var isSignedIn by remember {
-        mutableStateOf(AppPreferences.isCloudSignedIn(context))
-    }
+    val isSignedIn = rememberCloudSignedIn()
     var userEmail by remember {
         mutableStateOf(AppPreferences.getCloudUserEmail(context))
     }
@@ -235,14 +249,30 @@ fun DeveloperMcpSection(
 
 
     LaunchedEffect(isSignedIn) {
-        refreshKeys()
+        if (isSignedIn) {
+            userEmail = AppPreferences.getCloudUserEmail(context)
+            refreshKeys()
+        } else {
+            // Signed out, here or from Settings: the next thing seen is the plain "connect" card.
+            userEmail = null
+            apiKeys = emptyList()
+        }
     }
 
-    Column(
+    AnimatedContent(
+        targetState = isSignedIn,
         modifier = modifier.fillMaxWidth(),
+        transitionSpec = {
+            (fadeIn(tween(320, delayMillis = 90)) + expandVertically(tween(320), expandFrom = Alignment.Top)) togetherWith
+                (fadeOut(tween(180)) + shrinkVertically(tween(320), shrinkTowards = Alignment.Top))
+        },
+        label = "cloudState"
+    ) { signedIn ->
+    Column(
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        if (isSignedIn) {
+        if (signedIn) {
             val keysFull = apiKeys.size >= ApiKeyRules.MAX_ACTIVE_KEYS
             val secondary = if (isDark) TextOnDarkSecondary else TextSecondary
 
@@ -385,33 +415,6 @@ fun DeveloperMcpSection(
                 }
             }
 
-            // Account: signing out, and (quietly, last) asking for the account and its data to be deleted.
-            SettingsSection(title = "ACCOUNT") {
-                SettingsLinkRow(
-                    icon = Icons.AutoMirrored.Filled.ExitToApp,
-                    title = "Sign out",
-                    subtitle = "",
-                    onClick = {
-                        authManager.signOut()
-                        isSignedIn = false
-                        userEmail = null
-                        apiKeys = emptyList()
-                    }
-                )
-            }
-            // Deliberately unhurried and reachable, matching Google's account-deletion guidance, without competing with daily actions.
-            Row(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { requestAccountDeletion(context, userEmail) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFFEF4444).copy(alpha = 0.85f))
-                Spacer(Modifier.width(6.dp))
-                Text("Request account & data deletion", fontSize = 12.5.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444).copy(alpha = 0.85f))
-            }
         } else {
             // Opt-in Sign-in Card
             // The group around it is already the card, so this is just a row and a button inside it.
@@ -478,7 +481,6 @@ fun DeveloperMcpSection(
                                     isAuthLoading = false
                                     if (res.isSuccess) {
                                         space.iamjustkrishna.srutam.utils.Analytics.cloudSignInSucceeded(context, elapsed)
-                                        isSignedIn = true
                                         userEmail = AppPreferences.getCloudUserEmail(context)
                                         Toast.makeText(context, "Connected to Srutam Cloud!", Toast.LENGTH_SHORT).show()
                                         CloudSyncManager.enqueueSync(context, forceAll = true)
@@ -525,6 +527,7 @@ fun DeveloperMcpSection(
             }
             }
         }
+    }
     }
 
     // ---- Pairing dialogs -----------------------------------------------------------------

@@ -7,6 +7,12 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -98,6 +104,7 @@ fun SettingsScreen(
     var weeklyRecapEnabled by remember { mutableStateOf(AppPreferences.isWeeklyRecapEnabled(context)) }
     var timeSavedLineShown by remember { mutableStateOf(AppPreferences.isTimeSavedLineShown(context)) }
     var providerExpanded by remember { mutableStateOf(false) }
+    val cloudSignedIn = rememberCloudSignedIn()
 
     Scaffold(
         topBar = { SettingsTopBar("Settings", onNavigateBack) },
@@ -621,6 +628,22 @@ fun SettingsScreen(
                 )
             }
 
+            // Sign out, last: it is not part of the coding-agents setup, so it does not sit with it.
+            AnimatedVisibility(
+                visible = cloudSignedIn,
+                enter = fadeIn(tween(250)) + expandVertically(tween(250)),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(300))
+            ) {
+                SettingsSection(title = "ACCOUNT") {
+                    SettingsLinkRow(
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        title = "Sign out",
+                        subtitle = "",
+                        onClick = { space.iamjustkrishna.srutam.cloud.SupabaseAuthManager(context).signOut() }
+                    )
+                }
+            }
+
             // The maker's line, with the handle under it as a small pill that opens X.
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -706,21 +729,22 @@ internal fun InsetDivider() {
 }
 
 @Composable
-internal fun RowTile(icon: ImageVector) {
+internal fun RowTile(icon: ImageVector, destructive: Boolean = false) {
     val isDark = LocalIsCosmicDark.current
+    val red = Color(0xFFDC2626)
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(32.dp)
             .clip(RoundedCornerShape(9.dp))
-            .background(if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF))
+            .background(if (destructive) (if (isDark) Color(0xFF3D1511) else Color(0xFFFDE7E4)) else if (isDark) Color(0xFF1A2A55) else Color(0xFFEAF1FF))
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = if (isDark) CosmicGlowBlue else CobaltBlue, modifier = Modifier.size(18.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = if (destructive) red else if (isDark) CosmicGlowBlue else CobaltBlue, modifier = Modifier.size(18.dp))
     }
 }
 
 @Composable
-internal fun RowText(title: String, subtitle: String, modifier: Modifier = Modifier) {
+internal fun RowText(title: String, subtitle: String, modifier: Modifier = Modifier, destructive: Boolean = false) {
     val isDark = LocalIsCosmicDark.current
     Column(modifier) {
         Text(
@@ -728,7 +752,7 @@ internal fun RowText(title: String, subtitle: String, modifier: Modifier = Modif
             fontSize = 15.5.sp,
             lineHeight = 20.sp,
             fontWeight = FontWeight.Medium,
-            color = if (isDark) TextOnDarkPrimary else TextPrimary
+            color = if (destructive) Color(0xFFDC2626) else if (isDark) TextOnDarkPrimary else TextPrimary
         )
         if (subtitle.isNotEmpty()) {
             Text(
@@ -747,7 +771,8 @@ internal fun SettingsLinkRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    trailing: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
+    trailing: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+    destructive: Boolean = false
 ) {
     val isDark = LocalIsCosmicDark.current
     Row(
@@ -759,8 +784,8 @@ internal fun SettingsLinkRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        RowTile(icon)
-        RowText(title, subtitle, Modifier.weight(1f))
+        RowTile(icon, destructive = destructive)
+        RowText(title, subtitle, Modifier.weight(1f), destructive = destructive)
         Icon(
             imageVector = trailing,
             contentDescription = null,

@@ -22,6 +22,7 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -152,6 +153,8 @@ fun AboutScreen(onNavigateBack: () -> Unit, onOpenPrivacy: () -> Unit) {
                 AboutLine("Version", "Srutam v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})", ink, sub)
             }
         }
+        val context = LocalContext.current
+        val cloudSignedIn = rememberCloudSignedIn()
         SettingsSection(title = "PRIVACY") {
             SettingsLinkRow(
                 icon = Icons.Default.Shield,
@@ -159,6 +162,17 @@ fun AboutScreen(onNavigateBack: () -> Unit, onOpenPrivacy: () -> Unit) {
                 subtitle = "What stays on your phone, and usage data",
                 onClick = onOpenPrivacy
             )
+            // Only someone with a cloud account has anything to ask to have deleted.
+            if (cloudSignedIn) {
+                InsetDivider()
+                SettingsLinkRow(
+                    icon = Icons.Default.DeleteOutline,
+                    title = "Request account & data deletion",
+                    subtitle = "Emails a request to delete your cloud account and its data",
+                    onClick = { requestAccountDeletion(context, AppPreferences.getCloudUserEmail(context)) },
+                    destructive = true
+                )
+            }
         }
     }
 }

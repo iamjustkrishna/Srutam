@@ -100,8 +100,43 @@ class SettingsCurrentCaptureTest {
         composeRule.onNodeWithText("Sync now").assertIsDisplayed()
         composeRule.onNodeWithText("Scan QR").assertIsDisplayed()
         composeRule.onNodeWithText("Enter code").assertIsDisplayed()
+        // Sign out is its own group at the bottom, and the deletion request lives in About, not here.
         composeRule.onNodeWithText("Sign out").assertExists()
-        composeRule.onNodeWithText("Request account & data deletion").assertExists()
+        composeRule.onNodeWithText("Request account & data deletion").assertDoesNotExist()
         shot("cloud-signed-in")
+    }
+
+    private fun signIn() = space.iamjustkrishna.srutam.utils.AppPreferences.saveCloudSession(
+        androidx.test.core.app.ApplicationProvider.getApplicationContext(), "user-1", "you@example.com", "token", "refresh"
+    )
+
+    @Test fun signedOutSettingsHaveNoSignOut() {
+        composeRule.setContent { SrutamTheme(themeMode = ThemeMode.LIGHT) { SettingsScreen(onNavigateBack = {}) } }
+        composeRule.onNodeWithText("Connect Cloud & MCP").assertIsDisplayed()
+        composeRule.onNodeWithText("Sign out").assertDoesNotExist()
+    }
+
+    @Test fun deletionRequestIsInAboutAndOnlyWhenSignedIn() {
+        composeRule.setContent { SrutamTheme(themeMode = ThemeMode.LIGHT) { AboutScreen(onNavigateBack = {}, onOpenPrivacy = {}) } }
+        composeRule.onNodeWithText("Request account & data deletion").assertDoesNotExist()
+    }
+
+    @Test fun deletionRequestShowsInAboutWhenSignedIn() {
+        signIn()
+        composeRule.setContent { SrutamTheme(themeMode = ThemeMode.LIGHT) { AboutScreen(onNavigateBack = {}, onOpenPrivacy = {}) } }
+        composeRule.onNodeWithText("Request account & data deletion").assertIsDisplayed()
+        shot("about-signed-in")
+    }
+
+    @Test fun signingOutGoesBackToTheConnectCard() {
+        signIn()
+        composeRule.setContent { SrutamTheme(themeMode = ThemeMode.LIGHT) { SettingsScreen(onNavigateBack = {}) } }
+        composeRule.onNodeWithText("Sync now").assertIsDisplayed()
+        composeRule.onNodeWithText("Sign out").performClick()
+        composeRule.mainClock.advanceTimeBy(1_500)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Connect Cloud & MCP").assertIsDisplayed()
+        composeRule.onNodeWithText("Sync now").assertDoesNotExist()
+        composeRule.onNodeWithText("Sign out").assertDoesNotExist()
     }
 }
