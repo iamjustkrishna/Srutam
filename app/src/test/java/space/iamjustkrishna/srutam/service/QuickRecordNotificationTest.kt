@@ -1,5 +1,6 @@
 package space.iamjustkrishna.srutam.service
 
+import android.Manifest
 import android.app.Application
 import android.app.Notification
 import android.content.Context
@@ -10,6 +11,7 @@ import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Test
@@ -71,6 +73,8 @@ class QuickRecordNotificationTest {
 
     @Test fun theButtonsSendTheRecordingServiceTheRightActions() {
         val app = shadowOf(context as Application)
+        // With the mic allowed, Start goes straight to the recording service.
+        app.grantPermissions(Manifest.permission.RECORD_AUDIO)
 
         text(inflate(State.Idle), R.id.quick_primary).performClick()
         assertEquals(RecordingForegroundService.ACTION_START_RECORDING, app.nextStartedService.action)
@@ -81,8 +85,25 @@ class QuickRecordNotificationTest {
         text(inflate(State.Recording(1_000)), R.id.quick_secondary).performClick()
         assertEquals(RecordingForegroundService.ACTION_STOP_RECORDING, app.nextStartedService.action)
 
+        inflate(State.Recording(1_000)).findViewById<View>(R.id.quick_discard).performClick()
+        assertEquals(RecordingForegroundService.ACTION_DELETE_RECORDING, app.nextStartedService.action)
+
         text(inflate(State.Paused(1_000)), R.id.quick_primary).performClick()
         assertEquals(RecordingForegroundService.ACTION_RESUME_RECORDING, app.nextStartedService.action)
+
+        inflate(State.Paused(1_000)).findViewById<View>(R.id.quick_discard).performClick()
+        assertEquals(RecordingForegroundService.ACTION_DELETE_RECORDING, app.nextStartedService.action)
+    }
+
+    @Test fun withoutTheMicStartOpensTheAppToAsk() {
+        val app = shadowOf(context as Application)
+        app.denyPermissions(Manifest.permission.RECORD_AUDIO)
+
+        text(inflate(State.Idle), R.id.quick_primary).performClick()
+
+        // No recording service yet: the app opens so it can ask for the mic, then starts the recording.
+        assertNull(app.nextStartedService)
+        assertNotNull(app.nextStartedActivity)
     }
 
     @Test fun theNotificationIsOngoingPublicAndOnTheSharedChannel() {
