@@ -42,8 +42,8 @@ android {
         applicationId = "space.iamjustkrishna.srutam"
         minSdk = 29
         targetSdk = 36
-        versionCode = 23
-        versionName = "2.7.3"
+        versionCode = 24
+        versionName = "2.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
